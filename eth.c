@@ -10,24 +10,34 @@
 #include "ip.h"
 
 
-void eth_tx(const struct nm_desc * const nm, struct netmap_ring *rxr) {
+void eth_tx(const struct nm_desc * const nm, const char * const buf) {
+	struct netmap_ring *rxr = NETMAP_RXRING(nm->nifp, nm->cur_rx_ring);
 	struct netmap_ring *txr = NETMAP_TXRING(nm->nifp, nm->cur_tx_ring);
-	struct netmap_slot *rx_slot = &rxr->slot[rxr->cur];
-	struct netmap_slot *tx_slot = &txr->slot[txr->cur];
-	const uint32_t tmp_idx = tx_slot->buf_idx;
-	struct eth_hdr * const eth =
-		(struct eth_hdr * const)NETMAP_BUF(rxr, rx_slot->buf_idx);
+	struct netmap_slot *rxs = &rxr->slot[rxr->cur];
+	struct netmap_slot *txs = &txr->slot[txr->cur];
 
+	// swap the src and dst eth addresses
+	struct eth_hdr * const eth = (struct eth_hdr * const)(buf);
 	uint8_t tmp[ETH_ADDR_LEN];
 	memcpy(tmp, eth->src, sizeof tmp);
 	memcpy(eth->src, eth->dst, sizeof eth->src);
 	memcpy(eth->dst, tmp, sizeof eth->dst);
 
-	tx_slot->buf_idx = rx_slot->buf_idx;
-	tx_slot->len = rx_slot->len;
-	rx_slot->flags = tx_slot->flags = NS_BUF_CHANGED;
-	rx_slot->buf_idx = tmp_idx;
-	rxr->head = rxr->cur = nm_ring_next(rxr, rxr->cur);
+	// move modified rx slot to tx ring, and move an unused tx slot back
+	const uint32_t tmp_idx = txs->buf_idx;
+	D("swapping rx slot %d (buf_idx %d) and tx slot %d (buf_idx %d)",
+		rxr->cur, rxs->buf_idx, txr->cur, txs->buf_idx);
+	// const uint16_t tmp_len = txs->len;
+	txs->buf_idx = rxs->buf_idx;
+	txs->len = rxs->len;
+	txs->flags = NS_BUF_CHANGED;
+	rxs->buf_idx = tmp_idx;
+	// the man page example doesn't set the rxs length, so let's not either
+	// rxs->len = tmp_len;
+	rxs->flags = NS_BUF_CHANGED;
+	// we don't need to advance the rx ring here, the main loop
+	// currently does this
+	// rxr->head = rxr->cur = nm_ring_next(rxr, rxr->cur);
 	txr->head = txr->cur = nm_ring_next(txr, txr->cur);
 
 #ifdef D
@@ -41,9 +51,8 @@ void eth_tx(const struct nm_desc * const nm, struct netmap_ring *rxr) {
 }
 
 
-void eth_rx(const struct nm_desc * const nm, struct netmap_ring *ring) {
-	const struct eth_hdr * const eth =
-		(const struct eth_hdr * const)NETMAP_BUF(ring, ring->slot[ring->cur].buf_idx);
+void eth_rx(const struct nm_desc * const nm, const char * const buf) {
+	const struct eth_hdr * const eth = (const struct eth_hdr * const)(buf);
 	const uint16_t type = ntohs(eth->type);
 
 #ifdef D
@@ -55,13 +64,16 @@ void eth_rx(const struct nm_desc * const nm, struct netmap_ring *ring) {
 		type);
 #endif
 
+	// TODO: make sure the packet is for us (or broadcast)
+
 	switch (type) {
-		case ETHERTYPE_ARP:
-			break;
+		// case ETHERTYPE_ARP:
+		// 	break;
 		case ETHERTYPE_IP:
-			ip_rx(nm, ring, sizeof(struct eth_hdr));
+			ip_rx(nm, buf);
 			break;
 		default:
 			D("unhandled ethertype %x", type);
+			abort();
 	}
 }

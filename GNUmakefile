@@ -13,13 +13,16 @@ $(cmd): lib$(lib).a $(cmd).o
 lib$(lib).a: $(OBJS)
 	ar -crs $@ $^
 
-.PHONY: clean distclean
+.PHONY: clean distclean lint
 
 clean:
 	-@rm $(cmd) $(cmd).o lib$(lib).a $(cmd).core $(OBJS) 2> /dev/null || true
 
 distclean:
 	-@rm $(DEPS) 2> /dev/null || true
+
+lint:
+	cppcheck -D1 --enable=all *.c --check-config -I /usr/include
 
 # advanced auto-dependency generation; see
 # http://mad-scientist.net/make/autodep.html

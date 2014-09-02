@@ -100,8 +100,8 @@ uint16_t in_cksum(void *m, uint16_t len)
 			mlen = m->m_len;
 		if (len < mlen)
 			mlen = len;
-		len -= mlen;
 #else
+		len -= mlen;
 		w = m;
 #endif
 		/*

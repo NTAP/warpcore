@@ -5,7 +5,7 @@
 void hexdump(const void * const ptr, const unsigned len) {
     unsigned char *buf = (unsigned char*)ptr;
 
-    fprintf(stderr, "%d\n", len);
+    fprintf(stderr, "%u\n", len);
     for (unsigned i = 0; i < len; i += 16) {
         fprintf(stderr, "%06x: ", i);
         for (unsigned j = 0; j < 16; j++)

@@ -18,7 +18,7 @@ struct eth_hdr {
 struct nm_desc;
 struct netmap_ring;
 
-void eth_tx(const struct nm_desc * const nm, struct netmap_ring *ring);
-void eth_rx(const struct nm_desc * const nm, struct netmap_ring *ring);
+void eth_tx(const struct nm_desc * const nm, const char * const buf);
+void eth_rx(const struct nm_desc * const nm, const char * const buf);
 
 #endif

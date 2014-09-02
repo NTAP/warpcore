@@ -4,12 +4,16 @@
 #include "eth.h"
 
 
-void ip_tx(const struct nm_desc * const nm, struct netmap_ring *ring) {
+void ip_tx(const struct nm_desc * const nm, const char * const buf) {
 	struct ip_hdr * const ip =
-		(struct ip_hdr * const)(NETMAP_BUF(ring, ring->slot[ring->cur].buf_idx) + sizeof(struct eth_hdr));
+		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
+
+	// swap the src and dst IP addresses
 	struct in_addr tmp = ip->src;
 	ip->src = ip->dst;
 	ip->dst = tmp;
+
+	// calculate the IP checksum
 	ip->cksum = 0;
 	ip->cksum = in_cksum(ip, ntohs(ip->len));
 
@@ -22,13 +26,14 @@ void ip_tx(const struct nm_desc * const nm, struct netmap_ring *ring) {
 		ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
 #endif
 
-	eth_tx(nm, ring);
+	// do Ethernet transmit preparation
+	eth_tx(nm, buf);
 }
 
 
-void ip_rx(const struct nm_desc * const nm, struct netmap_ring *ring, const uint16_t offset) {
+void ip_rx(const struct nm_desc * const nm, const char * const buf) {
 	const struct ip_hdr * const ip =
-		(const struct ip_hdr * const)(NETMAP_BUF(ring, ring->slot[ring->cur].buf_idx) + offset);
+		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
 
 #ifdef D
 	char src[256];
@@ -39,13 +44,17 @@ void ip_rx(const struct nm_desc * const nm, struct netmap_ring *ring, const uint
 		ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
 #endif
 
+	// TODO: make sure the packet is for us (or broadcast)
+	// TODO: validate the IP checksum
+
 	switch (ip->p) {
 		case IP_P_ICMP:
-			icmp_rx(nm, ring, offset + ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
+			icmp_rx(nm, buf, sizeof(struct eth_hdr) + ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
 			break;
-		case IP_P_TCP:
-			break;
+		// case IP_P_TCP:
+		// 	break;
 		default:
 			D("unhandled IP protocol %d", ip->p);
+			abort();
 	}
 }

@@ -11,6 +11,6 @@ struct icmp_hdr {
 };
 
 
-void icmp_rx(const struct nm_desc * const nm, struct netmap_ring *ring, const uint16_t offset, const uint16_t len);
+void icmp_rx(const struct nm_desc * const nm, const char * const buf, const uint16_t offset, const uint16_t len);
 
 #endif
