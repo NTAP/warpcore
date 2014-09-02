@@ -1,0 +1,31 @@
+CFLAGS=-pipe -std=c99 -O0 -g -pg -ftrapv -Wall -Wextra
+
+SRCS=eth.c ip.c icmp.c
+OBJS=$(SRCS:.c=.o)
+DEPS=$(SRCS:.c=.d)
+
+lib=warpcore
+cmd=test
+
+all: $(cmd)
+$(cmd): lib$(lib).a $(cmd).o
+
+lib$(lib).a: $(OBJS)
+	ar -crs $@ $^
+
+.PHONY: clean distclean
+
+clean:
+	-@rm $(cmd) $(cmd).o lib$(lib).a $(cmd).core $(OBJS) 2> /dev/null || true
+
+distclean:
+	-@rm $(DEPS) 2> /dev/null || true
+
+# advanced auto-dependency generation; see
+# http://mad-scientist.net/make/autodep.html
+%.o : %.c
+	$(COMPILE.c) -MD -o $@ $<
+	@sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+		-e '/^$$/ d' -e 's/$$/ :/' -i '' $*.d
+
+-include $(DEPS)
