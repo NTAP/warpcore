@@ -13,6 +13,12 @@ struct eth_hdr {
 } __packed;
 
 
-void eth_receive(const char * const);
+// void eth_rx(const char * const buf);
+
+struct nm_desc;
+struct netmap_ring;
+
+void eth_tx(const struct nm_desc * const nm, struct netmap_ring *ring);
+void eth_rx(const struct nm_desc * const nm, struct netmap_ring *ring);
 
 #endif

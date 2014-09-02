@@ -1,6 +1,6 @@
 CFLAGS=-pipe -std=c99 -O0 -g -pg -ftrapv -Wall -Wextra
 
-SRCS=eth.c ip.c icmp.c
+SRCS=debug.c eth.c ip.c icmp.c in_cksum.c
 OBJS=$(SRCS:.c=.o)
 DEPS=$(SRCS:.c=.d)
 

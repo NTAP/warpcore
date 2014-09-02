@@ -24,11 +24,12 @@ void nm_dump(const struct nmreq * const req) {
 
 //int main(int argc, char const *argv[]) {
 int main(void) {
-	struct nm_desc *d = nm_open("netmap:em1", NULL, 0, 0);
-	struct pollfd fds = { .fd = NETMAP_FD(d), .events = POLLIN };
+	struct nm_desc *nm = nm_open("netmap:em1", NULL, 0, 0);
+	struct pollfd fds = { .fd = NETMAP_FD(nm), .events = POLLIN };
 
+	nm_dump(&nm->req);
 	for (;;) {
-		int n = poll(&fds, 1, -1);
+		int n = poll(&fds, 1, INFTIM);
 		switch (n) {
 			case -1:
 				D("poll: %s", strerror(errno));
@@ -42,14 +43,13 @@ int main(void) {
 				break;
 		}
 
-		struct netmap_ring *ring = NETMAP_RXRING(d->nifp, d->cur_rx_ring);
+		struct netmap_ring *ring = NETMAP_RXRING(nm->nifp, nm->cur_rx_ring);
 		while (!nm_ring_empty(ring)) {
 			const u_int i = ring->cur;
-			char *pkt = NETMAP_BUF(ring, ring->slot[i].buf_idx);
-			eth_receive(pkt);
+			eth_rx(nm, ring);
 			ring->head = ring->cur = nm_ring_next(ring, i);
 		}
 	}
-	nm_close(d);
+	nm_close(nm);
 }
 

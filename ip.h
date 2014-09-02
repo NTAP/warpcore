@@ -26,6 +26,14 @@ struct ip_hdr {
 } __packed __aligned(4);
 
 
-void ip_receive(const char * const);
+// void ip_rx(const char * const);
+struct nm_desc;
+struct netmap_ring;
+
+void ip_tx(const struct nm_desc * const nm, struct netmap_ring *ring);
+void ip_rx(const struct nm_desc * const nm, struct netmap_ring *ring, const uint16_t offset);
+
+// this is defined in in_chksum.c, which is the FreeBSD checksum code
+uint16_t in_cksum(void *m, uint16_t len);
 
 #endif
