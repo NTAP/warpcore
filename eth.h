@@ -3,8 +3,10 @@
 
 #include <stdint.h>	// uint8_t, etc.
 
-
 static const uint_fast8_t ETH_ADDR_LEN = 6; // length of an Ethernet address
+
+static const uint_fast16_t ETH_TYPE_IP = 0x0800;	// IP protocol
+static const uint_fast16_t ETH_TYPE_ARP = 0x0806;	// Address resolution protocol
 
 struct eth_hdr {
 	uint8_t dst[ETH_ADDR_LEN];
@@ -12,13 +14,9 @@ struct eth_hdr {
 	uint16_t type;
 } __packed;
 
+struct warpcore;
 
-// void eth_rx(const char * const buf);
-
-struct nm_desc;
-struct netmap_ring;
-
-void eth_tx(const struct nm_desc * const nm, const char * const buf);
-void eth_rx(const struct nm_desc * const nm, const char * const buf);
+extern void eth_tx(const struct warpcore * const w, const char * const buf);
+extern void eth_rx(const struct warpcore * const w, const char * const buf);
 
 #endif

@@ -1,6 +1,7 @@
-
 #include <stdio.h>  // printf
 #include <ctype.h>  // isprint
+
+#include "debug.h"
 
 void hexdump(const void * const ptr, const unsigned len) {
     unsigned char *buf = (unsigned char*)ptr;

@@ -5,6 +5,6 @@
 #include <net/netmap_user.h>
 
 // for now, we use the netmap-defined debug primitives
-void hexdump(const void * const, const unsigned);
+extern void hexdump(const void * const, const unsigned);
 
 #endif

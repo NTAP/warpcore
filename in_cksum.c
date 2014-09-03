@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #else
 #include <stdint.h>
-#include <assert.h>
 #include "debug.h"
 #define u_short uint16_t
 #define u_char uint8_t
