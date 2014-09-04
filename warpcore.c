@@ -81,12 +81,15 @@ struct warpcore * w_open(const char * const ifname)
 	  ip_ntoa_r(w->bcast, bcast, sizeof bcast));
 
 	// switch interface to netmap mode
+	// TODO: figure out NETMAP_NO_TX_POLL/NETMAP_DO_RX_POLL
 	strncpy(w->req.nr_name, ifname, sizeof w->req.nr_name);
 	w->req.nr_name[sizeof w->req.nr_name - 1] = '\0';
 	w->req.nr_version = NETMAP_API;
 	w->req.nr_ringid &= ~NETMAP_RING_MASK;
 	w->req.nr_flags = NR_REG_ALL_NIC;
-	// TODO: figure out NETMAP_NO_TX_POLL/NETMAP_DO_RX_POLL
+	// w->req.nr_arg1 = 0; // request extra rings
+	// w->req.nr_arg2 = 0; // request them in the same region as the others
+	// w->req.nr_arg3 = 0; // request extra buffers
 	if (ioctl(w->fd, NIOCREGIF, &w->req) == -1) {
 		perror("cannot put interface into netmap mode");
 		abort();
@@ -102,6 +105,24 @@ struct warpcore * w_open(const char * const ifname)
 
 	// direct pointer to the netmap interface struct for convenience
 	w->nif = NETMAP_IF(w->mem, w->req.nr_offset);
+
+	// print some info about our rings
+	for(uint32_t ri = 0; ri <= w->nif->ni_tx_rings-1; ri++) {
+		struct netmap_ring *r = NETMAP_TXRING(w->nif, ri);
+		D("tx ring %d: first slot idx %d, last slot idx %d", ri,
+		  r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
+	}
+	for(uint32_t ri = 0; ri <= w->nif->ni_rx_rings-1; ri++) {
+		struct netmap_ring *r = NETMAP_RXRING(w->nif, ri);
+		D("rx ring %d: first slot idx %d, last slot idx %d", ri,
+		  r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
+	}
+
+	// check how many extra buffers we got
+	D("allocated %d extra rings", w->req.nr_arg1);
+	D("allocated %d extra buffers", w->req.nr_arg3);
+	uint32_t idx = w->nif->ni_bufs_head;
+	D("ni_bufs_head %d", idx);
 
 	return w;
 }
