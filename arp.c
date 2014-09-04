@@ -9,19 +9,19 @@
 
 
 void arp_tx(const struct warpcore * const w, const char * const buf) {
-#if D
+#ifdef D
 	struct arp_hdr * const arp =
 		(struct arp_hdr * const)(buf + sizeof(struct eth_hdr));
 
 	char sha[ETH_ADDR_LEN*3];
 	char spa[IP_ADDR_STRLEN];
-	D("ARP reply %s is-at %s",
+	D("ARP reply %s is at %s",
 		ip_ntoa_r(arp->spa, spa, sizeof spa),
 		ether_ntoa_r((struct ether_addr *)arp->sha, sha));
 #endif
 
 	// do Ethernet transmit preparation
-	eth_tx(w, buf);
+	eth_tx(w, buf, sizeof(struct arp_hdr));
 }
 
 
@@ -29,26 +29,26 @@ void arp_rx(const struct warpcore * const w, const char * const buf) {
 	struct arp_hdr * const arp =
 		(struct arp_hdr * const)(buf + sizeof(struct eth_hdr));
 
-	const uint16_t hrd = ntohs(arp->hrd);
+	const uint_fast16_t hrd = ntohs(arp->hrd);
 	if (hrd != ARP_HRD_ETHER || arp->hln != ETH_ADDR_LEN) {
 		D("unhandled ARP hardware format %d with len %d", hrd, arp->hln);
 		abort();
 	}
 
-	const uint16_t pro = ntohs(arp->pro);
+	const uint_fast16_t pro = ntohs(arp->pro);
 	if (pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN) {
 		D("unhandled ARP protocol format %d with len %d", pro, arp->pln);
 		abort();
 	}
 
-	const uint16_t op = ntohs(arp->op);
+	const uint_fast16_t op = ntohs(arp->op);
 	switch (op) {
 		case ARP_OP_REQUEST:
 			{
-#if D
+#ifdef D
 				char spa[IP_ADDR_STRLEN];
 				char tpa[IP_ADDR_STRLEN];
-				D("ARP request who-as %s tell %s",
+				D("ARP request who as %s tell %s",
 					ip_ntoa_r(arp->spa, spa, sizeof spa),
 					ip_ntoa_r(arp->tpa, tpa, sizeof tpa));
 #endif

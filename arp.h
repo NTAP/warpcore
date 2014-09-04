@@ -25,7 +25,7 @@ struct arp_hdr {
 	uint32_t	spa;				// sender protocol address
 	uint8_t		tha[ETH_ADDR_LEN];	// target hardware address
 	uint32_t	tpa;				// target protocol address
-} __packed __aligned(4);
+} __packed;
 
 
 struct warpcore;
