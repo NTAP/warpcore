@@ -9,13 +9,63 @@
 #include <sys/types.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
+#include <pthread.h>
+#include <poll.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
 
 #include "warpcore.h"
 #include "ip.h"
 
 
+void * w_loop(struct warpcore *w)
+{
+	struct pollfd fds = { .fd = w->fd, .events = POLLIN };
+	D("warpcore initialized");
+
+	while (1) {
+		int n = poll(&fds, 1, INFTIM);
+		switch (n) {
+		case -1:
+			D("poll: %s", strerror(errno));
+			abort();
+			break;
+		case 0:
+			D("poll: timeout expired");
+			break;
+		default:
+			// D("poll: %d descriptors ready", n);
+			break;
+		}
+
+		struct netmap_ring *ring = NETMAP_RXRING(w->nif, 0);
+		while (!nm_ring_empty(ring)) {
+			char * const buf =
+				NETMAP_BUF(ring, ring->slot[ring->cur].buf_idx);
+			eth_rx(w, buf);
+			ring->head = ring->cur = nm_ring_next(ring, ring->cur);
+		}
+	}
+
+	return NULL;
+}
+
+
 void w_free(struct warpcore *w)
 {
+	D("warpcore shutting down");
+
+	if (pthread_cancel(w->thr) != 0) {
+		perror("cannot cancel warpcore thread");
+		abort();
+	}
+
+	if (pthread_join(w->thr, NULL) != 0) {
+		perror("cannot wait for exiting warpcore thread");
+		abort();
+	}
+
 	if (munmap(w->mem, w->req.nr_memsize) == -1) {
 		perror("cannot munmap netmap memory");
 		abort();
@@ -87,7 +137,7 @@ struct warpcore * w_init(const char * const ifname)
 	if (w->ip == 0 || w->mask == 0 ||
 	    (w->mac[0] & w->mac[1] & w->mac[2] &
 	     w->mac[3] & w->mac[4] & w->mac[5] < 0)) {
-		D("could not obtain needed information");
+		D("cannot obtain needed interface information");
 		abort();
 	}
 
@@ -139,6 +189,12 @@ struct warpcore * w_init(const char * const ifname)
 	D("allocated %d extra buffers", w->req.nr_arg3);
 	uint32_t idx = w->nif->ni_bufs_head;
 	D("ni_bufs_head %d", idx);
+
+	// detach the warpcore event loop thread
+	if (pthread_create(&w->thr, NULL, (void *)&w_loop, w) != 0) {
+		perror("cannot create warpcore thread");
+		abort();
+	}
 
 	return w;
 }

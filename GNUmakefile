@@ -9,6 +9,7 @@ cmd=test
 SRC=$(filter-out $(cmd).c, $(wildcard *.c))
 OBJ=$(SRC:.c=.o)
 DEP=$(SRC:.c=.d)
+LDLIBS=-lthr
 
 all: $(cmd)
 $(cmd): lib$(lib).a $(cmd).o

@@ -11,6 +11,7 @@ struct warpcore {
 	uint_fast32_t		mask;			// our IP netmask
 	uint_fast32_t		bcast;			// our broadcast address
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address
+	pthread_t		thr;			// our main thread
 
 	int			fd;			// netmap descriptor
 	void *			mem;			// netmap memory
