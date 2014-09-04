@@ -14,6 +14,6 @@ struct udp_hdr {
 struct warpcore;
 
 extern void udp_rx(const struct warpcore * const w, char * const buf,
-	const uint_fast16_t off);
+                   const uint_fast16_t off);
 
 #endif

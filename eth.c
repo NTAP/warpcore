@@ -1,6 +1,6 @@
-#include <netinet/in.h> 	// ntohs
-#include <sys/types.h>		// ether_ntoa_r
-#include <net/ethernet.h>	// ether_ntoa_r
+#include <netinet/in.h>
+#include <sys/types.h>
+#include <net/ethernet.h>
 
 #include "warpcore.h"
 #include "eth.h"
@@ -9,7 +9,8 @@
 
 
 void eth_tx(const struct warpcore * const w, const char * const buf,
-	const uint_fast16_t len) {
+            const uint_fast16_t len)
+{
 	struct netmap_ring *rxr = NETMAP_RXRING(w->nif, 0);
 	struct netmap_ring *txr = NETMAP_TXRING(w->nif, 0);
 	struct netmap_slot *rxs = &rxr->slot[rxr->cur];
@@ -22,7 +23,7 @@ void eth_tx(const struct warpcore * const w, const char * const buf,
 
 	// move modified rx slot to tx ring, and move an unused tx slot back
 	D("swapping rx slot %d (buf_idx %d) and tx slot %d (buf_idx %d)",
-		rxr->cur, rxs->buf_idx, txr->cur, txs->buf_idx);
+	  rxr->cur, rxs->buf_idx, txr->cur, txs->buf_idx);
 	const uint_fast32_t tmp_idx = txs->buf_idx;
 	txs->buf_idx = rxs->buf_idx;
 	rxs->buf_idx = tmp_idx;
@@ -30,21 +31,21 @@ void eth_tx(const struct warpcore * const w, const char * const buf,
 	txs->flags = rxs->flags = NS_BUF_CHANGED;
 	// we don't need to advance the rx ring here, the main loop
 	// currently does this
-	// rxr->head = rxr->cur = nm_ring_next(rxr, rxr->cur);
 	txr->head = txr->cur = nm_ring_next(txr, txr->cur);
 
 #ifdef D
 	char src[ETH_ADDR_LEN*3];
 	char dst[ETH_ADDR_LEN*3];
 	D("Eth %s -> %s, type %d",
-		ether_ntoa_r((struct ether_addr *)eth->src, src),
-		ether_ntoa_r((struct ether_addr *)eth->dst, dst),
-		ntohs(eth->type));
+	  ether_ntoa_r((struct ether_addr *)eth->src, src),
+	  ether_ntoa_r((struct ether_addr *)eth->dst, dst),
+	  ntohs(eth->type));
 #endif
 }
 
 
-void eth_rx(const struct warpcore * const w, char * const buf) {
+void eth_rx(const struct warpcore * const w, char * const buf)
+{
 	const struct eth_hdr * const eth = (struct eth_hdr * const)(buf);
 	const uint_fast16_t type = ntohs(eth->type);
 
@@ -52,22 +53,22 @@ void eth_rx(const struct warpcore * const w, char * const buf) {
 	char src[ETH_ADDR_LEN*3];
 	char dst[ETH_ADDR_LEN*3];
 	D("Eth %s -> %s, type %d",
-		ether_ntoa_r((struct ether_addr *)eth->src, src),
-		ether_ntoa_r((struct ether_addr *)eth->dst, dst),
-		type);
+	  ether_ntoa_r((struct ether_addr *)eth->src, src),
+	  ether_ntoa_r((struct ether_addr *)eth->dst, dst),
+	  type);
 #endif
 
 	// TODO: make sure the packet is for us (or broadcast)
 
 	switch (type) {
-		case ETH_TYPE_ARP:
-			arp_rx(w, buf);
-			break;
-		case ETH_TYPE_IP:
-			ip_rx(w, buf);
-			break;
-		default:
-			D("unhandled ethertype %x", type);
-			abort();
+	case ETH_TYPE_ARP:
+		arp_rx(w, buf);
+		break;
+	case ETH_TYPE_IP:
+		ip_rx(w, buf);
+		break;
+	default:
+		D("unhandled ethertype %x", type);
+		abort();
 	}
 }

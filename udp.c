@@ -5,7 +5,8 @@
 #include "icmp.h"
 
 void udp_rx(const struct warpcore * const w,
-	char * const buf,	const uint_fast16_t off) {
+            char * const buf, const uint_fast16_t off)
+{
 	const struct udp_hdr * const udp = (struct udp_hdr * const)(buf + off);
 	const uint_fast16_t sport = ntohs(udp->sport);
 	const uint_fast16_t dport = ntohs(udp->dport);

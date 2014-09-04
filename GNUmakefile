@@ -19,7 +19,8 @@ lib$(lib).a: $(OBJ)
 .PHONY: clean distclean lint
 
 clean:
-	-@rm $(cmd) $(cmd).o $(cmd).d $(cmd).core lib$(lib).a $(OBJ) 2> /dev/null || true
+	-@rm $(cmd) $(cmd).o $(cmd).d $(cmd).core \
+		lib$(lib).a $(OBJ) 2> /dev/null || true
 
 distclean: clean
 	-@rm $(DEP) 2> /dev/null || true
