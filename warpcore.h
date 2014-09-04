@@ -18,6 +18,8 @@ struct warpcore {
 	struct nmreq		req;			// netmap request
 };
 
-extern struct warpcore * w_open(const char * const ifname);
+extern struct warpcore * w_init(const char * const ifname);
+
+extern void w_free(struct warpcore *w);
 
 #endif

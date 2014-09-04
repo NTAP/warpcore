@@ -10,7 +10,7 @@
 //int main(int argc, char const *argv[]) {
 int main(void)
 {
-	struct warpcore *w = w_open("em1");
+	struct warpcore *w = w_init("em1");
 	struct pollfd fds = { .fd = w->fd, .events = POLLIN };
 
 	for (;;) {
@@ -36,5 +36,5 @@ int main(void)
 			ring->head = ring->cur = nm_ring_next(ring, ring->cur);
 		}
 	}
-	// w_close(w);
+	w_free(w);
 }

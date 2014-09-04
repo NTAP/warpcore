@@ -14,7 +14,23 @@
 #include "ip.h"
 
 
-struct warpcore * w_open(const char * const ifname)
+void w_free(struct warpcore *w)
+{
+	if (munmap(w->mem, w->req.nr_memsize) == -1) {
+		perror("cannot munmap netmap memory");
+		abort();
+	}
+
+	if (close(w->fd) == -1) {
+		perror("cannot close /dev/netmap");
+		abort();
+	}
+
+	free(w);
+}
+
+
+struct warpcore * w_init(const char * const ifname)
 {
 	struct warpcore *w;
 
