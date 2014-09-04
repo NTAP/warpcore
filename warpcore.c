@@ -61,13 +61,23 @@ struct warpcore * w_open(const char * const ifname) {
 		}
 	}
 	freeifaddrs(ifap);
+	if (w->ip == 0 || w->mask == 0 ||
+		w->mac[0] & w->mac[1] & w->mac[2] & w->mac[3] & w->mac[4] & w->mac[5] < 0) {
+		D("could not obtain needed information");
+		abort();
+	}
+	w->bcast = w->ip | (~w->mask);
+	char bcast[IP_ADDR_STRLEN];
+	D("%s has IP broadcast address %s", ifname,
+		ip_ntoa_r(w->bcast, bcast, sizeof bcast));
 
 	// switch interface to netmap mode
 	strncpy(w->req.nr_name, ifname, sizeof w->req.nr_name);
 	w->req.nr_name[sizeof w->req.nr_name - 1] = '\0';
 	w->req.nr_version = NETMAP_API;
 	w->req.nr_ringid &= ~NETMAP_RING_MASK;
-	// TODO: set ringid and flags
+	w->req.nr_flags = NR_REG_ALL_NIC;
+	// TODO: figure out NETMAP_NO_TX_POLL/NETMAP_DO_RX_POLL
 	if (ioctl(w->fd, NIOCREGIF, &w->req) == -1) {
 		perror("cannot put interface into netmap mode");
 		abort();
