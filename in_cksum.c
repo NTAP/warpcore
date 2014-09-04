@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 int
 in_cksum(struct mbuf *m, int len)
 #else
-uint16_t in_cksum(void *m, uint16_t len)
+uint16_t in_cksum(void * const buf, const uint_fast16_t len)
 #endif
 {
 	register u_short *w;
@@ -99,9 +99,9 @@ uint16_t in_cksum(void *m, uint16_t len)
 			mlen = m->m_len;
 		if (len < mlen)
 			mlen = len;
-#else
 		len -= mlen;
-		w = m;
+#else
+		w = buf;
 #endif
 		/*
 		 * Force to even boundary.
@@ -157,11 +157,9 @@ uint16_t in_cksum(void *m, uint16_t len)
 	}
 #endif
 done:
-	if (len)
 #if 0
+	if (len)
 		printf("cksum: out of data\n");
-#else
-		D("cksum: out of data");
 #endif
 	if (mlen == -1) {
 		/* The last mbuf has odd # of bytes. Follow the
