@@ -4,9 +4,10 @@
 #include "ip.h"
 #include "icmp.h"
 #include "eth.h"
+#include "debug.h"
+#include "udp.h"
 
-
-char * ip_ntoa_r(uint32_t ip, char *buf, size_t size) {
+const char * ip_ntoa_r(uint32_t ip, char * const buf, const size_t size) {
 	const uint32_t i = ntohl(ip);
 	snprintf(buf, size, "%d.%d.%d.%d", (i >> 24) & 0xff, (i >> 16) & 0xff,
 		(i >>  8) & 0xff, i & 0xff);
@@ -15,7 +16,8 @@ char * ip_ntoa_r(uint32_t ip, char *buf, size_t size) {
 }
 
 
-void ip_tx(const struct warpcore * const w, const char * const buf) {
+void ip_tx(const struct warpcore * const w, const uint_fast8_t p,
+	const char * const buf,	const uint_fast16_t len) {
 	struct ip_hdr * const ip =
 		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
 
@@ -23,9 +25,16 @@ void ip_tx(const struct warpcore * const w, const char * const buf) {
 	ip->dst = ip->src;
 	ip->src = w->ip;
 
-	// calculate the IP checksum
+	// set the IP length
+	const uint_fast16_t l = ip->hl * 4 + len;
+	ip->len = htons(l);
+
+	// set the IP protocol
+	ip->p = p;
+
+	// finally, calculate the IP checksum
 	ip->cksum = 0;
-	ip->cksum = in_cksum(ip, ntohs(ip->len));
+	ip->cksum = in_cksum(ip, l);
 
 #ifdef D
 	char src[IP_ADDR_STRLEN];
@@ -37,13 +46,13 @@ void ip_tx(const struct warpcore * const w, const char * const buf) {
 #endif
 
 	// do Ethernet transmit preparation
-	eth_tx(w, buf);
+	eth_tx(w, buf, l);
 }
 
 
-void ip_rx(const struct warpcore * const w, const char * const buf) {
+void ip_rx(const struct warpcore * const w, char * const buf) {
 	const struct ip_hdr * const ip =
-		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
+		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
 
 #ifdef D
 	char src[IP_ADDR_STRLEN];
@@ -54,17 +63,34 @@ void ip_rx(const struct warpcore * const w, const char * const buf) {
 		ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
 #endif
 
-	// TODO: make sure the packet is for us (or broadcast)
-	// TODO: validate the IP checksum
+	// make sure the packet is for us (or broadcast)
+	if (ip->dst != w->ip && ip->dst != w->bcast) {
+		D("IP packet not destined to us; ignoring");
+		return;
+	}
 
+	// TODO: validate the IP checksum
+	// TODO: handle IP options
+	if (ip->hl * 4 != 20) {
+		D("no support for IP options");
+		abort();
+	}
+
+	const uint_fast16_t off = sizeof(struct eth_hdr) + ip->hl * 4;
+	const uint_fast16_t len = ntohs(ip->len) - ip->hl * 4;
 	switch (ip->p) {
 		case IP_P_ICMP:
-			icmp_rx(w, buf, sizeof(struct eth_hdr) + ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
+			icmp_rx(w, buf, off, len);
+			break;
+		case IP_P_UDP:
+			udp_rx(w, buf, off);
 			break;
 		// case IP_P_TCP:
 		// 	break;
 		default:
 			D("unhandled IP protocol %d", ip->p);
-			abort();
+			// hexdump(ip, sizeof *ip);
+			icmp_tx_unreach(w, ICMP_UNREACH_PROTOCOL, buf, off);
+			break;
 	}
 }

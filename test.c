@@ -29,7 +29,7 @@ int main(void) {
 
 		struct netmap_ring *ring = NETMAP_RXRING(w->nif, 0);
 		while (!nm_ring_empty(ring)) {
-			const char * const buf = NETMAP_BUF(ring, ring->slot[ring->cur].buf_idx);
+			char * const buf = NETMAP_BUF(ring, ring->slot[ring->cur].buf_idx);
 			eth_rx(w, buf);
 			ring->head = ring->cur = nm_ring_next(ring, ring->cur);
 		}

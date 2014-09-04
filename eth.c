@@ -8,7 +8,8 @@
 #include "arp.h"
 
 
-void eth_tx(const struct warpcore * const w, const char * const buf) {
+void eth_tx(const struct warpcore * const w, const char * const buf,
+	const uint_fast16_t len) {
 	struct netmap_ring *rxr = NETMAP_RXRING(w->nif, 0);
 	struct netmap_ring *txr = NETMAP_TXRING(w->nif, 0);
 	struct netmap_slot *rxs = &rxr->slot[rxr->cur];
@@ -20,17 +21,13 @@ void eth_tx(const struct warpcore * const w, const char * const buf) {
 	memcpy(eth->src, w->mac, sizeof eth->src);
 
 	// move modified rx slot to tx ring, and move an unused tx slot back
-	const uint32_t tmp_idx = txs->buf_idx;
 	D("swapping rx slot %d (buf_idx %d) and tx slot %d (buf_idx %d)",
 		rxr->cur, rxs->buf_idx, txr->cur, txs->buf_idx);
-	// const uint16_t tmp_len = txs->len;
+	const uint_fast32_t tmp_idx = txs->buf_idx;
 	txs->buf_idx = rxs->buf_idx;
-	txs->len = rxs->len;
-	txs->flags = NS_BUF_CHANGED;
 	rxs->buf_idx = tmp_idx;
-	// the man page example doesn't set the rxs length, so let's not either
-	// rxs->len = tmp_len;
-	rxs->flags = NS_BUF_CHANGED;
+	txs->len = len + sizeof(struct eth_hdr);
+	txs->flags = rxs->flags = NS_BUF_CHANGED;
 	// we don't need to advance the rx ring here, the main loop
 	// currently does this
 	// rxr->head = rxr->cur = nm_ring_next(rxr, rxr->cur);
@@ -47,9 +44,9 @@ void eth_tx(const struct warpcore * const w, const char * const buf) {
 }
 
 
-void eth_rx(const struct warpcore * const w, const char * const buf) {
-	const struct eth_hdr * const eth = (const struct eth_hdr * const)(buf);
-	const uint16_t type = ntohs(eth->type);
+void eth_rx(const struct warpcore * const w, char * const buf) {
+	const struct eth_hdr * const eth = (struct eth_hdr * const)(buf);
+	const uint_fast16_t type = ntohs(eth->type);
 
 #ifdef D
 	char src[ETH_ADDR_LEN*3];

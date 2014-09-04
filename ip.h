@@ -3,8 +3,9 @@
 
 #include <stdint.h>
 
-static const uint_fast8_t IP_P_ICMP	=	1; 	// control message protocol
-static const uint_fast8_t IP_P_TCP	=	6;	// transmission control protocol
+static const uint_fast8_t IP_P_ICMP	=		 1;	// control message protocol
+static const uint_fast8_t IP_P_TCP	=		 6;	// transmission control protocol
+static const uint_fast8_t IP_P_UDP	=		17;	// user datagram protocol
 
 static const uint_fast8_t IP_ADDR_LEN =		 4; // IP addresses are four bytes
 static const uint_fast8_t IP_ADDR_STRLEN =	16; // xxx.xxx.xxx.xxx\0
@@ -30,12 +31,14 @@ struct ip_hdr {
 
 struct warpcore;
 
-extern void ip_tx(const struct warpcore * const w, const char * const buf);
-extern void ip_rx(const struct warpcore * const w, const char * const buf);
+extern void ip_tx(const struct warpcore * const w, const uint_fast8_t p,
+	const char * const buf, const uint_fast16_t len);
 
-extern char * ip_ntoa_r(uint32_t ip, char *buf, size_t size);
+extern void ip_rx(const struct warpcore * const w, char * const buf);
+
+extern const char * ip_ntoa_r(uint32_t ip, char * const buf, const size_t size);
 
 // this is defined in in_chksum.c, which is the FreeBSD checksum code
-extern uint16_t in_cksum(void *m, uint16_t len);
+extern uint16_t in_cksum(void * const buf, const uint_fast16_t len);
 
 #endif
