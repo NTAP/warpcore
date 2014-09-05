@@ -1,5 +1,5 @@
-#include <stdio.h>  // printf
-#include <ctype.h>  // isprint
+#include <stdio.h>
+#include <ctype.h>
 
 #include "debug.h"
 
@@ -7,7 +7,6 @@ void hexdump(const void * const ptr, const unsigned len)
 {
 	const char * const buf = (const char * const)ptr;
 
-	fprintf(stderr, "%u\n", len);
 	for (unsigned i = 0; i < len; i += 16) {
 		fprintf(stderr, "%06x: ", i);
 		for (unsigned j = 0; j < 16; j++)
