@@ -1,7 +1,14 @@
-CFLAGS=-pipe -std=c99 -O0 -g -pg -ftrapv -Wall -Wextra
+CC=cc
+COPT=-O0
+CDEB=-g -pg -ftrapv -march=native
+CDIA=-Wall -Wextra -fdiagnostics-color=auto
+CFLAGS+=-pipe -std=c99 $(COPT) $(CDEB) $(CDIA)
 
 # see http://bruno.defraine.net/techtips/makefile-auto-dependencies-with-gcc/
 OUTPUT_OPTION=-MMD -MP -o $@
+
+LDFLAGS+=-Wl --warn-common
+LDLIBS=-lthr
 
 lib=warpcore
 cmd=test
@@ -9,7 +16,6 @@ cmd=test
 SRC=$(filter-out $(cmd).c, $(wildcard *.c))
 OBJ=$(SRC:.c=.o)
 DEP=$(SRC:.c=.d)
-LDLIBS=-lthr
 
 all: $(cmd)
 $(cmd): lib$(lib).a $(cmd).o
