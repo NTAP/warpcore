@@ -206,20 +206,28 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 	}
 	for (struct ifaddrs *i = ifap; i->ifa_next; i = i->ifa_next) {
 		if (strcmp(i->ifa_name, ifname) == 0) {
+#ifdef D
 			char mac[ETH_ADDR_LEN*3];
 			char ip[IP_ADDR_STRLEN];
 			char mask[IP_ADDR_STRLEN];
+#endif
 			switch (i->ifa_addr->sa_family) {
 			case AF_LINK:
+				// get MAC address
 				memcpy(&w->mac,
 				       LLADDR((struct sockaddr_dl *)
 				              i->ifa_addr),
 				       sizeof w->mac);
-				D("%s has Ethernet address %s", i->ifa_name,
+				// get MTU
+				w->mtu = ((struct if_data *)
+				          (i->ifa_data))->ifi_mtu;
+				D("%s has Ethernet address %s with MTU %d",
+				  i->ifa_name,
 				  ether_ntoa_r((struct ether_addr *)w->mac,
-				               mac));
+				               mac), w->mtu);
 				break;
 			case AF_INET:
+				// get IP address and netmask
 				w->ip = ((struct sockaddr_in *)
 				         i->ifa_addr)->sin_addr.s_addr;
 				w->mask = ((struct sockaddr_in *)
@@ -236,7 +244,7 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 		}
 	}
 	freeifaddrs(ifap);
-	if (w->ip == 0 || w->mask == 0 ||
+	if (w->ip == 0 || w->mask == 0 || w->mtu == 0 ||
 	    ((w->mac[0] | w->mac[1] | w->mac[2] |
 	      w->mac[3] | w->mac[4] | w->mac[5]) == 0)) {
 		D("cannot obtain needed interface information");

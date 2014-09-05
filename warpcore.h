@@ -44,6 +44,7 @@ struct warpcore {
 	uint_fast32_t		ip;			// our IP address
 	uint_fast32_t		mask;			// our IP netmask
 	uint_fast32_t		bcast;			// our broadcast address
+	uint_fast16_t		mtu;			// our MTU
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address
 	pthread_t		thr;			// our main thread
 	struct w_socket *	udp[PORT_RANGE_LEN];	// UDP "sockets"
