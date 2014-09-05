@@ -58,7 +58,12 @@ void eth_rx(struct warpcore * w, char * const buf)
 	  type);
 #endif
 
-	// TODO: make sure the packet is for us (or broadcast)
+	// make sure the packet is for us (or broadcast)
+	if (memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
+	    memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN)) {
+		D("Ethernet packet not destined to us; ignoring");
+		return;
+	}
 
 	switch (type) {
 	case ETH_TYPE_ARP:

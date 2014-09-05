@@ -8,6 +8,8 @@
 #define ETH_TYPE_IP	0x0800	// IP protocol
 #define ETH_TYPE_ARP	0x0806	// ARP protocol
 
+#define ETH_BCAST	"\xff\xff\xff\xff\xff\xff"
+
 struct eth_hdr {
 	uint8_t		dst[ETH_ADDR_LEN];
 	uint8_t		src[ETH_ADDR_LEN];
