@@ -37,12 +37,6 @@ void udp_rx(struct warpcore * w,
 		// add the iov to the socket
 		STAILQ_INSERT_TAIL(&(*s)->iv, i, vecs);
 
-		// struct w_iov *v;
-		// int n = 0;
-		// STAILQ_FOREACH(v, &(*s)->iv, vecs) {
-		// 	D("w_iov %d buf %p len %d", n++, v->buf, v->len);
-		// }
-
 		// grab a spare buffer
 		struct w_buf *b = STAILQ_FIRST(&w->buf);
 		if (b == 0) {

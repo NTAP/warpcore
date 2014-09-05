@@ -18,6 +18,8 @@
 #include "warpcore.h"
 #include "ip.h"
 
+#define NUM_EXTRA_BUFS	16
+
 
 struct w_socket ** w_get_socket(struct warpcore * w,
                                  const uint8_t p, const uint16_t port)
@@ -57,7 +59,7 @@ static void w_make_idx_avail(struct warpcore * w, const uint32_t idx)
 	// according to Luigi, any ring can be passed to NETMAP_BUF
 	b->buf = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), idx);
 	b->idx = idx;
-	// D("available extra bufidx %d is %p", idx, b->buf);
+	D("available extra bufidx %d is %p", idx, b->buf);
 	STAILQ_INSERT_TAIL(&w->buf, b, bufs);
 }
 
@@ -67,7 +69,7 @@ void w_rx_done(struct w_socket *s)
 	struct w_iov *i = STAILQ_FIRST(&s->iv);
 	while (i) {
 		struct w_iov *n = STAILQ_NEXT(i, vecs);
-		// TODO: make the buffer available again
+		// make the buffer available again
 		w_make_idx_avail(s->w, i->idx);
 		free(i);
 		i = n;
@@ -253,9 +255,7 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 	w->req.nr_version = NETMAP_API;
 	w->req.nr_ringid &= ~NETMAP_RING_MASK;
 	w->req.nr_flags = NR_REG_ALL_NIC;
-	// w->req.nr_arg1 = 0; // request extra rings
-	// w->req.nr_arg2 = 0; // request them in the same region as the others
-	w->req.nr_arg3 = 1024; // request extra buffers
+	w->req.nr_arg3 = NUM_EXTRA_BUFS; // request extra buffers
 	if (ioctl(w->fd, NIOCREGIF, &w->req) == -1) {
 		perror("cannot put interface into netmap mode");
 		abort();
@@ -283,9 +283,6 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 		D("rx ring %d: first slot idx %d, last slot idx %d", ri,
 		  r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
-
-	// check how many extra buffers we got
-	// D("allocated %d extra rings", w->req.nr_arg1);
 
 	// save the indices of the extra buffers in the warpcore structure
 	STAILQ_INIT(&w->buf);
