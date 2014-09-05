@@ -15,7 +15,7 @@
 
 
 struct w_iov {
-	void *			buf;
+	char *			buf;
 	uint_fast32_t		len;
 	STAILQ_ENTRY(w_iov) 	vecs;			// tail queue
 };
@@ -29,20 +29,24 @@ struct w_socket {
 
 
 struct warpcore {
+	// warpcore information
 	uint_fast32_t		ip;			// our IP address
 	uint_fast32_t		mask;			// our IP netmask
 	uint_fast32_t		bcast;			// our broadcast address
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address
 	pthread_t		thr;			// our main thread
+	struct w_socket *	udp[PORT_RANGE_LEN];	// UDP "sockets"
+	struct w_socket	*	tcp[PORT_RANGE_LEN];	// TCP "sockets"
 
-	struct w_socket *	udp[PORT_RANGE_LEN];
-	struct w_socket	*	tcp[PORT_RANGE_LEN];
-
+	// netmap information
 	int			fd;			// netmap descriptor
 	void *			mem;			// netmap memory
 	struct netmap_if *	nif;			// netmap interface
+	uint_fast32_t		num_bufs;		// nr of extra buffers
+	uint_fast32_t *		buf;			// indices of extra bufs
 	struct nmreq		req;			// netmap request
 };
+
 
 extern struct warpcore * w_init(const char * const ifname);
 

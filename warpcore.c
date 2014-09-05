@@ -215,7 +215,7 @@ struct warpcore * w_init(const char * const ifname)
 	w->req.nr_flags = NR_REG_ALL_NIC;
 	// w->req.nr_arg1 = 0; // request extra rings
 	// w->req.nr_arg2 = 0; // request them in the same region as the others
-	// w->req.nr_arg3 = 0; // request extra buffers
+	w->req.nr_arg3 = 1024; // request extra buffers
 	if (ioctl(w->fd, NIOCREGIF, &w->req) == -1) {
 		perror("cannot put interface into netmap mode");
 		abort();
@@ -245,10 +245,22 @@ struct warpcore * w_init(const char * const ifname)
 	}
 
 	// check how many extra buffers we got
-	D("allocated %d extra rings", w->req.nr_arg1);
-	D("allocated %d extra buffers", w->req.nr_arg3);
-	uint32_t idx = w->nif->ni_bufs_head;
-	D("ni_bufs_head %d", idx);
+	// D("allocated %d extra rings", w->req.nr_arg1);
+	w->num_bufs = w->req.nr_arg3;
+	if ((w->buf = malloc(w->num_bufs * sizeof(uint_fast32_t))) == 0) {
+		perror("cannot allocate index space for extra buffers");
+		abort();
+	}
+	// save the indices of the extra buffers in the warpcore structure
+	for (uint32_t n = 0, i = w->nif->ni_bufs_head;
+	     n < w->num_bufs; n++) {
+		// according to Luigi, any ring can be passed to NETMAP_BUF
+		char *b = NETMAP_BUF(NETMAP_TXRING(w->nif, 0) , i);
+		w->buf[n] = i;
+		// next index is inside the buffer, pretty braindead
+		i = *(uint32_t *)b;
+	}
+	D("allocated %d extra buffers", w->num_bufs);
 
 	// detach the warpcore event loop thread
 	if (pthread_create(&w->thr, 0, (void *)&w_loop, w)) {
