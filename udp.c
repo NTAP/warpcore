@@ -14,7 +14,7 @@ void udp_rx(struct warpcore * w,
 	const uint_fast16_t sport = ntohs(udp->sport);
 	const uint_fast16_t dport = ntohs(udp->dport);
 	const uint_fast16_t len = ntohs(udp->len);
-	struct w_socket **s = w_find_socket(w, IP_P_UDP, dport);
+	struct w_socket **s = w_get_socket(w, IP_P_UDP, dport);
 
 	D("UDP :%d -> :%d, len %d", sport, dport, len);
 
@@ -22,8 +22,7 @@ void udp_rx(struct warpcore * w,
 		// nobody bound to this port locally
 		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
 	} else {
-		D("this is for us!");
-		// allocate a new iovec for the data in this packet
+		// allocate a new iov for the data in this packet
 		struct w_iov *i;
 		if ((i = malloc(sizeof *i)) == 0) {
 			D("cannot allocate w_iov");
@@ -31,16 +30,33 @@ void udp_rx(struct warpcore * w,
 		}
 		i->buf = buf + off;
 		i->len = len;
+		struct netmap_ring *rxr = NETMAP_RXRING(w->nif, 0);
+		struct netmap_slot *rxs = &rxr->slot[rxr->cur];
+		i->idx = rxs->buf_idx;
 
-		// add the iovec to the socket
+		// add the iov to the socket
 		STAILQ_INSERT_TAIL(&(*s)->iv, i, vecs);
-		struct w_iov *v;
-		int n = 0;
-		STAILQ_FOREACH(v, &(*s)->iv, vecs) {
-			D("w_iov %d buf %p len %d", n++, v->buf, v->len);
-		}
 
-		// TODO: take the netmap slot our of the ring until after the
-		// read has happened
+		// struct w_iov *v;
+		// int n = 0;
+		// STAILQ_FOREACH(v, &(*s)->iv, vecs) {
+		// 	D("w_iov %d buf %p len %d", n++, v->buf, v->len);
+		// }
+
+		// grab a spare buffer
+		struct w_buf *b = STAILQ_FIRST(&w->buf);
+		if (b == 0) {
+			D("out of spare bufs");
+			abort();
+		}
+		STAILQ_REMOVE_HEAD(&w->buf, bufs);
+
+		D("swapping rx slot %d (buf_idx %d) and spare buffer idx %d",
+		  rxr->cur, rxs->buf_idx, b->idx);
+
+		i->idx = rxs->buf_idx;
+		rxs->buf_idx = b->idx;
+		rxs->flags = NS_BUF_CHANGED;
+		free(b);
 	}
 }

@@ -19,7 +19,7 @@
 #include "ip.h"
 
 
-struct w_socket ** w_find_socket(struct warpcore * w,
+struct w_socket ** w_get_socket(struct warpcore * w,
                                  const uint8_t p, const uint16_t port)
 {
 	// find the respective "socket"
@@ -47,83 +47,123 @@ struct w_socket ** w_find_socket(struct warpcore * w,
 }
 
 
-void w_close(struct warpcore *w, const uint8_t p, const uint16_t port)
+static void w_make_idx_avail(struct warpcore * w, const uint32_t idx)
 {
-	struct w_socket **s = w_find_socket(w, p, port);
-	if (*s) {
-		free(*s);
-		*s = 0;
-		D("close IP protocol %d port %d", p, port);
-	} else
-		D("IP protocol %d source port %d not in use", p, port);
+	struct w_buf *b = malloc(sizeof *b);
+	if (b == 0) {
+		perror("cannot allocate w_buf");
+		abort();
+	}
+	// according to Luigi, any ring can be passed to NETMAP_BUF
+	b->buf = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), idx);
+	b->idx = idx;
+	// D("available extra bufidx %d is %p", idx, b->buf);
+	STAILQ_INSERT_TAIL(&w->buf, b, bufs);
 }
 
 
-bool w_bind(struct warpcore *w, const uint8_t p, const uint16_t port)
+void w_rx_done(struct w_socket *s)
 {
-	struct w_socket **s = w_find_socket(w, p, port);
+	struct w_iov *i = STAILQ_FIRST(&s->iv);
+	while (i) {
+		struct w_iov *n = STAILQ_NEXT(i, vecs);
+		// TODO: make the buffer available again
+		w_make_idx_avail(s->w, i->idx);
+		free(i);
+		i = n;
+	}
+	STAILQ_INIT(&s->iv);
+
+}
+
+
+struct w_iov * w_rx(struct w_socket *s)
+{
+	if (s)
+		return STAILQ_FIRST(&s->iv);
+	return 0;
+}
+
+
+void w_close(struct w_socket *s)
+{
+	struct w_socket **ss = w_get_socket(s->w, s->p, s->sport);
+	free(*ss);
+	*ss = 0;
+}
+
+
+struct w_socket * w_bind(struct warpcore *w, const uint8_t p,
+                         const uint16_t port)
+{
+	struct w_socket **s = w_get_socket(w, p, port);
 	if (*s == 0) {
 		if ((*s = calloc(1, sizeof **s)) == 0) {
 			perror("cannot allocate struct w_socket");
 			abort();
 		}
 		D("bind IP protocol %d port %d", p, port);
+		(*s)->p = p;
+		(*s)->sport = port;
+		(*s)->w = w;
 	} else {
 		D("IP protocol %d source port %d already in use", p, port);
-		return false;
+		return 0;
 	}
 	STAILQ_INIT(&(*s)->iv);
 
-	return true;
+	return *s;
 }
 
+
+void w_poll(struct warpcore *w)
+{
+	struct pollfd fds = { .fd = w->fd, .events = POLLIN };
+	const int n = poll(&fds, 1, INFTIM);
+	switch (n) {
+	case -1:
+		D("poll: %s", strerror(errno));
+		abort();
+		break;
+	case 0:
+		D("poll: timeout expired");
+		break;
+	default:
+		// D("poll: %d descriptors ready", n);
+		break;
+	}
+
+	struct netmap_ring *ring = NETMAP_RXRING(w->nif, 0);
+	while (!nm_ring_empty(ring)) {
+		char * const buf =
+			NETMAP_BUF(ring, ring->slot[ring->cur].buf_idx);
+		eth_rx(w, buf);
+		ring->head = ring->cur = nm_ring_next(ring, ring->cur);
+	}
+}
 
 
 void * w_loop(struct warpcore *w)
 {
-	struct pollfd fds = { .fd = w->fd, .events = POLLIN };
-	D("warpcore initialized");
-
-	while (1) {
-		int n = poll(&fds, 1, INFTIM);
-		switch (n) {
-		case -1:
-			D("poll: %s", strerror(errno));
-			abort();
-			break;
-		case 0:
-			D("poll: timeout expired");
-			break;
-		default:
-			D("poll: %d descriptors ready", n);
-			break;
-		}
-
-		struct netmap_ring *ring = NETMAP_RXRING(w->nif, 0);
-		while (!nm_ring_empty(ring)) {
-			char * const buf =
-				NETMAP_BUF(ring, ring->slot[ring->cur].buf_idx);
-			eth_rx(w, buf);
-			ring->head = ring->cur = nm_ring_next(ring, ring->cur);
-		}
-	}
-
-	return 0;
+	while (1)
+		w_poll(w);
 }
 
 
-void w_free(struct warpcore *w)
+void w_cleanup(struct warpcore *w)
 {
 	D("warpcore shutting down");
 
-	if (pthread_cancel(w->thr)) {
-		perror("cannot cancel warpcore thread");
-		abort();
-	}
+	if (w->thr) {
+		if (pthread_cancel(w->thr)) {
+			perror("cannot cancel warpcore thread");
+			abort();
+		}
 
-	if (pthread_join(w->thr, 0)) {
-		perror("cannot wait for exiting warpcore thread");
-		abort();
+		if (pthread_join(w->thr, 0)) {
+			perror("cannot wait for exiting warpcore thread");
+			abort();
+		}
 	}
 
 	if (munmap(w->mem, w->req.nr_memsize) == -1) {
@@ -140,7 +180,7 @@ void w_free(struct warpcore *w)
 }
 
 
-struct warpcore * w_init(const char * const ifname)
+struct warpcore * w_init(const char * const ifname, const bool detach)
 {
 	struct warpcore *w;
 
@@ -246,26 +286,23 @@ struct warpcore * w_init(const char * const ifname)
 
 	// check how many extra buffers we got
 	// D("allocated %d extra rings", w->req.nr_arg1);
-	w->num_bufs = w->req.nr_arg3;
-	if ((w->buf = malloc(w->num_bufs * sizeof(uint_fast32_t))) == 0) {
-		perror("cannot allocate index space for extra buffers");
-		abort();
-	}
+
 	// save the indices of the extra buffers in the warpcore structure
+	STAILQ_INIT(&w->buf);
 	for (uint32_t n = 0, i = w->nif->ni_bufs_head;
-	     n < w->num_bufs; n++) {
-		// according to Luigi, any ring can be passed to NETMAP_BUF
-		char *b = NETMAP_BUF(NETMAP_TXRING(w->nif, 0) , i);
-		w->buf[n] = i;
-		// next index is inside the buffer, pretty braindead
+	     n < w->req.nr_arg3; n++) {
+	     	w_make_idx_avail(w, i);
+		char * b = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i);
 		i = *(uint32_t *)b;
 	}
-	D("allocated %d extra buffers", w->num_bufs);
+	D("allocated %d extra buffers", w->req.nr_arg3);
 
-	// detach the warpcore event loop thread
-	if (pthread_create(&w->thr, 0, (void *)&w_loop, w)) {
-		perror("cannot create warpcore thread");
-		abort();
+	if (detach) {
+		// detach the warpcore event loop thread
+		if (pthread_create(&w->thr, 0, (void *)&w_loop, w)) {
+			perror("cannot create warpcore thread");
+			abort();
+		}
 	}
 
 	return w;

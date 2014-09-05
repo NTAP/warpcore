@@ -15,16 +15,27 @@
 
 
 struct w_iov {
-	char *			buf;
-	uint_fast32_t		len;
-	STAILQ_ENTRY(w_iov) 	vecs;			// tail queue
+	char *			buf;	// user data
+	uint_fast32_t		len;	// length of user data
+	uint_fast32_t		idx;	// netmap buffer index containing buf
+	STAILQ_ENTRY(w_iov) 	vecs;	// tail queue (next iov)
 };
 
 
 struct w_socket {
-	uint_fast32_t		ip;			// dst IP address
-	uint_fast16_t		port;			// dst port
-	STAILQ_HEAD(ivh, w_iov)	iv;			// where to read into
+	struct warpcore *	w;	// warpcore instance
+	uint_fast8_t		p;	// protocol
+	uint_fast16_t		sport;	// source port
+	// uint_fast32_t	dip;	// destination IP address
+	// uint_fast16_t	dport;	// destination port
+	STAILQ_HEAD(ivh, w_iov)	iv;	// iov for read data
+};
+
+
+struct w_buf {
+	char *			buf;	// the buffer
+	uint_fast32_t		idx;	// netmap buffer index of this buffer
+	STAILQ_ENTRY(w_buf) 	bufs;	// tail queue (next buf)
 };
 
 
@@ -39,28 +50,31 @@ struct warpcore {
 	struct w_socket	*	tcp[PORT_RANGE_LEN];	// TCP "sockets"
 
 	// netmap information
-	int			fd;			// netmap descriptor
-	void *			mem;			// netmap memory
-	struct netmap_if *	nif;			// netmap interface
-	uint_fast32_t		num_bufs;		// nr of extra buffers
-	uint_fast32_t *		buf;			// indices of extra bufs
-	struct nmreq		req;			// netmap request
+	int			fd;		// netmap descriptor
+	void *			mem;		// netmap memory
+	struct netmap_if *	nif;		// netmap interface
+	struct nmreq		req;		// netmap request
+	STAILQ_HEAD(bh, w_buf)	buf;		// tail queue of extra free bufs
 };
 
 
-extern struct warpcore * w_init(const char * const ifname);
+extern struct warpcore * w_init(const char * const ifname, const bool detach);
+extern void w_cleanup(struct warpcore *w);
 
-extern void w_free(struct warpcore *w);
+extern struct w_socket * w_bind(struct warpcore *w, const uint8_t p,
+                                const uint16_t port);
 
-extern void w_close(struct warpcore *w, const uint8_t p, const uint16_t port);
+extern struct w_iov * w_rx(struct w_socket *s);
+extern void w_rx_done(struct w_socket *s);
+extern void w_close(struct w_socket *s);
 
-extern bool w_bind(struct warpcore *w, const uint8_t p, const uint16_t port);
 
-extern struct w_iov * w_rx(struct warpcore *w, const uint16_t d);
+// internal warpcore use only; TODO: restrict exporting
+extern struct w_socket ** w_get_socket(struct warpcore * w,
+                                       const uint8_t p, const uint16_t port);
 
-// internal warpcore use only
-// TODO: restrict exporting
-extern struct w_socket ** w_find_socket(struct warpcore * w,
-                                        const uint8_t p, const uint16_t port);
+extern void w_poll(struct warpcore *w);
+extern void * w_loop(struct warpcore *w);
+
 
 #endif
