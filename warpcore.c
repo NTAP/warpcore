@@ -19,6 +19,58 @@
 #include "ip.h"
 
 
+struct w_socket ** w_find_socket(struct warpcore *w, const uint8_t p,
+                                 const uint16_t port)
+{
+	// find the respective "socket"
+	// TODO: check port range
+	struct w_socket **s;
+	switch (p){
+	case IP_P_UDP:
+		s = &w->udp[port];
+		break;
+	case IP_P_TCP:
+		s = &w->tcp[port];
+		break;
+	default:
+		D("cannot find socket for IP protocol %d", p);
+		return 0;
+	}
+	return s;
+
+}
+
+
+void w_close(struct warpcore *w, const uint8_t p, const uint16_t port)
+{
+	struct w_socket **s = w_find_socket(w, p, port);
+	if (*s) {
+		free(*s);
+		*s = 0;
+		D("close IP protocol %d port %d", p, port);
+	} else
+		D("IP protocol %d source port %d not in use", p, port);
+}
+
+
+bool w_bind(struct warpcore *w, const uint8_t p, const uint16_t port)
+{
+	struct w_socket **s = w_find_socket(w, p, port);
+	if (*s == 0) {
+		if ((*s = calloc(1, sizeof **s)) == 0) {
+			perror("cannot allocate struct w_socket");
+			abort();
+		}
+		D("bind IP protocol %d port %d", p, port);
+	} else {
+		D("IP protocol %d source port %d already in use", p, port);
+		return false;
+	}
+	return true;
+}
+
+
+
 void * w_loop(struct warpcore *w)
 {
 	struct pollfd fds = { .fd = w->fd, .events = POLLIN };
@@ -35,7 +87,7 @@ void * w_loop(struct warpcore *w)
 			D("poll: timeout expired");
 			break;
 		default:
-			// D("poll: %d descriptors ready", n);
+			D("poll: %d descriptors ready", n);
 			break;
 		}
 
@@ -48,7 +100,7 @@ void * w_loop(struct warpcore *w)
 		}
 	}
 
-	return NULL;
+	return 0;
 }
 
 
@@ -56,12 +108,12 @@ void w_free(struct warpcore *w)
 {
 	D("warpcore shutting down");
 
-	if (pthread_cancel(w->thr) != 0) {
+	if (pthread_cancel(w->thr)) {
 		perror("cannot cancel warpcore thread");
 		abort();
 	}
 
-	if (pthread_join(w->thr, NULL) != 0) {
+	if (pthread_join(w->thr, 0)) {
 		perror("cannot wait for exiting warpcore thread");
 		abort();
 	}
@@ -85,7 +137,7 @@ struct warpcore * w_init(const char * const ifname)
 	struct warpcore *w;
 
 	// allocate struct
-	if ((w = calloc(1, sizeof *w)) == NULL) {
+	if ((w = calloc(1, sizeof *w)) == 0) {
 		perror("cannot allocate struct warpcore");
 		abort();
 	}
@@ -102,7 +154,7 @@ struct warpcore * w_init(const char * const ifname)
 		perror("cannot get interface information");
 		abort();
 	}
-	for (struct ifaddrs *i = ifap; i->ifa_next != NULL; i = i->ifa_next) {
+	for (struct ifaddrs *i = ifap; i->ifa_next; i = i->ifa_next) {
 		if (strcmp(i->ifa_name, ifname) == 0) {
 			char mac[ETH_ADDR_LEN*3];
 			char ip[IP_ADDR_STRLEN];
@@ -191,7 +243,7 @@ struct warpcore * w_init(const char * const ifname)
 	D("ni_bufs_head %d", idx);
 
 	// detach the warpcore event loop thread
-	if (pthread_create(&w->thr, NULL, (void *)&w_loop, w) != 0) {
+	if (pthread_create(&w->thr, 0, (void *)&w_loop, w)) {
 		perror("cannot create warpcore thread");
 		abort();
 	}

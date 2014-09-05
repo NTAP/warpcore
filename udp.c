@@ -3,6 +3,8 @@
 #include "udp.h"
 #include "debug.h"
 #include "icmp.h"
+#include "warpcore.h"
+
 
 void udp_rx(const struct warpcore * const w,
             char * const buf, const uint_fast16_t off)
@@ -14,6 +16,10 @@ void udp_rx(const struct warpcore * const w,
 
 	D("UDP :%d -> :%d, len %d", sport, dport, len);
 
-	// nobody here
-	icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
+	if (w->udp[dport]) {
+		// nobody bound to this port locally
+		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
+	} else {
+		D("this is for us!");
+	}
 }
