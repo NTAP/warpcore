@@ -3,7 +3,7 @@
 #include "ip.h"
 
 
-void icmp_tx_unreach(const struct warpcore * const w, const uint_fast8_t code,
+void icmp_tx_unreach(struct warpcore * w, const uint_fast8_t code,
                      char * const buf, const uint_fast16_t off)
 {
 	// make an ICMP unreachable out of this received packet
@@ -26,7 +26,7 @@ void icmp_tx_unreach(const struct warpcore * const w, const uint_fast8_t code,
 }
 
 
-void icmp_tx(const struct warpcore * const w, const char * const buf,
+void icmp_tx(struct warpcore * w, const char * const buf,
              const uint_fast16_t off, const uint_fast16_t len)
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
@@ -42,7 +42,7 @@ void icmp_tx(const struct warpcore * const w, const char * const buf,
 }
 
 
-void icmp_rx(const struct warpcore * const w, char * const buf,
+void icmp_rx(struct warpcore * w, char * const buf,
              const uint_fast16_t off, const uint_fast16_t len)
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);

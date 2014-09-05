@@ -13,7 +13,7 @@ int main(void)
 	// struct w_iovec *io = w_rx(w, s);
 
 	// let it run for some time and then let's exit
-	sleep(10);
+	sleep(1000);
 
 	w_close(w, IP_P_UDP, 53);
 	D("main process exiting");

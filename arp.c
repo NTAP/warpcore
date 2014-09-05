@@ -8,7 +8,7 @@
 #include "debug.h"
 
 
-void arp_tx(const struct warpcore * const w, const char * const buf)
+void arp_tx(struct warpcore * w, const char * const buf)
 {
 #ifdef D
 	struct arp_hdr * const arp =
@@ -26,7 +26,7 @@ void arp_tx(const struct warpcore * const w, const char * const buf)
 }
 
 
-void arp_rx(const struct warpcore * const w, const char * const buf)
+void arp_rx(struct warpcore * w, const char * const buf)
 {
 	struct arp_hdr * const arp =
 		(struct arp_hdr * const)(buf + sizeof(struct eth_hdr));

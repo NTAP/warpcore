@@ -19,7 +19,7 @@ const char * ip_ntoa_r(uint32_t ip, char * const buf, const size_t size)
 }
 
 
-void ip_tx(const struct warpcore * const w, const uint_fast8_t p,
+void ip_tx(struct warpcore * w, const uint_fast8_t p,
            const char * const buf, const uint_fast16_t len)
 {
 	struct ip_hdr * const ip =
@@ -54,7 +54,7 @@ void ip_tx(const struct warpcore * const w, const uint_fast8_t p,
 }
 
 
-void ip_rx(const struct warpcore * const w, char * const buf)
+void ip_rx(struct warpcore * w, char * const buf)
 {
 	const struct ip_hdr * const ip =
 		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));

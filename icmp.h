@@ -18,14 +18,14 @@ struct icmp_hdr {
 
 struct warpcore;
 
-extern void icmp_tx_unreach(const struct warpcore * const w,
+extern void icmp_tx_unreach(struct warpcore * w,
                             const uint_fast8_t code, char * const buf,
                             const uint_fast16_t off);
 
-extern void icmp_tx(const struct warpcore * const w, const char * const buf,
+extern void icmp_tx(struct warpcore * w, const char * const buf,
                     const uint_fast16_t off, const uint_fast16_t len);
 
-extern void icmp_rx(const struct warpcore * const w, char * const buf,
+extern void icmp_rx(struct warpcore * w, char * const buf,
                     const uint_fast16_t off, const uint_fast16_t len);
 
 #endif

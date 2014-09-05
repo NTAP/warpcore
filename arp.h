@@ -30,6 +30,6 @@ struct arp_hdr {
 
 struct warpcore;
 
-extern void arp_rx(const struct warpcore * const w, const char * const buf);
+extern void arp_rx(struct warpcore * w, const char * const buf);
 
 #endif

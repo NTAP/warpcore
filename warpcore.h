@@ -5,23 +5,28 @@
 #include <net/netmap_user.h>
 
 #include <stdbool.h>
+#include <sys/queue.h>
 
 #include "eth.h"
 
-static const uint_fast16_t W_PORT_RANGE_LO = 1;
-static const uint_fast16_t W_PORT_RANGE_HI = 256;
-static const uint_fast16_t W_PORT_RANGE_LEN = W_PORT_RANGE_HI - W_PORT_RANGE_LO;
+#define PORT_RANGE_LO	  1
+#define PORT_RANGE_HI	256
+#define PORT_RANGE_LEN	PORT_RANGE_HI - PORT_RANGE_LO
 
-struct w_iovec {
+
+struct w_iov {
 	void *			buf;
 	uint_fast32_t		len;
+	STAILQ_ENTRY(w_iov) 	vecs;			// tail queue
 };
+
 
 struct w_socket {
 	uint_fast32_t		ip;			// dst IP address
 	uint_fast16_t		port;			// dst port
-	struct w_iovec *	iv;
+	STAILQ_HEAD(ivh, w_iov)	iv;			// where to read into
 };
+
 
 struct warpcore {
 	uint_fast32_t		ip;			// our IP address
@@ -30,8 +35,8 @@ struct warpcore {
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address
 	pthread_t		thr;			// our main thread
 
-	struct w_socket *	udp[W_PORT_RANGE_LEN];
-	struct w_socket	*	tcp[W_PORT_RANGE_LEN];
+	struct w_socket *	udp[PORT_RANGE_LEN];
+	struct w_socket	*	tcp[PORT_RANGE_LEN];
 
 	int			fd;			// netmap descriptor
 	void *			mem;			// netmap memory
@@ -43,12 +48,15 @@ extern struct warpcore * w_init(const char * const ifname);
 
 extern void w_free(struct warpcore *w);
 
-// extern int16_t w_socket(struct warpcore *w, const uint8_t proto);
-
 extern void w_close(struct warpcore *w, const uint8_t p, const uint16_t port);
 
 extern bool w_bind(struct warpcore *w, const uint8_t p, const uint16_t port);
 
-extern struct w_iovec * w_rx(struct warpcore *w, const uint16_t d);
+extern struct w_iov * w_rx(struct warpcore *w, const uint16_t d);
+
+// internal warpcore use only
+// TODO: restrict exporting
+extern struct w_socket ** w_find_socket(struct warpcore * w,
+                                        const uint8_t p, const uint16_t port);
 
 #endif

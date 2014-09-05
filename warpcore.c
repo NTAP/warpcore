@@ -19,18 +19,24 @@
 #include "ip.h"
 
 
-struct w_socket ** w_find_socket(struct warpcore *w, const uint8_t p,
-                                 const uint16_t port)
+struct w_socket ** w_find_socket(struct warpcore * w,
+                                 const uint8_t p, const uint16_t port)
 {
 	// find the respective "socket"
-	// TODO: check port range
+	const uint16_t index = port - PORT_RANGE_LO;
+	if (index >= PORT_RANGE_HI) {
+		D("port %d not in range %d-%d", port,
+		  PORT_RANGE_LO, PORT_RANGE_HI);
+		return 0;
+	}
+
 	struct w_socket **s;
 	switch (p){
 	case IP_P_UDP:
-		s = &w->udp[port];
+		s = &w->udp[index];
 		break;
 	case IP_P_TCP:
-		s = &w->tcp[port];
+		s = &w->tcp[index];
 		break;
 	default:
 		D("cannot find socket for IP protocol %d", p);
@@ -66,6 +72,8 @@ bool w_bind(struct warpcore *w, const uint8_t p, const uint16_t port)
 		D("IP protocol %d source port %d already in use", p, port);
 		return false;
 	}
+	STAILQ_INIT(&(*s)->iv);
+
 	return true;
 }
 
@@ -187,8 +195,8 @@ struct warpcore * w_init(const char * const ifname)
 	}
 	freeifaddrs(ifap);
 	if (w->ip == 0 || w->mask == 0 ||
-	    (w->mac[0] & w->mac[1] & w->mac[2] &
-	     w->mac[3] & w->mac[4] & w->mac[5] < 0)) {
+	    ((w->mac[0] | w->mac[1] | w->mac[2] |
+	      w->mac[3] | w->mac[4] | w->mac[5]) == 0)) {
 		D("cannot obtain needed interface information");
 		abort();
 	}

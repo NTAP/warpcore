@@ -8,7 +8,7 @@
 #include "arp.h"
 
 
-void eth_tx(const struct warpcore * const w, const char * const buf,
+void eth_tx(struct warpcore * w, const char * const buf,
             const uint_fast16_t len)
 {
 	struct netmap_ring *rxr = NETMAP_RXRING(w->nif, 0);
@@ -44,7 +44,7 @@ void eth_tx(const struct warpcore * const w, const char * const buf,
 }
 
 
-void eth_rx(const struct warpcore * const w, char * const buf)
+void eth_rx(struct warpcore * w, char * const buf)
 {
 	const struct eth_hdr * const eth = (struct eth_hdr * const)(buf);
 	const uint_fast16_t type = ntohs(eth->type);
