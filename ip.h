@@ -3,12 +3,12 @@
 
 #include <stdint.h>
 
-static const uint_fast8_t IP_P_ICMP =	 	 1;
-static const uint_fast8_t IP_P_TCP =		 6;
-static const uint_fast8_t IP_P_UDP =		17;
+#define IP_P_ICMP 	 1
+#define IP_P_TCP	 6
+#define IP_P_UDP	17
 
-static const uint_fast8_t IP_ADDR_LEN =		 4; // IP addresses are four bytes
-static const uint_fast8_t IP_ADDR_STRLEN =	16; // xxx.xxx.xxx.xxx\0
+#define IP_ADDR_LEN	 4 // IP addresses are four bytes
+#define IP_ADDR_STRLEN	16 // xxx.xxx.xxx.xxx\0
 
 struct ip_hdr {
 #if BYTE_ORDER == LITTLE_ENDIAN

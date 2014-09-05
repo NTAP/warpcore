@@ -6,10 +6,10 @@
 #include "eth.h"
 #include "ip.h"
 
-static const uint_fast16_t ARP_HRD_ETHER =	1; // Ethernet hardware format
+#define ARP_HRD_ETHER	1 // Ethernet hardware format
 
-static const uint_fast16_t ARP_OP_REQUEST =	1; // request to resolve address
-static const uint_fast16_t ARP_OP_REPLY =	2; // response to request
+#define ARP_OP_REQUEST	1 // request to resolve address
+#define ARP_OP_REPLY	2 // response to request
 
 struct arp_hdr {
 	uint16_t	hrd;			// format of hardware address

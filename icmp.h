@@ -3,12 +3,12 @@
 
 #include <stdint.h>
 
-static const uint_fast8_t ICMP_TYPE_ECHOREPLY =		0;
-static const uint_fast8_t ICMP_TYPE_UNREACH =		3;
-static const uint_fast8_t ICMP_TYPE_ECHO = 		8;
+#define ICMP_TYPE_ECHOREPLY	0
+#define ICMP_TYPE_UNREACH	3
+#define ICMP_TYPE_ECHO 		8
 
-static const uint_fast8_t ICMP_UNREACH_PROTOCOL =	2; // bad protocol
-static const uint_fast8_t ICMP_UNREACH_PORT =		3; // bad port
+#define ICMP_UNREACH_PROTOCOL	2 // bad protocol
+#define ICMP_UNREACH_PORT	3 // bad port
 
 struct icmp_hdr {
 	uint8_t		type;	// type of message

@@ -3,10 +3,10 @@
 
 #include <stdint.h>
 
-static const uint_fast8_t ETH_ADDR_LEN = 6;		// length of an address
+#define ETH_ADDR_LEN	6	// length of an address
 
-static const uint_fast16_t ETH_TYPE_IP = 0x0800;	// IP protocol
-static const uint_fast16_t ETH_TYPE_ARP = 0x0806;	// ARP protocol
+#define ETH_TYPE_IP	0x0800	// IP protocol
+#define ETH_TYPE_ARP	0x0806	// ARP protocol
 
 struct eth_hdr {
 	uint8_t		dst[ETH_ADDR_LEN];
