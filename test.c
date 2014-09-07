@@ -1,12 +1,11 @@
 #include "warpcore.h"
 #include "ip.h"
-#include "debug.h"
 
 
 void iov_fill(struct w_iov *v)
 {
 	while (v) {
-		D("%d bytes in buf %p", v->len, v->buf);
+		log("%d bytes in buf %p", v->len, v->buf);
 		for (uint_fast16_t l = 0; l < v->len; l++) {
 			v->buf[l] = l % 0xff;
 		}
@@ -18,7 +17,7 @@ void iov_fill(struct w_iov *v)
 void iov_dump(struct w_iov *v)
 {
 	while (v) {
-		D("%d bytes in buf %p", v->len, v->buf);
+		log("%d bytes in buf %p", v->len, v->buf);
 		hexdump(v->buf, v->len);
 		v = STAILQ_NEXT(v, vecs);
 	}
@@ -30,7 +29,7 @@ int main(void)
 	// warpcore can detach into its own thread spawned by w_init()
 	// or inline (in which case one needs to call w_poll on occasion)
 	struct warpcore *w = w_init("em1", false);
-	D("main process ready");
+	log("main process ready");
 
 	struct w_socket *s = w_bind(w, IP_P_UDP, 53);
 	w_connect(s, ip_aton("192.255.97.255"), 53);
@@ -49,7 +48,7 @@ int main(void)
 
 		// access the read data
 		while (i) {
-			D("%d bytes in buf %p", i->len, i->buf);
+			log("%d bytes in buf %p", i->len, i->buf);
 			hexdump(i->buf, i->len);
 			i = STAILQ_NEXT(i, vecs);
 		}
@@ -59,7 +58,7 @@ int main(void)
 	}
 	w_close(s);
 
-	D("main process exiting");
+	log("main process exiting");
 	w_cleanup(w);
 
 	return 0;

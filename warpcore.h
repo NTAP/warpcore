@@ -1,13 +1,12 @@
 #ifndef _warpcore_h_
 #define _warpcore_h_
 
-#define NETMAP_WITH_LIBS
-#include <net/netmap_user.h>
-
 #include <stdbool.h>
 #include <sys/queue.h>
+#include <net/netmap_user.h>
 
 #include "eth.h"
+#include "debug.h"
 
 #define PORT_RANGE_LO	  1
 #define PORT_RANGE_HI	256

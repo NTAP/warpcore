@@ -1,8 +1,6 @@
 #ifndef _eth_h_
 #define _eth_h_
 
-#include <stdint.h>
-
 #define ETH_ADDR_LEN	6	// length of an address
 
 #define ETH_TYPE_IP	0x0800	// IP protocol

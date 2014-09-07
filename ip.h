@@ -1,8 +1,6 @@
 #ifndef _ip_h_
 #define _ip_h_
 
-#include <stdint.h>
-
 #define IP_P_ICMP 	 1
 #define IP_P_TCP	 6
 #define IP_P_UDP	17

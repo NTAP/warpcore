@@ -1,6 +1,4 @@
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -11,9 +9,9 @@
 #include <net/if_dl.h>
 #include <pthread.h>
 #include <poll.h>
-#include <string.h>
-#include <stdlib.h>
 #include <errno.h>
+#include <unistd.h>
+#include <stdio.h>
 
 #include "warpcore.h"
 #include "ip.h"
@@ -29,8 +27,8 @@ struct w_socket ** w_get_socket(struct warpcore * w,
 	// find the respective "socket"
 	const uint16_t index = port - PORT_RANGE_LO;
 	if (index >= PORT_RANGE_HI) {
-		D("port %d not in range %d-%d", port,
-		  PORT_RANGE_LO, PORT_RANGE_HI);
+		log("port %d not in range %d-%d", port,
+		    PORT_RANGE_LO, PORT_RANGE_HI);
 		return 0;
 	}
 
@@ -43,7 +41,7 @@ struct w_socket ** w_get_socket(struct warpcore * w,
 		s = &w->tcp[index];
 		break;
 	default:
-		D("cannot find socket for IP protocol %d", p);
+		log("cannot find socket for IP protocol %d", p);
 		return 0;
 	}
 	return s;
@@ -61,7 +59,7 @@ static void w_make_idx_avail(struct warpcore * w, const uint32_t idx)
 	// according to Luigi, any ring can be passed to NETMAP_BUF
 	b->buf = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), idx);
 	b->idx = idx;
-	D("available extra bufidx %d is %p", idx, b->buf);
+	log("available extra bufidx %d is %p", idx, b->buf);
 	STAILQ_INSERT_TAIL(&w->buf, b, bufs);
 }
 
@@ -92,7 +90,7 @@ struct w_iov * w_rx(struct w_socket *s)
 void w_tx(struct w_socket *s, struct w_iov *ov)
 {
 	while (ov) {
-		D("%d bytes in buf %p", ov->len, ov->buf);
+		log("%d bytes in buf %p", ov->len, ov->buf);
 		udp_tx(s, ov->buf, ov->len);
 		ov = STAILQ_NEXT(ov, vecs);
 	}
@@ -103,7 +101,7 @@ void w_tx(struct w_socket *s, struct w_iov *ov)
 struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
 {
 	if (!STAILQ_EMPTY(&s->ov)) {
-		D("output iov already allocated");
+		log("output iov already allocated");
 		return 0;
 	}
 
@@ -118,8 +116,7 @@ struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
 	// 	// TODO: handle TCP options
 	// 	break;
 	default:
-		D("unhandled IP protocol %d", s->p);
-		abort();
+		die("unhandled IP protocol %d", s->p);
 		return 0;
 	}
 
@@ -128,19 +125,15 @@ struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
 	int_fast32_t l = len;
 	struct w_iov *i;
 	while (l > 0) {
-		// D("%d still to allocate", l);
+		// log("%d still to allocate", l);
 		// allocate a new iov
-		if ((i = malloc(sizeof *i)) == 0) {
-			D("cannot allocate w_iov");
-			abort();
-		}
+		if ((i = malloc(sizeof *i)) == 0)
+			die("cannot allocate w_iov");
 
 		// grab a spare buffer
 		struct w_buf *b = STAILQ_FIRST(&s->w->buf);
-		if (b == 0) {
-			D("out of spare bufs");
-			abort();
-		}
+		if (b == 0)
+			die("out of spare bufs");
 		STAILQ_REMOVE_HEAD(&s->w->buf, bufs);
 		i->buf = b->buf + hdr_len;
 		i->idx = b->idx;
@@ -154,7 +147,7 @@ struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
 	// adjust length of last iov so chain is the exact length requested
 	i->len += l; // l is negative
 
-	// D("l %d ilen %d", l, i->len);
+	// log("l %d ilen %d", l, i->len);
 	return STAILQ_FIRST(&s->ov);
 }
 
@@ -171,14 +164,14 @@ void w_connect(struct w_socket *s, const uint_fast32_t ip,
                const uint_fast16_t port)
 {
 	if (s->dip || s->dport) {
-		D("socket already connected");
+		log("socket already connected");
 		return;
 	}
-
+#ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
-	D("connect IP protocol %d dst %s port %d", s->p,
-	  ip_ntoa(ip, str, sizeof str), port);
-
+	log("connect IP protocol %d dst %s port %d", s->p,
+	    ip_ntoa(ip, str, sizeof str), port);
+#endif
 	s->dip = ip;
 	s->dport = port;
 }
@@ -193,12 +186,12 @@ struct w_socket * w_bind(struct warpcore *w, const uint8_t p,
 			perror("cannot allocate struct w_socket");
 			abort();
 		}
-		D("bind IP protocol %d port %d", p, port);
+		log("bind IP protocol %d port %d", p, port);
 		(*s)->p = p;
 		(*s)->sport = port;
 		(*s)->w = w;
 	} else {
-		D("IP protocol %d source port %d already in use", p, port);
+		log("IP protocol %d source port %d already in use", p, port);
 		return 0;
 	}
 	STAILQ_INIT(&(*s)->iv);
@@ -213,14 +206,13 @@ void w_poll(struct warpcore *w)
 	const int n = poll(&fds, 1, INFTIM);
 	switch (n) {
 	case -1:
-		D("poll: %s", strerror(errno));
-		abort();
+		die("poll: %s", strerror(errno));
 		break;
 	case 0:
-		D("poll: timeout expired");
+		log("poll: timeout expired");
 		break;
 	default:
-		// D("poll: %d descriptors ready", n);
+		// log("poll: %d descriptors ready", n);
 		break;
 	}
 
@@ -243,7 +235,7 @@ void * w_loop(struct warpcore *w)
 
 void w_cleanup(struct warpcore *w)
 {
-	D("warpcore shutting down");
+	log("warpcore shutting down");
 
 	if (w->thr) {
 		if (pthread_cancel(w->thr)) {
@@ -295,7 +287,7 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 	}
 	for (struct ifaddrs *i = ifap; i->ifa_next; i = i->ifa_next) {
 		if (strcmp(i->ifa_name, ifname) == 0) {
-#ifdef D
+#ifndef NDEBUG
 			char mac[ETH_ADDR_LEN*3];
 			char ip[IP_ADDR_STRLEN];
 			char mask[IP_ADDR_STRLEN];
@@ -310,10 +302,10 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 				// get MTU
 				w->mtu = ((struct if_data *)
 				          (i->ifa_data))->ifi_mtu;
-				D("%s has Ethernet address %s with MTU %d",
-				  i->ifa_name,
-				  ether_ntoa_r((struct ether_addr *)w->mac,
-				               mac), w->mtu);
+				log("%s has Ethernet address %s with MTU %d",
+				    i->ifa_name,
+				    ether_ntoa_r((struct ether_addr *)w->mac,
+				                 mac), w->mtu);
 				break;
 			case AF_INET:
 				// get IP address and netmask
@@ -321,13 +313,13 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 				         i->ifa_addr)->sin_addr.s_addr;
 				w->mask = ((struct sockaddr_in *)
 				           i->ifa_netmask)->sin_addr.s_addr;
-				D("%s has IP address %s/%s", i->ifa_name,
-				  ip_ntoa(w->ip, ip, sizeof ip),
-				  ip_ntoa(w->mask, mask, sizeof mask));
+				log("%s has IP address %s/%s", i->ifa_name,
+				    ip_ntoa(w->ip, ip, sizeof ip),
+				    ip_ntoa(w->mask, mask, sizeof mask));
 				break;
 			default:
-				D("ignoring unknown address family %d on %s",
-				  i->ifa_addr->sa_family, i->ifa_name);
+				log("ignoring unknown address family %d on %s",
+				    i->ifa_addr->sa_family, i->ifa_name);
 				break;
 			}
 		}
@@ -335,15 +327,15 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 	freeifaddrs(ifap);
 	if (w->ip == 0 || w->mask == 0 || w->mtu == 0 ||
 	    ((w->mac[0] | w->mac[1] | w->mac[2] |
-	      w->mac[3] | w->mac[4] | w->mac[5]) == 0)) {
-		D("cannot obtain needed interface information");
-		abort();
-	}
+	      w->mac[3] | w->mac[4] | w->mac[5]) == 0))
+		die("cannot obtain needed interface information");
 
 	w->bcast = w->ip | (~w->mask);
+#ifndef NDEBUG
 	char bcast[IP_ADDR_STRLEN];
-	D("%s has IP broadcast address %s", ifname,
-	  ip_ntoa(w->bcast, bcast, sizeof bcast));
+	log("%s has IP broadcast address %s", ifname,
+	    ip_ntoa(w->bcast, bcast, sizeof bcast));
+#endif
 
 	// switch interface to netmap mode
 	// TODO: figure out NETMAP_NO_TX_POLL/NETMAP_DO_RX_POLL
@@ -369,17 +361,19 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 	// direct pointer to the netmap interface struct for convenience
 	w->nif = NETMAP_IF(w->mem, w->req.nr_offset);
 
+#ifndef NDEBUG
 	// print some info about our rings
 	for(uint32_t ri = 0; ri <= w->nif->ni_tx_rings-1; ri++) {
 		struct netmap_ring *r = NETMAP_TXRING(w->nif, ri);
-		D("tx ring %d: first slot idx %d, last slot idx %d", ri,
-		  r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
+		log("tx ring %d: first slot idx %d, last slot idx %d", ri,
+		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 	for(uint32_t ri = 0; ri <= w->nif->ni_rx_rings-1; ri++) {
 		struct netmap_ring *r = NETMAP_RXRING(w->nif, ri);
-		D("rx ring %d: first slot idx %d, last slot idx %d", ri,
-		  r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
+		log("rx ring %d: first slot idx %d, last slot idx %d", ri,
+		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
+#endif
 
 	// save the indices of the extra buffers in the warpcore structure
 	STAILQ_INIT(&w->buf);
@@ -389,7 +383,7 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 		char * b = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i);
 		i = *(uint32_t *)b;
 	}
-	D("allocated %d extra buffers", w->req.nr_arg3);
+	log("allocated %d extra buffers", w->req.nr_arg3);
 
 	if (detach) {
 		// detach the warpcore event loop thread

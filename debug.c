@@ -1,5 +1,5 @@
-#include <stdio.h>  // printf
-#include <ctype.h>  // isprint
+#include <stdio.h>
+#include <ctype.h>
 
 #include "debug.h"
 

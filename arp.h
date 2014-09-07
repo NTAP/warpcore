@@ -1,11 +1,6 @@
 #ifndef _arp_h_
 #define _arp_h_
 
-#include <stdint.h>
-
-#include "eth.h"
-#include "ip.h"
-
 #define ARP_HRD_ETHER	1 // Ethernet hardware format
 
 #define ARP_OP_REQUEST	1 // request to resolve address

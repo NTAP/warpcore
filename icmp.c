@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "warpcore.h"
 #include "icmp.h"
 #include "ip.h"
@@ -31,7 +33,7 @@ void icmp_tx(struct warpcore * w, const char * const buf,
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
 
-	D("ICMP type %d, code %d", icmp->type, icmp->code);
+	log("ICMP type %d, code %d", icmp->type, icmp->code);
 
 	// calculate the new ICMP checksum
 	icmp->cksum = 0;
@@ -47,7 +49,7 @@ void icmp_rx(struct warpcore * w, char * const buf,
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
 
-	D("ICMP type %d, code %d", icmp->type, icmp->code);
+	log("ICMP type %d, code %d", icmp->type, icmp->code);
 
 	// TODO: validate inbound ICMP checksum
 
@@ -58,7 +60,7 @@ void icmp_rx(struct warpcore * w, char * const buf,
 		icmp_tx(w, buf, off, len);
 		break;
 	default:
-		D("unhandled ICMP type %d", icmp->type);
-		abort();
+		die("unhandled ICMP type %d", icmp->type);
+		break;
 	}
 }

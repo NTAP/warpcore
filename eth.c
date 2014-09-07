@@ -1,11 +1,11 @@
-#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <net/ethernet.h>
+#include <string.h>
 
 #include "warpcore.h"
-#include "eth.h"
-#include "ip.h"
 #include "arp.h"
+#include "ip.h"
 
 
 void eth_tx(struct warpcore * w, const char * const buf,
@@ -22,8 +22,8 @@ void eth_tx(struct warpcore * w, const char * const buf,
 	memcpy(eth->src, w->mac, sizeof eth->src);
 
 	// move modified rx slot to tx ring, and move an unused tx slot back
-	D("swapping rx slot %d (buf_idx %d) and tx slot %d (buf_idx %d)",
-	  rxr->cur, rxs->buf_idx, txr->cur, txs->buf_idx);
+	log("swapping rx slot %d (buf_idx %d) and tx slot %d (buf_idx %d)",
+	    rxr->cur, rxs->buf_idx, txr->cur, txs->buf_idx);
 	const uint_fast32_t tmp_idx = txs->buf_idx;
 	txs->buf_idx = rxs->buf_idx;
 	rxs->buf_idx = tmp_idx;
@@ -33,13 +33,12 @@ void eth_tx(struct warpcore * w, const char * const buf,
 	// currently does this
 	txr->head = txr->cur = nm_ring_next(txr, txr->cur);
 
-#ifdef D
+#ifndef NDEBUG
 	char src[ETH_ADDR_LEN*3];
 	char dst[ETH_ADDR_LEN*3];
-	D("Eth %s -> %s, type %d",
-	  ether_ntoa_r((struct ether_addr *)eth->src, src),
-	  ether_ntoa_r((struct ether_addr *)eth->dst, dst),
-	  ntohs(eth->type));
+	log("Eth %s -> %s, type %d",
+	    ether_ntoa_r((struct ether_addr *)eth->src, src),
+	    ether_ntoa_r((struct ether_addr *)eth->dst, dst), ntohs(eth->type));
 #endif
 }
 
@@ -49,19 +48,18 @@ void eth_rx(struct warpcore * w, char * const buf)
 	const struct eth_hdr * const eth = (struct eth_hdr * const)(buf);
 	const uint_fast16_t type = ntohs(eth->type);
 
-#ifdef D
+#ifndef NDEBUG
 	char src[ETH_ADDR_LEN*3];
 	char dst[ETH_ADDR_LEN*3];
-	D("Eth %s -> %s, type %d",
-	  ether_ntoa_r((struct ether_addr *)eth->src, src),
-	  ether_ntoa_r((struct ether_addr *)eth->dst, dst),
-	  type);
+	log("Eth %s -> %s, type %d",
+	    ether_ntoa_r((struct ether_addr *)eth->src, src),
+	    ether_ntoa_r((struct ether_addr *)eth->dst, dst), type);
 #endif
 
 	// make sure the packet is for us (or broadcast)
 	if (memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
 	    memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN)) {
-		D("Ethernet packet not destined to us; ignoring");
+		log("Ethernet packet not destined to us; ignoring");
 		return;
 	}
 
@@ -73,7 +71,7 @@ void eth_rx(struct warpcore * w, char * const buf)
 		ip_rx(w, buf);
 		break;
 	default:
-		D("unhandled ethertype %x", type);
-		abort();
+		die("unhandled ethertype %x", type);
+		break;
 	}
 }
