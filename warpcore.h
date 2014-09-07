@@ -26,9 +26,10 @@ struct w_socket {
 	struct warpcore *	w;	// warpcore instance
 	uint_fast8_t		p;	// protocol
 	uint_fast16_t		sport;	// source port
-	// uint_fast32_t	dip;	// destination IP address
-	// uint_fast16_t	dport;	// destination port
+	uint_fast16_t		dport;	// destination port
+	uint_fast32_t		dip;	// destination IP address
 	STAILQ_HEAD(ivh, w_iov)	iv;	// iov for read data
+	STAILQ_HEAD(ovh, w_iov)	ov;	// iov for data to write
 };
 
 
@@ -65,9 +66,15 @@ extern void w_cleanup(struct warpcore *w);
 extern struct w_socket * w_bind(struct warpcore *w, const uint8_t p,
                                 const uint16_t port);
 
+extern void w_connect(struct w_socket *s, const uint_fast32_t ip,
+                      const uint_fast16_t port);
+
 extern struct w_iov * w_rx(struct w_socket *s);
 extern void w_rx_done(struct w_socket *s);
 extern void w_close(struct w_socket *s);
+
+extern struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len);
+extern void w_tx(struct w_socket *s, struct w_iov *ov);
 
 
 // internal warpcore use only; TODO: restrict exporting

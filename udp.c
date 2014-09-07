@@ -7,13 +7,26 @@
 #include "warpcore.h"
 
 
+void udp_tx(struct w_socket *s,
+            char * const buf, const uint_fast16_t len)
+{
+	struct udp_hdr * const udp =
+		(struct udp_hdr * const)(buf - sizeof(struct udp_hdr));
+	udp->sport = htons(s->sport);
+	udp->dport = htons(s->dport);
+	udp->len =   htons(len + sizeof(struct udp_hdr));
+	udp->cksum = 0;
+	udp->cksum = in_cksum(udp, len + sizeof(struct udp_hdr));
+}
+
+
 void udp_rx(struct warpcore * w,
             char * const buf, const uint_fast16_t off)
 {
 	const struct udp_hdr * const udp = (struct udp_hdr * const)(buf + off);
 	const uint_fast16_t sport = ntohs(udp->sport);
 	const uint_fast16_t dport = ntohs(udp->dport);
-	const uint_fast16_t len = ntohs(udp->len);
+	const uint_fast16_t len =   ntohs(udp->len);
 	struct w_socket **s = w_get_socket(w, IP_P_UDP, dport);
 
 	D("UDP :%d -> :%d, len %d", sport, dport, len);

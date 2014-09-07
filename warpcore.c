@@ -17,6 +17,8 @@
 
 #include "warpcore.h"
 #include "ip.h"
+#include "udp.h"
+
 
 #define NUM_EXTRA_BUFS	16
 
@@ -87,11 +89,98 @@ struct w_iov * w_rx(struct w_socket *s)
 }
 
 
+void w_tx(struct w_socket *s, struct w_iov *ov)
+{
+	while (ov) {
+		D("%d bytes in buf %p", ov->len, ov->buf);
+		udp_tx(s, ov->buf, ov->len);
+		ov = STAILQ_NEXT(ov, vecs);
+	}
+
+}
+
+
+struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
+{
+	if (!STAILQ_EMPTY(&s->ov)) {
+		D("output iov already allocated");
+		return 0;
+	}
+
+	// determine space needed for header
+	uint_fast16_t hdr_len =	sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
+	switch (s->p) {
+	case IP_P_UDP:
+		hdr_len += sizeof(struct udp_hdr);
+		break;
+	// case IP_P_TCP:
+	// 	hdr_len += sizeof(struct tcp_hdr);
+	// 	// TODO: handle TCP options
+	// 	break;
+	default:
+		D("unhandled IP protocol %d", s->p);
+		abort();
+		return 0;
+	}
+
+	// add enough buffers to the iov so it is > len
+	STAILQ_INIT(&s->ov);
+	int_fast32_t l = len;
+	struct w_iov *i;
+	while (l > 0) {
+		// D("%d still to allocate", l);
+		// allocate a new iov
+		if ((i = malloc(sizeof *i)) == 0) {
+			D("cannot allocate w_iov");
+			abort();
+		}
+
+		// grab a spare buffer
+		struct w_buf *b = STAILQ_FIRST(&s->w->buf);
+		if (b == 0) {
+			D("out of spare bufs");
+			abort();
+		}
+		STAILQ_REMOVE_HEAD(&s->w->buf, bufs);
+		i->buf = b->buf + hdr_len;
+		i->idx = b->idx;
+		i->len = s->w->mtu - hdr_len;
+		l -= i->len;
+		free(b);
+
+		// add the iov to the socket
+		STAILQ_INSERT_TAIL(&s->ov, i, vecs);
+	}
+	// adjust length of last iov so chain is the exact length requested
+	i->len += l; // l is negative
+
+	// D("l %d ilen %d", l, i->len);
+	return STAILQ_FIRST(&s->ov);
+}
+
+
 void w_close(struct w_socket *s)
 {
 	struct w_socket **ss = w_get_socket(s->w, s->p, s->sport);
 	free(*ss);
 	*ss = 0;
+}
+
+
+void w_connect(struct w_socket *s, const uint_fast32_t ip,
+               const uint_fast16_t port)
+{
+	if (s->dip || s->dport) {
+		D("socket already connected");
+		return;
+	}
+
+	char str[IP_ADDR_STRLEN];
+	D("connect IP protocol %d dst %s port %d", s->p,
+	  ip_ntoa(ip, str, sizeof str), port);
+
+	s->dip = ip;
+	s->dport = port;
 }
 
 
@@ -233,8 +322,8 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 				w->mask = ((struct sockaddr_in *)
 				           i->ifa_netmask)->sin_addr.s_addr;
 				D("%s has IP address %s/%s", i->ifa_name,
-				  ip_ntoa_r(w->ip, ip, sizeof ip),
-				  ip_ntoa_r(w->mask, mask, sizeof mask));
+				  ip_ntoa(w->ip, ip, sizeof ip),
+				  ip_ntoa(w->mask, mask, sizeof mask));
 				break;
 			default:
 				D("ignoring unknown address family %d on %s",
@@ -254,7 +343,7 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 	w->bcast = w->ip | (~w->mask);
 	char bcast[IP_ADDR_STRLEN];
 	D("%s has IP broadcast address %s", ifname,
-	  ip_ntoa_r(w->bcast, bcast, sizeof bcast));
+	  ip_ntoa(w->bcast, bcast, sizeof bcast));
 
 	// switch interface to netmap mode
 	// TODO: figure out NETMAP_NO_TX_POLL/NETMAP_DO_RX_POLL
