@@ -8,14 +8,25 @@
 #include "udp.h"
 
 
-const char * ip_ntoa_r(uint32_t ip, char * const buf, const size_t size)
+const char * ip_ntoa(uint32_t ip, char * const buf, const size_t size)
 {
 	const uint32_t i = ntohl(ip);
-
 	snprintf(buf, size, "%d.%d.%d.%d", (i >> 24) & 0xff, (i >> 16) & 0xff,
 	         (i >>  8) & 0xff, i & 0xff);
 	buf[size -1] = '\0';
+	// D("ip_ntoa in ip %x out str %s", ip, buf);
 	return buf;
+}
+
+
+uint32_t ip_aton(const char * const ip)
+{
+
+	uint32_t i;
+	const int r = sscanf(ip, "%hhu.%hhu.%hhu.%hhu", (char *)(&i),
+		             (char *)(&i)+1, (char *)(&i)+2, (char *)(&i)+3);
+	// D("ip_aton in str %s out ip %x", ip, i);
+	return r == 4 ? i : 0;
 }
 
 
@@ -44,8 +55,8 @@ void ip_tx(struct warpcore * w, const uint_fast8_t p,
 	char src[IP_ADDR_STRLEN];
 	char dst[IP_ADDR_STRLEN];
 	D("IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
-	  ip_ntoa_r(ip->src, src, sizeof src),
-	  ip_ntoa_r(ip->dst, dst, sizeof dst),
+	  ip_ntoa(ip->src, src, sizeof src),
+	  ip_ntoa(ip->dst, dst, sizeof dst),
 	  ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
 #endif
 
@@ -63,8 +74,8 @@ void ip_rx(struct warpcore * w, char * const buf)
 	char src[IP_ADDR_STRLEN];
 	char dst[IP_ADDR_STRLEN];
 	D("IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
-	  ip_ntoa_r(ip->src, src, sizeof src),
-	  ip_ntoa_r(ip->dst, dst, sizeof dst),
+	  ip_ntoa(ip->src, src, sizeof src),
+	  ip_ntoa(ip->dst, dst, sizeof dst),
 	  ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
 #endif
 

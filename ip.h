@@ -36,7 +36,8 @@ extern void ip_tx(struct warpcore * w, const uint_fast8_t p,
 
 extern void ip_rx(struct warpcore * w, char * const buf);
 
-extern const char * ip_ntoa_r(uint32_t ip, char * const buf, const size_t size);
+extern const char * ip_ntoa(uint32_t ip, char * const buf, const size_t size);
+extern uint32_t ip_aton(const char * const ip);
 
 // this is defined in in_chksum.c, which is the FreeBSD checksum code
 extern uint16_t in_cksum(void * const buf, const uint_fast16_t len);

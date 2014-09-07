@@ -17,7 +17,7 @@ void arp_tx(struct warpcore * w, const char * const buf)
 	char sha[ETH_ADDR_LEN*3];
 	char spa[IP_ADDR_STRLEN];
 	D("ARP reply %s is at %s",
-	  ip_ntoa_r(arp->spa, spa, sizeof spa),
+	  ip_ntoa(arp->spa, spa, sizeof spa),
 	  ether_ntoa_r((struct ether_addr *)arp->sha, sha));
 #endif
 
@@ -53,8 +53,8 @@ void arp_rx(struct warpcore * w, const char * const buf)
 		char spa[IP_ADDR_STRLEN];
 		char tpa[IP_ADDR_STRLEN];
 		D("ARP request who as %s tell %s",
-		  ip_ntoa_r(arp->spa, spa, sizeof spa),
-		  ip_ntoa_r(arp->tpa, tpa, sizeof tpa));
+		  ip_ntoa(arp->spa, spa, sizeof spa),
+		  ip_ntoa(arp->tpa, tpa, sizeof tpa));
 #endif
 		if (arp->tpa == w->ip) {
 			arp->op = htons(ARP_OP_REPLY);
