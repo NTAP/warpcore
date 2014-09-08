@@ -1,15 +1,22 @@
+OS=$(shell uname -s)
+
 CC=cc
 # CDEF=-DNDEBUG
 COPT=-O0
 CDEB=-g -pg -ftrapv -march=native
 CDIA=-Wall -Wextra -fdiagnostics-color=auto
-CFLAGS+=-pipe -std=c99 $(COPT) $(CDEB) $(CDIA) $(CDEF)
+ifeq ($(OS), Linux)
+CINC+=-isystem ~/netmap/sys
+CDIA+=-Wformat=0
+else
+#CDIA+=-Weverything -pedantic
+endif
+CFLAGS+=-pipe -std=c99 $(COPT) $(CDEB) $(CDIA) $(CDEF) $(CINC)
 
 # see http://bruno.defraine.net/techtips/makefile-auto-dependencies-with-gcc/
 OUTPUT_OPTION=-MMD -MP -o $@
 
-LDFLAGS+=-Wl --warn-common
-LDLIBS=-lthr
+LDLIBS=-pthread
 
 lib=warpcore
 cmd=test

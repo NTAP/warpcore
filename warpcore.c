@@ -1,17 +1,22 @@
 #include <fcntl.h>
-#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <net/ethernet.h>
-#include <net/if_dl.h>
 #include <pthread.h>
 #include <poll.h>
-#include <errno.h>
 #include <unistd.h>
-#include <stdio.h>
+
+#ifdef __linux__
+#include <linux/if.h>
+#include <netpacket/packet.h>
+#include <netinet/ether.h>
+#define INFTIM	-1
+#else
+#include <net/if_dl.h>
+#endif
 
 #include "warpcore.h"
 #include "ip.h"
@@ -169,10 +174,8 @@ struct w_socket * w_bind(struct warpcore *w, const uint8_t p,
 {
 	struct w_socket **s = w_get_socket(w, p, port);
 	if (*s == 0) {
-		if ((*s = calloc(1, sizeof **s)) == 0) {
-			perror("cannot allocate struct w_socket");
-			abort();
-		}
+		if ((*s = calloc(1, sizeof **s)) == 0)
+			die("cannot allocate struct w_socket");
 		log("bind IP protocol %d port %d", p, port);
 		(*s)->p = p;
 		(*s)->sport = port;
@@ -225,26 +228,18 @@ void w_cleanup(struct warpcore *w)
 	log("warpcore shutting down");
 
 	if (w->thr) {
-		if (pthread_cancel(w->thr)) {
-			perror("cannot cancel warpcore thread");
-			abort();
-		}
+		if (pthread_cancel(w->thr))
+			die("cannot cancel warpcore thread");
 
-		if (pthread_join(w->thr, 0)) {
-			perror("cannot wait for exiting warpcore thread");
-			abort();
-		}
+		if (pthread_join(w->thr, 0))
+			die("cannot wait for exiting warpcore thread");
 	}
 
-	if (munmap(w->mem, w->req.nr_memsize) == -1) {
-		perror("cannot munmap netmap memory");
-		abort();
-	}
+	if (munmap(w->mem, w->req.nr_memsize) == -1)
+		die("cannot munmap netmap memory");
 
-	if (close(w->fd) == -1) {
-		perror("cannot close /dev/netmap");
-		abort();
-	}
+	if (close(w->fd) == -1)
+		die("cannot close /dev/netmap");
 
 	free(w);
 }
@@ -255,23 +250,17 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 	struct warpcore *w;
 
 	// allocate struct
-	if ((w = calloc(1, sizeof *w)) == 0) {
-		perror("cannot allocate struct warpcore");
-		abort();
-	}
+	if ((w = calloc(1, sizeof *w)) == 0)
+		die("cannot allocate struct warpcore");
 
 	// open /dev/netmap
-	if ((w->fd = open("/dev/netmap", O_RDWR)) == -1) {
-		perror("cannot open /dev/netmap");
-		abort();
-	}
+	if ((w->fd = open("/dev/netmap", O_RDWR)) == -1)
+		die("cannot open /dev/netmap");
 
 	// get interface information
 	struct ifaddrs *ifap;
-	if (getifaddrs(&ifap) == -1) {
-		perror("cannot get interface information");
-		abort();
-	}
+	if (getifaddrs(&ifap) == -1)
+		die("cannot get interface information");
 	for (struct ifaddrs *i = ifap; i->ifa_next; i = i->ifa_next) {
 		if (strcmp(i->ifa_name, ifname) == 0) {
 #ifndef NDEBUG
@@ -280,6 +269,24 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 			char mask[IP_ADDR_STRLEN];
 #endif
 			switch (i->ifa_addr->sa_family) {
+#ifdef __linux__
+			case AF_PACKET:
+				// get MAC address
+				memcpy(&w->mac,
+				       ((struct sockaddr_ll *)i->ifa_addr)->sll_addr,
+				       sizeof w->mac);
+				// get MTU
+				int s;
+				struct ifreq ifr;
+				if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+					die("socket");
+				strcpy(ifr.ifr_name, i->ifa_name);
+				if (ioctl(s, SIOCGIFMTU, &ifr) < 0)
+					die("ioctl (get mtu)");
+				w->mtu = ifr.ifr_ifru.ifru_mtu;
+				close(s);
+
+#else
 			case AF_LINK:
 				// get MAC address
 				memcpy(&w->mac,
@@ -289,6 +296,7 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 				// get MTU
 				w->mtu = ((struct if_data *)
 				          (i->ifa_data))->ifi_mtu;
+#endif
 				log("%s has Ethernet address %s with MTU %d",
 				    i->ifa_name,
 				    ether_ntoa_r((struct ether_addr *)w->mac,
@@ -332,18 +340,14 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 	w->req.nr_ringid &= ~NETMAP_RING_MASK;
 	w->req.nr_flags = NR_REG_ALL_NIC;
 	w->req.nr_arg3 = NUM_EXTRA_BUFS; // request extra buffers
-	if (ioctl(w->fd, NIOCREGIF, &w->req) == -1) {
-		perror("cannot put interface into netmap mode");
-		abort();
-	}
+	if (ioctl(w->fd, NIOCREGIF, &w->req) == -1)
+		die("cannot put interface into netmap mode");
 
 	// mmap the buffer region
 	// TODO: see TODO in nm_open() in netmap_user.h
 	if ((w->mem = mmap(0, w->req.nr_memsize, PROT_WRITE|PROT_READ,
-	    MAP_SHARED, w->fd, 0)) == MAP_FAILED) {
-		perror("cannot mmap netmap memory");
-		abort();
-	}
+	    MAP_SHARED, w->fd, 0)) == MAP_FAILED)
+		die("cannot mmap netmap memory");
 
 	// direct pointer to the netmap interface struct for convenience
 	w->nif = NETMAP_IF(w->mem, w->req.nr_offset);
@@ -381,10 +385,8 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 
 	if (detach) {
 		// detach the warpcore event loop thread
-		if (pthread_create(&w->thr, 0, (void *)&w_loop, w)) {
-			perror("cannot create warpcore thread");
-			abort();
-		}
+		if (pthread_create(&w->thr, 0, (void *)&w_loop, w))
+			die("cannot create warpcore thread");
 	}
 
 	return w;

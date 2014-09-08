@@ -12,7 +12,7 @@ struct eth_hdr {
 	uint8_t		dst[ETH_ADDR_LEN];
 	uint8_t		src[ETH_ADDR_LEN];
 	uint16_t	type;
-} __packed;
+} __attribute__ ((__packed__));
 
 struct warpcore;
 

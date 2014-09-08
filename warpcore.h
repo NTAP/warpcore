@@ -3,6 +3,13 @@
 
 #include <stdbool.h>
 #include <sys/queue.h>
+
+#ifdef __linux__
+#define IFNAMSIZ	IF_NAMESIZE
+#include <sys/time.h>
+#include <pthread.h>
+#endif
+
 #include <net/netmap_user.h>
 
 #include "eth.h"

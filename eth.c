@@ -1,7 +1,12 @@
 #include <arpa/inet.h>
+#include <string.h>
+
+#ifdef __linux__
+#include <netinet/ether.h>
+#else
 #include <sys/types.h>
 #include <net/ethernet.h>
-#include <string.h>
+#endif
 
 #include "warpcore.h"
 #include "arp.h"
@@ -37,8 +42,8 @@ void eth_tx(struct warpcore * w, const char * const buf,
 	char src[ETH_ADDR_LEN*3];
 	char dst[ETH_ADDR_LEN*3];
 	log("Eth %s -> %s, type %d",
-	    ether_ntoa_r((struct ether_addr *)eth->src, src),
-	    ether_ntoa_r((struct ether_addr *)eth->dst, dst), ntohs(eth->type));
+	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
+	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst), ntohs(eth->type));
 #endif
 }
 
@@ -52,8 +57,8 @@ void eth_rx(struct warpcore * w, char * const buf)
 	char src[ETH_ADDR_LEN*3];
 	char dst[ETH_ADDR_LEN*3];
 	log("Eth %s -> %s, type %d",
-	    ether_ntoa_r((struct ether_addr *)eth->src, src),
-	    ether_ntoa_r((struct ether_addr *)eth->dst, dst), type);
+	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
+	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst), type);
 #endif
 
 	// make sure the packet is for us (or broadcast)

@@ -8,6 +8,11 @@
 #define IP_ADDR_LEN	 4 // IP addresses are four bytes
 #define IP_ADDR_STRLEN	16 // xxx.xxx.xxx.xxx\0
 
+#ifdef __linux__
+#define BYTE_ORDER	__BYTE_ORDER
+#define LITTLE_ENDIAN	__LITTLE_ENDIAN
+#endif
+
 struct ip_hdr {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	uint8_t		hl:4,		// header length
@@ -25,7 +30,7 @@ struct ip_hdr {
 	uint8_t		p;		// protocol
 	uint16_t	cksum;		// checksum
 	uint32_t	src, dst;	// source and dest address
-} __packed __aligned(4);
+} __attribute__ ((__packed__));
 
 struct warpcore;
 

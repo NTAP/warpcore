@@ -8,7 +8,7 @@ struct udp_hdr {
 	uint16_t dport;		// destination port
 	uint16_t len;		// udp length
 	uint16_t cksum;		// udp checksum
-} __packed;
+} __attribute__ ((__packed__));
 
 
 struct warpcore;

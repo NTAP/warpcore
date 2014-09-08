@@ -1,7 +1,12 @@
+#include <string.h>
 #include <arpa/inet.h>
+
+#ifdef __linux__
+#include <netinet/ether.h>
+#else
 #include <sys/types.h>
 #include <net/ethernet.h>
-#include <string.h>
+#endif
 
 #include "warpcore.h"
 #include "arp.h"
@@ -18,7 +23,7 @@ void arp_tx(struct warpcore * w, const char * const buf)
 	char spa[IP_ADDR_STRLEN];
 	log("ARP reply %s is at %s",
 	    ip_ntoa(arp->spa, spa, sizeof spa),
-	    ether_ntoa_r((struct ether_addr *)arp->sha, sha));
+	    ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
 #endif
 
 	// do Ethernet transmit preparation

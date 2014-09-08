@@ -26,9 +26,14 @@ void iov_dump(struct w_iov *v)
 
 int main(void)
 {
+#ifdef __linux__
+	const char *i = "eth1";
+#else
+	const char *i = "em1";
+#endif
 	// warpcore can detach into its own thread spawned by w_init()
 	// or inline (in which case one needs to call w_poll on occasion)
-	struct warpcore *w = w_init("em1", false);
+	struct warpcore *w = w_init(i, false);
 	log("main process ready");
 
 	struct w_socket *s = w_bind(w, IP_P_UDP, 53);
