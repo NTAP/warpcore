@@ -14,10 +14,10 @@
 
 
 struct w_iov {
-	char *			buf;	// user data
-	uint_fast32_t		len;	// length of user data
-	uint_fast32_t		idx;	// netmap buffer index containing buf
-	STAILQ_ENTRY(w_iov) 	vecs;	// tail queue (next iov)
+	uint_fast32_t		idx;	// index of netmap buffer
+	char *			buf;	// start of user data (inside buffer)
+	uint_fast32_t		len;	// length of user data (inside buffer)
+	SLIST_ENTRY(w_iov) 	vecs;	// tail queue (next iov)
 };
 
 
@@ -27,15 +27,8 @@ struct w_socket {
 	uint_fast16_t		sport;	// source port
 	uint_fast16_t		dport;	// destination port
 	uint_fast32_t		dip;	// destination IP address
-	STAILQ_HEAD(ivh, w_iov)	iv;	// iov for read data
-	STAILQ_HEAD(ovh, w_iov)	ov;	// iov for data to write
-};
-
-
-struct w_buf {
-	char *			buf;	// the buffer
-	uint_fast32_t		idx;	// netmap buffer index of this buffer
-	STAILQ_ENTRY(w_buf) 	bufs;	// tail queue (next buf)
+	SLIST_HEAD(ivh, w_iov)	iv;	// iov for read data
+	SLIST_HEAD(ovh, w_iov)	ov;	// iov for data to write
 };
 
 
@@ -55,7 +48,8 @@ struct warpcore {
 	void *			mem;		// netmap memory
 	struct netmap_if *	nif;		// netmap interface
 	struct nmreq		req;		// netmap request
-	STAILQ_HEAD(bh, w_buf)	buf;		// tail queue of extra free bufs
+
+	SLIST_HEAD(iovh, w_iov)	iov;		// list of available bufs
 };
 
 

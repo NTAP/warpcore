@@ -49,40 +49,25 @@ struct w_socket ** w_get_socket(struct warpcore * w,
 }
 
 
-static void w_make_idx_avail(struct warpcore * w, const uint32_t idx)
-{
-	struct w_buf *b = malloc(sizeof *b);
-	if (b == 0) {
-		perror("cannot allocate w_buf");
-		abort();
-	}
-	// according to Luigi, any ring can be passed to NETMAP_BUF
-	b->buf = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), idx);
-	b->idx = idx;
-	log("available extra bufidx %d is %p", idx, b->buf);
-	STAILQ_INSERT_TAIL(&w->buf, b, bufs);
-}
-
-
 void w_rx_done(struct w_socket *s)
 {
-	struct w_iov *i = STAILQ_FIRST(&s->iv);
+	struct w_iov *i = SLIST_FIRST(&s->iv);
 	while (i) {
-		struct w_iov *n = STAILQ_NEXT(i, vecs);
-		// make the buffer available again
-		w_make_idx_avail(s->w, i->idx);
-		free(i);
+		// move i from the socket to the available iov list
+		struct w_iov *n = SLIST_NEXT(i, vecs);
+		SLIST_REMOVE_HEAD(&s->iv, vecs);
+		SLIST_INSERT_HEAD(&s->w->iov, i, vecs);
 		i = n;
 	}
-	STAILQ_INIT(&s->iv);
-
+	// TODO: should be a no-op; check
+	SLIST_INIT(&s->iv);
 }
 
 
 struct w_iov * w_rx(struct w_socket *s)
 {
 	if (s)
-		return STAILQ_FIRST(&s->iv);
+		return SLIST_FIRST(&s->iv);
 	return 0;
 }
 
@@ -92,7 +77,7 @@ void w_tx(struct w_socket *s, struct w_iov *ov)
 	while (ov) {
 		log("%d bytes in buf %p", ov->len, ov->buf);
 		udp_tx(s, ov->buf, ov->len);
-		ov = STAILQ_NEXT(ov, vecs);
+		ov = SLIST_NEXT(ov, vecs);
 	}
 
 }
@@ -100,13 +85,13 @@ void w_tx(struct w_socket *s, struct w_iov *ov)
 
 struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
 {
-	if (!STAILQ_EMPTY(&s->ov)) {
+	if (!SLIST_EMPTY(&s->ov)) {
 		log("output iov already allocated");
 		return 0;
 	}
 
 	// determine space needed for header
-	uint_fast16_t hdr_len =	sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
+	uint_fast16_t hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
 	switch (s->p) {
 	case IP_P_UDP:
 		hdr_len += sizeof(struct udp_hdr);
@@ -121,34 +106,36 @@ struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
 	}
 
 	// add enough buffers to the iov so it is > len
-	STAILQ_INIT(&s->ov);
+	SLIST_INIT(&s->ov);
+	struct w_iov *ov_tail = 0;
+	struct w_iov *v;
 	int_fast32_t l = len;
-	struct w_iov *i;
 	while (l > 0) {
 		// log("%d still to allocate", l);
-		// allocate a new iov
-		if ((i = malloc(sizeof *i)) == 0)
-			die("cannot allocate w_iov");
 
 		// grab a spare buffer
-		struct w_buf *b = STAILQ_FIRST(&s->w->buf);
-		if (b == 0)
+		v = SLIST_FIRST(&s->w->iov);
+		if (v == 0)
 			die("out of spare bufs");
-		STAILQ_REMOVE_HEAD(&s->w->buf, bufs);
-		i->buf = b->buf + hdr_len;
-		i->idx = b->idx;
-		i->len = s->w->mtu - hdr_len;
-		l -= i->len;
-		free(b);
+		SLIST_REMOVE_HEAD(&s->w->iov, vecs);
+		v->buf = NETMAP_BUF(NETMAP_TXRING(s->w->nif, 0), v->idx) +
+		         hdr_len;
+		v->len = s->w->mtu - hdr_len;
+		l -= v->len;
 
-		// add the iov to the socket
-		STAILQ_INSERT_TAIL(&s->ov, i, vecs);
+		// add the iov to the tail of the socket
+		// using a STAILQ would be simpler, but slower
+		if(SLIST_EMPTY(&s->ov))
+			SLIST_INSERT_HEAD(&s->ov, v, vecs);
+		else
+			SLIST_INSERT_AFTER(ov_tail, v, vecs);
+		ov_tail = v;
 	}
 	// adjust length of last iov so chain is the exact length requested
-	i->len += l; // l is negative
+	v->len += l; // l is negative
 
-	// log("l %d ilen %d", l, i->len);
-	return STAILQ_FIRST(&s->ov);
+	// log("l %d ilen %d", l, v->len);
+	return SLIST_FIRST(&s->ov);
 }
 
 
@@ -194,7 +181,7 @@ struct w_socket * w_bind(struct warpcore *w, const uint8_t p,
 		log("IP protocol %d source port %d already in use", p, port);
 		return 0;
 	}
-	STAILQ_INIT(&(*s)->iv);
+	SLIST_INIT(&(*s)->iv);
 
 	return *s;
 }
@@ -376,10 +363,17 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 #endif
 
 	// save the indices of the extra buffers in the warpcore structure
-	STAILQ_INIT(&w->buf);
+	SLIST_INIT(&w->iov);
 	for (uint32_t n = 0, i = w->nif->ni_bufs_head;
 	     n < w->req.nr_arg3; n++) {
-	     	w_make_idx_avail(w, i);
+		struct w_iov *v = malloc(sizeof *v);
+		if (v == 0)
+			die("cannot allocate w_iov");
+		// according to Luigi, any ring can be passed to NETMAP_BUF
+		v->buf = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i);
+		v->idx = i;
+		log("available extra buf idx %d", i);
+		SLIST_INSERT_HEAD(&w->iov, v, vecs);
 		char * b = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i);
 		i = *(uint32_t *)b;
 	}

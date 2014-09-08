@@ -1,5 +1,4 @@
 #include <arpa/inet.h>
-#include <stdlib.h>
 
 #include "warpcore.h"
 #include "udp.h"
@@ -27,21 +26,23 @@ void udp_rx(struct warpcore * w,
 	const uint_fast16_t dport = ntohs(udp->dport);
 	const uint_fast16_t len =   ntohs(udp->len);
 	struct w_socket **s = w_get_socket(w, IP_P_UDP, dport);
-
 #ifndef NDEBUG
 	const uint_fast16_t sport = ntohs(udp->sport);
 	log("UDP :%d -> :%d, len %d", sport, dport, len);
 #endif
 
-
 	if (*s == 0) {
 		// nobody bound to this port locally
 		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
 	} else {
-		// allocate a new iov for the data in this packet
-		struct w_iov *i;
-		if ((i = malloc(sizeof *i)) == 0)
-			die("cannot allocate w_iov");
+		// grab an unused iov for the data in this packet
+		struct w_iov *i = SLIST_FIRST(&w->iov);
+		SLIST_REMOVE_HEAD(&w->iov, vecs);
+
+		// remember index of this buffer
+		const uint_fast32_t tmp_idx = i->idx;
+
+		// move the received data into the iov
 		i->buf = buf + off;
 		i->len = len;
 		struct netmap_ring *rxr = NETMAP_RXRING(w->nif, 0);
@@ -49,20 +50,14 @@ void udp_rx(struct warpcore * w,
 		i->idx = rxs->buf_idx;
 
 		// add the iov to the socket
-		STAILQ_INSERT_TAIL(&(*s)->iv, i, vecs);
-
-		// grab a spare buffer
-		struct w_buf *b = STAILQ_FIRST(&w->buf);
-		if (b == 0)
-			die("out of spare bufs");
-		STAILQ_REMOVE_HEAD(&w->buf, bufs);
+		// TODO: XXX this needs to insert at the tail!
+		SLIST_INSERT_HEAD(&(*s)->iv, i, vecs);
 
 		log("swapping rx slot %d (buf_idx %d) and spare buffer idx %d",
-		  rxr->cur, rxs->buf_idx, b->idx);
+		  rxr->cur, rxs->buf_idx, i->idx);
 
-		i->idx = rxs->buf_idx;
-		rxs->buf_idx = b->idx;
+		// use the original buffer in the iov for the receive ring
+		rxs->buf_idx = tmp_idx;
 		rxs->flags = NS_BUF_CHANGED;
-		free(b);
 	}
 }

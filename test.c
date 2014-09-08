@@ -9,7 +9,7 @@ void iov_fill(struct w_iov *v)
 		for (uint_fast16_t l = 0; l < v->len; l++) {
 			v->buf[l] = l % 0xff;
 		}
-		v = STAILQ_NEXT(v, vecs);
+		v = SLIST_NEXT(v, vecs);
 	}
 }
 
@@ -19,7 +19,7 @@ void iov_dump(struct w_iov *v)
 	while (v) {
 		log("%d bytes in buf %p", v->len, v->buf);
 		hexdump(v->buf, v->len);
-		v = STAILQ_NEXT(v, vecs);
+		v = SLIST_NEXT(v, vecs);
 	}
 }
 
@@ -50,7 +50,7 @@ int main(void)
 		while (i) {
 			log("%d bytes in buf %p", i->len, i->buf);
 			hexdump(i->buf, i->len);
-			i = STAILQ_NEXT(i, vecs);
+			i = SLIST_NEXT(i, vecs);
 		}
 
 		// read is done, release the iov
