@@ -5,12 +5,14 @@ CC=cc
 COPT=-O0
 CDEB=-g -pg -ftrapv -march=native
 CDIA=-Wall -Wextra -fdiagnostics-color=auto
+
 ifeq ($(OS), Linux)
 CINC+=-isystem ~/netmap/sys
 CDIA+=-Wformat=0
 else
-#CDIA+=-Weverything -pedantic
+#CDIA+=-Weverything -pedantic -ferror-limit=1000 -Wno-gnu-zero-variadic-macro-arguments -Wno-packed -Wno-padded -Wno-missing-prototypes -Wno-cast-align -Wno-conversion
 endif
+
 CFLAGS+=-pipe -std=c99 $(COPT) $(CDEB) $(CDIA) $(CDEF) $(CINC)
 
 # see http://bruno.defraine.net/techtips/makefile-auto-dependencies-with-gcc/
