@@ -24,7 +24,7 @@ struct w_iov {
 	uint_fast32_t		idx;	// index of netmap buffer
 	char *			buf;	// start of user data (inside buffer)
 	uint_fast32_t		len;	// length of user data (inside buffer)
-	SLIST_ENTRY(w_iov) 	vecs;	// tail queue (next iov)
+	SLIST_ENTRY(w_iov) 	vecs;	// next iov
 };
 
 
@@ -36,6 +36,8 @@ struct w_socket {
 	uint_fast32_t		dip;	// destination IP address
 	SLIST_HEAD(ivh, w_iov)	iv;	// iov for read data
 	SLIST_HEAD(ovh, w_iov)	ov;	// iov for data to write
+
+	SLIST_ENTRY(w_socket) 	socks;	// next socket
 };
 
 
@@ -57,6 +59,7 @@ struct warpcore {
 	struct nmreq		req;		// netmap request
 
 	SLIST_HEAD(iovh, w_iov)	iov;		// list of available bufs
+	SLIST_HEAD(sockh, w_socket)	sock;	// list of open sockets
 };
 
 
@@ -79,9 +82,9 @@ extern void w_tx(struct w_socket *s, struct w_iov *ov);
 
 // internal warpcore use only; TODO: restrict exporting
 extern struct w_socket ** w_get_socket(struct warpcore * w,
-                                       const uint8_t p, const uint16_t port);
+                                       const uint_fast8_t p, const uint_fast16_t port);
 
-extern void w_poll(struct warpcore *w);
+bool w_select(struct warpcore *w);
 extern void * w_loop(struct warpcore *w);
 
 

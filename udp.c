@@ -16,6 +16,7 @@ void udp_tx(struct w_socket *s,
 	udp->len =   htons(len + sizeof(struct udp_hdr));
 	udp->cksum = 0;
 	udp->cksum = in_cksum(udp, len + sizeof(struct udp_hdr));
+	// TODO: no transmit happening yet
 }
 
 
@@ -37,7 +38,12 @@ void udp_rx(struct warpcore * w,
 	} else {
 		// grab an unused iov for the data in this packet
 		struct w_iov *i = SLIST_FIRST(&w->iov);
+		struct netmap_ring *rxr = NETMAP_RXRING(w->nif, 0);
+		struct netmap_slot *rxs = &rxr->slot[rxr->cur];
 		SLIST_REMOVE_HEAD(&w->iov, vecs);
+
+		log("swapping rx slot %d (buf_idx %d) and spare buffer idx %d",
+		  rxr->cur, rxs->buf_idx, i->idx);
 
 		// remember index of this buffer
 		const uint_fast32_t tmp_idx = i->idx;
@@ -45,16 +51,12 @@ void udp_rx(struct warpcore * w,
 		// move the received data into the iov
 		i->buf = buf + off;
 		i->len = len;
-		struct netmap_ring *rxr = NETMAP_RXRING(w->nif, 0);
-		struct netmap_slot *rxs = &rxr->slot[rxr->cur];
 		i->idx = rxs->buf_idx;
 
 		// add the iov to the socket
 		// TODO: XXX this needs to insert at the tail!
 		SLIST_INSERT_HEAD(&(*s)->iv, i, vecs);
 
-		log("swapping rx slot %d (buf_idx %d) and spare buffer idx %d",
-		  rxr->cur, rxs->buf_idx, i->idx);
 
 		// use the original buffer in the iov for the receive ring
 		rxs->buf_idx = tmp_idx;

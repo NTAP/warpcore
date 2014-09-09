@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <poll.h>
 #include <unistd.h>
+#include <signal.h>
 
 #ifdef __linux__
 #include <linux/if.h>
@@ -25,12 +26,15 @@
 
 #define NUM_EXTRA_BUFS	16
 
+// according to Luigi, any ring can be passed to NETMAP_BUF
+#define IDX2BUF(w, i)	NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i)
+
 
 struct w_socket ** w_get_socket(struct warpcore * w,
-                                 const uint8_t p, const uint16_t port)
+                                 const uint_fast8_t p, const uint_fast16_t port)
 {
 	// find the respective "socket"
-	const uint16_t index = port - PORT_RANGE_LO;
+	const uint_fast16_t index = port - PORT_RANGE_LO;
 	if (index >= PORT_RANGE_HI) {
 		log("port %d not in range %d-%d", port,
 		    PORT_RANGE_LO, PORT_RANGE_HI);
@@ -80,7 +84,7 @@ struct w_iov * w_rx(struct w_socket *s)
 void w_tx(struct w_socket *s, struct w_iov *ov)
 {
 	while (ov) {
-		log("%d bytes in buf %p", ov->len, ov->buf);
+		log("%d bytes in buf %d", ov->len, ov->idx);
 		udp_tx(s, ov->buf, ov->len);
 		ov = SLIST_NEXT(ov, vecs);
 	}
@@ -113,23 +117,21 @@ struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
 	// add enough buffers to the iov so it is > len
 	SLIST_INIT(&s->ov);
 	struct w_iov *ov_tail = 0;
-	struct w_iov *v;
+	struct w_iov *v = 0;
 	int_fast32_t l = len;
 	while (l > 0) {
-		// log("%d still to allocate", l);
-
 		// grab a spare buffer
 		v = SLIST_FIRST(&s->w->iov);
 		if (v == 0)
 			die("out of spare bufs");
 		SLIST_REMOVE_HEAD(&s->w->iov, vecs);
-		v->buf = NETMAP_BUF(NETMAP_TXRING(s->w->nif, 0), v->idx) +
-		         hdr_len;
+		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
 		v->len = s->w->mtu - hdr_len;
 		l -= v->len;
 
 		// add the iov to the tail of the socket
 		// using a STAILQ would be simpler, but slower
+		log("using buffer %d for tx", v->idx);
 		if(SLIST_EMPTY(&s->ov))
 			SLIST_INSERT_HEAD(&s->ov, v, vecs);
 		else
@@ -139,7 +141,6 @@ struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
 	// adjust length of last iov so chain is the exact length requested
 	v->len += l; // l is negative
 
-	// log("l %d ilen %d", l, v->len);
 	return SLIST_FIRST(&s->ov);
 }
 
@@ -147,6 +148,25 @@ struct w_iov * w_tx_prep(struct w_socket *s, const uint_fast32_t len)
 void w_close(struct w_socket *s)
 {
 	struct w_socket **ss = w_get_socket(s->w, s->p, s->sport);
+
+	// make iovs of the socket available again
+	while (!SLIST_EMPTY(&s->iv)) {
+             struct w_iov *v = SLIST_FIRST(&s->iv);
+             log("free buf %d", v->idx);
+             SLIST_REMOVE_HEAD(&s->iv, vecs);
+             SLIST_INSERT_HEAD(&s->w->iov, v, vecs);
+	}
+	while (!SLIST_EMPTY(&s->ov)) {
+             struct w_iov *v = SLIST_FIRST(&s->ov);
+             log("free buf %d", v->idx);
+             SLIST_REMOVE_HEAD(&s->ov, vecs);
+             SLIST_INSERT_HEAD(&s->w->iov, v, vecs);
+	}
+
+	// remove the socket from list of sockets
+	SLIST_REMOVE(&s->w->sock, s, w_socket, socks);
+
+	// free the socket
 	free(*ss);
 	*ss = 0;
 }
@@ -173,36 +193,45 @@ struct w_socket * w_bind(struct warpcore *w, const uint8_t p,
                          const uint16_t port)
 {
 	struct w_socket **s = w_get_socket(w, p, port);
-	if (*s == 0) {
-		if ((*s = calloc(1, sizeof **s)) == 0)
-			die("cannot allocate struct w_socket");
-		log("bind IP protocol %d port %d", p, port);
-		(*s)->p = p;
-		(*s)->sport = port;
-		(*s)->w = w;
-	} else {
+	if (*s) {
 		log("IP protocol %d source port %d already in use", p, port);
 		return 0;
 	}
-	SLIST_INIT(&(*s)->iv);
 
+	if ((*s = calloc(1, sizeof **s)) == 0)
+		die("cannot allocate struct w_socket");
+	log("bind IP protocol %d port %d", p, port);
+	(*s)->p = p;
+	(*s)->sport = port;
+	(*s)->w = w;
+	SLIST_INIT(&(*s)->iv);
+	SLIST_INSERT_HEAD(&w->sock, *s, socks);
 	return *s;
 }
 
 
-void w_poll(struct warpcore *w)
+bool w_select(struct warpcore *w)
 {
-	struct pollfd fds = { .fd = w->fd, .events = POLLIN };
-	const int n = poll(&fds, 1, INFTIM);
-	switch (n) {
+	fd_set fds;
+	int nfds = 1;
+	FD_SET(w->fd, &fds);
+
+	sigset_t emptyset;
+	if (sigemptyset(&emptyset) == -1)
+		die("sigemptyset");
+
+	switch (pselect(nfds, &fds, 0, 0, 0, &emptyset)) {
 	case -1:
-		die("poll: %s", strerror(errno));
+		if (errno == EINTR)
+			return false;
+		else
+			die("pselect");
 		break;
 	case 0:
-		log("poll: timeout expired");
+		log("pselect: timeout expired");
 		break;
 	default:
-		// log("poll: %d descriptors ready", n);
+		// log("pselect: %d descriptors ready", n);
 		break;
 	}
 
@@ -213,13 +242,32 @@ void w_poll(struct warpcore *w)
 		eth_rx(w, buf);
 		ring->head = ring->cur = nm_ring_next(ring, ring->cur);
 	}
+	return true;
 }
 
 
 void * w_loop(struct warpcore *w)
 {
 	while (1)
-		w_poll(w);
+		w_select(w);
+}
+
+
+static struct w_iov * w_chain_extra_bufs(struct warpcore *w, struct w_iov *v)
+{
+	struct w_iov *n;
+	do {
+		n = SLIST_NEXT(v, vecs);
+		uint32_t *buf = (uint32_t *)IDX2BUF(w, v->idx);
+		if (n) {
+			*buf = n->idx;
+			v = n;
+		} else
+			*buf = 0;
+	} while (n);
+
+	// return the last list element
+	return v;
 }
 
 
@@ -235,6 +283,32 @@ void w_cleanup(struct warpcore *w)
 			die("cannot wait for exiting warpcore thread");
 	}
 
+	// re-construct the extra bufs list, so netmap can free the memory
+	struct w_iov *last = w_chain_extra_bufs(w, SLIST_FIRST(&w->iov));
+	struct w_socket *s;
+	SLIST_FOREACH(s, &w->sock, socks) {
+		if (!SLIST_EMPTY(&s->iv)) {
+			struct w_iov *l = w_chain_extra_bufs(w, SLIST_FIRST(&s->iv));
+			*(uint32_t *)(last->buf) = SLIST_FIRST(&s->iv)->idx;
+			last = l;
+
+		}
+		if (!SLIST_EMPTY(&s->ov)) {
+			struct w_iov *lov = w_chain_extra_bufs(w, SLIST_FIRST(&s->ov));
+			*(uint32_t *)(last->buf) = SLIST_FIRST(&s->ov)->idx;
+			last = lov;
+		}
+		*(uint32_t *)(last->buf) = 0;
+	}
+	w->nif->ni_bufs_head = SLIST_FIRST(&w->iov)->idx;
+
+	// int n = w->nif->ni_bufs_head;
+	// while (n) {
+	// 	char *b = IDX2BUF(w, n);
+	// 	log("buf in extra chain idx %d", n);
+	// 	n = *(uint32_t *)b;
+	// }
+
 	if (munmap(w->mem, w->req.nr_memsize) == -1)
 		die("cannot munmap netmap memory");
 
@@ -243,6 +317,9 @@ void w_cleanup(struct warpcore *w)
 
 	free(w);
 }
+
+
+static void w_handler(int sig) { log("w_handler %d", sig); /* do nothing */  }
 
 
 struct warpcore * w_init(const char * const ifname, const bool detach)
@@ -356,12 +433,12 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 	// print some info about our rings
 	for(uint32_t ri = 0; ri <= w->nif->ni_tx_rings-1; ri++) {
 		struct netmap_ring *r = NETMAP_TXRING(w->nif, ri);
-		log("tx ring %d: first slot idx %d, last slot idx %d", ri,
+		log("tx ring %d: first slot %d, last slot %d", ri,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 	for(uint32_t ri = 0; ri <= w->nif->ni_rx_rings-1; ri++) {
 		struct netmap_ring *r = NETMAP_RXRING(w->nif, ri);
-		log("rx ring %d: first slot idx %d, last slot idx %d", ri,
+		log("rx ring %d: first slot %d, last slot %d", ri,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 #endif
@@ -373,15 +450,29 @@ struct warpcore * w_init(const char * const ifname, const bool detach)
 		struct w_iov *v = malloc(sizeof *v);
 		if (v == 0)
 			die("cannot allocate w_iov");
-		// according to Luigi, any ring can be passed to NETMAP_BUF
-		v->buf = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i);
+		v->buf = IDX2BUF(w, i);
 		v->idx = i;
-		log("available extra buf idx %d", i);
+		// log("available extra buf %d", i);
 		SLIST_INSERT_HEAD(&w->iov, v, vecs);
-		char * b = NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i);
+		char *b = IDX2BUF(w, i);
 		i = *(uint32_t *)b;
 	}
 	log("allocated %d extra buffers", w->req.nr_arg3);
+
+	// initialize list of sockets
+	SLIST_INIT(&w->sock);
+
+	// block SIGINT
+	sigset_t blockset;
+        if (sigaddset(&blockset, SIGINT) == -1)
+		die("sigaddset");
+        if (sigprocmask(SIG_BLOCK, &blockset, 0) == -1)
+		die("sigprocmask");
+        struct sigaction sa = { .sa_handler = w_handler, .sa_flags = 0 };
+	if (sigemptyset(&sa.sa_mask) == -1)
+		die("sigemptyset");
+        if(sigaction(SIGINT, &sa, 0) == -1)
+		die("sigaction");
 
 	if (detach) {
 		// detach the warpcore event loop thread

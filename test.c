@@ -5,9 +5,9 @@
 void iov_fill(struct w_iov *v)
 {
 	while (v) {
-		log("%d bytes in buf %p", v->len, v->buf);
+		log("%d bytes in buf %d", v->len, v->idx);
 		for (uint_fast16_t l = 0; l < v->len; l++) {
-			v->buf[l] = l % 0xff;
+			v->buf[l] = (char)(l % 0xff);
 		}
 		v = SLIST_NEXT(v, vecs);
 	}
@@ -17,7 +17,7 @@ void iov_fill(struct w_iov *v)
 void iov_dump(struct w_iov *v)
 {
 	while (v) {
-		log("%d bytes in buf %p", v->len, v->buf);
+		log("%d bytes in buf %d", v->len, v->idx);
 		hexdump(v->buf, v->len);
 		v = SLIST_NEXT(v, vecs);
 	}
@@ -27,13 +27,14 @@ void iov_dump(struct w_iov *v)
 int main(void)
 {
 #ifdef __linux__
-	const char *i = "eth1";
+	const char *ifname = "eth1";
 #else
-	const char *i = "em1";
+	const char *ifname = "em1";
 #endif
+
 	// warpcore can detach into its own thread spawned by w_init()
 	// or inline (in which case one needs to call w_poll on occasion)
-	struct warpcore *w = w_init(i, false);
+	struct warpcore *w = w_init(ifname, false);
 	log("main process ready");
 
 	struct w_socket *s = w_bind(w, IP_P_UDP, 53);
@@ -46,14 +47,15 @@ int main(void)
 
 	while (1) {
 		// run the receive loop
-		w_poll(w);
+		if (w_select(w) == false)
+			break;
 
 		// read any data
 		struct w_iov *i = w_rx(s);
 
 		// access the read data
 		while (i) {
-			log("%d bytes in buf %p", i->len, i->buf);
+			log("%d bytes in buf %d", i->len, i->idx);
 			hexdump(i->buf, i->len);
 			i = SLIST_NEXT(i, vecs);
 		}
