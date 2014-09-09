@@ -38,8 +38,9 @@
 
 #define die(fmt, ...)                                             \
 	do {                                                      \
+		const int e = errno;                              \
 		log("die: " fmt ": %s", ##__VA_ARGS__,            \
-		     strerror(errno));                            \
+		     strerror(e));                                \
 		abort();                                          \
 	} while (0)
 
