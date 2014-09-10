@@ -39,7 +39,7 @@ struct w_iov;
 extern void ip_tx_with_rx_buf(struct warpcore * w, const uint_fast8_t p,
                               char * const buf, const uint_fast16_t len);
 
-extern void ip_tx(struct warpcore * s, struct w_iov * const v,
+extern bool ip_tx(struct warpcore * s, struct w_iov * const v,
                   const uint_fast16_t len);
 
 extern void ip_rx(struct warpcore * w, char * const buf);

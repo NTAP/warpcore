@@ -8,7 +8,7 @@
 
 
 // Put the socket template header in front of the data in the iov and send.
-void udp_tx(struct w_sock *s, struct w_iov * const v)
+bool udp_tx(struct w_sock *s, struct w_iov * const v)
 {
 	// copy template header into buffer and fill in remaining fields
 	char *start = IDX2BUF(s->w, v->idx);
@@ -26,7 +26,7 @@ void udp_tx(struct w_sock *s, struct w_iov * const v)
 	// udp->cksum = in_cksum(udp, l); // XXX need to muck up a pseudo header
 
 	// do IP transmit preparation
-	ip_tx(s->w, v, l);
+	return ip_tx(s->w, v, l);
 }
 
 

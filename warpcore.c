@@ -85,14 +85,21 @@ void w_tx(struct w_sock * const s)
 	// TODO: handle other protocols
 
 	// packetize bufs and place in tx ring
+	bool ok = true;
 	uint_fast32_t n = 0, l = 0;
 	while (!SLIST_EMPTY(&s->ov)) {
 		struct w_iov * const v = SLIST_FIRST(&s->ov);
-		SLIST_REMOVE_HEAD(&s->ov, next);
-		udp_tx(s, v);
-		n++;
-		l += v->len;
-		SLIST_INSERT_HEAD(&s->w->iov, v, next);
+		ok = udp_tx(s, v);
+		if (ok) {
+			n++;
+			l += v->len;
+			SLIST_REMOVE_HEAD(&s->ov, next);
+			SLIST_INSERT_HEAD(&s->w->iov, v, next);
+		} else {
+			// no space in ring
+			if (ioctl(s->w->fd, NIOCTXSYNC, 0) == -1)
+				die("cannot kick tx ring");
+		}
 	}
 	log("UDP tx iov (len %d in %d bufs) done", l, n);
 
@@ -165,13 +172,13 @@ void w_close(struct w_sock * const s)
 	// make iovs of the socket available again
 	while (!SLIST_EMPTY(&s->iv)) {
              struct w_iov * const v = SLIST_FIRST(&s->iv);
-             log("free buf %d", v->idx);
+             // log("free buf %d", v->idx);
              SLIST_REMOVE_HEAD(&s->iv, next);
              SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}
 	while (!SLIST_EMPTY(&s->ov)) {
              struct w_iov * const v = SLIST_FIRST(&s->ov);
-             log("free buf %d", v->idx);
+             // log("free buf %d", v->idx);
              SLIST_REMOVE_HEAD(&s->ov, next);
              SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}

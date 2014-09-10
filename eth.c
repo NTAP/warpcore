@@ -54,11 +54,15 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 
 // Swap the buffer in the iov into the tx ring, placing an empty one
 // into the iov.
-void eth_tx(struct warpcore *w, struct w_iov * const v, const uint_fast16_t len)
+bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint_fast16_t len)
 {
 	// TODO: this will need to be modified for NICs with multiple rings
 	struct netmap_ring * const txr = NETMAP_TXRING(w->nif, 0);
 	struct netmap_slot * const txs = &txr->slot[txr->cur];
+
+	if (txr->tail == nm_ring_next(txr, txr->cur))
+		// not enough space in the ring
+		return false;
 
 	// place v in the tx ring
 	const uint_fast32_t tmp_idx = txs->buf_idx;
@@ -84,6 +88,7 @@ void eth_tx(struct warpcore *w, struct w_iov * const v, const uint_fast16_t len)
 	txr->head = txr->cur = nm_ring_next(txr, txr->cur);
 
 	// caller needs to make iovs available again and optionally kick tx
+	return true;
 }
 
 

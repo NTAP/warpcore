@@ -69,7 +69,7 @@ void ip_tx_with_rx_buf(struct warpcore * w, const uint_fast8_t p,
 // Fill in the IP header information that isn't set as part of the
 // socket packet template, calculate the header checksum, and hand off
 // to the Ethernet layer.
-void ip_tx(struct warpcore * w, struct w_iov * const v, const uint_fast16_t len)
+bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint_fast16_t len)
 {
 	char * const start = IDX2BUF(w, v->idx);
 	struct ip_hdr * const ip =
@@ -86,7 +86,7 @@ void ip_tx(struct warpcore * w, struct w_iov * const v, const uint_fast16_t len)
 #endif
 
 	// do Ethernet transmit preparation
-	eth_tx(w, v, l);
+	return eth_tx(w, v, l);
 }
 
 
