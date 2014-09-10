@@ -40,8 +40,8 @@ void icmp_tx_unreach(struct warpcore * w, const uint_fast8_t code,
 	icmp->code = code;
 
 	// TODO: implement RFC4884 instead of setting the padding to zero
-	uint32_t *pad = (uint32_t *)(buf + off + sizeof(struct icmp_hdr));
-	*pad = 0;
+	uint32_t * const p = (uint32_t *)(buf + off + sizeof(struct icmp_hdr));
+	*p = 0;
 
 	icmp_tx(w, buf, off, sizeof(struct icmp_hdr) + 4 + len); // does cksum
 }
