@@ -31,7 +31,7 @@ struct w_iov {
 	char *			buf;	// start of user data (inside buffer)
 	uint_fast32_t		len;	// length of user data (inside buffer)
 	SLIST_ENTRY(w_iov) 	next;	// next iov
-};
+} __attribute__((__aligned__(4)));
 
 
 struct w_sock {
@@ -46,7 +46,7 @@ struct w_sock {
 	SLIST_HEAD(ivh, w_iov)	iv;			// iov for read data
 	SLIST_HEAD(ovh, w_iov)	ov;			// iov for data to write
 	SLIST_ENTRY(w_sock) 	next;			// next socket
-};
+} __attribute__((__aligned__(4)));
 
 
 struct warpcore {
@@ -68,7 +68,7 @@ struct warpcore {
 
 	SLIST_HEAD(iovh, w_iov)	iov;		// list of available bufs
 	SLIST_HEAD(sh, w_sock)	sock;		// list of open sockets
-};
+} __attribute__((__aligned__(4)));
 
 
 // see udp.c for documentation of functions

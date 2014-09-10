@@ -30,7 +30,7 @@ struct ip_hdr {
 	uint8_t		p;		// protocol
 	uint16_t	cksum;		// checksum
 	uint32_t	src, dst;	// source and dest address
-} __attribute__ ((__packed__));
+} __attribute__ ((__packed__)) __attribute__((__aligned__(4)));
 
 struct warpcore;
 struct w_iov;
