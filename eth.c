@@ -18,7 +18,7 @@
 // This is currently only used for sending replies to inbound ICMP and ARP
 // requests.
 void eth_tx_rx_cur(struct warpcore *w, char * const buf,
-                   const uint_fast16_t len)
+                   const uint16_t len)
 {
 	// TODO: this will need to be modified for NICs with multiple rings
 	struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, 0);
@@ -34,7 +34,7 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 	// move modified rx slot to tx ring, and move an unused tx slot back
 	// log("swapping rx slot %d (buf_idx %d) and tx slot %d (buf_idx %d)",
 	//     rxr->cur, rxs->buf_idx, txr->cur, txs->buf_idx);
-	const uint_fast32_t tmp_idx = txs->buf_idx;
+	const uint32_t tmp_idx = txs->buf_idx;
 	txs->buf_idx = rxs->buf_idx;
 	rxs->buf_idx = tmp_idx;
 	txs->len = len + sizeof(struct eth_hdr);
@@ -54,7 +54,7 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 
 // Swap the buffer in the iov into the tx ring, placing an empty one
 // into the iov.
-bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint_fast16_t len)
+bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 {
 	// TODO: this will need to be modified for NICs with multiple rings
 	struct netmap_ring * const txr = NETMAP_TXRING(w->nif, 0);
@@ -65,7 +65,7 @@ bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint_fast16_t len)
 		return false;
 
 	// place v in the tx ring
-	const uint_fast32_t tmp_idx = txs->buf_idx;
+	const uint32_t tmp_idx = txs->buf_idx;
 	txs->buf_idx = v->idx;
 	txs->len = len + sizeof(struct eth_hdr);
 	txs->flags = NS_BUF_CHANGED;
@@ -97,7 +97,7 @@ bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint_fast16_t len)
 void eth_rx(struct warpcore * w, char * const buf)
 {
 	const struct eth_hdr * const eth = (const struct eth_hdr * const)(buf);
-	const uint_fast16_t type = ntohs(eth->type);
+	const uint16_t type = ntohs(eth->type);
 
 #if !defined(NDEBUG) && defined(PKTTRACE)
 	char src[ETH_ADDR_STRLEN];

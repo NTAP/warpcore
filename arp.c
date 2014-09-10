@@ -17,7 +17,7 @@
 
 // Use a spare iov to transmit an ARP query for the given destination
 // IP address.
-void arp_who_has(struct warpcore * w, const uint_fast32_t dip)
+void arp_who_has(struct warpcore * w, const uint32_t dip)
 {
 	// grab a spare buffer
 	struct w_iov * const v = SLIST_FIRST(&w->iov);
@@ -104,17 +104,17 @@ void arp_rx(struct warpcore * w, char * const buf)
 	const struct arp_hdr * const arp =
 		(const struct arp_hdr * const)(buf + sizeof(struct eth_hdr));
 
-	const uint_fast16_t hrd = ntohs(arp->hrd);
+	const uint16_t hrd = ntohs(arp->hrd);
 	if (hrd != ARP_HRD_ETHER || arp->hln != ETH_ADDR_LEN)
 		die("unhandled ARP hardware format %d with len %d",
 		    hrd, arp->hln);
 
-	const uint_fast16_t pro = ntohs(arp->pro);
+	const uint16_t pro = ntohs(arp->pro);
 	if (pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN)
 		die("unhandled ARP protocol format %d with len %d",
 		    pro, arp->pln);
 
-	const uint_fast16_t op = ntohs(arp->op);
+	const uint16_t op = ntohs(arp->op);
 	switch (op) {
 	case ARP_OP_REQUEST:
 #if !defined(NDEBUG) && defined(PKTTRACE)

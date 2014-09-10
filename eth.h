@@ -15,7 +15,7 @@ struct eth_hdr {
 	uint8_t		dst[ETH_ADDR_LEN];
 	uint8_t		src[ETH_ADDR_LEN];
 	uint16_t	type;
-} __attribute__ ((__packed__)) __attribute__((__aligned__(4)));
+} __attribute__ ((__packed__));
 
 
 struct warpcore;
@@ -23,10 +23,10 @@ struct w_iov;
 
 // see eth.c for documentation of functions
 extern void eth_tx_rx_cur(struct warpcore * w, char * const buf,
-		          const uint_fast16_t len);
+		          const uint16_t len);
 
 extern bool eth_tx(struct warpcore * w, struct w_iov * const v,
-                   const uint_fast16_t len);
+                   const uint16_t len);
 
 extern void eth_rx(struct warpcore * w, char * const buf);
 

@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #else
 #include <stdint.h>
-#include "debug.h"
 #define u_short uint16_t
 #define u_char uint8_t
 #endif
@@ -55,7 +54,7 @@ __FBSDID("$FreeBSD$");
 int
 in_cksum(struct mbuf *m, int len)
 #else
-uint16_t in_cksum(const void * const buf, const uint_fast16_t len)
+uint16_t in_cksum(const void * const buf, const uint16_t len)
 #endif
 {
 	register const u_short *w;
@@ -68,7 +67,7 @@ uint16_t in_cksum(const void * const buf, const uint_fast16_t len)
 	int byte_swapped = 0;
 
 	union {
-		char	c[2];
+		u_char c[2];
 		u_short	s;
 	} s_util;
 	union {
@@ -146,13 +145,13 @@ uint16_t in_cksum(const void * const buf, const uint_fast16_t len)
 			sum <<= 8;
 			byte_swapped = 0;
 			if (mlen == -1) {
-				s_util.c[1] = *(char *)w;
+				s_util.c[1] = *(u_char *)w;
 				sum += s_util.s;
 				mlen = 0;
 			} else
 				mlen = -1;
 		} else if (mlen == -1)
-			s_util.c[0] = *(char *)w;
+			s_util.c[0] = *(u_char *)w;
 #if 0
 	}
 #endif

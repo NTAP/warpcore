@@ -7,7 +7,7 @@
 
 // Send the modified ICMP packet in the current receive buffer.
 static void icmp_tx(struct warpcore * w, char * const buf,
-             const uint_fast16_t off, const uint_fast16_t len)
+             const uint16_t off, const uint16_t len)
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
 
@@ -24,13 +24,13 @@ static void icmp_tx(struct warpcore * w, char * const buf,
 
 // Make an ICMP unreachable message with the given code out of the
 // current received packet.
-void icmp_tx_unreach(struct warpcore * w, const uint_fast8_t code,
-                     char * const buf, const uint_fast16_t off)
+void icmp_tx_unreach(struct warpcore * w, const uint8_t code,
+                     char * const buf, const uint16_t off)
 {
 	// copy IP hdr + 64 bytes of the original IP packet as the ICMP payload
 	struct ip_hdr * const ip =
 		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
-	const uint_fast16_t len = ip->hl * 4 + 64;
+	const uint16_t len = ip->hl * 4 + 64;
 	// use memmove (instead of memcpy), since the regions overlap
 	memmove(buf + off + sizeof(struct icmp_hdr) + 4, ip, len);
 
@@ -49,7 +49,7 @@ void icmp_tx_unreach(struct warpcore * w, const uint_fast8_t code,
 
 // Handle an incoming ICMP packet, and optionally respond to it.
 void icmp_rx(struct warpcore * w, char * const buf,
-             const uint_fast16_t off, const uint_fast16_t len)
+             const uint16_t off, const uint16_t len)
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
 

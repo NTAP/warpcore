@@ -31,8 +31,8 @@ uint32_t ip_aton(const char * const ip)
 
 // Make an IP reply packet out of the IP packet in the current receive buffer.
 // Only used by icmp_tx.
-void ip_tx_with_rx_buf(struct warpcore * w, const uint_fast8_t p,
-		       char * const buf, const uint_fast16_t len)
+void ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
+		       char * const buf, const uint16_t len)
 {
 	struct ip_hdr * const ip =
 		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
@@ -42,7 +42,7 @@ void ip_tx_with_rx_buf(struct warpcore * w, const uint_fast8_t p,
 	ip->src = w->ip;
 
 	// set the IP length
-	const uint_fast16_t l = ip->hl * 4 + len;
+	const uint16_t l = ip->hl * 4 + len;
 	ip->len = htons(l);
 
 	// set the IP protocol
@@ -69,12 +69,12 @@ void ip_tx_with_rx_buf(struct warpcore * w, const uint_fast8_t p,
 // Fill in the IP header information that isn't set as part of the
 // socket packet template, calculate the header checksum, and hand off
 // to the Ethernet layer.
-bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint_fast16_t len)
+bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 {
 	char * const start = IDX2BUF(w, v->idx);
 	struct ip_hdr * const ip =
 		(struct ip_hdr * const)(start + sizeof(struct eth_hdr));
- 	const uint_fast16_t l = len + 20; // ip->hl * 4
+ 	const uint16_t l = len + 20; // ip->hl * 4
 
 	// fill in remaining header fields
 	ip->len = htons(l);
@@ -120,8 +120,8 @@ void ip_rx(struct warpcore * w, char * const buf)
 	if (ip->hl * 4 != 20)
 		die("no support for IP options");
 
-	const uint_fast16_t off = sizeof(struct eth_hdr) + ip->hl * 4;
-	const uint_fast16_t len = ntohs(ip->len) - ip->hl * 4;
+	const uint16_t off = sizeof(struct eth_hdr) + ip->hl * 4;
+	const uint16_t len = ntohs(ip->len) - ip->hl * 4;
 	switch (ip->p) {
 	case IP_P_ICMP:
 		icmp_rx(w, buf, off, len);

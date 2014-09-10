@@ -29,11 +29,11 @@
 #define NUM_EXTRA_BUFS	512
 
 
-struct w_sock ** w_get_sock(struct warpcore * const w, const uint_fast8_t p,
-                            const uint_fast16_t port)
+struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
+                            const uint16_t port)
 {
 	// find the respective "socket"
-	const uint_fast16_t index = port - PORT_RANGE_LO;
+	const uint16_t index = port - PORT_RANGE_LO;
 	struct w_sock **s;
 
 	switch (p){
@@ -81,7 +81,7 @@ void w_tx(struct w_sock * const s)
 
 	// packetize bufs and place in tx ring
 	bool ok = true;
-	uint_fast32_t n = 0, l = 0;
+	uint32_t n = 0, l = 0;
 	while (!SLIST_EMPTY(&s->ov)) {
 		struct w_iov * const v = SLIST_FIRST(&s->ov);
 		ok = udp_tx(s, v);
@@ -104,7 +104,7 @@ void w_tx(struct w_sock * const s)
 }
 
 
-struct w_iov * w_tx_alloc(struct w_sock * const s, const uint_fast32_t len)
+struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
 	if (!SLIST_EMPTY(&s->ov)) {
 		log("output iov already allocated");
@@ -112,7 +112,7 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint_fast32_t len)
 	}
 
 	// determine space needed for header
-	uint_fast16_t hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
+	uint16_t hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
 	switch (s->p) {
 	case IP_P_UDP:
 		hdr_len += sizeof(struct udp_hdr);
@@ -130,8 +130,8 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint_fast32_t len)
 	SLIST_INIT(&s->ov);
 	struct w_iov *ov_tail = 0;
 	struct w_iov *v = 0;
-	int_fast32_t l = len;
-	uint_fast32_t n = 0;
+	int32_t l = (int32_t)len;
+	uint32_t n = 0;
 	while (l > 0) {
 		// grab a spare buffer
 		v = SLIST_FIRST(&s->w->iov);
@@ -188,8 +188,8 @@ void w_close(struct w_sock * const s)
 }
 
 
-void w_connect(struct w_sock * const s, const uint_fast32_t dip,
-               const uint_fast16_t dport)
+void w_connect(struct w_sock * const s, const uint32_t dip,
+               const uint16_t dport)
 {
 	if (s->dip || s->dport) {
 		log("socket already connected");
@@ -431,7 +431,7 @@ struct warpcore * w_init(const char * const ifname)
 				              i->ifa_addr),
 				       sizeof w->mac);
 				// get MTU
-				w->mtu = ((struct if_data *)
+				w->mtu = (uint16_t)((struct if_data *)
 				          (i->ifa_data))->ifi_mtu;
 #endif
 				log("%s has Ethernet address %s with MTU %d",

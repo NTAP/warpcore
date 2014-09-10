@@ -16,7 +16,7 @@ bool udp_tx(struct w_sock *s, struct w_iov * const v)
 
 	struct udp_hdr * const udp =
 		(struct udp_hdr * const)(v->buf - sizeof(struct udp_hdr));
- 	const uint_fast16_t l = v->len + sizeof(struct udp_hdr);
+ 	const uint16_t l = v->len + sizeof(struct udp_hdr);
 
 #if !defined(NDEBUG) && defined(PKTTRACE)
 	log("UDP :%d -> :%d, len %d", ntohs(udp->sport), ntohs(udp->dport), v->len);
@@ -31,15 +31,15 @@ bool udp_tx(struct w_sock *s, struct w_iov * const v)
 
 
 // Receive a UDP packet.
-void udp_rx(struct warpcore * w, char * const buf, const uint_fast16_t off)
+void udp_rx(struct warpcore * w, char * const buf, const uint16_t off)
 {
 	const struct udp_hdr * const udp =
 		(const struct udp_hdr * const)(buf + off);
-	const uint_fast16_t dport = ntohs(udp->dport);
-	const uint_fast16_t len =   ntohs(udp->len);
+	const uint16_t dport = ntohs(udp->dport);
+	const uint16_t len =   ntohs(udp->len);
 	struct w_sock **s = w_get_sock(w, IP_P_UDP, dport);
 #if !defined(NDEBUG) && defined(PKTTRACE)
-	const uint_fast16_t sport = ntohs(udp->sport);
+	const uint16_t sport = ntohs(udp->sport);
 	log("UDP :%d -> :%d, len %d", sport, dport, len);
 #endif
 
@@ -58,7 +58,7 @@ void udp_rx(struct warpcore * w, char * const buf, const uint_fast16_t off)
 		//     rxr->cur, rxs->buf_idx, i->idx);
 
 		// remember index of this buffer
-		const uint_fast32_t tmp_idx = i->idx;
+		const uint32_t tmp_idx = i->idx;
 
 		// move the received data into the iov
 		i->buf = buf + off;
