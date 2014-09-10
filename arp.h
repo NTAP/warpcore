@@ -25,6 +25,9 @@ struct arp_hdr {
 
 struct warpcore;
 
-extern void arp_rx(struct warpcore * w, const char * const buf);
+// see arp.c for documentation of functions
+extern void arp_who_has(struct warpcore * w, const uint_fast32_t ip);
+
+extern void arp_rx(struct warpcore * w, char * const buf);
 
 #endif

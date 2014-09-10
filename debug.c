@@ -3,6 +3,7 @@
 
 #include "debug.h"
 
+// Print a hexdump of the given block
 void hexdump(const void * const ptr, const unsigned len)
 {
 	const char * const buf = (const char * const)ptr;

@@ -7,30 +7,32 @@
 #include "udp.h"
 
 
+// Convert a network byte order IP address into a string.
 const char * ip_ntoa(uint32_t ip, char * const buf, const size_t size)
 {
 	const uint32_t i = ntohl(ip);
 	snprintf(buf, size, "%d.%d.%d.%d", (i >> 24) & 0xff, (i >> 16) & 0xff,
 	         (i >>  8) & 0xff, i & 0xff);
-	buf[size -1] = '\0';
-	// log("ip_ntoa in ip %x out str %s", ip, buf);
+	buf[size - 1] = '\0';
 	return buf;
 }
 
 
+// Convert a string into a network byte order IP address.
 uint32_t ip_aton(const char * const ip)
 {
 
 	uint32_t i;
 	const int r = sscanf(ip, "%hhu.%hhu.%hhu.%hhu", (char *)(&i),
 		             (char *)(&i)+1, (char *)(&i)+2, (char *)(&i)+3);
-	// log("ip_aton in str %s out ip %x", ip, i);
 	return r == 4 ? i : 0;
 }
 
 
-void ip_tx(struct warpcore * w, const uint_fast8_t p,
-           const char * const buf, const uint_fast16_t len)
+// Make an IP reply packet out of the IP packet in the current receive buffer.
+// Only used by icmp_tx.
+void ip_tx_with_rx_buf(struct warpcore * w, const uint_fast8_t p,
+		       char * const buf, const uint_fast16_t len)
 {
 	struct ip_hdr * const ip =
 		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
@@ -60,15 +62,37 @@ void ip_tx(struct warpcore * w, const uint_fast8_t p,
 #endif
 
 	// do Ethernet transmit preparation
-	eth_tx(w, buf, l);
+	eth_tx_rx_cur(w, buf, l);
 }
 
 
+// Fill in the IP header information that isn't set as part of the
+// socket packet template, calculate the header checksum, and hand off
+// to the Ethernet layer.
+void ip_tx(struct warpcore * w, struct w_iov * const v, const uint_fast16_t len)
+{
+	char * const start = IDX2BUF(w, v->idx);
+	struct ip_hdr * const ip =
+		(struct ip_hdr * const)(start + sizeof(struct eth_hdr));
+ 	const uint_fast16_t l = len + 20; // ip->hl * 4
+
+	// fill in remaining header fields
+	ip->len = htons(l);
+	ip->id = htons(777); // XXX
+	ip->cksum = in_cksum(ip, sizeof *ip); // IP checksum is over header only
+
+	log("IP tx buf %d IP len %d", v->idx, l);
+
+	// do Ethernet transmit preparation
+	eth_tx(w, v, l);
+}
+
+
+// Receive an IP packet.
 void ip_rx(struct warpcore * w, char * const buf)
 {
 	const struct ip_hdr * const ip =
-		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
-
+		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
 #ifndef NDEBUG
 	char src[IP_ADDR_STRLEN];
 	char dst[IP_ADDR_STRLEN];
@@ -84,7 +108,12 @@ void ip_rx(struct warpcore * w, char * const buf)
 		return;
 	}
 
-	// TODO: validate the IP checksum
+	// validate the IP checksum
+	if (in_cksum(ip, sizeof *ip) != 0) {
+		log("invalid IP checksum, received %x", ip->cksum);
+		return;
+	}
+
 	// TODO: handle IP options
 	if (ip->hl * 4 != 20)
 		die("no support for IP options");
@@ -102,7 +131,7 @@ void ip_rx(struct warpcore * w, char * const buf)
 	// 	break;
 	default:
 		log("unhandled IP protocol %d", ip->p);
-		// hexdump(ip, sizeof *ip);
+		// be standards compliant and send an ICMP unreachable
 		icmp_tx_unreach(w, ICMP_UNREACH_PROTOCOL, buf, off);
 		break;
 	}

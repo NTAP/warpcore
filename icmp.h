@@ -14,14 +14,12 @@ struct icmp_hdr {
 	uint16_t	cksum;	// ones complement checksum of struct
 } __attribute__ ((__packed__));
 
+
 struct warpcore;
 
-extern void icmp_tx_unreach(struct warpcore * w,
-                            const uint_fast8_t code, char * const buf,
-                            const uint_fast16_t off);
-
-extern void icmp_tx(struct warpcore * w, const char * const buf,
-                    const uint_fast16_t off, const uint_fast16_t len);
+// see icmp.c for documentation of functions
+extern void icmp_tx_unreach(struct warpcore * w, const uint_fast8_t code,
+                            char * const buf, const uint_fast16_t off);
 
 extern void icmp_rx(struct warpcore * w, char * const buf,
                     const uint_fast16_t off, const uint_fast16_t len);

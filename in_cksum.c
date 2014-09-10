@@ -55,10 +55,10 @@ __FBSDID("$FreeBSD$");
 int
 in_cksum(struct mbuf *m, int len)
 #else
-uint16_t in_cksum(void * const buf, const uint_fast16_t len)
+uint16_t in_cksum(const void * const buf, const uint_fast16_t len)
 #endif
 {
-	register u_short *w;
+	const register u_short *w;
 	register int sum = 0;
 #if 0
 	register int mlen = 0;

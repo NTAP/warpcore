@@ -12,10 +12,11 @@ struct udp_hdr {
 
 
 struct warpcore;
-struct w_socket;
+struct w_sock;
+struct w_iov;
 
-extern void udp_tx(struct w_socket *s,
-                   char * const buf, const uint_fast16_t len);
+// see udp.c for documentation of functions
+extern void udp_tx(struct w_sock *s, struct w_iov * const v);
 
 extern void udp_rx(struct warpcore * w, char * const buf,
                    const uint_fast16_t off);

@@ -5,17 +5,36 @@
 #include "ip.h"
 
 
+// Send the modified ICMP packet in the current receive buffer.
+static void icmp_tx(struct warpcore * w, char * const buf,
+             const uint_fast16_t off, const uint_fast16_t len)
+{
+	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
+
+	log("ICMP type %d, code %d", icmp->type, icmp->code);
+
+	// calculate the new ICMP checksum
+	icmp->cksum = 0;
+	icmp->cksum = in_cksum(icmp, len);
+
+	// do IP transmit preparation
+	ip_tx_with_rx_buf(w, IP_P_ICMP, buf, len);
+}
+
+
+// Make an ICMP unreachable message with the given code out of the
+// current received packet.
 void icmp_tx_unreach(struct warpcore * w, const uint_fast8_t code,
                      char * const buf, const uint_fast16_t off)
 {
-	// make an ICMP unreachable out of this received packet
 	// copy IP hdr + 64 bytes of the original IP packet as the ICMP payload
 	struct ip_hdr * const ip =
 		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
 	const uint_fast16_t len = ip->hl * 4 + 64;
+	// use memmove (instead of memcpy), since the regions overlap
 	memmove(buf + off + sizeof(struct icmp_hdr) + 4, ip, len);
 
-	// insert an ICMP header
+	// insert an ICMP header and set the fields
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
 	icmp->type = ICMP_TYPE_UNREACH;
 	icmp->code = code;
@@ -28,22 +47,7 @@ void icmp_tx_unreach(struct warpcore * w, const uint_fast8_t code,
 }
 
 
-void icmp_tx(struct warpcore * w, const char * const buf,
-             const uint_fast16_t off, const uint_fast16_t len)
-{
-	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
-
-	log("ICMP type %d, code %d", icmp->type, icmp->code);
-
-	// calculate the new ICMP checksum
-	icmp->cksum = 0;
-	icmp->cksum = in_cksum(icmp, len);
-
-	// do IP transmit preparation
-	ip_tx(w, IP_P_ICMP, buf, len);
-}
-
-
+// Handle an incoming ICMP packet, and optionally respond to it.
 void icmp_rx(struct warpcore * w, char * const buf,
              const uint_fast16_t off, const uint_fast16_t len)
 {
@@ -51,7 +55,11 @@ void icmp_rx(struct warpcore * w, char * const buf,
 
 	log("ICMP type %d, code %d", icmp->type, icmp->code);
 
-	// TODO: validate inbound ICMP checksum
+	// validate the ICMP checksum
+	if (in_cksum(icmp, len) != 0) {
+		log("invalid ICMP checksum, received %x", icmp->cksum);
+		return;
+	}
 
 	switch (icmp->type) {
 	case ICMP_TYPE_ECHO:
