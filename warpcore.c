@@ -128,19 +128,20 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint_fast32_t len)
 	struct w_iov *ov_tail = 0;
 	struct w_iov *v = 0;
 	int_fast32_t l = len;
+	uint_fast32_t n = 0;
 	while (l > 0) {
 		// grab a spare buffer
 		v = SLIST_FIRST(&s->w->iov);
 		if (v == 0)
-			die("out of spare bufs");
+			die("out of spare bufs after grabbing %d", n);
 		SLIST_REMOVE_HEAD(&s->w->iov, next);
 		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
 		v->len = s->w->mtu - hdr_len;
 		l -= v->len;
+		n++;
 
 		// add the iov to the tail of the socket
 		// using a STAILQ would be simpler, but slower
-		log("using buffer %d for tx", v->idx);
 		if(SLIST_EMPTY(&s->ov))
 			SLIST_INSERT_HEAD(&s->ov, v, next);
 		else
@@ -149,6 +150,8 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint_fast32_t len)
 	}
 	// adjust length of last iov so chain is the exact length requested
 	v->len += l; // l is negative
+
+	log("allocating iovec (len %d in %d bufs) for user tx", len, n);
 
 	return SLIST_FIRST(&s->ov);
 }
@@ -502,7 +505,13 @@ struct warpcore * w_init(const char * const ifname)
 		char * const b = IDX2BUF(w, i);
 		i = *(uint32_t *)b;
 	}
-	log("allocated %d extra buffers", w->req.nr_arg3);
+
+	if (w->req.nr_arg3 != NUM_EXTRA_BUFS)
+		die("can only allocate %d/%d extra buffers",
+		    w->req.nr_arg3, NUM_EXTRA_BUFS);
+	else
+		log("allocated %d extra buffers", w->req.nr_arg3);
+
 
 	// initialize list of sockets
 	SLIST_INIT(&w->sock);
