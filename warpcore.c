@@ -34,13 +34,8 @@ struct w_sock ** w_get_sock(struct warpcore * const w, const uint_fast8_t p,
 {
 	// find the respective "socket"
 	const uint_fast16_t index = port - PORT_RANGE_LO;
-	if (index >= PORT_RANGE_HI) {
-		log("port %d not in range %d-%d", port,
-		    PORT_RANGE_LO, PORT_RANGE_HI);
-		return 0;
-	}
-
 	struct w_sock **s;
+
 	switch (p){
 	case IP_P_UDP:
 		s = &w->udp[index];
@@ -262,6 +257,11 @@ void w_connect(struct w_sock * const s, const uint_fast32_t dip,
 struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
                        const uint16_t port)
 {
+	// check that the port number is valid
+	if (port < PORT_RANGE_LO || port > PORT_RANGE_HI)
+		die("port %d not in range %d-%d",
+		    port, PORT_RANGE_LO, PORT_RANGE_HI);
+
 	struct w_sock **s = w_get_sock(w, p, port);
 	if (*s) {
 		log("IP protocol %d source port %d already in use", p, port);
