@@ -19,6 +19,7 @@ CFLAGS+=-pipe -std=c99 $(COPT) $(CDEB) $(CDIA) $(CDEF) $(CINC)
 OUTPUT_OPTION=-MMD -MP -o $@
 
 LDLIBS=-pthread
+LDFLAGS=$(CFLAGS)
 
 lib=warpcore
 cmd=test
@@ -36,7 +37,7 @@ lib$(lib).a: $(OBJ)
 .PHONY: clean distclean lint
 
 clean:
-	-@rm $(cmd) $(cmd).o $(cmd).d $(cmd).core \
+	-@rm $(cmd) $(cmd).o $(cmd).d $(cmd).core $(cmd).gmon \
 		lib$(lib).a $(OBJ) 2> /dev/null || true
 
 distclean: clean
