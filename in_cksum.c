@@ -58,7 +58,7 @@ in_cksum(struct mbuf *m, int len)
 uint16_t in_cksum(const void * const buf, const uint_fast16_t len)
 #endif
 {
-	const register u_short *w;
+	register const u_short *w;
 	register int sum = 0;
 #if 0
 	register int mlen = 0;
