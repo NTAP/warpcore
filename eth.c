@@ -42,7 +42,7 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 	// we don't need to advance the rx ring here, w_poll does this
 	txr->head = txr->cur = nm_ring_next(txr, txr->cur);
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
 	log("Eth %s -> %s, type %d",
@@ -66,7 +66,7 @@ void eth_tx(struct warpcore *w, struct w_iov * const v, const uint_fast16_t len)
 	txs->len = len + sizeof(struct eth_hdr);
 	txs->flags = NS_BUF_CHANGED;
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	const struct eth_hdr * const eth =
 		(const struct eth_hdr * const)IDX2BUF(w, txs->buf_idx);
 	char src[ETH_ADDR_STRLEN];
@@ -94,7 +94,7 @@ void eth_rx(struct warpcore * w, char * const buf)
 	const struct eth_hdr * const eth = (const struct eth_hdr * const)(buf);
 	const uint_fast16_t type = ntohs(eth->type);
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
 	log("Eth %s -> %s, type %d",

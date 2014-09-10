@@ -18,7 +18,9 @@ void udp_tx(struct w_sock *s, struct w_iov * const v)
 		(struct udp_hdr * const)(v->buf - sizeof(struct udp_hdr));
  	const uint_fast16_t l = v->len + sizeof(struct udp_hdr);
 
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	log("UDP :%d -> :%d, len %d", ntohs(udp->sport), ntohs(udp->dport), v->len);
+#endif
 
 	udp->len = htons(l);
 	// udp->cksum = in_cksum(udp, l); // XXX need to muck up a pseudo header
@@ -36,7 +38,7 @@ void udp_rx(struct warpcore * w, char * const buf, const uint_fast16_t off)
 	const uint_fast16_t dport = ntohs(udp->dport);
 	const uint_fast16_t len =   ntohs(udp->len);
 	struct w_sock **s = w_get_sock(w, IP_P_UDP, dport);
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	const uint_fast16_t sport = ntohs(udp->sport);
 	log("UDP :%d -> :%d, len %d", sport, dport, len);
 #endif
@@ -52,8 +54,8 @@ void udp_rx(struct warpcore * w, char * const buf, const uint_fast16_t off)
 		struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
 		SLIST_REMOVE_HEAD(&w->iov, next);
 
-		log("swapping rx slot %d (buf_idx %d) and spare buffer idx %d",
-		  rxr->cur, rxs->buf_idx, i->idx);
+		// log("swapping rx slot %d (buf %d) and spare buf %d",
+		//     rxr->cur, rxs->buf_idx, i->idx);
 
 		// remember index of this buffer
 		const uint_fast32_t tmp_idx = i->idx;

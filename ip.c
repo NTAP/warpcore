@@ -52,7 +52,7 @@ void ip_tx_with_rx_buf(struct warpcore * w, const uint_fast8_t p,
 	ip->cksum = 0;
 	ip->cksum = in_cksum(ip, l);
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	char src[IP_ADDR_STRLEN];
 	char dst[IP_ADDR_STRLEN];
 	log("IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
@@ -81,7 +81,9 @@ void ip_tx(struct warpcore * w, struct w_iov * const v, const uint_fast16_t len)
 	ip->id = htons(777); // XXX
 	ip->cksum = in_cksum(ip, sizeof *ip); // IP checksum is over header only
 
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	log("IP tx buf %d IP len %d", v->idx, l);
+#endif
 
 	// do Ethernet transmit preparation
 	eth_tx(w, v, l);
@@ -93,7 +95,7 @@ void ip_rx(struct warpcore * w, char * const buf)
 {
 	const struct ip_hdr * const ip =
 		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	char src[IP_ADDR_STRLEN];
 	char dst[IP_ADDR_STRLEN];
 	log("IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",

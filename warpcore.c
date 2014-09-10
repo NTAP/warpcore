@@ -82,18 +82,19 @@ struct w_iov * w_rx(struct w_sock * const s)
 
 void w_tx(struct w_sock * const s)
 {
+	// TODO: handle other protocols
+
 	// packetize bufs and place in tx ring
+	uint_fast32_t n = 0, l = 0;
 	while (!SLIST_EMPTY(&s->ov)) {
 		struct w_iov * const v = SLIST_FIRST(&s->ov);
 		SLIST_REMOVE_HEAD(&s->ov, next);
-
-		log("UDP tx of %d bytes in buf %d", v->len, v->idx);
 		udp_tx(s, v);
-
+		n++;
+		l += v->len;
 		SLIST_INSERT_HEAD(&s->w->iov, v, next);
-
-		// TODO: handle other protocols
 	}
+	log("UDP tx iov (len %d in %d bufs) done", l, n);
 
 	// kick tx ring
 	if (ioctl(s->w->fd, NIOCTXSYNC, 0) == -1)
@@ -245,6 +246,9 @@ void w_connect(struct w_sock * const s, const uint_fast32_t dip,
 	eth->type = htons(ETH_TYPE_IP);
 	memcpy(eth->src, s->w->mac, ETH_ADDR_LEN);
 	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
+
+	log("IP protocol %d socket connected to %s port %d", s->p,
+	    ip_ntoa(dip, str, sizeof str), dport);
 }
 
 

@@ -46,7 +46,7 @@ void arp_who_has(struct warpcore * w, const uint_fast32_t dip)
 	bzero(arp->tha, ETH_ADDR_LEN);
 	arp->tpa =	dip;
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	char spa[IP_ADDR_STRLEN];
 	char tpa[IP_ADDR_STRLEN];
 	log("ARP request who has %s tell %s",
@@ -72,7 +72,7 @@ static void arp_is_at(struct warpcore * w, char * const buf)
 {
 	struct arp_hdr * const arp =
 		(struct arp_hdr * const)(buf + sizeof(struct eth_hdr));
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	char sha[ETH_ADDR_STRLEN];
 	char spa[IP_ADDR_STRLEN];
 	log("ARP reply %s is at %s",
@@ -95,7 +95,7 @@ static void arp_is_at(struct warpcore * w, char * const buf)
 // Receive an ARP packet, and react
 void arp_rx(struct warpcore * w, char * const buf)
 {
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(PKTTRACE)
 	char spa[IP_ADDR_STRLEN];
 	char tpa[IP_ADDR_STRLEN];
 	char sha[ETH_ADDR_STRLEN];
@@ -116,9 +116,11 @@ void arp_rx(struct warpcore * w, char * const buf)
 	const uint_fast16_t op = ntohs(arp->op);
 	switch (op) {
 	case ARP_OP_REQUEST:
+#if !defined(NDEBUG) && defined(PKTTRACE)
 		log("ARP request who has %s tell %s",
 		    ip_ntoa(arp->tpa, tpa, sizeof tpa),
 		    ip_ntoa(arp->spa, spa, sizeof spa));
+#endif
 		if (arp->tpa == w->ip)
 			arp_is_at(w, buf);
 		else
@@ -126,9 +128,12 @@ void arp_rx(struct warpcore * w, char * const buf)
 		break;
 
 	case ARP_OP_REPLY:
+		{
+#if !defined(NDEBUG) && defined(PKTTRACE)
 		log("ARP reply %s is at %s",
 		    ip_ntoa(arp->spa, spa, sizeof spa),
 		    ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
+#endif
 
 		// check if any socket has an IP address matching this ARP
 		// reply, and if so, set its destination MAC
@@ -139,6 +144,7 @@ void arp_rx(struct warpcore * w, char * const buf)
 				memcpy(s->dmac, arp->sha, ETH_ADDR_LEN);
 			}
 		break;
+		}
 
 	default:
 		die("unhandled ARP operation %d", op);
