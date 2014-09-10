@@ -3,6 +3,8 @@
 
 #include "debug.h"
 
+#ifndef NDEBUG
+
 // Print a hexdump of the given block
 void hexdump(const void * const ptr, const unsigned len)
 {
@@ -22,3 +24,5 @@ void hexdump(const void * const ptr, const unsigned len)
 		fprintf(stderr, "\n");
 	}
 }
+
+#endif

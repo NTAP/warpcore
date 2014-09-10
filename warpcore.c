@@ -9,6 +9,8 @@
 #include <poll.h>
 #include <unistd.h>
 #include <signal.h>
+#include <string.h>
+#include <errno.h>
 
 #ifdef __linux__
 #include <linux/if.h>
@@ -24,7 +26,7 @@
 #include "udp.h"
 
 
-#define NUM_EXTRA_BUFS	16
+#define NUM_EXTRA_BUFS	512
 
 
 struct w_sock ** w_get_sock(struct warpcore * const w, const uint_fast8_t p,
@@ -505,7 +507,7 @@ struct warpcore * w_init(const char * const ifname)
 	// initialize list of sockets
 	SLIST_INIT(&w->sock);
 
-	// // block SIGINT
+	// block SIGINT
         if (signal(SIGINT, w_sigint) == SIG_ERR)
         	die("cannot register signal handler");
 
