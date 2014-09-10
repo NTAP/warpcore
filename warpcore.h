@@ -5,7 +5,8 @@
 #include <sys/queue.h>
 
 #ifdef __linux__
-#define IFNAMSIZ	IF_NAMESIZE
+#include <ifaddrs.h>
+#include <linux/if.h>
 #include <sys/time.h>
 // #include <pthread.h>
 #endif

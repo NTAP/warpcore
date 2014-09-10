@@ -4,6 +4,7 @@
 
 #ifdef __linux__
 #include <netinet/ether.h>
+#include <strings.h>
 #else
 #include <sys/types.h>
 #include <net/ethernet.h>
