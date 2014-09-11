@@ -1,17 +1,17 @@
 OS=$(shell uname -s)
 
 CC=cc
-CDEF+=-DNDEBUG
-# CDEF+=-DPKTTRACE
+# CDEF+=-DNDEBUG
+# CDEF+=-DPKTTRACE -DFUNCTRACE
 COPT=-Ofast -march=native
-CDEB=-g -pg -ftrapv -pedantic
+CDEB=-g -pg -ftrapv
 CDIA=-Wall -Wextra -fdiagnostics-color=auto
 
 ifeq ($(OS), Linux)
 CINC+=-isystem ~/netmap/sys
 CDIA+=-Wformat=0
 else
-CDIA+=-Weverything -Wno-gnu-zero-variadic-macro-arguments
+CDIA+=-pedantic -Weverything -Wno-gnu-zero-variadic-macro-arguments
 CDIA+=-Wno-padded -Wno-packed -Wno-missing-prototypes -Wno-cast-align -Wno-conversion
 endif
 

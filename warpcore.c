@@ -98,7 +98,9 @@ void w_tx(struct w_sock * const s)
 				die("cannot kick tx ring");
 		}
 	}
+#ifdef DFUNCTRACE
 	log("UDP tx iov (len %d in %d bufs) done", l, n);
+#endif
 
 	// kick tx ring
 	if (ioctl(s->w->fd, NIOCTXSYNC, 0) == -1)
@@ -156,7 +158,9 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 	// adjust length of last iov so chain is the exact length requested
 	v->len += l; // l is negative
 
+#ifdef DFUNCTRACE
 	log("allocating iovec (len %d in %d bufs) for user tx", len, n);
+#endif
 
 	return SLIST_FIRST(&s->ov);
 }
