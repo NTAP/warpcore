@@ -16,6 +16,8 @@
 #include <linux/if.h>
 #include <netpacket/packet.h>
 #include <netinet/ether.h>
+#include <linux/ethtool.h>
+#include <linux/sockios.h>
 #define INFTIM	-1
 #else
 #include <net/if_dl.h>
@@ -421,8 +423,14 @@ struct warpcore * w_init(const char * const ifname)
 				if (ioctl(s, SIOCGIFMTU, &ifr) < 0)
 					die("ioctl (get mtu)");
 				w->mtu = ifr.ifr_ifru.ifru_mtu;
+				// get link speed
+				struct ethtool_cmd edata;
+				ifr.ifr_data = &edata;
+				edata.cmd = ETHTOOL_GSET;
+				if (ioctl(s, SIOCETHTOOL, &ifr) < 0)
+					die("ioctl (get bps)");
+				w->mbps = ethtool_cmd_speed(&edata);
 				close(s);
-
 #else
 			case AF_LINK:
 				// get MAC address
@@ -432,12 +440,15 @@ struct warpcore * w_init(const char * const ifname)
 				       sizeof w->mac);
 				// get MTU
 				w->mtu = (uint16_t)((struct if_data *)
-				          (i->ifa_data))->ifi_mtu;
+				         (i->ifa_data))->ifi_mtu;
+				// get link speed
+				w->mbps = (uint64_t)((struct if_data *)
+				          (i->ifa_data))->ifi_baudrate/1000000;
 #endif
-				log("%s has Ethernet address %s with MTU %d",
+				log("%s has address %s, MTU %d, link speed %dG",
 				    i->ifa_name,
 				    ether_ntoa_r((struct ether_addr *)w->mac,
-				                 mac), w->mtu);
+				                 mac), w->mtu, w->mbps/1000);
 				break;
 			case AF_INET:
 				// get IP address and netmask
