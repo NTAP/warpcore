@@ -95,9 +95,9 @@ void ip_rx(struct warpcore * w, char * const buf)
 {
 	const struct ip_hdr * const ip =
 		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
+	char dst[IP_ADDR_STRLEN];
 #if !defined(NDEBUG) && defined(PKTTRACE)
 	char src[IP_ADDR_STRLEN];
-	char dst[IP_ADDR_STRLEN];
 	log("IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
 	    ip_ntoa(ip->src, src, sizeof src),
 	    ip_ntoa(ip->dst, dst, sizeof dst),
@@ -106,7 +106,8 @@ void ip_rx(struct warpcore * w, char * const buf)
 
 	// make sure the packet is for us (or broadcast)
 	if (ip->dst != w->ip && ip->dst != w->bcast) {
-		log("IP packet not destined to us; ignoring");
+		log("IP packet to %s (not us); ignoring",
+		    ip_ntoa(ip->dst, dst, sizeof dst));
 		return;
 	}
 

@@ -29,6 +29,14 @@
 
 #define NUM_EXTRA_BUFS	512
 
+// Internal warpcore function. Kick the tx ring.
+static void w_kick_tx(struct warpcore * const w)
+{
+	if (ioctl(w->fd, NIOCTXSYNC, 0) == -1)
+		die("cannot kick tx ring");
+}
+
+
 // Internal warpcore function. Given an IP protocol number and a local port
 // number, returns a pointer to the w_sock pointer.
 struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
@@ -96,19 +104,16 @@ void w_tx(struct w_sock * const s)
 			l += v->len;
 			SLIST_REMOVE_HEAD(&s->ov, next);
 			SLIST_INSERT_HEAD(&s->w->iov, v, next);
-		} else {
+		} else
 			// no space in ring
-			if (ioctl(s->w->fd, NIOCTXSYNC, 0) == -1)
-				die("cannot kick tx ring");
-		}
+			w_kick_tx(s->w);
 	}
 #ifdef DFUNCTRACE
 	log("UDP tx iov (len %d in %d bufs) done", l, n);
 #endif
 
 	// kick tx ring
-	if (ioctl(s->w->fd, NIOCTXSYNC, 0) == -1)
-		die("cannot kick tx ring");
+	w_kick_tx(s->w);
 }
 
 
@@ -223,7 +228,6 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 		if(!IS_ZERO(s->dmac))
 			break;
 		log("no ARP reply, retrying");
-		// sleep(1);
 	}
 
 	// initialize the non-zero fields of outgoing template header
@@ -311,19 +315,22 @@ bool w_poll(struct warpcore * const w, const int to)
 			die("poll");
 		break;
 	case 0:
-		log("poll: timeout expired");
+		// log("poll: timeout expired");
 		return true;
 	default:
 		// log("poll: %d descriptors ready", n);
 		break;
 	}
 
-	struct netmap_ring * const ring = NETMAP_RXRING(w->nif, 0);
-	while (!nm_ring_empty(ring)) {
-		char * const buf =
-			NETMAP_BUF(ring, ring->slot[ring->cur].buf_idx);
-		eth_rx(w, buf);
-		ring->head = ring->cur = nm_ring_next(ring, ring->cur);
+	// loop over all rx rings starting with cur_rxr and wrapping around
+	for (uint16_t i = 0; i < w->nif->ni_rx_rings; i++) {
+		struct netmap_ring * const r =
+			NETMAP_RXRING(w->nif, w->cur_rxr);
+		while (!nm_ring_empty(r)) {
+			eth_rx(w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
+			r->head = r->cur = nm_ring_next(r, r->cur);
+		}
+		w->cur_rxr = (w->cur_rxr + 1) % w->nif->ni_rx_rings;
 	}
 	return true;
 }
@@ -522,12 +529,12 @@ struct warpcore * w_init(const char * const ifname)
 
 #ifndef NDEBUG
 	// print some info about our rings
-	for(uint32_t ri = 0; ri <= w->nif->ni_tx_rings-1; ri++) {
+	for(uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
 		struct netmap_ring *r = NETMAP_TXRING(w->nif, ri);
 		log("tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
-	for(uint32_t ri = 0; ri <= w->nif->ni_rx_rings-1; ri++) {
+	for(uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
 		struct netmap_ring *r = NETMAP_RXRING(w->nif, ri);
 		log("rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
@@ -545,7 +552,7 @@ struct warpcore * w_init(const char * const ifname)
 		v->idx = i;
 		// log("available extra buf %d", i);
 		SLIST_INSERT_HEAD(&w->iov, v, next);
-		char * const b = IDX2BUF(w, i);
+		char * const b = v->buf;
 		i = *(uint32_t *)b;
 	}
 

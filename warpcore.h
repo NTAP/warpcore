@@ -60,18 +60,21 @@ struct warpcore {
 	uint32_t		ip;			// our IP address
 	uint16_t		mtu;			// our MTU
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address
-	SLIST_HEAD(iovh, w_iov)	iov;			// available bufs
+	SLIST_HEAD(iovh, w_iov)	iov;			// our available bufs
 	uint32_t		mask;			// our IP netmask
 	uint32_t		bcast;			// our broadcast address
 	uint32_t		mbps;			// our link speed
-	// XXX 4 bytes hole, try to pack
-	SLIST_HEAD(sh, w_sock)	sock;			// open sockets
+	uint16_t		cur_txr;		// our current tx ring
+	uint16_t		cur_rxr;		// our current rx ring
+	SLIST_HEAD(sh, w_sock)	sock;			// our open sockets
 
         // --- cacheline 1 boundary (64 bytes) ---
 
 	struct w_sock *		udp[PORT_RANGE_LEN];	// UDP "sockets"
 	struct w_sock *		tcp[PORT_RANGE_LEN];	// TCP "sockets"
+
 	struct nmreq		req;			// netmap request
+
 	// pthread_t		thr;			// our main thread
 } __attribute__((__aligned__(4)));
 

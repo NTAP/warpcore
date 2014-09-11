@@ -20,9 +20,8 @@
 void eth_tx_rx_cur(struct warpcore *w, char * const buf,
                    const uint16_t len)
 {
-	// TODO: this will need to be modified for NICs with multiple rings
-	struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, 0);
-	struct netmap_ring * const txr = NETMAP_TXRING(w->nif, 0);
+	struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
+	struct netmap_ring * const txr = NETMAP_TXRING(w->nif, w->cur_txr);
 	struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
 	struct netmap_slot * const txs = &txr->slot[txr->cur];
 
@@ -31,9 +30,13 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 	memcpy(eth->dst, eth->src, sizeof eth->dst);
 	memcpy(eth->src, w->mac, sizeof eth->src);
 
+#if !defined(NDEBUG) && defined(FUNCTRACE)
+	log("swapping rx ring %d slot %d (buf %d) and "
+	    "tx ring %d slot %d (buf %d)", w->cur_rxr, rxr->cur, rxs->buf_idx,
+	    w->cur_txr, txr->cur, txs->buf_idx);
+#endif
+
 	// move modified rx slot to tx ring, and move an unused tx slot back
-	// log("swapping rx slot %d (buf_idx %d) and tx slot %d (buf_idx %d)",
-	//     rxr->cur, rxs->buf_idx, txr->cur, txs->buf_idx);
 	const uint32_t tmp_idx = txs->buf_idx;
 	txs->buf_idx = rxs->buf_idx;
 	rxs->buf_idx = tmp_idx;
@@ -56,15 +59,33 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 // into the iov.
 bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 {
-	// TODO: this will need to be modified for NICs with multiple rings
-	struct netmap_ring * const txr = NETMAP_TXRING(w->nif, 0);
+	// check if there is space in the current txr
+	struct netmap_ring *txr = 0;
+	uint16_t i;
+	for (i = 0; i < w->nif->ni_rx_rings; i++) {
+		txr = NETMAP_TXRING(w->nif, w->cur_rxr);
+		if (txr->tail != nm_ring_next(txr, txr->cur))
+			// we have space in this ring
+			break;
+		else
+			// current txr is full, try next
+			w->cur_txr = (w->cur_txr + 1) % w->nif->ni_tx_rings;
+	}
+
+	// return false if all rings are full
+	if (i == w->nif->ni_rx_rings) {
+		log("all tx rings are full");
+		return false;
+	}
+
 	struct netmap_slot * const txs = &txr->slot[txr->cur];
 
-	if (txr->tail == nm_ring_next(txr, txr->cur))
-		// not enough space in the ring
-		return false;
+#if !defined(NDEBUG) && defined(FUNCTRACE)
+	log("placing iov %d in tx ring %d slot %d (current buf %d)",
+	    v->idx, w->cur_txr, txr->cur, txs->buf_idx);
+#endif
 
-	// place v in the tx ring
+	// place v in the current tx ring
 	const uint32_t tmp_idx = txs->buf_idx;
 	txs->buf_idx = v->idx;
 	txs->len = len + sizeof(struct eth_hdr);
@@ -72,7 +93,7 @@ bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 
 #if !defined(NDEBUG) && defined(PKTTRACE)
 	const struct eth_hdr * const eth =
-		(const struct eth_hdr * const)IDX2BUF(w, txs->buf_idx);
+		(const struct eth_hdr * const)NETMAP_BUF(txr, txs->buf_idx);
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
 	log("Eth %s -> %s, type %d, len %ld",
@@ -92,7 +113,7 @@ bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 }
 
 
-// Receive an Ethernte packet. This is the lowest level inbound function,
+// Receive an Ethernet packet. This is the lowest level inbound function,
 // called from w_poll.
 void eth_rx(struct warpcore * w, char * const buf)
 {
@@ -110,7 +131,8 @@ void eth_rx(struct warpcore * w, char * const buf)
 	// make sure the packet is for us (or broadcast)
 	if (memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
 	    memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN)) {
-		log("Ethernet packet not destined to us; ignoring");
+		log("Eth packet to %s (not us); ignoring",
+		    ether_ntoa((const struct ether_addr *)eth->dst));
 		return;
 	}
 

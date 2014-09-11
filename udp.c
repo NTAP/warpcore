@@ -50,7 +50,8 @@ void udp_rx(struct warpcore * w, char * const buf, const uint16_t off)
 	} else {
 		// grab an unused iov for the data in this packet
 		struct w_iov * const i = SLIST_FIRST(&w->iov);
-		struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, 0);
+		struct netmap_ring * const rxr =
+			NETMAP_RXRING(w->nif, w->cur_rxr);
 		struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
 		SLIST_REMOVE_HEAD(&w->iov, next);
 

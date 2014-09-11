@@ -58,10 +58,6 @@ void arp_who_has(struct warpcore * w, const uint32_t dip)
 	// send the Ethernet packet
 	eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
 
-	// we would need to kick tx ring with NETMAP_NO_TX_POLL set
-	// if (ioctl(w->fd, NIOCTXSYNC, 0) == -1)
-	// 	die("cannot kick tx ring");
-
 	// make iov available again
 	SLIST_INSERT_HEAD(&w->iov, v, next);
 }
@@ -97,10 +93,10 @@ static void arp_is_at(struct warpcore * w, char * const buf)
 void arp_rx(struct warpcore * w, char * const buf)
 {
 #if !defined(NDEBUG) && defined(PKTTRACE)
-	char spa[IP_ADDR_STRLEN];
 	char tpa[IP_ADDR_STRLEN];
-	char sha[ETH_ADDR_STRLEN];
 #endif
+	char spa[IP_ADDR_STRLEN];
+	char sha[ETH_ADDR_STRLEN];
 	const struct arp_hdr * const arp =
 		(const struct arp_hdr * const)(buf + sizeof(struct eth_hdr));
 
@@ -141,7 +137,10 @@ void arp_rx(struct warpcore * w, char * const buf)
 		struct w_sock *s;
 		SLIST_FOREACH(s, &w->sock, next)
 			if (s->dip == arp->spa) {
-				log("found socket waiting for ARP");
+				log("updating socket with %s for %s",
+				    ether_ntoa_r((const struct ether_addr *)
+				                 arp->sha, sha),
+				    ip_ntoa(arp->spa, spa, sizeof spa));
 				memcpy(s->dmac, arp->sha, ETH_ADDR_LEN);
 			}
 		break;
