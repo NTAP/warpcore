@@ -101,7 +101,7 @@ extern struct w_iov * w_tx_alloc(struct w_sock * const s,
 
 extern void w_tx(struct w_sock * const s);
 
-extern bool w_poll(struct warpcore * const w, const int to);
+extern bool w_poll(struct w_sock * const s, const short ev, const int to);
 
 // internal warpcore use only; TODO: restrict exporting
 extern struct w_sock ** w_get_sock(struct warpcore * const w,

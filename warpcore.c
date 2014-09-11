@@ -27,7 +27,7 @@
 #include "udp.h"
 
 
-#define NUM_EXTRA_BUFS	512
+#define NUM_EXTRA_BUFS	65536
 
 // Internal warpcore function. Kick the tx ring.
 static void w_kick_tx(struct warpcore * const w)
@@ -79,9 +79,21 @@ void w_rx_done(struct w_sock * const s)
 }
 
 
+// Pulls new received data out of the rx ring and places it into socket iovs.
 // Returns an iov of any data received.
 struct w_iov * w_rx(struct w_sock * const s)
 {
+	// loop over all rx rings starting with cur_rxr and wrapping around
+	for (uint16_t i = 0; i < s->w->nif->ni_rx_rings; i++) {
+		struct netmap_ring * const r =
+			NETMAP_RXRING(s->w->nif, s->w->cur_rxr);
+		while (!nm_ring_empty(r)) {
+			eth_rx(s->w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
+			r->head = r->cur = nm_ring_next(r, r->cur);
+		}
+		s->w->cur_rxr = (s->w->cur_rxr + 1) % s->w->nif->ni_rx_rings;
+	}
+
 	if (s)
 		return SLIST_FIRST(&s->iv);
 	return 0;
@@ -94,19 +106,24 @@ void w_tx(struct w_sock * const s)
 	// TODO: handle other protocols
 
 	// packetize bufs and place in tx ring
-	bool ok = true;
 	uint32_t n = 0, l = 0;
 	while (!SLIST_EMPTY(&s->ov)) {
 		struct w_iov * const v = SLIST_FIRST(&s->ov);
-		ok = udp_tx(s, v);
-		if (ok) {
+		if (udp_tx(s, v)) {
 			n++;
 			l += v->len;
 			SLIST_REMOVE_HEAD(&s->ov, next);
 			SLIST_INSERT_HEAD(&s->w->iov, v, next);
-		} else
+		} else {
 			// no space in ring
 			w_kick_tx(s->w);
+#ifdef DFUNCTRACE
+			log("polling for send space");
+#endif
+			if (w_poll(s, POLLOUT, -1) == false)
+				// interrupt received during poll
+				return;
+		}
 	}
 #ifdef DFUNCTRACE
 	log("UDP tx iov (len %d in %d bufs) done", l, n);
@@ -224,7 +241,10 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 	// find the Ethernet addr of the destination
 	while (IS_ZERO(s->dmac)) {
 		arp_who_has(s->w, dip);
-		w_poll(s->w, 1000);
+		if(w_poll(s, POLLIN, 1000) == false)
+			// interrupt received during poll
+			return;
+		w_rx(s);
 		if(!IS_ZERO(s->dmac))
 			break;
 		log("no ARP reply, retrying");
@@ -298,13 +318,14 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 }
 
 
-// Pulls new received data out of the rx ring and places it into socket iovs.
+// Wait until netmap is ready to send or receive more data. Parameters
+// "event" and "timeout" identical to poll system call.
 // Returns false if an interrupt occurs during the poll, which usually means
 // someone hit Ctrl-C.
 // (TODO: This interrupt handling needs some rethinking.)
-bool w_poll(struct warpcore * const w, const int to)
+bool w_poll(struct w_sock * const s, const short ev, const int to)
 {
-	struct pollfd fds = { .fd = w->fd, .events = POLLIN };
+	struct pollfd fds = { .fd = s->w->fd, .events = ev };
 	const int n = poll(&fds, 1, to);
 	switch (n) {
 	case -1:
@@ -320,17 +341,6 @@ bool w_poll(struct warpcore * const w, const int to)
 	default:
 		// log("poll: %d descriptors ready", n);
 		break;
-	}
-
-	// loop over all rx rings starting with cur_rxr and wrapping around
-	for (uint16_t i = 0; i < w->nif->ni_rx_rings; i++) {
-		struct netmap_ring * const r =
-			NETMAP_RXRING(w->nif, w->cur_rxr);
-		while (!nm_ring_empty(r)) {
-			eth_rx(w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
-			r->head = r->cur = nm_ring_next(r, r->cur);
-		}
-		w->cur_rxr = (w->cur_rxr + 1) % w->nif->ni_rx_rings;
 	}
 	return true;
 }
