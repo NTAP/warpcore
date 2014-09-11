@@ -6,9 +6,14 @@
 #include "ip.h"
 
 
-void usage(const char * const name)
+void usage(const char * const name, const uint32_t size, const uint32_t loops)
 {
-	printf("%s -i <iface>\n", name);
+	printf("%s\n", name);
+	printf("\t -i interface           interface to run over\n");
+	printf("\t -d destination IP      peer to connect to\n");
+	printf("\t -p destination port    peer port to connect to\n");
+	printf("\t[-s transfer size]      optional, default %d\n", size);
+	printf("\t[-l loop interations]   optional, default %d\n", loops);
 }
 
 
@@ -37,37 +42,53 @@ void iov_dump(struct w_iov *v)
 int main(int argc, char *argv[])
 {
 	const char *ifname = 0;
+	const char *dst = 0;
+	uint16_t port = 0;
+	uint32_t size = 1500 - sizeof(struct eth_hdr) - sizeof(struct ip_hdr) -
+			sizeof(struct udp_hdr);
+	uint32_t loops = 1;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "hi:")) != -1) {
+	while ((ch = getopt(argc, argv, "hi:d:p:s:l:")) != -1) {
 		switch (ch) {
 		case 'i':
 			ifname = optarg;
 			break;
+		case 'd':
+			dst = optarg;
+			break;
+		case 'p':
+			port = strtol(optarg, 0, 10);
+			break;
+		case 's':
+			size = strtol(optarg, 0, 10);
+			break;
+		case 'l':
+			loops = strtol(optarg, 0, 10);
+			break;
 		case 'h':
 		case '?':
 		default:
-			usage(argv[0]);
+			usage(argv[0], size, loops);
 			return 0;
 		}
 	}
 
-	if (ifname == 0) {
-		usage(argv[0]);
+	if (ifname == 0 || dst == 0 || port == 0) {
+		usage(argv[0], size, loops);
 		return 0;
 	}
 
 	struct warpcore *w = w_init(ifname);;
 	log("main process ready");
 
-	struct w_sock *s = w_bind(w, IP_P_UDP, 77);
-	w_connect(s, ip_aton("192.168.125.129"), 7);
+	struct w_sock *s = w_bind(w, IP_P_UDP, 49152);
+	w_connect(s, ip_aton(dst), port);
 
 
-	for (long n = 1; n <= 10000; n++) {
+	for (long n = 1; n <= loops; n++) {
 		// TODO: figure out why 128 is too much here
-		uint32_t len = 64 * (1500 - sizeof(struct eth_hdr) -
-			  sizeof(struct ip_hdr) - sizeof(struct udp_hdr));
+		uint32_t len = size;
 		struct w_iov *o = w_tx_alloc(s, len);
 		// iov_fill(o);
 		// iov_dump(o);
@@ -82,7 +103,7 @@ int main(int argc, char *argv[])
 
 		while (len > 0) {
 			// run the receive loop
-			if (w_poll(w) == false)
+			if (w_poll(w, -1) == false)
 				goto done;
 
 			// read any data
