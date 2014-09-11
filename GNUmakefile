@@ -24,7 +24,7 @@ LDLIBS=-pthread
 LDFLAGS=$(CFLAGS)
 
 lib=warpcore
-cmd=test
+cmd=warptest
 
 SRC=$(filter-out $(cmd).c, $(wildcard *.c))
 OBJ=$(SRC:.c=.o)
@@ -36,7 +36,15 @@ $(cmd): lib$(lib).a $(cmd).o
 lib$(lib).a: $(OBJ)
 	ar -crs $@ $^
 
-.PHONY: clean distclean lint
+.PHONY: clean distclean lint test
+
+ifeq ($(OS), Linux)
+if=eth1
+else
+if=em1
+endif
+test:
+	./$(cmd) -i $(if)
 
 clean:
 	-@rm $(cmd) $(cmd).o $(cmd).d $(cmd).core $(cmd).gmon \

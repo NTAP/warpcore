@@ -1,7 +1,15 @@
- #include <stdio.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <getopt.h>
 
 #include "warpcore.h"
 #include "ip.h"
+
+
+void usage(const char * const name)
+{
+	printf("%s -i <iface>\n", name);
+}
 
 
 void iov_fill(struct w_iov *v)
@@ -26,13 +34,28 @@ void iov_dump(struct w_iov *v)
 }
 
 
-int main(void)
+int main(int argc, char *argv[])
 {
-#ifdef __linux__
-	const char *ifname = "eth1";
-#else
-	const char *ifname = "em1";
-#endif
+	const char *ifname = 0;
+	int ch;
+
+	while ((ch = getopt(argc, argv, "hi:")) != -1) {
+		switch (ch) {
+		case 'i':
+			ifname = optarg;
+			break;
+		case 'h':
+		case '?':
+		default:
+			usage(argv[0]);
+			return 0;
+		}
+	}
+
+	if (ifname == 0) {
+		usage(argv[0]);
+		return 0;
+	}
 
 	struct warpcore *w = w_init(ifname);;
 	log("main process ready");

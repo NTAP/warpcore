@@ -4,4 +4,4 @@
 *.d
 *.core
 *.gmon
-test
+warptest
