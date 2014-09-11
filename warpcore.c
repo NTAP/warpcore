@@ -18,7 +18,6 @@
 #include <netinet/ether.h>
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
-#define INFTIM	-1
 #else
 #include <net/if_dl.h>
 #endif
@@ -30,7 +29,8 @@
 
 #define NUM_EXTRA_BUFS	512
 
-
+// Internal warpcore function. Given an IP protocol number and a local port
+// number, returns a pointer to the w_sock pointer.
 struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
                             const uint16_t port)
 {
@@ -46,7 +46,7 @@ struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
 		s = &w->tcp[index];
 		break;
 	default:
-		log("cannot find socket for IP protocol %d", p);
+		log("cannot find socket for IP proto %d", p);
 		return 0;
 	}
 	return s;
@@ -54,6 +54,8 @@ struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
 }
 
 
+// User needs to call this once they are done with touching any received data.
+// This makes the iov that holds the received data available to warpcore again.
 void w_rx_done(struct w_sock * const s)
 {
 	struct w_iov *i = SLIST_FIRST(&s->iv);
@@ -69,6 +71,7 @@ void w_rx_done(struct w_sock * const s)
 }
 
 
+// Returns an iov of any data received.
 struct w_iov * w_rx(struct w_sock * const s)
 {
 	if (s)
@@ -77,6 +80,7 @@ struct w_iov * w_rx(struct w_sock * const s)
 }
 
 
+// Prepends all network headers and places the iov in the tx ring.
 void w_tx(struct w_sock * const s)
 {
 	// TODO: handle other protocols
@@ -108,6 +112,7 @@ void w_tx(struct w_sock * const s)
 }
 
 
+// Allocates an iov of a given size for tx preparation.
 struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
 	if (!SLIST_EMPTY(&s->ov)) {
@@ -126,7 +131,7 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 	// 	// TODO: handle TCP options
 	// 	break;
 	default:
-		die("unhandled IP protocol %d", s->p);
+		die("unhandled IP proto %d", s->p);
 		return 0;
 	}
 
@@ -166,6 +171,7 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 }
 
 
+// Close a warpcore socket, making all its iovs available again.
 void w_close(struct w_sock * const s)
 {
 	struct w_sock **ss = w_get_sock(s->w, s->p, s->sport);
@@ -194,6 +200,7 @@ void w_close(struct w_sock * const s)
 }
 
 
+// Connect a bound socket to a remote IP address and port.
 void w_connect(struct w_sock * const s, const uint32_t dip,
                const uint16_t dport)
 {
@@ -203,20 +210,20 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 	}
 #ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
-	log("connect IP protocol %d dst %s port %d", s->p,
+	log("connect IP proto %d dst %s port %d", s->p,
 	    ip_ntoa(dip, str, sizeof str), dport);
 #endif
 	s->dip = dip;
 	s->dport = dport;
 
-	// find the Ethernet address of the destination
+	// find the Ethernet addr of the destination
 	while (IS_ZERO(s->dmac)) {
 		arp_who_has(s->w, dip);
-		w_poll(s->w);
+		w_poll(s->w, 1000);
 		if(!IS_ZERO(s->dmac))
 			break;
 		log("no ARP reply, retrying");
-		sleep(1);
+		// sleep(1);
 	}
 
 	// initialize the non-zero fields of outgoing template header
@@ -241,7 +248,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 	// case IP_P_TCP:
 	// 	break;
 	default:
-		die("unhandled IP protocol %d", s->p);
+		die("unhandled IP proto %d", s->p);
 		break;
 	}
 
@@ -255,11 +262,12 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 	memcpy(eth->src, s->w->mac, ETH_ADDR_LEN);
 	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
 
-	log("IP protocol %d socket connected to %s port %d", s->p,
+	log("IP proto %d socket connected to %s port %d", s->p,
 	    ip_ntoa(dip, str, sizeof str), dport);
 }
 
 
+// Bind a socket for the given IP protocol and local port number.
 struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
                        const uint16_t port)
 {
@@ -270,13 +278,13 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 
 	struct w_sock **s = w_get_sock(w, p, port);
 	if (*s) {
-		log("IP protocol %d source port %d already in use", p, port);
+		log("IP proto %d source port %d already in use", p, port);
 		return 0;
 	}
 
 	if ((*s = calloc(1, sizeof **s)) == 0)
 		die("cannot allocate struct w_sock");
-	log("bind IP protocol %d port %d", p, port);
+	log("bind IP proto %d port %d", p, port);
 	(*s)->p = p;
 	(*s)->sport = port;
 	(*s)->w = w;
@@ -286,10 +294,14 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 }
 
 
-bool w_poll(struct warpcore * const w)
+// Pulls new received data out of the rx ring and places it into socket iovs.
+// Returns false if an interrupt occurs during the poll, which usually means
+// someone hit Ctrl-C.
+// (TODO: This interrupt handling needs some rethinking.)
+bool w_poll(struct warpcore * const w, const int to)
 {
 	struct pollfd fds = { .fd = w->fd, .events = POLLIN };
-	const int n = poll(&fds, 1, INFTIM);
+	const int n = poll(&fds, 1, to);
 	switch (n) {
 	case -1:
 		if (errno == EINTR) {
@@ -300,7 +312,7 @@ bool w_poll(struct warpcore * const w)
 		break;
 	case 0:
 		log("poll: timeout expired");
-		break;
+		return true;
 	default:
 		// log("poll: %d descriptors ready", n);
 		break;
@@ -317,6 +329,8 @@ bool w_poll(struct warpcore * const w)
 }
 
 
+// Helper function for w_cleanup that links together extra bufs allocated
+// by netmap in the strange format it requires to free them correctly.
 static struct w_iov * w_chain_extra_bufs(struct warpcore * const w, struct w_iov *v)
 {
 	struct w_iov *n;
@@ -335,6 +349,7 @@ static struct w_iov * w_chain_extra_bufs(struct warpcore * const w, struct w_iov
 }
 
 
+// Shut down warpcore cleanly.
 void w_cleanup(struct warpcore * const w)
 {
 	log("warpcore shutting down");
@@ -385,9 +400,11 @@ void w_cleanup(struct warpcore * const w)
 }
 
 
+// Interrupt handler.
 static void w_sigint(int sig __attribute__((__unused__))) {}
 
 
+// Initialize warpcore on the given interface.
 struct warpcore * w_init(const char * const ifname)
 {
 	struct warpcore *w;
@@ -403,7 +420,7 @@ struct warpcore * w_init(const char * const ifname)
 	// get interface information
 	struct ifaddrs *ifap;
 	if (getifaddrs(&ifap) == -1)
-		die("cannot get interface information");
+		die("%s: cannot get interface information", ifname);
 	for (const struct ifaddrs *i = ifap; i->ifa_next; i = i->ifa_next) {
 		if (strcmp(i->ifa_name, ifname) == 0) {
 #ifndef NDEBUG
@@ -414,7 +431,7 @@ struct warpcore * w_init(const char * const ifname)
 			switch (i->ifa_addr->sa_family) {
 #ifdef __linux__
 			case AF_PACKET:
-				// get MAC address
+				// get MAC addr
 				memcpy(&w->mac,
 				       ((struct sockaddr_ll *)i->ifa_addr)->sll_addr,
 				       sizeof w->mac);
@@ -422,22 +439,22 @@ struct warpcore * w_init(const char * const ifname)
 				int s;
 				struct ifreq ifr;
 				if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-					die("socket");
+					die("%s socket", ifname);
 				strcpy(ifr.ifr_name, i->ifa_name);
 				if (ioctl(s, SIOCGIFMTU, &ifr) < 0)
-					die("ioctl (get mtu)");
+					die("%s ioctl", ifname);
 				w->mtu = ifr.ifr_ifru.ifru_mtu;
 				// get link speed
 				struct ethtool_cmd edata;
 				ifr.ifr_data = &edata;
 				edata.cmd = ETHTOOL_GSET;
 				if (ioctl(s, SIOCETHTOOL, &ifr) < 0)
-					die("ioctl (get bps)");
+					die("%s ioctl", ifname);
 				w->mbps = ethtool_cmd_speed(&edata);
 				close(s);
 #else
 			case AF_LINK:
-				// get MAC address
+				// get MAC addr
 				memcpy(&w->mac,
 				       LLADDR((struct sockaddr_dl *)
 				              i->ifa_addr),
@@ -449,23 +466,23 @@ struct warpcore * w_init(const char * const ifname)
 				w->mbps = (uint64_t)((struct if_data *)
 				          (i->ifa_data))->ifi_baudrate/1000000;
 #endif
-				log("%s has address %s, MTU %d, link speed %dG",
+				log("%s addr %s, MTU %d, speed %dG",
 				    i->ifa_name,
 				    ether_ntoa_r((struct ether_addr *)w->mac,
 				                 mac), w->mtu, w->mbps/1000);
 				break;
 			case AF_INET:
-				// get IP address and netmask
+				// get IP addr and netmask
 				w->ip = ((struct sockaddr_in *)
 				         i->ifa_addr)->sin_addr.s_addr;
 				w->mask = ((struct sockaddr_in *)
 				           i->ifa_netmask)->sin_addr.s_addr;
-				log("%s has IP address %s/%s", i->ifa_name,
+				log("%s has IP addr %s/%s", i->ifa_name,
 				    ip_ntoa(w->ip, ip, sizeof ip),
 				    ip_ntoa(w->mask, mask, sizeof mask));
 				break;
 			default:
-				log("ignoring unknown address family %d on %s",
+				log("ignoring unknown addr family %d on %s",
 				    i->ifa_addr->sa_family, i->ifa_name);
 				break;
 			}
@@ -473,12 +490,12 @@ struct warpcore * w_init(const char * const ifname)
 	}
 	freeifaddrs(ifap);
 	if (w->ip == 0 || w->mask == 0 || w->mtu == 0 || IS_ZERO(w->mac))
-		die("cannot obtain needed interface information");
+		die("%s: cannot obtain needed interface information", ifname);
 
 	w->bcast = w->ip | (~w->mask);
 #ifndef NDEBUG
 	char bcast[IP_ADDR_STRLEN];
-	log("%s has IP broadcast address %s", ifname,
+	log("%s has IP broadcast addr %s", ifname,
 	    ip_ntoa(w->bcast, bcast, sizeof bcast));
 #endif
 
@@ -492,7 +509,7 @@ struct warpcore * w_init(const char * const ifname)
 	w->req.nr_flags = NR_REG_ALL_NIC;
 	w->req.nr_arg3 = NUM_EXTRA_BUFS; // request extra buffers
 	if (ioctl(w->fd, NIOCREGIF, &w->req) == -1)
-		die("cannot put interface into netmap mode");
+		die("%s: cannot put interface into netmap mode", ifname);
 
 	// mmap the buffer region
 	// TODO: see TODO in nm_open() in netmap_user.h
@@ -507,12 +524,12 @@ struct warpcore * w_init(const char * const ifname)
 	// print some info about our rings
 	for(uint32_t ri = 0; ri <= w->nif->ni_tx_rings-1; ri++) {
 		struct netmap_ring *r = NETMAP_TXRING(w->nif, ri);
-		log("tx ring %d: first slot %d, last slot %d", ri,
+		log("tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 	for(uint32_t ri = 0; ri <= w->nif->ni_rx_rings-1; ri++) {
 		struct netmap_ring *r = NETMAP_RXRING(w->nif, ri);
-		log("rx ring %d: first slot %d, last slot %d", ri,
+		log("rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 #endif

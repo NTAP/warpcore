@@ -19,8 +19,8 @@
 #include "ip.h"
 #include "udp.h"
 
-#define PORT_RANGE_LO	  1
-#define PORT_RANGE_HI	256
+#define PORT_RANGE_LO	49152
+#define PORT_RANGE_HI	49152 + 32
 #define PORT_RANGE_LEN	PORT_RANGE_HI - PORT_RANGE_LO
 
 // according to Luigi, any ring can be passed to NETMAP_BUF
@@ -98,7 +98,7 @@ extern struct w_iov * w_tx_alloc(struct w_sock * const s,
 
 extern void w_tx(struct w_sock * const s);
 
-extern bool w_poll(struct warpcore * const w);
+extern bool w_poll(struct warpcore * const w, const int to);
 
 // internal warpcore use only; TODO: restrict exporting
 extern struct w_sock ** w_get_sock(struct warpcore * const w,
