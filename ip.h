@@ -1,6 +1,10 @@
 #ifndef _ip_h_
 #define _ip_h_
 
+#include <stdint.h>
+#include <stdbool.h>
+
+
 #define IP_P_ICMP 	 1	// IP protocol number for ICMP
 #define IP_P_TCP	 6	// IP protocol number for TCP
 #define IP_P_UDP	17	// IP protocol number for UDP

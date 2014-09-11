@@ -1,6 +1,10 @@
 #ifndef _eth_h_
 #define _eth_h_
 
+#include <stdint.h>
+#include <stdbool.h>
+
+
 #define ETH_ADDR_LEN	6		// Ethernet addresses are six bytes long
 #define ETH_ADDR_STRLEN	ETH_ADDR_LEN*3	// xx:xx:xx:xx:xx:xx\0
 

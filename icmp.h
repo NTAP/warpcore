@@ -1,6 +1,8 @@
 #ifndef _icmp_h_
 #define _icmp_h_
 
+#include <stdint.h>
+
 #define ICMP_TYPE_ECHOREPLY	0
 #define ICMP_TYPE_UNREACH	3
 #define ICMP_TYPE_ECHO 		8
