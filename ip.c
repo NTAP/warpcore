@@ -52,10 +52,10 @@ void ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 	ip->cksum = 0;
 	ip->cksum = in_cksum(ip, l);
 
-#if !defined(NDEBUG) && defined(PKTTRACE)
+#ifndef NDEBUG
 	char src[IP_ADDR_STRLEN];
 	char dst[IP_ADDR_STRLEN];
-	log("IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
+	log(3, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
 	    ip_ntoa(ip->src, src, sizeof src),
 	    ip_ntoa(ip->dst, dst, sizeof dst),
 	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
@@ -81,9 +81,7 @@ bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 	ip->id = htons(777); // XXX
 	ip->cksum = in_cksum(ip, sizeof *ip); // IP checksum is over header only
 
-#if !defined(NDEBUG) && defined(PKTTRACE)
-	log("IP tx buf %d IP len %d", v->idx, l);
-#endif
+	log(3, "IP tx buf %d IP len %d", v->idx, l);
 
 	// do Ethernet transmit preparation
 	return eth_tx(w, v, l);
@@ -95,10 +93,10 @@ void ip_rx(struct warpcore * w, char * const buf)
 {
 	const struct ip_hdr * const ip =
 		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
+#ifndef NDEBUG
 	char dst[IP_ADDR_STRLEN];
-#if !defined(NDEBUG) && defined(PKTTRACE)
 	char src[IP_ADDR_STRLEN];
-	log("IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
+	log(3, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
 	    ip_ntoa(ip->src, src, sizeof src),
 	    ip_ntoa(ip->dst, dst, sizeof dst),
 	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
@@ -106,14 +104,14 @@ void ip_rx(struct warpcore * w, char * const buf)
 
 	// make sure the packet is for us (or broadcast)
 	if (ip->dst != w->ip && ip->dst != w->bcast) {
-		log("IP packet to %s (not us); ignoring",
+		log(5, "IP packet to %s (not us); ignoring",
 		    ip_ntoa(ip->dst, dst, sizeof dst));
 		return;
 	}
 
 	// validate the IP checksum
 	if (in_cksum(ip, sizeof *ip) != 0) {
-		log("invalid IP checksum, received %x", ip->cksum);
+		log(1, "invalid IP checksum, received %x", ip->cksum);
 		return;
 	}
 
@@ -133,7 +131,7 @@ void ip_rx(struct warpcore * w, char * const buf)
 	// case IP_P_TCP:
 	// 	break;
 	default:
-		log("unhandled IP protocol %d", ip->p);
+		log(1, "unhandled IP protocol %d", ip->p);
 		// be standards compliant and send an ICMP unreachable
 		icmp_tx_unreach(w, ICMP_UNREACH_PROTOCOL, buf, off);
 		break;

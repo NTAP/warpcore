@@ -2,7 +2,7 @@ OS=$(shell uname -s)
 
 CC=cc
 # CDEF+=-DNDEBUG
-# CDEF+=-DPKTTRACE -DFUNCTRACE
+CDEF+=-DDLEVEL=10
 COPT=-Ofast -march=native
 CDEB=-g -pg -ftrapv
 CDIA=-Wall -Wextra -fdiagnostics-color=auto

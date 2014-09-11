@@ -54,7 +54,7 @@ struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
 		s = &w->tcp[index];
 		break;
 	default:
-		log("cannot find socket for IP proto %d", p);
+		log(1, "cannot find socket for IP proto %d", p);
 		return 0;
 	}
 	return s;
@@ -117,17 +117,13 @@ void w_tx(struct w_sock * const s)
 		} else {
 			// no space in ring
 			w_kick_tx(s->w);
-#ifdef DFUNCTRACE
-			log("polling for send space");
-#endif
+			log(5, "polling for send space");
 			if (w_poll(s, POLLOUT, -1) == false)
 				// interrupt received during poll
 				return;
 		}
 	}
-#ifdef DFUNCTRACE
-	log("UDP tx iov (len %d in %d bufs) done", l, n);
-#endif
+	log(3, "UDP tx iov (len %d in %d bufs) done", l, n);
 
 	// kick tx ring
 	w_kick_tx(s->w);
@@ -138,7 +134,7 @@ void w_tx(struct w_sock * const s)
 struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
 	if (!SLIST_EMPTY(&s->ov)) {
-		log("output iov already allocated");
+		log(1, "output iov already allocated");
 		return 0;
 	}
 
@@ -185,9 +181,7 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 	// adjust length of last iov so chain is the exact length requested
 	v->len += l; // l is negative
 
-#ifdef DFUNCTRACE
-	log("allocating iovec (len %d in %d bufs) for user tx", len, n);
-#endif
+	log(3, "allocating iovec (len %d in %d bufs) for user tx", len, n);
 
 	return SLIST_FIRST(&s->ov);
 }
@@ -201,13 +195,13 @@ void w_close(struct w_sock * const s)
 	// make iovs of the socket available again
 	while (!SLIST_EMPTY(&s->iv)) {
              struct w_iov * const v = SLIST_FIRST(&s->iv);
-             // log("free buf %d", v->idx);
+             // log(5, "free buf %d", v->idx);
              SLIST_REMOVE_HEAD(&s->iv, next);
              SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}
 	while (!SLIST_EMPTY(&s->ov)) {
              struct w_iov * const v = SLIST_FIRST(&s->ov);
-             // log("free buf %d", v->idx);
+             // log(5, "free buf %d", v->idx);
              SLIST_REMOVE_HEAD(&s->ov, next);
              SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}
@@ -227,12 +221,12 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
                const uint16_t dport)
 {
 	if (s->dip || s->dport) {
-		log("socket already connected");
+		log(1, "socket already connected");
 		return;
 	}
 #ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
-	log("connect IP proto %d dst %s port %d", s->p,
+	log(1, "connect IP proto %d dst %s port %d", s->p,
 	    ip_ntoa(dip, str, sizeof str), dport);
 #endif
 	s->dip = dip;
@@ -247,7 +241,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 		w_rx(s);
 		if(!IS_ZERO(s->dmac))
 			break;
-		log("no ARP reply, retrying");
+		log(1, "no ARP reply, retrying");
 	}
 
 	// initialize the non-zero fields of outgoing template header
@@ -286,7 +280,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 	memcpy(eth->src, s->w->mac, ETH_ADDR_LEN);
 	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
 
-	log("IP proto %d socket connected to %s port %d", s->p,
+	log(1, "IP proto %d socket connected to %s port %d", s->p,
 	    ip_ntoa(dip, str, sizeof str), dport);
 }
 
@@ -302,13 +296,13 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 
 	struct w_sock **s = w_get_sock(w, p, port);
 	if (*s) {
-		log("IP proto %d source port %d already in use", p, port);
+		log(1, "IP proto %d source port %d already in use", p, port);
 		return 0;
 	}
 
 	if ((*s = calloc(1, sizeof **s)) == 0)
 		die("cannot allocate struct w_sock");
-	log("bind IP proto %d port %d", p, port);
+	log(1, "bind IP proto %d port %d", p, port);
 	(*s)->p = p;
 	(*s)->sport = port;
 	(*s)->w = w;
@@ -330,16 +324,16 @@ bool w_poll(struct w_sock * const s, const short ev, const int to)
 	switch (n) {
 	case -1:
 		if (errno == EINTR) {
-			log("poll: interrupt");
+			log(1, "poll: interrupt");
 			return false;
 		} else
 			die("poll");
 		break;
 	case 0:
-		// log("poll: timeout expired");
+		// log(1, "poll: timeout expired");
 		return true;
 	default:
-		// log("poll: %d descriptors ready", n);
+		// log(1, "poll: %d descriptors ready", n);
 		break;
 	}
 	return true;
@@ -369,7 +363,7 @@ static struct w_iov * w_chain_extra_bufs(struct warpcore * const w, struct w_iov
 // Shut down warpcore cleanly.
 void w_cleanup(struct warpcore * const w)
 {
-	log("warpcore shutting down");
+	log(1, "warpcore shutting down");
 
 	// if (w->thr) {
 	// 	if (pthread_cancel(w->thr))
@@ -403,7 +397,7 @@ void w_cleanup(struct warpcore * const w)
 	// int n = w->nif->ni_bufs_head;
 	// while (n) {
 	// 	char *b = IDX2BUF(w, n);
-	// 	log("buf in extra chain idx %d", n);
+	// 	log(5, "buf in extra chain idx %d", n);
 	// 	n = *(uint32_t *)b;
 	// }
 
@@ -483,7 +477,7 @@ struct warpcore * w_init(const char * const ifname)
 				w->mbps = (uint64_t)((struct if_data *)
 				          (i->ifa_data))->ifi_baudrate/1000000;
 #endif
-				log("%s addr %s, MTU %d, speed %dG",
+				log(1, "%s addr %s, MTU %d, speed %dG",
 				    i->ifa_name,
 				    ether_ntoa_r((struct ether_addr *)w->mac,
 				                 mac), w->mtu, w->mbps/1000);
@@ -494,12 +488,12 @@ struct warpcore * w_init(const char * const ifname)
 				         i->ifa_addr)->sin_addr.s_addr;
 				w->mask = ((struct sockaddr_in *)
 				           i->ifa_netmask)->sin_addr.s_addr;
-				log("%s has IP addr %s/%s", i->ifa_name,
+				log(1, "%s has IP addr %s/%s", i->ifa_name,
 				    ip_ntoa(w->ip, ip, sizeof ip),
 				    ip_ntoa(w->mask, mask, sizeof mask));
 				break;
 			default:
-				log("ignoring unknown addr family %d on %s",
+				log(1, "ignoring unknown addr family %d on %s",
 				    i->ifa_addr->sa_family, i->ifa_name);
 				break;
 			}
@@ -512,7 +506,7 @@ struct warpcore * w_init(const char * const ifname)
 	w->bcast = w->ip | (~w->mask);
 #ifndef NDEBUG
 	char bcast[IP_ADDR_STRLEN];
-	log("%s has IP broadcast addr %s", ifname,
+	log(1, "%s has IP broadcast addr %s", ifname,
 	    ip_ntoa(w->bcast, bcast, sizeof bcast));
 #endif
 
@@ -541,12 +535,12 @@ struct warpcore * w_init(const char * const ifname)
 	// print some info about our rings
 	for(uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
 		struct netmap_ring *r = NETMAP_TXRING(w->nif, ri);
-		log("tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+		log(1, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 	for(uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
 		struct netmap_ring *r = NETMAP_RXRING(w->nif, ri);
-		log("rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+		log(1, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 #endif
@@ -560,7 +554,7 @@ struct warpcore * w_init(const char * const ifname)
 			die("cannot allocate w_iov");
 		v->buf = IDX2BUF(w, i);
 		v->idx = i;
-		// log("available extra buf %d", i);
+		// log(3, "available extra buf %d", i);
 		SLIST_INSERT_HEAD(&w->iov, v, next);
 		char * const b = v->buf;
 		i = *(uint32_t *)b;
@@ -570,7 +564,7 @@ struct warpcore * w_init(const char * const ifname)
 		die("can only allocate %d/%d extra buffers",
 		    w->req.nr_arg3, NUM_EXTRA_BUFS);
 	else
-		log("allocated %d extra buffers", w->req.nr_arg3);
+		log(1, "allocated %d extra buffers", w->req.nr_arg3);
 
 
 	// initialize list of sockets

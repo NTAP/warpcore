@@ -30,11 +30,9 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 	memcpy(eth->dst, eth->src, sizeof eth->dst);
 	memcpy(eth->src, w->mac, sizeof eth->src);
 
-#if !defined(NDEBUG) && defined(FUNCTRACE)
-	log("swapping rx ring %d slot %d (buf %d) and "
+	log(5, "swapping rx ring %d slot %d (buf %d) and "
 	    "tx ring %d slot %d (buf %d)", w->cur_rxr, rxr->cur, rxs->buf_idx,
 	    w->cur_txr, txr->cur, txs->buf_idx);
-#endif
 
 	// move modified rx slot to tx ring, and move an unused tx slot back
 	const uint32_t tmp_idx = txs->buf_idx;
@@ -45,10 +43,10 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 	// we don't need to advance the rx ring here, w_poll does this
 	txr->head = txr->cur = nm_ring_next(txr, txr->cur);
 
-#if !defined(NDEBUG) && defined(PKTTRACE)
+#ifndef NDEBUG
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	log("Eth %s -> %s, type %d",
+	log(3, "Eth %s -> %s, type %d",
 	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst), ntohs(eth->type));
 #endif
@@ -74,16 +72,14 @@ bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 
 	// return false if all rings are full
 	if (i == w->nif->ni_rx_rings) {
-		log("all tx rings are full");
+		log(3, "all tx rings are full");
 		return false;
 	}
 
 	struct netmap_slot * const txs = &txr->slot[txr->cur];
 
-#if !defined(NDEBUG) && defined(FUNCTRACE)
-	log("placing iov %d in tx ring %d slot %d (current buf %d)",
+	log(5, "placing iov %d in tx ring %d slot %d (current buf %d)",
 	    v->idx, w->cur_txr, txr->cur, txs->buf_idx);
-#endif
 
 	// place v in the current tx ring
 	const uint32_t tmp_idx = txs->buf_idx;
@@ -91,12 +87,12 @@ bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 	txs->len = len + sizeof(struct eth_hdr);
 	txs->flags = NS_BUF_CHANGED;
 
-#if !defined(NDEBUG) && defined(PKTTRACE)
+#ifndef NDEBUG
 	const struct eth_hdr * const eth =
 		(const struct eth_hdr * const)NETMAP_BUF(txr, txs->buf_idx);
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	log("Eth %s -> %s, type %d, len %ld",
+	log(3, "Eth %s -> %s, type %d, len %ld",
 	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
 	    ntohs(eth->type), len + sizeof(struct eth_hdr));
@@ -120,10 +116,10 @@ void eth_rx(struct warpcore * w, char * const buf)
 	const struct eth_hdr * const eth = (const struct eth_hdr * const)(buf);
 	const uint16_t type = ntohs(eth->type);
 
-#if !defined(NDEBUG) && defined(PKTTRACE)
+#ifndef NDEBUG
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	log("Eth %s -> %s, type %d",
+	log(3, "Eth %s -> %s, type %d",
 	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst), type);
 #endif
@@ -131,8 +127,7 @@ void eth_rx(struct warpcore * w, char * const buf)
 	// make sure the packet is for us (or broadcast)
 	if (memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
 	    memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN)) {
-		log("Eth packet to %s (not us); ignoring",
-		    ether_ntoa((const struct ether_addr *)eth->dst));
+		log(1, "Ethernet packet not destined to us; ignoring");
 		return;
 	}
 

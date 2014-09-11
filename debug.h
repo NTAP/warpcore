@@ -7,22 +7,27 @@
 #include <string.h>
 
 #ifndef NDEBUG
+
+#ifndef DLEVEL
+#define DLEVEL 1
+#endif
+
 #include <sys/time.h>
 
 // these macros are based on the "D" ones defined by netmap
 
-#define log(fmt, ...)                                             	\
-	do {                                                      	\
+#define log(level, fmt, ...)                                          	\
+	if (DLEVEL >= level) {                                          \
 		struct timeval t0;                                	\
 		gettimeofday(&t0, 0);                             	\
 		fprintf(stderr, "%03d.%06d %s [%d] " fmt "\n",    	\
 			(int)(t0.tv_sec % 1000), (int)t0.tv_usec, 	\
 			__FUNCTION__, __LINE__, ##__VA_ARGS__);   	\
-	} while (0)
+	}
 
 // Rate limited version of "log", lps indicates how many per second
-#define rlog(lps, format, ...)                                    	\
-	do {                                                      	\
+#define rlog(level, lps, format, ...)                                 	\
+	if (DLEVEL >= level) {                                          \
 		static int t0, cnt;                               	\
 		struct timeval xxts;                              	\
 		gettimeofday(&xxts, 0);                           	\
@@ -31,19 +36,20 @@
 			cnt = 0;                                  	\
 		}                                                 	\
 		if (cnt++ < lps) {                                	\
-			log(format, ##__VA_ARGS__);               	\
+			log(level, format, ##__VA_ARGS__);             	\
 		}                                                 	\
-	} while (0)
+	}
 
 
 #define die(fmt, ...)                                             	\
 	do {                                                      	\
 		const int e = errno;                              	\
-		if (e)                                            	\
-			log("abort: " fmt ": %s", ##__VA_ARGS__,    	\
+		if (e) {                                           	\
+			log(0, "abort: " fmt ": %s", ##__VA_ARGS__,    	\
 			     strerror(e));                        	\
-		else                                              	\
-			log("abort: " fmt , ##__VA_ARGS__);         	\
+		} else {                                              	\
+			log(0, "abort: " fmt , ##__VA_ARGS__);        	\
+		}							\
 		abort();                                          	\
 	} while (0)
 

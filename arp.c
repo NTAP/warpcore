@@ -47,10 +47,10 @@ void arp_who_has(struct warpcore * w, const uint32_t dip)
 	bzero(arp->tha, ETH_ADDR_LEN);
 	arp->tpa =	dip;
 
-#if !defined(NDEBUG) && defined(PKTTRACE)
+#ifndef NDEBUG
 	char spa[IP_ADDR_STRLEN];
 	char tpa[IP_ADDR_STRLEN];
-	log("ARP request who has %s tell %s",
+	log(3, "ARP request who has %s tell %s",
 	    ip_ntoa(arp->tpa, tpa, sizeof tpa),
 	    ip_ntoa(arp->spa, spa, sizeof spa));
 #endif
@@ -69,10 +69,10 @@ static void arp_is_at(struct warpcore * w, char * const buf)
 {
 	struct arp_hdr * const arp =
 		(struct arp_hdr * const)(buf + sizeof(struct eth_hdr));
-#if !defined(NDEBUG) && defined(PKTTRACE)
+#ifndef NDEBUG
 	char sha[ETH_ADDR_STRLEN];
 	char spa[IP_ADDR_STRLEN];
-	log("ARP reply %s is at %s",
+	log(3, "ARP reply %s is at %s",
 	    ip_ntoa(arp->spa, spa, sizeof spa),
 	    ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
 #endif
@@ -92,11 +92,11 @@ static void arp_is_at(struct warpcore * w, char * const buf)
 // Receive an ARP packet, and react
 void arp_rx(struct warpcore * w, char * const buf)
 {
-#if !defined(NDEBUG) && defined(PKTTRACE)
+#ifndef NDEBUG
 	char tpa[IP_ADDR_STRLEN];
-#endif
 	char spa[IP_ADDR_STRLEN];
 	char sha[ETH_ADDR_STRLEN];
+#endif
 	const struct arp_hdr * const arp =
 		(const struct arp_hdr * const)(buf + sizeof(struct eth_hdr));
 
@@ -113,31 +113,27 @@ void arp_rx(struct warpcore * w, char * const buf)
 	const uint16_t op = ntohs(arp->op);
 	switch (op) {
 	case ARP_OP_REQUEST:
-#if !defined(NDEBUG) && defined(PKTTRACE)
-		log("ARP request who has %s tell %s",
+		log(3, "ARP request who has %s tell %s",
 		    ip_ntoa(arp->tpa, tpa, sizeof tpa),
 		    ip_ntoa(arp->spa, spa, sizeof spa));
-#endif
 		if (arp->tpa == w->ip)
 			arp_is_at(w, buf);
 		else
-			log("ignoring ARP request not asking for us");
+			log(3, "ignoring ARP request not asking for us");
 		break;
 
 	case ARP_OP_REPLY:
 		{
-#if !defined(NDEBUG) && defined(PKTTRACE)
-		log("ARP reply %s is at %s",
+		log(3, "ARP reply %s is at %s",
 		    ip_ntoa(arp->spa, spa, sizeof spa),
 		    ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
-#endif
 
 		// check if any socket has an IP address matching this ARP
 		// reply, and if so, set its destination MAC
 		struct w_sock *s;
 		SLIST_FOREACH(s, &w->sock, next)
 			if (s->dip == arp->spa) {
-				log("updating socket with %s for %s",
+				log(1, "updating socket with %s for %s",
 				    ether_ntoa_r((const struct ether_addr *)
 				                 arp->sha, sha),
 				    ip_ntoa(arp->spa, spa, sizeof spa));

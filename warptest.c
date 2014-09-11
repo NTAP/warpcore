@@ -20,7 +20,7 @@ void usage(const char * const name, const uint32_t size, const uint32_t loops)
 void iov_fill(struct w_iov *v)
 {
 	while (v) {
-		// log("%d bytes in buf %d", v->len, v->idx);
+		// log(5, "%d bytes in buf %d", v->len, v->idx);
 		for (uint16_t l = 0; l < v->len; l++) {
 			v->buf[l] = (char)(l % 0xff);
 		}
@@ -32,7 +32,7 @@ void iov_fill(struct w_iov *v)
 void iov_dump(struct w_iov *v)
 {
 	while (v) {
-		log("%d bytes in buf %d", v->len, v->idx);
+		log(5, "%d bytes in buf %d", v->len, v->idx);
 		hexdump(v->buf, v->len);
 		v = SLIST_NEXT(v, next);
 	}
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 	}
 
 	struct warpcore *w = w_init(ifname);;
-	log("main process ready");
+	log(1, "main process ready");
 
 	struct w_sock *s = w_bind(w, IP_P_UDP, 49152);
 	w_connect(s, ip_aton(dst), port);
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 		// TODO: figure out why 128 is too much here
 		uint32_t len = size;
 		struct w_iov *o = w_tx_alloc(s, len);
-		// iov_fill(o);
+		iov_fill(o);
 		// iov_dump(o);
 		w_tx(s);
 
@@ -101,27 +101,27 @@ int main(int argc, char *argv[])
 		}
 #endif
 
-		while (len > 0) {
-			// run the receive loop
-			if (w_poll(w, -1) == false)
-				goto done;
+		// while (len > 0) {
+		// 	// run the receive loop
+		// 	if (w_poll(w, -1) == false)
+		// 		goto done;
 
-			// read any data
-			struct w_iov *i = w_rx(s);
+		// 	// read any data
+		// 	struct w_iov *i = w_rx(s);
 
-			// access the read data
-			while (i) {
-				// log("%d bytes in buf %d", i->len, i->idx);
-				len -= i->len;
-				// hexdump(i->buf, i->len);
-				i = SLIST_NEXT(i, next);
-			}
+		// 	// access the read data
+		// 	while (i) {
+		// 		// log(5, "%d bytes in buf %d", i->len, i->idx);
+		// 		len -= i->len;
+		// 		// hexdump(i->buf, i->len);
+		// 		i = SLIST_NEXT(i, next);
+		// 	}
 
-			// read is done, release the iov
-			w_rx_done(s);
-		}
+		// 	// read is done, release the iov
+		// 	w_rx_done(s);
+		// }
 	}
-done:
+// done:
 	w_close(s);
 
 #ifdef NDEBUG
@@ -131,7 +131,7 @@ done:
 	// keep running
 	// while (w_poll(w)) {}
 
-	log("main process exiting");
+	log(1, "main process exiting");
 	w_cleanup(w);
 
 	return 0;

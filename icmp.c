@@ -10,8 +10,7 @@ static void icmp_tx(struct warpcore * w, char * const buf,
              const uint16_t off, const uint16_t len)
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
-
-	log("ICMP type %d, code %d", icmp->type, icmp->code);
+	log(3, "ICMP type %d, code %d", icmp->type, icmp->code);
 
 	// calculate the new ICMP checksum
 	icmp->cksum = 0;
@@ -52,12 +51,11 @@ void icmp_rx(struct warpcore * w, char * const buf,
              const uint16_t off, const uint16_t len)
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
-
-	log("ICMP type %d, code %d", icmp->type, icmp->code);
+	log(3, "ICMP type %d, code %d", icmp->type, icmp->code);
 
 	// validate the ICMP checksum
 	if (in_cksum(icmp, len) != 0) {
-		log("invalid ICMP checksum, received %x", icmp->cksum);
+		log(1, "invalid ICMP checksum, received %x", icmp->cksum);
 		return;
 	}
 
