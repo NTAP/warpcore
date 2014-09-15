@@ -45,8 +45,14 @@ void ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 	const uint16_t l = ip->hl * 4 + len;
 	ip->len = htons(l);
 
-	// set the IP protocol
+	// set other header fields
 	ip->p = p;
+	ip->id = random(); // no need to do htons() for random value
+
+	// TODO: we should zero out any IP options here,
+	// since we're reflecing a received packet
+	if (ip->hl * 4 > 20)
+		die("packet seems to have IP options");
 
 	// finally, calculate the IP checksum
 	ip->cksum = 0;
@@ -78,7 +84,7 @@ bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 
 	// fill in remaining header fields
 	ip->len = htons(l);
-	ip->id = htons(777); // XXX
+	ip->id = random(); // no need to do htons() for random value
 	ip->cksum = in_cksum(ip, sizeof *ip); // IP checksum is over header only
 
 	log(3, "IP tx buf %d IP len %d", v->idx, l);
