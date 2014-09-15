@@ -6,7 +6,6 @@
 #include <sys/types.h>
 #include <net/ethernet.h>
 // #include <pthread.h>
-#include <poll.h>
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
@@ -42,6 +41,11 @@ static void w_kick_tx(struct warpcore * const w)
 struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
                             const uint16_t port)
 {
+	// TODO: caller should always check this! this is just for development
+	if (port < PORT_RANGE_LO || port > PORT_RANGE_HI)
+		die("port %d not in range %d-%d",
+		    port, PORT_RANGE_LO, PORT_RANGE_HI);
+
 	// find the respective "socket"
 	const uint16_t index = port - PORT_RANGE_LO;
 	struct w_sock **s;
@@ -54,7 +58,7 @@ struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
 		s = &w->tcp[index];
 		break;
 	default:
-		log(1, "cannot find socket for IP proto %d", p);
+		die("cannot find socket for IP proto %d", p);
 		return 0;
 	}
 	return s;
@@ -324,7 +328,7 @@ bool w_poll(struct w_sock * const s, const short ev, const int to)
 	switch (n) {
 	case -1:
 		if (errno == EINTR) {
-			log(1, "poll: interrupt");
+			log(3, "poll: interrupt");
 			return false;
 		} else
 			die("poll");
@@ -333,7 +337,7 @@ bool w_poll(struct w_sock * const s, const short ev, const int to)
 		// log(1, "poll: timeout expired");
 		return true;
 	default:
-		// log(1, "poll: %d descriptors ready", n);
+		// rlog(1, 1, "poll: %d descriptors ready", n);
 		break;
 	}
 	return true;

@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/queue.h>
+#include <poll.h>
 
 #ifdef __linux__
 #include <ifaddrs.h>

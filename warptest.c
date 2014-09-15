@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <netinet/in.h>
+#include <netdb.h>
 
 #include "warpcore.h"
 #include "ip.h"
@@ -43,12 +45,12 @@ int main(int argc, char *argv[])
 {
 	const char *ifname = 0;
 	const char *dst = 0;
-	uint16_t port = 0;
+	const char * port = 0;
 	uint32_t size = 1500 - sizeof(struct eth_hdr) - sizeof(struct ip_hdr) -
 			sizeof(struct udp_hdr);
 	uint32_t loops = 1;
-	int ch;
 
+	int ch;
 	while ((ch = getopt(argc, argv, "hi:d:p:s:l:")) != -1) {
 		switch (ch) {
 		case 'i':
@@ -58,7 +60,7 @@ int main(int argc, char *argv[])
 			dst = optarg;
 			break;
 		case 'p':
-			port = strtol(optarg, 0, 10);
+			port = optarg;
 			break;
 		case 's':
 			size = strtol(optarg, 0, 10);
@@ -79,12 +81,19 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	struct warpcore *w = w_init(ifname);;
+	struct addrinfo hints, *res;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_INET;
+	hints.ai_protocol = IP_P_UDP;
+	if (getaddrinfo(dst, port, &hints, &res) != 0)
+		die("getaddrinfo");
+
+	struct warpcore *w = w_init(ifname);
 	log(1, "main process ready");
 
 	struct w_sock *s = w_bind(w, IP_P_UDP, 49152);
-	w_connect(s, ip_aton(dst), port);
-
+	w_connect(s, ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr,
+	          ntohs(((struct sockaddr_in *)res->ai_addr)->sin_port));
 
 	for (long n = 1; n <= loops; n++) {
 		// TODO: figure out why 128 is too much here
@@ -122,14 +131,18 @@ int main(int argc, char *argv[])
 		// }
 	}
 // done:
+	// keep running
+	log(1, "polling");
+	while (w_poll(s, POLLIN, -1)) {
+		w_rx(s);
+	}
+
 	w_close(s);
 
 #ifdef NDEBUG
 	printf("\n");
 #endif
 
-	// keep running
-	// while (w_poll(w)) {}
 
 	log(1, "main process exiting");
 	w_cleanup(w);
