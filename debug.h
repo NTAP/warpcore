@@ -18,24 +18,24 @@
 
 #define log(level, fmt, ...)                                          	\
 	if (DLEVEL >= level) {                                          \
-		struct timeval t0;                                	\
-		gettimeofday(&t0, 0);                             	\
+		struct timeval _lt0;                                	\
+		gettimeofday(&_lt0, 0);                             	\
 		fprintf(stderr, "%03d.%06d %s [%d] " fmt "\n",    	\
-			(int)(t0.tv_sec % 1000), (int)t0.tv_usec, 	\
+			(int)(_lt0.tv_sec % 1000), (int)_lt0.tv_usec, 	\
 			__FUNCTION__, __LINE__, ##__VA_ARGS__);   	\
 	}
 
 // Rate limited version of "log", lps indicates how many per second
 #define rlog(level, lps, format, ...)                                 	\
 	if (DLEVEL >= level) {                                          \
-		static int t0, cnt;                               	\
-		struct timeval xxts;                              	\
-		gettimeofday(&xxts, 0);                           	\
-		if (t0 != xxts.tv_sec) {                          	\
-			t0 = xxts.tv_sec;                         	\
-			cnt = 0;                                  	\
+		static int _rt0, _rcnt;                               	\
+		struct timeval _rts;                              	\
+		gettimeofday(&_rts, 0);                           	\
+		if (_rt0 != _rts.tv_sec) {                          	\
+			_rt0 = _rts.tv_sec;                         	\
+			_rcnt = 0;                                  	\
 		}                                                 	\
-		if (cnt++ < lps) {                                	\
+		if (_rcnt++ < lps) {                                	\
 			log(level, format, ##__VA_ARGS__);             	\
 		}                                                 	\
 	}
