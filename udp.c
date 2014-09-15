@@ -36,41 +36,50 @@ void udp_rx(struct warpcore * w, char * const buf, const uint16_t off)
 		(const struct udp_hdr * const)(buf + off);
 	const uint16_t dport = ntohs(udp->dport);
 	const uint16_t len =   ntohs(udp->len);
-	struct w_sock **s = w_get_sock(w, IP_P_UDP, dport);
 #ifndef NDEBUG
 	const uint16_t sport = ntohs(udp->sport);
 	log(5, "UDP :%d -> :%d, len %d", sport, dport, len);
 #endif
 
+	// check for traffic that arrives at a destination port that
+	// we can't possibly be listening on
+	if (dport < PORT_RANGE_LO || dport > PORT_RANGE_HI) {
+		// send an ICMP unreachable
+		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
+		return;
+	}
+
+	struct w_sock **s = w_get_sock(w, IP_P_UDP, dport);
 	if (*s == 0) {
 		// nobody bound to this port locally
 		// send an ICMP unreachable
 		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
-	} else {
-		// grab an unused iov for the data in this packet
-		struct w_iov * const i = SLIST_FIRST(&w->iov);
-		struct netmap_ring * const rxr =
-			NETMAP_RXRING(w->nif, w->cur_rxr);
-		struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
-		SLIST_REMOVE_HEAD(&w->iov, next);
-
-		// log("swapping rx slot %d (buf %d) and spare buf %d",
-		//     rxr->cur, rxs->buf_idx, i->idx);
-
-		// remember index of this buffer
-		const uint32_t tmp_idx = i->idx;
-
-		// move the received data into the iov
-		i->buf = buf + off;
-		i->len = len - sizeof *udp;
-		i->idx = rxs->buf_idx;
-
-		// add the iov to the socket
-		// TODO: XXX this needs to insert at the tail!
-		SLIST_INSERT_HEAD(&(*s)->iv, i, next);
-
-		// use the original buffer in the iov for the receive ring
-		rxs->buf_idx = tmp_idx;
-		rxs->flags = NS_BUF_CHANGED;
+		return;
 	}
+
+	// grab an unused iov for the data in this packet
+	struct w_iov * const i = SLIST_FIRST(&w->iov);
+	struct netmap_ring * const rxr =
+		NETMAP_RXRING(w->nif, w->cur_rxr);
+	struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
+	SLIST_REMOVE_HEAD(&w->iov, next);
+
+	// log("swapping rx slot %d (buf %d) and spare buf %d",
+	//     rxr->cur, rxs->buf_idx, i->idx);
+
+	// remember index of this buffer
+	const uint32_t tmp_idx = i->idx;
+
+	// move the received data into the iov
+	i->buf = buf + off;
+	i->len = len - sizeof *udp;
+	i->idx = rxs->buf_idx;
+
+	// add the iov to the socket
+	// TODO: XXX this needs to insert at the tail!
+	SLIST_INSERT_HEAD(&(*s)->iv, i, next);
+
+	// use the original buffer in the iov for the receive ring
+	rxs->buf_idx = tmp_idx;
+	rxs->flags = NS_BUF_CHANGED;
 }
