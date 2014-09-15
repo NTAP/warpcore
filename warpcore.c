@@ -41,21 +41,14 @@ static void w_kick_tx(struct warpcore * const w)
 struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
                             const uint16_t port)
 {
-	// TODO: caller should always check this! this is just for development
-	if (port < PORT_RANGE_LO || port > PORT_RANGE_HI)
-		die("port %d not in range %d-%d",
-		    port, PORT_RANGE_LO, PORT_RANGE_HI);
-
 	// find the respective "socket"
-	const uint16_t index = port - PORT_RANGE_LO;
 	struct w_sock **s;
-
-	switch (p){
+	switch (p) {
 	case IP_P_UDP:
-		s = &w->udp[index];
+		s = &w->udp[port];
 		break;
 	case IP_P_TCP:
-		s = &w->tcp[index];
+		s = &w->tcp[port];
 		break;
 	default:
 		die("cannot find socket for IP proto %d", p);
@@ -104,7 +97,7 @@ struct w_iov * w_rx(struct w_sock * const s)
 }
 
 
-// Prepends all network headers and places the iov in the tx ring.
+// Prepends all network headers and places s->ov in the tx ring.
 void w_tx(struct w_sock * const s)
 {
 	// TODO: handle other protocols
@@ -122,7 +115,7 @@ void w_tx(struct w_sock * const s)
 			// no space in ring
 			w_kick_tx(s->w);
 			log(5, "polling for send space");
-			if (w_poll(s, POLLOUT, -1) == false)
+			if (w_poll(s->w, POLLOUT, -1) == false)
 				// interrupt received during poll
 				return;
 		}
@@ -224,14 +217,10 @@ void w_close(struct w_sock * const s)
 void w_connect(struct w_sock * const s, const uint32_t dip,
                const uint16_t dport)
 {
-	if (s->dip || s->dport) {
-		log(1, "socket already connected");
-		return;
-	}
 #ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
 	log(1, "connect IP proto %d dst %s port %d", s->p,
-	    ip_ntoa(dip, str, sizeof str), dport);
+	    ip_ntoa(dip, str, sizeof str), ntohs(dport));
 #endif
 	s->dip = dip;
 	s->dport = dport;
@@ -239,7 +228,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 	// find the Ethernet addr of the destination
 	while (IS_ZERO(s->dmac)) {
 		arp_who_has(s->w, dip);
-		if(w_poll(s, POLLIN, 1000) == false)
+		if(w_poll(s->w, POLLIN, 1000) == false)
 			// interrupt received during poll
 			return;
 		w_rx(s);
@@ -248,24 +237,13 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 		log(1, "no ARP reply, retrying");
 	}
 
-	// initialize the non-zero fields of outgoing template header
-	struct eth_hdr *eth;
-	struct ip_hdr *ip;
-	struct udp_hdr *udp;
+	// initialize the remaining fields of outgoing template header
+	struct eth_hdr * const eth = (struct eth_hdr *)s->hdr;
+	struct ip_hdr * const ip = (struct ip_hdr *)((char *)(eth) + sizeof *eth);
+	struct udp_hdr * const udp = (struct udp_hdr *)((char *)(ip) + sizeof *ip);
 	switch (s->p) {
 	case IP_P_UDP:
-		s->hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr) +
-			     sizeof(struct udp_hdr);
-		s->hdr = calloc(1, s->hdr_len);
-		if (s->hdr == 0)
-			die("cannot allocate w_hdr");
-		eth = (struct eth_hdr *)s->hdr;
-		ip = (struct ip_hdr *)((char *)(eth) + sizeof *eth);
-		udp = (struct udp_hdr *)((char *)(ip) + sizeof *ip);
-
-		udp->sport = htons(s->sport);
-		udp->dport = htons(s->dport);
-		ip->p =	IP_P_UDP;
+		udp->dport = dport;
 		break;
 	// case IP_P_TCP:
 	// 	break;
@@ -274,18 +252,11 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 		break;
 	}
 
-	ip->hl = 5;
-	ip->v = 4;
-	ip->ttl = 4;
-	ip->src = s->w->ip;
 	ip->dst = dip;
-
-	eth->type = htons(ETH_TYPE_IP);
-	memcpy(eth->src, s->w->mac, ETH_ADDR_LEN);
 	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
 
 	log(1, "IP proto %d socket connected to %s port %d", s->p,
-	    ip_ntoa(dip, str, sizeof str), dport);
+	    ip_ntoa(dip, str, sizeof str), ntohs(dport));
 }
 
 
@@ -293,25 +264,60 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
                        const uint16_t port)
 {
-	// check that the port number is valid
-	if (port < PORT_RANGE_LO || port > PORT_RANGE_HI)
-		die("port %d not in range %d-%d",
-		    port, PORT_RANGE_LO, PORT_RANGE_HI);
-
 	struct w_sock **s = w_get_sock(w, p, port);
 	if (*s) {
-		log(1, "IP proto %d source port %d already in use", p, port);
+		log(1, "IP proto %d source port %d already in use",
+		    p, ntohs(port));
 		return 0;
 	}
 
 	if ((*s = calloc(1, sizeof **s)) == 0)
 		die("cannot allocate struct w_sock");
-	log(1, "bind IP proto %d port %d", p, port);
+
 	(*s)->p = p;
 	(*s)->sport = port;
 	(*s)->w = w;
 	SLIST_INIT(&(*s)->iv);
 	SLIST_INSERT_HEAD(&w->sock, *s, next);
+
+	// initialize the non-zero fields of outgoing template header
+	struct eth_hdr *eth;
+	struct ip_hdr *ip;
+	struct udp_hdr *udp;
+	switch ((*s)->p) {
+	case IP_P_UDP:
+		(*s)->hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr) +
+			     sizeof(struct udp_hdr);
+		(*s)->hdr = calloc(1, (*s)->hdr_len);
+		if ((*s)->hdr == 0)
+			die("cannot allocate w_hdr");
+		eth = (struct eth_hdr *)(*s)->hdr;
+		ip = (struct ip_hdr *)((char *)(eth) + sizeof *eth);
+		udp = (struct udp_hdr *)((char *)(ip) + sizeof *ip);
+
+		udp->sport = (*s)->sport;
+		// udp->dport is set on w_connect()
+		ip->p =	IP_P_UDP;
+		break;
+	// case IP_P_TCP:
+	// 	break;
+	default:
+		die("unhandled IP proto %d", (*s)->p);
+		break;
+	}
+
+	ip->hl = 5;
+	ip->v = 4;
+	ip->ttl = 4;
+	ip->src = (*s)->w->ip;
+	// ip->dst  is set on w_connect()
+
+	eth->type = htons(ETH_TYPE_IP);
+	memcpy(eth->src, (*s)->w->mac, ETH_ADDR_LEN);
+	// eth->dst is set on w_connect()
+
+	log(1, "IP proto %d socket bound to port %d", (*s)->p, ntohs(port));
+
 	return *s;
 }
 
@@ -321,9 +327,9 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 // Returns false if an interrupt occurs during the poll, which usually means
 // someone hit Ctrl-C.
 // (TODO: This interrupt handling needs some rethinking.)
-bool w_poll(struct w_sock * const s, const short ev, const int to)
+bool w_poll(struct warpcore * const w, const short ev, const int to)
 {
-	struct pollfd fds = { .fd = s->w->fd, .events = ev };
+	struct pollfd fds = { .fd = w->fd, .events = ev };
 	const int n = poll(&fds, 1, to);
 	switch (n) {
 	case -1:
@@ -410,6 +416,9 @@ void w_cleanup(struct warpcore * const w)
 
 	if (close(w->fd) == -1)
 		die("cannot close /dev/netmap");
+
+	free(w->udp);
+	free(w->tcp);
 
 	free(w);
 }
@@ -573,6 +582,10 @@ struct warpcore * w_init(const char * const ifname)
 
 	// initialize list of sockets
 	SLIST_INIT(&w->sock);
+
+	// allocate socket pointers
+	w->udp = calloc(UINT16_MAX, sizeof(uint16_t));
+	w->tcp = calloc(UINT16_MAX, sizeof(uint16_t));
 
 	// block SIGINT
         if (signal(SIGINT, w_sigint) == SIG_ERR)

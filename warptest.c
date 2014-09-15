@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 {
 	const char *ifname = 0;
 	const char *dst = 0;
-	const char * port = 0;
+	const char *port = 0;
 	uint32_t size = 1500 - sizeof(struct eth_hdr) - sizeof(struct ip_hdr) -
 			sizeof(struct udp_hdr);
 	uint32_t loops = 1;
@@ -81,17 +81,53 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	struct addrinfo hints, *res;
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = PF_INET;
-	hints.ai_protocol = IP_P_UDP;
-	if (getaddrinfo(dst, port, &hints, &res) != 0)
-		die("getaddrinfo");
+	// struct addrinfo hints, *res;
+	// memset(&hints, 0, sizeof(hints));
+	// hints.ai_family = PF_INET;
+	// hints.ai_protocol = IP_P_UDP;
+	// if (getaddrinfo(dst, port, &hints, &res) != 0)
+	// 	die("getaddrinfo");
+	// dst = ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr;
+	// port = ntohs(((struct sockaddr_in *)res->ai_addr)->sin_port);
+	// freeaddrinfo(res);
 
 	struct warpcore *w = w_init(ifname);
 	log(1, "main process ready");
 
-	struct w_sock *s = w_bind(w, IP_P_UDP, 49152);
+	// start some inetd-like services
+	struct w_sock *echo = w_bind(w, IP_P_UDP, htons(7));
+	struct w_sock *disc = w_bind(w, IP_P_UDP, htons(9));
+
+	while (w_poll(w, POLLIN, -1)) {
+		// echo service
+		struct w_iov *i = w_rx(echo);
+		while (i) {
+			log(5, "echo %d bytes in buf %d", i->len, i->idx);
+			// echo the data
+			struct w_iov *o = w_tx_alloc(echo, i->len);
+			memcpy(o->buf, i->buf, i->len);
+			w_connect(echo, i->ip, i->port);
+			w_tx(echo);
+			i = SLIST_NEXT(i, next);
+		}
+		w_rx_done(echo);
+
+		// discard service
+		i = w_rx(disc);
+		while (i) {
+			log(5, "discard %d bytes in buf %d", i->len, i->idx);
+			// discard the data
+			i = SLIST_NEXT(i, next);
+		}
+		w_rx_done(disc);
+	}
+	w_close(echo);
+	w_close(disc);
+
+#if 0
+	struct w_sock *s = w_bind(w, IP_P_UDP, random());
+	if (s == 0)
+		die("w_bind");
 	w_connect(s, ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr,
 	          ntohs(((struct sockaddr_in *)res->ai_addr)->sin_port));
 
@@ -111,26 +147,26 @@ int main(int argc, char *argv[])
 #endif
 
 		// while (len > 0) {
-		// 	// run the receive loop
-		// 	if (w_poll(w, -1) == false)
-		// 		goto done;
+			// run the receive loop
+			if (w_poll(s, POLLIN, -1) == false)
+				goto done;
 
-		// 	// read any data
-		// 	struct w_iov *i = w_rx(s);
+			// read any data
+			struct w_iov *i = w_rx(s);
 
-		// 	// access the read data
-		// 	while (i) {
-		// 		// log(5, "%d bytes in buf %d", i->len, i->idx);
-		// 		len -= i->len;
-		// 		// hexdump(i->buf, i->len);
-		// 		i = SLIST_NEXT(i, next);
-		// 	}
+			// access the read data
+			while (i) {
+				// log(5, "%d bytes in buf %d", i->len, i->idx);
+				len -= i->len;
+				// hexdump(i->buf, i->len);
+				i = SLIST_NEXT(i, next);
+			}
 
-		// 	// read is done, release the iov
-		// 	w_rx_done(s);
+			// read is done, release the iov
+			w_rx_done(s);
 		// }
 	}
-// done:
+done:
 	// keep running
 	log(1, "polling");
 	while (w_poll(s, POLLIN, -1)) {
@@ -142,7 +178,7 @@ int main(int argc, char *argv[])
 #ifdef NDEBUG
 	printf("\n");
 #endif
-
+#endif
 
 	log(1, "main process exiting");
 	w_cleanup(w);

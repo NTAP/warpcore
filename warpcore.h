@@ -20,10 +20,6 @@
 #include "ip.h"
 #include "udp.h"
 
-#define PORT_RANGE_LO	49152
-#define PORT_RANGE_HI	49152 + 32
-#define PORT_RANGE_LEN	PORT_RANGE_HI - PORT_RANGE_LO
-
 // according to Luigi, any ring can be passed to NETMAP_BUF
 #define IDX2BUF(w, i)	NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i)
 
@@ -33,6 +29,8 @@ struct w_iov {
 	char *			buf;	// start of user data (inside buffer)
 	uint32_t		idx;	// index of netmap buffer
 	uint16_t		len;	// length of user data (inside buffer)
+	uint16_t		port;	// sender port (only valid on rx)
+	uint32_t		ip;	// sender IP address (only valid on rx)
 } __attribute__((__aligned__(4)));
 
 
@@ -71,8 +69,8 @@ struct warpcore {
 
         // --- cacheline 1 boundary (64 bytes) ---
 
-	struct w_sock *		udp[PORT_RANGE_LEN];	// UDP "sockets"
-	struct w_sock *		tcp[PORT_RANGE_LEN];	// TCP "sockets"
+	struct w_sock **	udp;			// UDP "sockets"
+	struct w_sock **	tcp;			// TCP "sockets"
 
 	struct nmreq		req;			// netmap request
 
@@ -102,7 +100,7 @@ extern struct w_iov * w_tx_alloc(struct w_sock * const s,
 
 extern void w_tx(struct w_sock * const s);
 
-extern bool w_poll(struct w_sock * const s, const short ev, const int to);
+extern bool w_poll(struct warpcore * const w, const short ev, const int to);
 
 // internal warpcore use only; TODO: restrict exporting
 extern struct w_sock ** w_get_sock(struct warpcore * const w,

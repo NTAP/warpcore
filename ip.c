@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "warpcore.h"
 #include "ip.h"
@@ -64,7 +65,7 @@ void ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 	log(3, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
 	    ip_ntoa(ip->src, src, sizeof src),
 	    ip_ntoa(ip->dst, dst, sizeof dst),
-	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
+	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
 #endif
 
 	// do Ethernet transmit preparation
@@ -87,7 +88,14 @@ bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 	ip->id = random(); // no need to do htons() for random value
 	ip->cksum = in_cksum(ip, sizeof *ip); // IP checksum is over header only
 
-	log(3, "IP tx buf %d IP len %d", v->idx, l);
+#ifndef NDEBUG
+	char dst[IP_ADDR_STRLEN];
+	char src[IP_ADDR_STRLEN];
+	log(3, "IP tx buf %d, %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
+	    v->idx, ip_ntoa(ip->src, src, sizeof src),
+	    ip_ntoa(ip->dst, dst, sizeof dst),
+	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
+#endif
 
 	// do Ethernet transmit preparation
 	return eth_tx(w, v, l);
@@ -105,7 +113,7 @@ void ip_rx(struct warpcore * w, char * const buf)
 	log(3, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
 	    ip_ntoa(ip->src, src, sizeof src),
 	    ip_ntoa(ip->dst, dst, sizeof dst),
-	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len) - ip->hl * 4);
+	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
 #endif
 
 	// make sure the packet is for us (or broadcast)
@@ -132,7 +140,7 @@ void ip_rx(struct warpcore * w, char * const buf)
 		icmp_rx(w, buf, off, len);
 		break;
 	case IP_P_UDP:
-		udp_rx(w, buf, off);
+		udp_rx(w, buf, off, ip->src);
 		break;
 	// case IP_P_TCP:
 	// 	break;

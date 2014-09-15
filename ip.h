@@ -21,8 +21,7 @@ struct ip_hdr {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	uint8_t		hl:4,		// header length
 			v:4;		// version
-#endif
-#if BYTE_ORDER == BIG_ENDIAN
+#else
 	uint8_t		v:4,		// version
 			hl:4;		// header length
 #endif

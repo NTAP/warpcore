@@ -30,26 +30,17 @@ bool udp_tx(struct w_sock *s, struct w_iov * const v)
 
 
 // Receive a UDP packet.
-void udp_rx(struct warpcore * w, char * const buf, const uint16_t off)
+void udp_rx(struct warpcore * w, char * const buf, const uint16_t off,
+            const uint32_t ip)
 {
 	const struct udp_hdr * const udp =
 		(const struct udp_hdr * const)(buf + off);
-	const uint16_t dport = ntohs(udp->dport);
-	const uint16_t len =   ntohs(udp->len);
-#ifndef NDEBUG
-	const uint16_t sport = ntohs(udp->sport);
-	log(5, "UDP :%d -> :%d, len %d", sport, dport, len);
-#endif
+	const uint16_t len = ntohs(udp->len);
 
-	// check for traffic that arrives at a destination port that
-	// we can't possibly be listening on
-	if (dport < PORT_RANGE_LO || dport > PORT_RANGE_HI) {
-		// send an ICMP unreachable
-		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
-		return;
-	}
+	log(5, "UDP :%d -> :%d, len %d",
+	    ntohs(udp->sport), ntohs(udp->dport), len);
 
-	struct w_sock **s = w_get_sock(w, IP_P_UDP, dport);
+	struct w_sock **s = w_get_sock(w, IP_P_UDP, udp->dport);
 	if (*s == 0) {
 		// nobody bound to this port locally
 		// send an ICMP unreachable
@@ -71,9 +62,13 @@ void udp_rx(struct warpcore * w, char * const buf, const uint16_t off)
 	const uint32_t tmp_idx = i->idx;
 
 	// move the received data into the iov
-	i->buf = buf + off;
+	i->buf = buf + off + sizeof *udp;
 	i->len = len - sizeof *udp;
 	i->idx = rxs->buf_idx;
+
+	// tag the iov with the sender's information
+	i->ip = ip;
+	i->port = udp->sport;
 
 	// add the iov to the socket
 	// TODO: XXX this needs to insert at the tail!
