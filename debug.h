@@ -53,8 +53,6 @@
 		abort();                                          	\
 	} while (0)
 
-extern void hexdump(const void * const ptr, const unsigned len);
-
 #else
 
 #define log(fmt, ...)	do {} while(0)
@@ -74,5 +72,7 @@ extern void hexdump(const void * const ptr, const unsigned len);
 
 
 #endif
+
+extern void hexdump(const void * const ptr, const unsigned len);
 
 #endif
