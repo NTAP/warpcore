@@ -8,7 +8,7 @@
 #include "ip.h"
 
 
-void usage(const char * const name)
+static void usage(const char * const name)
 {
 	printf("%s\n", name);
 	printf("\t -i interface           interface to run over\n");

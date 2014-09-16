@@ -8,7 +8,7 @@
 #include "ip.h"
 
 
-void usage(const char * const name, const uint32_t size, const uint32_t loops)
+static void usage(const char * const name, const uint32_t size, const uint32_t loops)
 {
 	printf("%s\n", name);
 	printf("\t -i interface           interface to run over\n");
@@ -19,7 +19,7 @@ void usage(const char * const name, const uint32_t size, const uint32_t loops)
 }
 
 
-void iov_fill(struct w_iov *v)
+static void iov_fill(struct w_iov *v)
 {
 	while (v) {
 		// log(5, "%d bytes in buf %d", v->len, v->idx);
@@ -31,7 +31,7 @@ void iov_fill(struct w_iov *v)
 }
 
 
-void iov_dump(struct w_iov *v)
+static void iov_dump(struct w_iov *v)
 {
 	while (v) {
 		log(5, "%d bytes in buf %d", v->len, v->idx);
