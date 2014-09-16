@@ -56,7 +56,6 @@
 #else
 
 #define log(fmt, ...)	do {} while(0)
-#define hexdump(...)	do {} while(0)
 
 #define die(fmt, ...)                                             	\
 	do {                                                      	\
