@@ -102,13 +102,17 @@ int main(int argc, char *argv[])
 				goto done;
 			i = w_rx(s);
 		}
-		struct timespec diff, now;
-		if (clock_gettime(CLOCK_REALTIME, &now) == -1)
-			die("clock_gettime");
-		ts_diff(&diff, &now, (struct timespec *)i->buf);
-		if (diff.tv_sec != 0)
-			die("time difference > 1 sec");
-		printf("%ld ns\n", diff.tv_nsec);
+
+		while (i) {
+			struct timespec diff, now;
+			if (clock_gettime(CLOCK_REALTIME, &now) == -1)
+				die("clock_gettime");
+			ts_diff(&diff, &now, (struct timespec *)i->buf);
+			if (diff.tv_sec != 0)
+				die("time difference > 1 sec");
+			printf("%ld ns\n", diff.tv_nsec);
+			i = SLIST_NEXT(i, next);
+		}
 		w_rx_done(s);
 	}
 done:
