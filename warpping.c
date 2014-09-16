@@ -90,25 +90,25 @@ int main(int argc, char *argv[])
 	struct w_sock * const s = w_bind(w, IP_P_UDP, random());
 	w_connect(s, ip, port);
 
-	while (loops--) {
+	while (likely(loops--)) {
 		struct w_iov * const o = w_tx_alloc(s, sizeof(struct timespec));
-		if (clock_gettime(CLOCK_REALTIME,
-		                  (struct timespec *)o->buf) == -1)
+		if (unlikely(clock_gettime(CLOCK_REALTIME,
+		                           (struct timespec *)o->buf) == -1))
 			die("clock_gettime");
 		w_tx(s);
 		struct w_iov *i = 0;
 		while (i == 0) {
-			if (w_poll(w, POLLIN, -1) == false)
+			if (unlikely(w_poll(w, POLLIN, -1) == false))
 				goto done;
 			i = w_rx(s);
 		}
 
 		while (i) {
 			struct timespec diff, now;
-			if (clock_gettime(CLOCK_REALTIME, &now) == -1)
+			if (unlikely(clock_gettime(CLOCK_REALTIME, &now) == -1))
 				die("clock_gettime");
 			ts_diff(&diff, &now, (struct timespec *)i->buf);
-			if (diff.tv_sec != 0)
+			if (unlikely(diff.tv_sec != 0))
 				die("time difference > 1 sec");
 			printf("%ld ns\n", diff.tv_nsec);
 			i = SLIST_NEXT(i, next);

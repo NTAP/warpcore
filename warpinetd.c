@@ -48,10 +48,10 @@ int main(int argc, char *argv[])
 	struct w_sock *dtm = w_bind(w, IP_P_UDP, htons(13));
 	struct w_sock *tme = w_bind(w, IP_P_UDP, htons(37));
 
-	while (w_poll(w, POLLIN, -1)) {
+	while (likely(w_poll(w, POLLIN, -1))) {
 		// echo service
 		struct w_iov *i = w_rx(ech);
-		while (i) {
+		while (likely(i)) {
 			log(5, "echo %d bytes in buf %d", i->len, i->idx);
 			// ech the data
 			struct w_iov *o = w_tx_alloc(ech, i->len);
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 
 		// discard service
 		i = w_rx(dsc);
-		while (i) {
+		while (likely(i)) {
 			log(5, "discard %d bytes in buf %d", i->len, i->idx);
 			// dscard the data
 			i = SLIST_NEXT(i, next);
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 
 		// daytime service
 		i = w_rx(dtm);
-		while (i) {
+		while (likely(i)) {
 			log(5, "daytime %d bytes in buf %d", i->len, i->idx);
 			const time_t t = time(0);
 			const char *c = ctime(&t);
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
 		// time service
 		i = w_rx(tme);
-		while (i) {
+		while (likely(i)) {
 			log(5, "time %d bytes in buf %d", i->len, i->idx);
 			const time_t t = time(0);
 			struct w_iov *o = w_tx_alloc(tme, sizeof(uint32_t));
