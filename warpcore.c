@@ -215,7 +215,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 {
 #ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
-	log(1, "connect IP proto %d dst %s port %d", s->p,
+	log(3, "connect IP proto %d dst %s port %d", s->p,
 	    ip_ntoa(dip, str, sizeof str), ntohs(dport));
 #endif
 	s->dip = dip;
@@ -251,7 +251,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 	ip->dst = dip;
 	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
 
-	log(1, "IP proto %d socket connected to %s port %d", s->p,
+	log(3, "IP proto %d socket connected to %s port %d", s->p,
 	    ip_ntoa(dip, str, sizeof str), ntohs(dport));
 }
 
