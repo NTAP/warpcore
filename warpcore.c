@@ -3,21 +3,17 @@
 #include <sys/mman.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
-#include <sys/types.h>
-#include <net/ethernet.h>
-// #include <pthread.h>
 #include <unistd.h>
 #include <signal.h>
-#include <string.h>
-#include <errno.h>
 
 #ifdef __linux__
-#include <linux/if.h>
-#include <netpacket/packet.h>
 #include <netinet/ether.h>
+#include <netpacket/packet.h>
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
 #else
+#include <sys/types.h>
+#include <net/ethernet.h>
 #include <net/if_dl.h>
 #endif
 
@@ -375,14 +371,6 @@ void w_cleanup(struct warpcore * const w)
 {
 	log(1, "warpcore shutting down");
 
-	// if (w->thr) {
-	// 	if (pthread_cancel(w->thr))
-	// 		die("cannot cancel warpcore thread");
-
-	// 	if (pthread_join(w->thr, 0))
-	// 		die("cannot wait for exiting warpcore thread");
-	// }
-
 	// re-construct the extra bufs list, so netmap can free the memory
 	struct w_iov *last = w_chain_extra_bufs(w, SLIST_FIRST(&w->iov));
 	struct w_sock *s;
@@ -470,7 +458,7 @@ struct warpcore * w_init(const char * const ifname)
 				w->mtu = ifr.ifr_ifru.ifru_mtu;
 				// get link speed
 				struct ethtool_cmd edata;
-				ifr.ifr_data = &edata;
+				ifr.ifr_data = (__caddr_t)&edata;
 				edata.cmd = ETHTOOL_GSET;
 				if (ioctl(s, SIOCETHTOOL, &ifr) < 0)
 					die("%s ioctl", ifname);

@@ -19,26 +19,26 @@ static void usage(const char * const name, const uint32_t size, const uint32_t l
 }
 
 
-static void iov_fill(struct w_iov *v)
-{
-	while (v) {
-		// log(5, "%d bytes in buf %d", v->len, v->idx);
-		for (uint16_t l = 0; l < v->len; l++) {
-			v->buf[l] = (char)(l % 0xff);
-		}
-		v = SLIST_NEXT(v, next);
-	}
-}
+// static void iov_fill(struct w_iov *v)
+// {
+// 	while (v) {
+// 		// log(5, "%d bytes in buf %d", v->len, v->idx);
+// 		for (uint16_t l = 0; l < v->len; l++) {
+// 			v->buf[l] = (char)(l % 0xff);
+// 		}
+// 		v = SLIST_NEXT(v, next);
+// 	}
+// }
 
 
-static void iov_dump(struct w_iov *v)
-{
-	while (v) {
-		log(5, "%d bytes in buf %d", v->len, v->idx);
-		hexdump(v->buf, v->len);
-		v = SLIST_NEXT(v, next);
-	}
-}
+// static void iov_dump(struct w_iov *v)
+// {
+// 	while (v) {
+// 		log(5, "%d bytes in buf %d", v->len, v->idx);
+// 		hexdump(v->buf, v->len);
+// 		v = SLIST_NEXT(v, next);
+// 	}
+// }
 
 
 int main(int argc, char *argv[])

@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <time.h>
 
 #include "warpcore.h"
 #include "ip.h"

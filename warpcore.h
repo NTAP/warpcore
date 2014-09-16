@@ -5,13 +5,6 @@
 #include <sys/queue.h>
 #include <poll.h>
 
-#ifdef __linux__
-#include <ifaddrs.h>
-#include <linux/if.h>
-#include <sys/time.h>
-// #include <pthread.h>
-#endif
-
 #include <net/netmap_user.h>
 
 #include "debug.h"
@@ -73,8 +66,6 @@ struct warpcore {
 	struct w_sock **	tcp;			// TCP "sockets"
 
 	struct nmreq		req;			// netmap request
-
-	// pthread_t		thr;			// our main thread
 } __attribute__((__aligned__(4)));
 
 

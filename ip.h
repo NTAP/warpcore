@@ -4,18 +4,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-
 #define IP_P_ICMP 	 1	// IP protocol number for ICMP
 #define IP_P_TCP	 6	// IP protocol number for TCP
 #define IP_P_UDP	17	// IP protocol number for UDP
 
 #define IP_ADDR_LEN	 4	// IPv4 addresses are four bytes
 #define IP_ADDR_STRLEN	16	// xxx.xxx.xxx.xxx\0
-
-#ifdef __linux__
-#define BYTE_ORDER	__BYTE_ORDER
-#define LITTLE_ENDIAN	__LITTLE_ENDIAN
-#endif
 
 struct ip_hdr {
 #if BYTE_ORDER == LITTLE_ENDIAN
