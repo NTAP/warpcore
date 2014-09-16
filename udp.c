@@ -37,8 +37,8 @@ void udp_rx(struct warpcore * w, char * const buf, const uint16_t off,
 		(const struct udp_hdr * const)(buf + off);
 	const uint16_t len = ntohs(udp->len);
 
-	log(5, "UDP :%d -> :%d, len %d",
-	    ntohs(udp->sport), ntohs(udp->dport), len);
+	log(5, "UDP :%d -> :%d, len %ld",
+	    ntohs(udp->sport), ntohs(udp->dport), len - sizeof *udp);
 
 	struct w_sock **s = w_get_sock(w, IP_P_UDP, udp->dport);
 	if (*s == 0) {
