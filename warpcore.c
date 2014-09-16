@@ -308,7 +308,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 	ip->src = (*s)->w->ip;
 	// ip->dst  is set on w_connect()
 
-	eth->type = htons(ETH_TYPE_IP);
+	eth->type = ETH_TYPE_IP;
 	memcpy(eth->src, (*s)->w->mac, ETH_ADDR_LEN);
 	// eth->dst is set on w_connect()
 
