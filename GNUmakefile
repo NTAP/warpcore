@@ -2,7 +2,7 @@ OS=$(shell uname -s)
 
 CC=cc
 COPT=-Ofast -march=native
-CDEB=-g -pg -ftrapv -DDLEVEL=10
+# CDEB=-g -pg -ftrapv -DDLEVEL=10
 # CDEB+=-DNDEBUG
 CDIA=-Wall -Wextra -fdiagnostics-color=auto
 
@@ -22,7 +22,7 @@ OUTPUT_OPTION=-MMD -MP -o $@
 LDLIBS=-pthread
 LDFLAGS=$(CFLAGS)
 
-CSRC=warptest.c warpinetd.c warpping.c
+CSRC=warptest.c warpinetd.c warpping.c udpping.c
 COBJ=$(addprefix $(OS)/, $(CSRC:.c=.o))
 CMD=$(COBJ:.o=)
 
@@ -48,7 +48,7 @@ $(OS)/libwarpcore.a: $(LOBJ)
 .PHONY: clean lint
 
 clean:
-	-@rm -r $(OS) *core *.gmon 2> /dev/null || true
+	-@rm -r $(OS) *.core core *.gmon gmon.out 2> /dev/null || true
 
 lint:
 	cppcheck -D1 --enable=all *.c --check-config -I /usr/include
