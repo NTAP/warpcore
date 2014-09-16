@@ -1,4 +1,5 @@
 #include <string.h>
+#include <arpa/inet.h>
 
 #include "warpcore.h"
 #include "icmp.h"
@@ -65,6 +66,30 @@ void icmp_rx(struct warpcore * w, char * const buf,
 		icmp->type = ICMP_TYPE_ECHOREPLY;
 		icmp_tx(w, buf, off, len);
 		break;
+	case ICMP_TYPE_UNREACH:
+		{
+		struct ip_hdr * const ip = (struct ip_hdr * const)
+			(buf + off + sizeof(struct icmp_hdr) + 4);
+		switch (icmp->code) {
+		case ICMP_UNREACH_PROTOCOL:
+			log(1, "ICMP protocol %d unreachable", ip->p);
+			break;
+		case ICMP_UNREACH_PORT:
+			{
+			// we abuse the fact the UDP and TCP port numbers
+			// are in the same bit position here
+			struct udp_hdr * const udp = (struct udp_hdr * const)
+				((char *)ip + ip->hl * 4);
+			log(1, "ICMP IP proto %d port %d unreachable", ip->p,
+			    ntohs(udp->dport));
+			break;
+			}
+		default:
+			die("unhandled ICMP code %d", icmp->code);
+			break;
+		}
+		break;
+		}
 	default:
 		die("unhandled ICMP type %d", icmp->type);
 		break;
