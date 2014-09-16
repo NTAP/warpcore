@@ -24,14 +24,14 @@ LDLIBS=-pthread
 LDFLAGS=$(CFLAGS)
 
 lib=warpcore
-cmd=warptest
+cmd=warptest warpinetd
 
 SRC=$(filter-out $(cmd).c, $(wildcard *.c))
 OBJ=$(SRC:.c=.o)
 DEP=$(SRC:.c=.d)
 
 all: $(cmd)
-$(cmd): lib$(lib).a $(cmd).o
+$(cmd): lib$(lib).a $@
 
 lib$(lib).a: $(OBJ)
 	ar -crs $@ $^
