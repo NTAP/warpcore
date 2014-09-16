@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 	struct warpcore *w = w_init(ifname);
 	log(1, "main process ready");
 
-	struct w_sock * const s = w_bind(w, IP_P_UDP, port);
+	struct w_sock * const s = w_bind(w, IP_P_UDP, random());
 	w_connect(s, ip, port);
 
 	while (loops--) {
@@ -96,9 +96,12 @@ int main(int argc, char *argv[])
 		                  (struct timespec *)o->buf) == -1)
 			die("clock_gettime");
 		w_tx(s);
-		if (w_poll(w, POLLIN, -1) == false)
-			break;
-		struct w_iov * const i = w_rx(s);
+		struct w_iov *i = 0;
+		while (i == 0) {
+			if (w_poll(w, POLLIN, -1) == false)
+				goto done;
+			i = w_rx(s);
+		}
 		struct timespec diff, now;
 		if (clock_gettime(CLOCK_REALTIME, &now) == -1)
 			die("clock_gettime");
@@ -108,7 +111,7 @@ int main(int argc, char *argv[])
 		printf("%ld ns\n", diff.tv_nsec);
 		w_rx_done(s);
 	}
-
+done:
 	w_close(s);
 
 	log(1, "main process exiting");
