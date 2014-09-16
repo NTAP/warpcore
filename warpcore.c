@@ -27,7 +27,7 @@
 // Internal warpcore function. Kick the tx ring.
 static void w_kick_tx(struct warpcore * const w)
 {
-	if (ioctl(w->fd, NIOCTXSYNC, 0) == -1)
+	if (unlikely(ioctl(w->fd, NIOCTXSYNC, 0) == -1))
 		die("cannot kick tx ring");
 }
 
@@ -39,19 +39,15 @@ struct w_sock ** w_get_sock(struct warpcore * const w, const uint8_t p,
 {
 	// find the respective "socket"
 	struct w_sock **s;
-	switch (p) {
-	case IP_P_UDP:
+	if (likely(p == IP_P_UDP))
 		s = &w->udp[port];
-		break;
-	case IP_P_TCP:
+	else if (p == IP_P_TCP)
 		s = &w->tcp[port];
-		break;
-	default:
+	else {
 		die("cannot find socket for IP proto %d", p);
 		return 0;
 	}
 	return s;
-
 }
 
 
@@ -77,17 +73,17 @@ void w_rx_done(struct w_sock * const s)
 struct w_iov * w_rx(struct w_sock * const s)
 {
 	// loop over all rx rings starting with cur_rxr and wrapping around
-	for (uint16_t i = 0; i < s->w->nif->ni_rx_rings; i++) {
+	for (uint16_t i = 0; likely(i < s->w->nif->ni_rx_rings); i++) {
 		struct netmap_ring * const r =
 			NETMAP_RXRING(s->w->nif, s->w->cur_rxr);
-		while (!nm_ring_empty(r)) {
+		while (likely(!nm_ring_empty(r))) {
 			eth_rx(s->w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
 			r->head = r->cur = nm_ring_next(r, r->cur);
 		}
 		s->w->cur_rxr = (s->w->cur_rxr + 1) % s->w->nif->ni_rx_rings;
 	}
 
-	if (s)
+	if (likely(s))
 		return SLIST_FIRST(&s->iv);
 	return 0;
 }
@@ -100,9 +96,9 @@ void w_tx(struct w_sock * const s)
 
 	// packetize bufs and place in tx ring
 	uint32_t n = 0, l = 0;
-	while (!SLIST_EMPTY(&s->ov)) {
+	while (likely(!SLIST_EMPTY(&s->ov))) {
 		struct w_iov * const v = SLIST_FIRST(&s->ov);
-		if (udp_tx(s, v)) {
+		if (likely(udp_tx(s, v))) {
 			n++;
 			l += v->len;
 			SLIST_REMOVE_HEAD(&s->ov, next);
@@ -126,22 +122,16 @@ void w_tx(struct w_sock * const s)
 // Allocates an iov of a given size for tx preparation.
 struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
-	if (!SLIST_EMPTY(&s->ov)) {
+	if (unlikely(!SLIST_EMPTY(&s->ov))) {
 		log(1, "output iov already allocated");
 		return 0;
 	}
 
 	// determine space needed for header
 	uint16_t hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
-	switch (s->p) {
-	case IP_P_UDP:
+	if (likely(s->p == IP_P_UDP))
 		hdr_len += sizeof(struct udp_hdr);
-		break;
-	// case IP_P_TCP:
-	// 	hdr_len += sizeof(struct tcp_hdr);
-	// 	// TODO: handle TCP options
-	// 	break;
-	default:
+	else {
 		die("unhandled IP proto %d", s->p);
 		return 0;
 	}
@@ -155,7 +145,7 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 	while (l > 0) {
 		// grab a spare buffer
 		v = SLIST_FIRST(&s->w->iov);
-		if (v == 0)
+		if (unlikely(v == 0))
 			die("out of spare bufs after grabbing %d", n);
 		SLIST_REMOVE_HEAD(&s->w->iov, next);
 		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
@@ -308,7 +298,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 	ip->src = (*s)->w->ip;
 	// ip->dst  is set on w_connect()
 
-	eth->type = htons(ETH_TYPE_IP);
+	eth->type = ETH_TYPE_IP;
 	memcpy(eth->src, (*s)->w->mac, ETH_ADDR_LEN);
 	// eth->dst is set on w_connect()
 
@@ -327,20 +317,18 @@ bool w_poll(struct warpcore * const w, const short ev, const int to)
 {
 	struct pollfd fds = { .fd = w->fd, .events = ev };
 	const int n = poll(&fds, 1, to);
-	switch (n) {
-	case -1:
+
+	if (unlikely(n == -1)) {
 		if (errno == EINTR) {
 			log(3, "poll: interrupt");
 			return false;
 		} else
 			die("poll");
-		break;
-	case 0:
+	} else if (unlikely(n == 0)) {
 		// log(1, "poll: timeout expired");
 		return true;
-	default:
+	} else {
 		// rlog(1, 1, "poll: %d descriptors ready", n);
-		break;
 	}
 	return true;
 }

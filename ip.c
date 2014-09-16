@@ -117,37 +117,32 @@ void ip_rx(struct warpcore * w, char * const buf)
 #endif
 
 	// make sure the packet is for us (or broadcast)
-	if (ip->dst != w->ip && ip->dst != w->bcast) {
+	if (unlikely(ip->dst != w->ip && ip->dst != w->bcast)) {
 		log(5, "IP packet to %s (not us); ignoring",
 		    ip_ntoa(ip->dst, dst, sizeof dst));
 		return;
 	}
 
 	// validate the IP checksum
-	if (in_cksum(ip, sizeof *ip) != 0) {
+	if (unlikely(in_cksum(ip, sizeof *ip) != 0)) {
 		log(1, "invalid IP checksum, received %x", ip->cksum);
 		return;
 	}
 
 	// TODO: handle IP options
-	if (ip->hl * 4 != 20)
+	if (unlikely(ip->hl * 4 != 20))
 		die("no support for IP options");
 
 	const uint16_t off = sizeof(struct eth_hdr) + ip->hl * 4;
 	const uint16_t len = ntohs(ip->len) - ip->hl * 4;
-	switch (ip->p) {
-	case IP_P_ICMP:
-		icmp_rx(w, buf, off, len);
-		break;
-	case IP_P_UDP:
+
+	if (likely(ip->p == IP_P_UDP))
 		udp_rx(w, buf, off, ip->src);
-		break;
-	// case IP_P_TCP:
-	// 	break;
-	default:
+	else if (ip->p == IP_P_ICMP)
+		icmp_rx(w, buf, off, len);
+	else {
 		log(1, "unhandled IP protocol %d", ip->p);
 		// be standards compliant and send an ICMP unreachable
 		icmp_tx_unreach(w, ICMP_UNREACH_PROTOCOL, buf, off);
-		break;
 	}
 }

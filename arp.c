@@ -33,11 +33,11 @@ void arp_who_has(struct warpcore * w, const uint32_t dip)
 	// set Ethernet header fields
 	memcpy(eth->dst, ETH_BCAST, ETH_ADDR_LEN);
 	memcpy(eth->src, w->mac, ETH_ADDR_LEN);
-	eth->type =	htons(ETH_TYPE_ARP);
+	eth->type = ETH_TYPE_ARP;
 
 	// set ARP header fields
 	arp->hrd =	htons(ARP_HRD_ETHER);
-	arp->pro =	htons(ETH_TYPE_IP);
+	arp->pro =	ETH_TYPE_IP;
 	arp->hln =	ETH_ADDR_LEN;
 	arp->pln =	IP_ADDR_LEN;
 	arp->op =	htons(ARP_OP_REQUEST);
@@ -104,10 +104,9 @@ void arp_rx(struct warpcore * w, char * const buf)
 		die("unhandled ARP hardware format %d with len %d",
 		    hrd, arp->hln);
 
-	const uint16_t pro = ntohs(arp->pro);
-	if (pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN)
+	if (arp->pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN)
 		die("unhandled ARP protocol format %d with len %d",
-		    pro, arp->pln);
+		    ntohs(arp->pro), arp->pln);
 
 	const uint16_t op = ntohs(arp->op);
 	switch (op) {

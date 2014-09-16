@@ -2,6 +2,7 @@ OS=$(shell uname -s)
 
 CC=cc
 COPT=-Ofast -march=native
+COPT+=-fno-strict-aliasing
 # CDEB=-g -pg -ftrapv -DDLEVEL=10
 # CDEB+=-DNDEBUG
 CDIA=-Wall -Wextra -fdiagnostics-color=auto

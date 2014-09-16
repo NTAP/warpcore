@@ -62,7 +62,7 @@ bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 	uint16_t i;
 	for (i = 0; i < w->nif->ni_rx_rings; i++) {
 		txr = NETMAP_TXRING(w->nif, w->cur_rxr);
-		if (txr->tail != nm_ring_next(txr, txr->cur))
+		if (likely(txr->tail != nm_ring_next(txr, txr->cur)))
 			// we have space in this ring
 			break;
 		else
@@ -71,7 +71,7 @@ bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 	}
 
 	// return false if all rings are full
-	if (i == w->nif->ni_rx_rings) {
+	if (unlikely(i == w->nif->ni_rx_rings)) {
 		log(3, "all tx rings are full");
 		return false;
 	}
@@ -114,32 +114,27 @@ bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 void eth_rx(struct warpcore * w, char * const buf)
 {
 	const struct eth_hdr * const eth = (const struct eth_hdr * const)(buf);
-	const uint16_t type = ntohs(eth->type);
 
 #ifndef NDEBUG
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
 	log(3, "Eth %s -> %s, type %d",
 	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
-	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst), type);
+	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+	    ntohs(eth->type));
 #endif
 
 	// make sure the packet is for us (or broadcast)
-	if (memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
-	    memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN)) {
+	if (unlikely(memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
+		     memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN))) {
 		log(1, "Ethernet packet not destined to us; ignoring");
 		return;
 	}
 
-	switch (type) {
-	case ETH_TYPE_ARP:
-		arp_rx(w, buf);
-		break;
-	case ETH_TYPE_IP:
+	if (likely(eth->type == ETH_TYPE_IP))
 		ip_rx(w, buf);
-		break;
-	default:
-		die("unhandled ethertype %x", type);
-		break;
-	}
+	else if (eth->type == ETH_TYPE_ARP)
+		arp_rx(w, buf);
+	else
+		die("unhandled ethertype %x", ntohs(eth->type));
 }
