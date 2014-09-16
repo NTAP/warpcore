@@ -27,17 +27,18 @@ CSRC=warptest.c warpinetd.c warpping.c udpping.c
 COBJ=$(addprefix $(OS)/, $(CSRC:.c=.o))
 CMD=$(COBJ:.o=)
 
-LSRC=$(filter-out $(CSRC).c, $(wildcard *.c))
+LSRC=$(filter-out $(CSRC), $(wildcard *.c))
 LOBJ=$(addprefix $(OS)/, $(LSRC:.c=.o))
 
-DEP=$(CSRC:.c=.d) $(LSRC:.c=.d)
+DEP=$(COBJ:.o=.d) $(LOBJ:.o=.d)
 
 $(OS)/%.o: %.c
 	$(CC) $(CFLAGS) -c $(OUTPUT_OPTION) $<
 
 all: $(OS) $(CMD)
 
-$(CMD): $(OS)/libwarpcore.a $@
+$(CMD): $(LOBJ) $@
+#$(CMD): $(OS)/libwarpcore.a $@
 
 $(OS):
 	mkdir -p $(OS)
