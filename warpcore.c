@@ -575,6 +575,9 @@ struct warpcore * w_init(const char * const ifname)
 	w->udp = calloc(UINT16_MAX, sizeof(uint16_t));
 	w->tcp = calloc(UINT16_MAX, sizeof(uint16_t));
 
+	// initialize random generator
+	srandomdev();
+
 	// block SIGINT
         if (signal(SIGINT, w_sigint) == SIG_ERR)
         	die("cannot register signal handler");
