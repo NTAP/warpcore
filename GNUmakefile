@@ -9,7 +9,6 @@ CDIA=-Wall -Wextra -fdiagnostics-color=auto
 ifeq ($(OS), Linux)
 CDEF+=-D_GNU_SOURCE
 CINC+=-isystem ~/netmap/sys
-CDIA+=-Wformat=0
 else
 CDIA+=-pedantic -Weverything -Wno-gnu-zero-variadic-macro-arguments
 CDIA+=-Wno-padded -Wno-packed -Wno-missing-prototypes -Wno-cast-align -Wno-conversion
@@ -49,7 +48,7 @@ $(OS)/libwarpcore.a: $(LOBJ)
 .PHONY: clean lint
 
 clean:
-	-@rm -r $(OS) core 2> /dev/null || true
+	-@rm -r $(OS) *core *.gmon 2> /dev/null || true
 
 lint:
 	cppcheck -D1 --enable=all *.c --check-config -I /usr/include
