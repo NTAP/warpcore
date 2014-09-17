@@ -46,8 +46,7 @@ int main(int argc, char *argv[])
 	const char *ifname = 0;
 	const char *dst = 0;
 	const char *port = 0;
-	uint32_t size = 1500 - sizeof(struct eth_hdr) - sizeof(struct ip_hdr) -
-			sizeof(struct udp_hdr);
+	uint32_t size = 1500 - sizeof(struct ip_hdr) - sizeof(struct udp_hdr);
 	uint32_t loops = 1;
 
 	int ch;
