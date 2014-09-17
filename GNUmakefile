@@ -3,7 +3,7 @@ OS=$(shell uname -s)
 CC=cc
 COPT=-Ofast -march=native
 COPT+=-fno-strict-aliasing
-# CDEB=-g -pg -ftrapv -DDLEVEL=10
+CDEB=-g -pg -ftrapv -DDLEVEL=10
 # CDEB+=-DNDEBUG
 CDIA=-Wall -Wextra -fdiagnostics-color=auto
 
@@ -23,7 +23,7 @@ OUTPUT_OPTION=-MMD -MP -o $@
 LDLIBS=-pthread
 LDFLAGS=$(CFLAGS)
 
-CSRC=warptest.c warpinetd.c warpping.c udpping.c
+CSRC=warptest.c warpinetd.c warpping.c
 COBJ=$(addprefix $(OS)/, $(CSRC:.c=.o))
 CMD=$(COBJ:.o=)
 
