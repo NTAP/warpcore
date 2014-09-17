@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
 		after = calloc(1, size);
 	}
 
-	printf("# us\tsize\n");
+	printf("us\tsize\n");
 	while (loops--) {
 		if (use_warpcore) {
 			struct w_iov * const o = w_tx_alloc(ws, size);
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 
 		tv_diff(&diff, &now, (struct timeval *)after);
 		if (diff.tv_sec != 0)
-			die("time difference > 0 sec");
+			die("time difference is more than %ld sec", diff.tv_sec);
 
 		printf("%ld\t%d\n", diff.tv_usec, size);
 
