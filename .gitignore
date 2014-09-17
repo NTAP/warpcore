@@ -5,6 +5,9 @@
 *.d
 *.core
 *.gmon
+*.pdf
+warp.*.txt
+kern.*.txt
 warptest
 warpinetd
 warpping
