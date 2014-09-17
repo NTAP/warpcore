@@ -91,7 +91,8 @@ int main(int argc, char *argv[])
 	w_connect(s, ip, port);
 
 	while (likely(loops--)) {
-		struct w_iov * const o = w_tx_alloc(s, sizeof(struct timespec));
+		#define LEN 1400
+		struct w_iov * const o = w_tx_alloc(s, LEN);
 		if (unlikely(clock_gettime(CLOCK_REALTIME,
 		                           (struct timespec *)o->buf) == -1))
 			die("clock_gettime");

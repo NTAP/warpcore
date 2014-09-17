@@ -86,26 +86,27 @@ int main(int argc, char *argv[])
 	struct pollfd fds = { .fd = s, .events = POLLIN };
 
 	while (loops--) {
-		struct timespec now, then;
-		if (clock_gettime(CLOCK_REALTIME, &now) == -1)
+		#define LEN 1400
+		char now[LEN], then[LEN];
+		if (clock_gettime(CLOCK_REALTIME, (struct timespec *)now) == -1)
 			die("clock_gettime");
 
-		sendto(s, &now, sizeof now, 0,
+		sendto(s, (struct timespec *)now, LEN, 0,
 	               res->ai_addr, res->ai_addrlen);
 
 		if (poll(&fds, 1, -1) == -1)
 			die("poll");
 
 		socklen_t fromlen = res->ai_addrlen;
-		if (recvfrom(s, &then, sizeof then, 0,
+		if (recvfrom(s, then, LEN, 0,
 	                 res->ai_addr, &fromlen) == -1)
 			die("recvfrom");
 
-		if (clock_gettime(CLOCK_REALTIME, &now) == -1)
+		if (clock_gettime(CLOCK_REALTIME, (struct timespec *)now) == -1)
 			die("clock_gettime");
 
 		struct timespec diff;
-		ts_diff(&diff, &now, &then);
+		ts_diff(&diff, (struct timespec *)now, (struct timespec *)then);
 		if (diff.tv_sec != 0)
 			die("time difference > 1 sec");
 
