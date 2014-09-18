@@ -38,16 +38,16 @@ xr <- c(0, xmax)
 yr <- c(0, ymax)
 
 plot(0, type="n", xlim=xr, ylim=yr,
-     xlab="Packet size [bytes]", ylab=expression(paste("RTT [", mu, "s]")),
+     xlab="UDP payload size [bytes]", ylab=expression(paste("RTT [", mu, "s]")),
      main=sprintf("Mean RTTs over %d iterations", kern$n[1]))
 grid()
 par(new=T)
-plot(kern$size, kern$mean, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="blue")
+plot(kern$size, kern$mean, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="blue")
 segments(kern$size, kern$mean-kern$sd/2, kern$size, kern$mean+kern$sd/2)
 par(new=T)
-plot(warp$size, warp$mean, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="red")
+plot(warp$size, warp$mean, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="red")
 segments(warp$size, warp$mean-warp$sd/2, warp$size, warp$mean+warp$sd/2)
-
+legend("topleft", c("kern", "warp"), col=c("blue", "red"), lty=1)
 
 xmax <- max(kern$size, warp$size)
 ymax <- max(kern$q75, warp$q75)
@@ -55,13 +55,14 @@ xr <- c(0, xmax)
 yr <- c(0, ymax)
 
 plot(0, type="n", xlim=xr, ylim=yr,
-     xlab="Packet size [bytes]", ylab=expression(paste("RTT [", mu, "s]")),
+     xlab="UDP payload size [bytes]", ylab=expression(paste("RTT [", mu, "s]")),
      main=sprintf("Median RTTs over %d iterations", kern$n[1]))
 grid()
 par(new=T)
-plot(kern$size, kern$median, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="blue")
+plot(kern$size, kern$median, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="blue")
 segments(kern$size, kern$q25, kern$size, kern$q75)
 par(new=T)
-plot(warp$size, warp$median, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="red")
+plot(warp$size, warp$median, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="red")
 segments(warp$size, warp$q25, warp$size, warp$q75)
+legend("topleft", c("kern", "warp"), col=c("blue", "red"), lty=1)
 
