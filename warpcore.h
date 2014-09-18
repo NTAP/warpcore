@@ -97,7 +97,7 @@ extern void w_close(struct w_sock * const s);
 
 
 // Allocates an iov of a given size for tx preparation.
-static inline struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
+static inline __attribute__((always_inline)) struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
 	if (unlikely(!SLIST_EMPTY(&s->ov))) {
 		log(1, "output iov already allocated");
@@ -152,7 +152,7 @@ static inline struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t 
 // Returns false if an interrupt occurs during the poll, which usually means
 // someone hit Ctrl-C.
 // (TODO: This interrupt handling needs some rethinking.)
-static inline bool w_poll(const struct warpcore * const w, const short ev, const int to)
+static inline __attribute__((always_inline)) bool w_poll(const struct warpcore * const w, const short ev, const int to)
 {
 	struct pollfd fds = { .fd = w->fd, .events = ev };
 	const int n = poll(&fds, 1, to);
@@ -176,7 +176,7 @@ static inline bool w_poll(const struct warpcore * const w, const short ev, const
 
 // User needs to call this once they are done with touching any received data.
 // This makes the iov that holds the received data available to warpcore again.
-static inline void w_rx_done(struct w_sock * const s)
+static inline __attribute__((always_inline)) void w_rx_done(struct w_sock * const s)
 {
 	struct w_iov *i = SLIST_FIRST(&s->iv);
 	while (i) {
@@ -194,7 +194,7 @@ static inline void w_rx_done(struct w_sock * const s)
 
 // Internal warpcore function. Given an IP protocol number and a local port
 // number, returns a pointer to the w_sock pointer.
-static inline struct w_sock ** w_get_sock(const struct warpcore * const w,
+static inline __attribute__((always_inline)) struct w_sock ** w_get_sock(const struct warpcore * const w,
                                           const uint8_t p, const uint16_t port)
 {
 	// find the respective "socket"
@@ -208,7 +208,7 @@ static inline struct w_sock ** w_get_sock(const struct warpcore * const w,
 
 
 // Receive a UDP packet.
-static inline void udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
+static inline __attribute__((always_inline)) void udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
             const uint32_t ip)
 {
 	const struct udp_hdr * const udp =
@@ -260,7 +260,7 @@ static inline void udp_rx(struct warpcore * const w, char * const buf, const uin
 
 
 // Receive an IP packet.
-static inline void ip_rx(struct warpcore * const w, char * const buf)
+static inline __attribute__((always_inline)) void ip_rx(struct warpcore * const w, char * const buf)
 {
 	const struct ip_hdr * const ip =
 		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
@@ -308,7 +308,7 @@ static inline void ip_rx(struct warpcore * const w, char * const buf)
 
 // Receive an Ethernet packet. This is the lowest level inbound function,
 // called from w_poll.
-static inline void eth_rx(struct warpcore * const w, char * const buf)
+static inline __attribute__((always_inline)) void eth_rx(struct warpcore * const w, char * const buf)
 {
 	const struct eth_hdr * const eth = (const struct eth_hdr * const)buf;
 
@@ -339,7 +339,7 @@ static inline void eth_rx(struct warpcore * const w, char * const buf)
 
 // Pulls new received data out of the rx ring and places it into socket iovs.
 // Returns an iov of any data received.
-static inline struct w_iov * w_rx(struct w_sock * const s)
+static inline __attribute__((always_inline)) struct w_iov * w_rx(struct w_sock * const s)
 {
 	// loop over all rx rings starting with cur_rxr and wrapping around
 	for (uint16_t i = 0; likely(i < s->w->nif->ni_rx_rings); i++) {
@@ -360,7 +360,7 @@ static inline struct w_iov * w_rx(struct w_sock * const s)
 
 // Swap the buffer in the iov into the tx ring, placing an empty one
 // into the iov.
-static inline bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
+static inline __attribute__((always_inline)) bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 {
 	// check if there is space in the current txr
 	struct netmap_ring *txr = 0;
@@ -417,7 +417,7 @@ static inline bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint
 // Fill in the IP header information that isn't set as part of the
 // socket packet template, calculate the header checksum, and hand off
 // to the Ethernet layer.
-static inline bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
+static inline __attribute__((always_inline)) bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 {
 	char * const start = IDX2BUF(w, v->idx);
 	struct ip_hdr * const ip =
@@ -444,7 +444,7 @@ static inline bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint
 
 
 // Put the socket template header in front of the data in the iov and send.
-static inline bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
+static inline __attribute__((always_inline)) bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
 	// copy template header into buffer and fill in remaining fields
 	char *start = IDX2BUF(s->w, v->idx);
@@ -466,7 +466,7 @@ static inline bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 
 
 // Internal warpcore function. Kick the tx ring.
-static inline void w_kick_tx(const struct warpcore * const w)
+static inline __attribute__((always_inline)) void w_kick_tx(const struct warpcore * const w)
 {
 	if (unlikely(ioctl(w->fd, NIOCTXSYNC, 0) == -1))
 		die("cannot kick tx ring");
@@ -474,7 +474,7 @@ static inline void w_kick_tx(const struct warpcore * const w)
 
 
 // Prepends all network headers and places s->ov in the tx ring.
-static inline void w_tx(struct w_sock * const s)
+static inline __attribute__((always_inline)) void w_tx(struct w_sock * const s)
 {
 	// TODO: handle other protocols
 
