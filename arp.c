@@ -14,54 +14,6 @@
 #include "ip.h"
 
 
-// Use a spare iov to transmit an ARP query for the given destination
-// IP address.
-void arp_who_has(struct warpcore * w, const uint32_t dip)
-{
-	// grab a spare buffer
-	struct w_iov * const v = SLIST_FIRST(&w->iov);
-	if (v == 0)
-		die("out of spare bufs");
-	SLIST_REMOVE_HEAD(&w->iov, next);
-	v->buf = IDX2BUF(w, v->idx);
-
-	// pointers to the start of the various headers
-	struct eth_hdr * const eth = (struct eth_hdr *)(v->buf);
-	struct arp_hdr * const arp =
-		(struct arp_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
-
-	// set Ethernet header fields
-	memcpy(eth->dst, ETH_BCAST, ETH_ADDR_LEN);
-	memcpy(eth->src, w->mac, ETH_ADDR_LEN);
-	eth->type = ETH_TYPE_ARP;
-
-	// set ARP header fields
-	arp->hrd =	htons(ARP_HRD_ETHER);
-	arp->pro =	ETH_TYPE_IP;
-	arp->hln =	ETH_ADDR_LEN;
-	arp->pln =	IP_ADDR_LEN;
-	arp->op =	htons(ARP_OP_REQUEST);
-	memcpy(arp->sha, w->mac, ETH_ADDR_LEN);
-	arp->spa =	w->ip;
-	bzero(arp->tha, ETH_ADDR_LEN);
-	arp->tpa =	dip;
-
-#ifndef NDEBUG
-	char spa[IP_ADDR_STRLEN];
-	char tpa[IP_ADDR_STRLEN];
-	log(3, "ARP request who has %s tell %s",
-	    ip_ntoa(arp->tpa, tpa, sizeof tpa),
-	    ip_ntoa(arp->spa, spa, sizeof spa));
-#endif
-
-	// send the Ethernet packet
-	eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
-
-	// make iov available again
-	SLIST_INSERT_HEAD(&w->iov, v, next);
-}
-
-
 // This modifies the ARP query in the current receive buffer into an ARP reply
 // and sends it out.
 static void arp_is_at(struct warpcore * w, char * const buf)

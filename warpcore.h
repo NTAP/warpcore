@@ -4,14 +4,27 @@
 #include <stdbool.h>
 #include <sys/queue.h>
 #include <poll.h>
+#include <sys/ioctl.h>
 
 #include <net/netmap_user.h>
+
+#ifdef __linux__
+#include <netinet/ether.h>
+#include <netpacket/packet.h>
+#include <linux/ethtool.h>
+#include <linux/sockios.h>
+#else
+#include <sys/types.h>
+#include <net/ethernet.h>
+#include <net/if_dl.h>
+#endif
 
 #include "debug.h"
 #include "eth.h"
 #include "arp.h"
 #include "ip.h"
 #include "udp.h"
+#include "icmp.h"
 
 // according to Luigi, any ring can be passed to NETMAP_BUF
 #define IDX2BUF(w, i)	NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i)
@@ -80,22 +93,413 @@ extern struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 extern void w_connect(struct w_sock * const s, const uint32_t ip,
                       const uint16_t port);
 
-extern struct w_iov * w_rx(struct w_sock * const s);
-
-extern void w_rx_done(struct w_sock * const s);
-
 extern void w_close(struct w_sock * const s);
 
-extern struct w_iov * w_tx_alloc(struct w_sock * const s,
-                                 const uint32_t len);
 
-extern void w_tx(struct w_sock * const s);
+// Allocates an iov of a given size for tx preparation.
+static inline struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
+{
+	if (unlikely(!SLIST_EMPTY(&s->ov))) {
+		log(1, "output iov already allocated");
+		return 0;
+	}
 
-extern bool w_poll(struct warpcore * const w, const short ev, const int to);
+	// determine space needed for header
+	uint16_t hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
+	if (likely(s->p == IP_P_UDP))
+		hdr_len += sizeof(struct udp_hdr);
+	else {
+		die("unhandled IP proto %d", s->p);
+		return 0;
+	}
 
-// internal warpcore use only; TODO: restrict exporting
-extern struct w_sock ** w_get_sock(struct warpcore * const w,
-                                   const uint8_t p,
-                                   const uint16_t port);
+	// add enough buffers to the iov so it is > len
+	SLIST_INIT(&s->ov);
+	struct w_iov *ov_tail = 0;
+	struct w_iov *v = 0;
+	int32_t l = (int32_t)len;
+	uint32_t n = 0;
+	while (l > 0) {
+		// grab a spare buffer
+		v = SLIST_FIRST(&s->w->iov);
+		if (unlikely(v == 0))
+			die("out of spare bufs after grabbing %d", n);
+		SLIST_REMOVE_HEAD(&s->w->iov, next);
+		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
+		v->len = s->w->mtu - hdr_len;
+		l -= v->len;
+		n++;
+
+		// add the iov to the tail of the socket
+		// using a STAILQ would be simpler, but slower
+		if(SLIST_EMPTY(&s->ov))
+			SLIST_INSERT_HEAD(&s->ov, v, next);
+		else
+			SLIST_INSERT_AFTER(ov_tail, v, next);
+		ov_tail = v;
+	}
+	// adjust length of last iov so chain is the exact length requested
+	v->len += l; // l is negative
+
+	log(3, "allocating iovec (len %d in %d bufs) for user tx", len, n);
+
+	return SLIST_FIRST(&s->ov);
+}
+
+
+// Wait until netmap is ready to send or receive more data. Parameters
+// "event" and "timeout" identical to poll system call.
+// Returns false if an interrupt occurs during the poll, which usually means
+// someone hit Ctrl-C.
+// (TODO: This interrupt handling needs some rethinking.)
+static inline bool w_poll(const struct warpcore * const w, const short ev, const int to)
+{
+	struct pollfd fds = { .fd = w->fd, .events = ev };
+	const int n = poll(&fds, 1, to);
+
+	if (unlikely(n == -1)) {
+		if (errno == EINTR) {
+			log(3, "poll: interrupt");
+			return false;
+		} else
+			die("poll");
+	}
+	if (unlikely(n == 0)) {
+		// log(1, "poll: timeout expired");
+		return true;
+	}
+
+	// rlog(1, 1, "poll: %d descriptors ready", n);
+	return true;
+}
+
+
+// User needs to call this once they are done with touching any received data.
+// This makes the iov that holds the received data available to warpcore again.
+static inline void w_rx_done(struct w_sock * const s)
+{
+	struct w_iov *i = SLIST_FIRST(&s->iv);
+	while (i) {
+		// move i from the socket to the available iov list
+		struct w_iov * const n = SLIST_NEXT(i, next);
+		SLIST_REMOVE_HEAD(&s->iv, next);
+		SLIST_INSERT_HEAD(&s->w->iov, i, next);
+		i = n;
+	}
+	// TODO: should be a no-op; check
+	SLIST_INIT(&s->iv);
+}
+
+
+
+// Internal warpcore function. Given an IP protocol number and a local port
+// number, returns a pointer to the w_sock pointer.
+static inline struct w_sock ** w_get_sock(const struct warpcore * const w,
+                                          const uint8_t p, const uint16_t port)
+{
+	// find the respective "socket"
+	if (likely(p == IP_P_UDP))
+		return &w->udp[port];
+	if (likely(p == IP_P_TCP))
+		return &w->tcp[port];
+	die("cannot find socket for IP proto %d", p);
+	return 0;
+}
+
+
+// Receive a UDP packet.
+static inline void udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
+            const uint32_t ip)
+{
+	const struct udp_hdr * const udp =
+		(const struct udp_hdr * const)(buf + off);
+	const uint16_t len = ntohs(udp->len);
+
+	log(5, "UDP :%d -> :%d, len %ld",
+	    ntohs(udp->sport), ntohs(udp->dport), len - sizeof *udp);
+
+	struct w_sock **s = w_get_sock(w, IP_P_UDP, udp->dport);
+	if (unlikely(*s == 0)) {
+		// nobody bound to this port locally
+		// send an ICMP unreachable
+		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
+		return;
+	}
+
+	// grab an unused iov for the data in this packet
+	struct w_iov * const i = SLIST_FIRST(&w->iov);
+	struct netmap_ring * const rxr =
+		NETMAP_RXRING(w->nif, w->cur_rxr);
+	struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
+	SLIST_REMOVE_HEAD(&w->iov, next);
+
+	// log("swapping rx slot %d (buf %d) and spare buf %d",
+	//     rxr->cur, rxs->buf_idx, i->idx);
+
+	// remember index of this buffer
+	const uint32_t tmp_idx = i->idx;
+
+	// move the received data into the iov
+	i->buf = buf + off + sizeof *udp;
+	i->len = len - sizeof *udp;
+	i->idx = rxs->buf_idx;
+
+	// tag the iov with the sender's information
+	i->ip = ip;
+	i->port = udp->sport;
+
+	// add the iov to the socket
+	// TODO: XXX this needs to insert at the tail!
+	SLIST_INSERT_HEAD(&(*s)->iv, i, next);
+
+	// use the original buffer in the iov for the receive ring
+	rxs->buf_idx = tmp_idx;
+	rxs->flags = NS_BUF_CHANGED;
+}
+
+
+
+// Receive an IP packet.
+static inline void ip_rx(struct warpcore * const w, char * const buf)
+{
+	const struct ip_hdr * const ip =
+		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
+#ifndef NDEBUG
+	char dst[IP_ADDR_STRLEN];
+	char src[IP_ADDR_STRLEN];
+	log(3, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
+	    ip_ntoa(ip->src, src, sizeof src),
+	    ip_ntoa(ip->dst, dst, sizeof dst),
+	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
+#endif
+
+	// make sure the packet is for us (or broadcast)
+	if (unlikely(ip->dst != w->ip && ip->dst != w->bcast)) {
+		log(5, "IP packet to %s (not us); ignoring",
+		    ip_ntoa(ip->dst, dst, sizeof dst));
+		return;
+	}
+
+	// validate the IP checksum
+	if (unlikely(in_cksum(ip, sizeof *ip) != 0)) {
+		log(1, "invalid IP checksum, received %x", ip->cksum);
+		return;
+	}
+
+	// TODO: handle IP options
+	if (unlikely(ip->hl * 4 != 20))
+		die("no support for IP options");
+
+	const uint16_t off = sizeof(struct eth_hdr) + ip->hl * 4;
+	const uint16_t len = ntohs(ip->len) - ip->hl * 4;
+
+	if (likely(ip->p == IP_P_UDP))
+		udp_rx(w, buf, off, ip->src);
+	else if (ip->p == IP_P_ICMP)
+		icmp_rx(w, buf, off, len);
+	else {
+		log(1, "unhandled IP protocol %d", ip->p);
+		// be standards compliant and send an ICMP unreachable
+		icmp_tx_unreach(w, ICMP_UNREACH_PROTOCOL, buf, off);
+	}
+}
+
+
+
+// Receive an Ethernet packet. This is the lowest level inbound function,
+// called from w_poll.
+static inline void eth_rx(struct warpcore * const w, char * const buf)
+{
+	const struct eth_hdr * const eth = (const struct eth_hdr * const)buf;
+
+#ifndef NDEBUG
+	char src[ETH_ADDR_STRLEN];
+	char dst[ETH_ADDR_STRLEN];
+	log(3, "Eth %s -> %s, type %d",
+	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
+	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+	    ntohs(eth->type));
+#endif
+
+	// make sure the packet is for us (or broadcast)
+	if (unlikely(memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
+		     memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN))) {
+		log(1, "Ethernet packet not destined to us; ignoring");
+		return;
+	}
+
+	if (likely(eth->type == ETH_TYPE_IP))
+		ip_rx(w, buf);
+	else if (eth->type == ETH_TYPE_ARP)
+		arp_rx(w, buf);
+	else
+		die("unhandled ethertype %x", eth->type);
+}
+
+
+// Pulls new received data out of the rx ring and places it into socket iovs.
+// Returns an iov of any data received.
+static inline struct w_iov * w_rx(struct w_sock * const s)
+{
+	// loop over all rx rings starting with cur_rxr and wrapping around
+	for (uint16_t i = 0; likely(i < s->w->nif->ni_rx_rings); i++) {
+		struct netmap_ring * const r =
+			NETMAP_RXRING(s->w->nif, s->w->cur_rxr);
+		while (likely(!nm_ring_empty(r))) {
+			eth_rx(s->w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
+			r->head = r->cur = nm_ring_next(r, r->cur);
+		}
+		s->w->cur_rxr = (s->w->cur_rxr + 1) % s->w->nif->ni_rx_rings;
+	}
+
+	if (likely(s))
+		return SLIST_FIRST(&s->iv);
+	return 0;
+}
+
+
+// Swap the buffer in the iov into the tx ring, placing an empty one
+// into the iov.
+static inline bool eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
+{
+	// check if there is space in the current txr
+	struct netmap_ring *txr = 0;
+	uint16_t i;
+	for (i = 0; i < w->nif->ni_rx_rings; i++) {
+		txr = NETMAP_TXRING(w->nif, w->cur_rxr);
+		if (likely(txr->tail != nm_ring_next(txr, txr->cur)))
+			// we have space in this ring
+			break;
+		else
+			// current txr is full, try next
+			w->cur_txr = (w->cur_txr + 1) % w->nif->ni_tx_rings;
+	}
+
+	// return false if all rings are full
+	if (unlikely(i == w->nif->ni_rx_rings)) {
+		log(3, "all tx rings are full");
+		return false;
+	}
+
+	struct netmap_slot * const txs = &txr->slot[txr->cur];
+
+	log(5, "placing iov %d in tx ring %d slot %d (current buf %d)",
+	    v->idx, w->cur_txr, txr->cur, txs->buf_idx);
+
+	// place v in the current tx ring
+	const uint32_t tmp_idx = txs->buf_idx;
+	txs->buf_idx = v->idx;
+	txs->len = len + sizeof(struct eth_hdr);
+	txs->flags = NS_BUF_CHANGED;
+
+#ifndef NDEBUG
+	const struct eth_hdr * const eth =
+		(const struct eth_hdr * const)NETMAP_BUF(txr, txs->buf_idx);
+	char src[ETH_ADDR_STRLEN];
+	char dst[ETH_ADDR_STRLEN];
+	log(3, "Eth %s -> %s, type %d, len %ld",
+	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
+	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+	    ntohs(eth->type), len + sizeof(struct eth_hdr));
+#endif
+
+	// place the original rx buffer in v
+	v->idx = tmp_idx;
+
+	// advance tx ring
+	txr->head = txr->cur = nm_ring_next(txr, txr->cur);
+
+	// caller needs to make iovs available again and optionally kick tx
+	return true;
+}
+
+
+// Fill in the IP header information that isn't set as part of the
+// socket packet template, calculate the header checksum, and hand off
+// to the Ethernet layer.
+static inline bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
+{
+	char * const start = IDX2BUF(w, v->idx);
+	struct ip_hdr * const ip =
+		(struct ip_hdr * const)(start + sizeof(struct eth_hdr));
+ 	const uint16_t l = len + 20; // ip->hl * 4
+
+	// fill in remaining header fields
+	ip->len = htons(l);
+	ip->id = random(); // no need to do htons() for random value
+	ip->cksum = in_cksum(ip, sizeof *ip); // IP checksum is over header only
+
+#ifndef NDEBUG
+	char dst[IP_ADDR_STRLEN];
+	char src[IP_ADDR_STRLEN];
+	log(3, "IP tx buf %d, %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
+	    v->idx, ip_ntoa(ip->src, src, sizeof src),
+	    ip_ntoa(ip->dst, dst, sizeof dst),
+	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
+#endif
+
+	// do Ethernet transmit preparation
+	return eth_tx(w, v, l);
+}
+
+
+// Put the socket template header in front of the data in the iov and send.
+static inline bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
+{
+	// copy template header into buffer and fill in remaining fields
+	char *start = IDX2BUF(s->w, v->idx);
+	memcpy(start, s->hdr, s->hdr_len);
+
+	struct udp_hdr * const udp =
+		(struct udp_hdr * const)(v->buf - sizeof(struct udp_hdr));
+ 	const uint16_t l = v->len + sizeof(struct udp_hdr);
+
+	log(5, "UDP :%d -> :%d, len %d",
+	    ntohs(udp->sport), ntohs(udp->dport), v->len);
+
+	udp->len = htons(l);
+	// udp->cksum = in_cksum(udp, l); // XXX need to muck up a pseudo header
+
+	// do IP transmit preparation
+	return ip_tx(s->w, v, l);
+}
+
+
+// Internal warpcore function. Kick the tx ring.
+static inline void w_kick_tx(const struct warpcore * const w)
+{
+	if (unlikely(ioctl(w->fd, NIOCTXSYNC, 0) == -1))
+		die("cannot kick tx ring");
+}
+
+
+// Prepends all network headers and places s->ov in the tx ring.
+static inline void w_tx(struct w_sock * const s)
+{
+	// TODO: handle other protocols
+
+	// packetize bufs and place in tx ring
+	uint32_t n = 0, l = 0;
+	while (likely(!SLIST_EMPTY(&s->ov))) {
+		struct w_iov * const v = SLIST_FIRST(&s->ov);
+		if (likely(udp_tx(s, v))) {
+			n++;
+			l += v->len;
+			SLIST_REMOVE_HEAD(&s->ov, next);
+			SLIST_INSERT_HEAD(&s->w->iov, v, next);
+		} else {
+			// no space in ring
+			w_kick_tx(s->w);
+			log(5, "polling for send space");
+			if (w_poll(s->w, POLLOUT, -1) == false)
+				// interrupt received during poll
+				return;
+		}
+	}
+	log(3, "UDP tx iov (len %d in %d bufs) done", l, n);
+
+	// kick tx ring
+	w_kick_tx(s->w);
+}
 
 #endif

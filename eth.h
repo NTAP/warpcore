@@ -29,9 +29,4 @@ struct w_iov;
 extern void eth_tx_rx_cur(struct warpcore * w, char * const buf,
 		          const uint16_t len);
 
-extern bool eth_tx(struct warpcore * w, struct w_iov * const v,
-                   const uint16_t len);
-
-extern void eth_rx(struct warpcore * w, char * const buf);
-
 #endif

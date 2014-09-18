@@ -17,10 +17,4 @@ struct warpcore;
 struct w_sock;
 struct w_iov;
 
-// see udp.c for documentation of functions
-extern bool udp_tx(struct w_sock *s, struct w_iov * const v);
-
-extern void udp_rx(struct warpcore * w, char * const buf, const uint16_t off,
-                   const uint32_t ip);
-
 #endif

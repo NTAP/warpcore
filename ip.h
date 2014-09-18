@@ -36,11 +36,6 @@ struct w_iov;
 extern void ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
                               char * const buf, const uint16_t len);
 
-extern bool ip_tx(struct warpcore * s, struct w_iov * const v,
-                  const uint16_t len);
-
-extern void ip_rx(struct warpcore * w, char * const buf);
-
 extern const char * ip_ntoa(uint32_t ip, char * const buf, const size_t size);
 
 extern uint32_t ip_aton(const char * const ip);
