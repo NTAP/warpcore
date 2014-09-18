@@ -115,40 +115,50 @@ int main(int argc, char *argv[])
 	}
 
 	printf("us\tsize\n");
-	while (loops--) {
+	while (likely(loops--)) {
 		if (use_warpcore) {
 			struct w_iov * const o = w_tx_alloc(ws, size);
-			if (gettimeofday((struct timeval *)o->buf, 0) == -1)
+			if (unlikely(gettimeofday((struct timeval *)o->buf,
+			    			  0) == -1))
 				die("clock_gettime");
 			w_tx(ws);
-			struct w_iov *i = 0;
-			while (i == 0) {
-				if (w_poll(w, POLLIN, -1) == false)
-					goto done;
-				i = w_rx(ws);
+			if (unlikely(w_poll(w, POLLIN, 100) == false))
+				goto done;
+			const struct w_iov * const i = w_rx(ws);
+			if (unlikely(i == 0)) {
+				log(1, "packet loss?");
+				continue;
 			}
 			after = i->buf;
 		} else {
-			if (gettimeofday((struct timeval *)before, 0) == -1)
+			if (unlikely(gettimeofday((struct timeval *)before,
+			                           0) == -1))
 				die("gettimeofday");
 
-			sendto(ks, before, size, 0, res->ai_addr, res->ai_addrlen);
-
-			if (poll(&fds, 1, -1) == -1)
+			sendto(ks, before, size, 0, res->ai_addr,
+			       res->ai_addrlen);
+			const int p = poll(&fds, 1, 100);
+			if (unlikely(p == -1))
 				die("poll");
+			else if (unlikely(p == 0)) {
+				log(1, "packet loss?");
+				continue;
+			}
 
 			socklen_t fromlen = res->ai_addrlen;
-			if (recvfrom(ks, after, size, 0, res->ai_addr, &fromlen) == -1)
+			if (unlikely(recvfrom(ks, after, size, 0, res->ai_addr,
+			                      &fromlen) == -1))
 				die("recvfrom");
 		}
 
 		struct timeval diff, now;
-		if (gettimeofday(&now, 0) == -1)
+		if (unlikely(gettimeofday(&now, 0) == -1))
 			die("clock_gettime");
 
 		tv_diff(&diff, &now, (struct timeval *)after);
-		if (diff.tv_sec != 0)
-			die("time difference is more than %ld sec", diff.tv_sec);
+		if (unlikely(diff.tv_sec != 0))
+			die("time difference is more than %ld sec",
+			    diff.tv_sec);
 
 		printf("%ld\t%d\n", diff.tv_usec, size);
 
