@@ -4,6 +4,8 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/param.h>
+#include <sys/cpuset.h>
 
 #ifdef __linux__
 #include <netinet/ether.h>
@@ -79,16 +81,16 @@ void w_close(struct w_sock * const s)
 
 	// make iovs of the socket available again
 	while (!SLIST_EMPTY(&s->iv)) {
-             struct w_iov * const v = SLIST_FIRST(&s->iv);
-             // log(5, "free buf %d", v->idx);
-             SLIST_REMOVE_HEAD(&s->iv, next);
-             SLIST_INSERT_HEAD(&s->w->iov, v, next);
+	     struct w_iov * const v = SLIST_FIRST(&s->iv);
+	     // log(5, "free buf %d", v->idx);
+	     SLIST_REMOVE_HEAD(&s->iv, next);
+	     SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}
 	while (!SLIST_EMPTY(&s->ov)) {
-             struct w_iov * const v = SLIST_FIRST(&s->ov);
-             // log(5, "free buf %d", v->idx);
-             SLIST_REMOVE_HEAD(&s->ov, next);
-             SLIST_INSERT_HEAD(&s->w->iov, v, next);
+	     struct w_iov * const v = SLIST_FIRST(&s->ov);
+	     // log(5, "free buf %d", v->idx);
+	     SLIST_REMOVE_HEAD(&s->ov, next);
+	     SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}
 
 	// remove the socket from list of sockets
@@ -103,7 +105,7 @@ void w_close(struct w_sock * const s)
 
 // Connect a bound socket to a remote IP address and port.
 void w_connect(struct w_sock * const s, const uint32_t dip,
-               const uint16_t dport)
+	       const uint16_t dport)
 {
 #ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
@@ -116,7 +118,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 	// find the Ethernet addr of the destination
 	while (IS_ZERO(s->dmac)) {
 		arp_who_has(s->w, dip);
-		if(w_poll(s->w, POLLIN, 1000) == false)
+		if(w_poll(s->w, POLLIN, 200) == false)
 			// interrupt received during poll
 			return;
 		w_rx(s);
@@ -150,7 +152,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 
 // Bind a socket for the given IP protocol and local port number.
 struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
-                       const uint16_t port)
+		       const uint16_t port)
 {
 	struct w_sock **s = w_get_sock(w, p, port);
 	if (*s) {
@@ -333,29 +335,31 @@ struct warpcore * w_init(const char * const ifname)
 				// get MAC addr
 				memcpy(&w->mac,
 				       LLADDR((struct sockaddr_dl *)
-				              i->ifa_addr),
+					      i->ifa_addr),
 				       sizeof w->mac);
 				// get MTU
 				w->mtu = (uint16_t)((struct if_data *)
-				         (i->ifa_data))->ifi_mtu;
+					 (i->ifa_data))->ifi_mtu;
 				// get link speed
 				w->mbps = (uint64_t)((struct if_data *)
-				          (i->ifa_data))->ifi_baudrate/1000000;
+					  (i->ifa_data))->ifi_baudrate/1000000;
 #endif
 				log(1, "%s addr %s, MTU %d, speed %dG",
 				    i->ifa_name,
 				    ether_ntoa_r((struct ether_addr *)w->mac,
-				                 mac), w->mtu, w->mbps/1000);
+						 mac), w->mtu, w->mbps/1000);
 				break;
 			case AF_INET:
 				// get IP addr and netmask
-				w->ip = ((struct sockaddr_in *)
-				         i->ifa_addr)->sin_addr.s_addr;
-				w->mask = ((struct sockaddr_in *)
-				           i->ifa_netmask)->sin_addr.s_addr;
-				log(1, "%s has IP addr %s/%s", i->ifa_name,
-				    ip_ntoa(w->ip, ip, sizeof ip),
-				    ip_ntoa(w->mask, mask, sizeof mask));
+				if (w->ip == 0) {
+					w->ip = ((struct sockaddr_in *)
+						 i->ifa_addr)->sin_addr.s_addr;
+					w->mask = ((struct sockaddr_in *)
+						   i->ifa_netmask)->sin_addr.s_addr;
+					log(1, "%s has IP addr %s/%s", i->ifa_name,
+					    ip_ntoa(w->ip, ip, sizeof ip),
+					    ip_ntoa(w->mask, mask, sizeof mask));
+				}
 				break;
 			default:
 				log(1, "ignoring unknown addr family %d on %s",
@@ -400,12 +404,12 @@ struct warpcore * w_init(const char * const ifname)
 	// print some info about our rings
 	for(uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
 		struct netmap_ring *r = NETMAP_TXRING(w->nif, ri);
-		log(1, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+		log(3, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 	for(uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
 		struct netmap_ring *r = NETMAP_RXRING(w->nif, ri);
-		log(1, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+		log(3, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 #endif
@@ -442,9 +446,32 @@ struct warpcore * w_init(const char * const ifname)
 	// initialize random generator
 	srandomdev();
 
+	// Set CPU affinity to highest core
+	int i;
+	cpuset_t myset;
+	if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
+	    sizeof(myset), &myset) == -1)
+		die("cpuset_getaffinity");
+
+	// Find last available CPU
+	for (i = CPU_SETSIZE-1; i >= 0; i--)
+		if (CPU_ISSET(i, &myset))
+			break;
+	if (i == 0)
+		die("Not allowed to run on any CPUs!?");
+
+	// Set new CPU mask
+	log(1, "Setting affinity to CPU %d", i);
+	CPU_ZERO(&myset);
+	CPU_SET(i, &myset);
+
+	if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
+	    sizeof(myset), &myset) == -1)
+		die("cpuset_setaffinity");
+
 	// block SIGINT
-        if (signal(SIGINT, w_sigint) == SIG_ERR)
-        	die("cannot register signal handler");
+	if (signal(SIGINT, w_sigint) == SIG_ERR)
+		die("cannot register signal handler");
 
 	return w;
 }
