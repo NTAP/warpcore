@@ -33,7 +33,7 @@ kern
 warp
 
 xmax <- max(kern$size, warp$size)
-ymax <- max(kern$mean + kern$sd/2, warp$mean + warp$sd/2)
+ymax <- max(kern$mean + kern$sd/2, warp$mean + warp$sd/2, kern$q75, warp$q75)
 xr <- c(0, xmax)
 yr <- c(0, ymax)
 
@@ -48,11 +48,6 @@ par(new=T)
 plot(warp$size, warp$mean, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="red")
 segments(warp$size, warp$mean-warp$sd/2, warp$size, warp$mean+warp$sd/2)
 legend("topleft", c("kern", "warp"), col=c("blue", "red"), lty=1)
-
-xmax <- max(kern$size, warp$size)
-ymax <- max(kern$q75, warp$q75)
-xr <- c(0, xmax)
-yr <- c(0, ymax)
 
 plot(0, type="n", xlim=xr, ylim=yr,
      xlab="UDP payload size [bytes]", ylab=expression(paste("RTT [", mu, "s]")),
