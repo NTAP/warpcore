@@ -1,18 +1,23 @@
 OS=$(shell uname -s)
 
 CC=cc
-COPT=-Ofast -march=native
-COPT+=-fno-strict-aliasing
-CDEB=-g -pg -ftrapv -DDLEVEL=10
-# CDEB+=-DNDEBUG
+COPT=-Ofast -march=native -fno-strict-aliasing
 CDIA=-Wall -Wextra -fdiagnostics-color=auto
+# CDEB=-g
+# -pg -ftrapv -DDLEVEL=10
+# CDEB+=-DNDEBUG
+
+ifeq ($(CC), gcc49)
+# COPT+=-finline-limit=65535
+CDIA+=-Winline
+else
+CDIA+=-Weverything -pedantic -Wno-gnu-zero-variadic-macro-arguments
+CDIA+=-Wno-padded -Wno-packed -Wno-missing-prototypes -Wno-cast-align -Wno-conversion
+endif
 
 ifeq ($(OS), Linux)
 CDEF+=-D_GNU_SOURCE
 CINC+=-isystem ~/netmap/sys
-else
-CDIA+=-pedantic -Weverything -Wno-gnu-zero-variadic-macro-arguments
-CDIA+=-Wno-padded -Wno-packed -Wno-missing-prototypes -Wno-cast-align -Wno-conversion
 endif
 
 CFLAGS+=-pipe -std=c11 $(COPT) $(CDEB) $(CDIA) $(CDEF) $(CINC)
@@ -20,7 +25,7 @@ CFLAGS+=-pipe -std=c11 $(COPT) $(CDEB) $(CDIA) $(CDEF) $(CINC)
 # see http://bruno.defraine.net/techtips/makefile-auto-dependencies-with-gcc/
 OUTPUT_OPTION=-MMD -MP -o $@
 
-LDLIBS=-pthread
+# LDLIBS=-pthread
 LDFLAGS=$(CFLAGS)
 
 CSRC=warptest.c warpinetd.c warpping.c
