@@ -37,10 +37,12 @@ LOBJ=$(addprefix $(OS)/, $(LSRC:.c=.o))
 
 DEP=$(COBJ:.o=.d) $(LOBJ:.o=.d)
 
+all: $(OS) $(CMD)
+
+$(CSRC) $(LSRC): GNUmakefile
+
 $(OS)/%.o: %.c
 	$(CC) $(CFLAGS) -c $(OUTPUT_OPTION) $<
-
-all: $(OS) $(CMD)
 
 $(CMD): $(LOBJ) $@
 #$(CMD): $(OS)/libwarpcore.a $@
@@ -55,7 +57,7 @@ $(OS)/libwarpcore.a: $(LOBJ)
 .PHONY: clean lint
 
 clean:
-	-@rm -r $(OS) *.core core *.gmon gmon.out 2> /dev/null || true
+	-@rm -r $(OS) *core vgcore.* *.gmon gmon.out 2> /dev/null || true
 
 lint:
 	cppcheck -D1 --enable=all *.c --check-config -I /usr/include
