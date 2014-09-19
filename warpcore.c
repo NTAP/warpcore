@@ -235,7 +235,7 @@ static const struct w_iov * w_chain_extra_bufs(const struct warpcore * const w, 
 // Shut down warpcore cleanly.
 void w_cleanup(struct warpcore * const w)
 {
-	log(1, "warpcore shutting down");
+	log(3, "warpcore shutting down");
 
 	// re-construct the extra bufs list, so netmap can free the memory
 	const struct w_iov * last = w_chain_extra_bufs(w, SLIST_FIRST(&w->iov));
@@ -362,7 +362,7 @@ struct warpcore * w_init(const char * const ifname)
 				}
 				break;
 			default:
-				log(1, "ignoring unknown addr family %d on %s",
+				log(3, "ignoring unknown addr family %d on %s",
 				    i->ifa_addr->sa_family, i->ifa_name);
 				break;
 			}
@@ -403,12 +403,12 @@ struct warpcore * w_init(const char * const ifname)
 #ifndef NDEBUG
 	// print some info about our rings
 	for(uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
-		struct netmap_ring *r = NETMAP_TXRING(w->nif, ri);
+		const struct netmap_ring * const r = NETMAP_TXRING(w->nif, ri);
 		log(3, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 	for(uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
-		struct netmap_ring *r = NETMAP_RXRING(w->nif, ri);
+		const struct netmap_ring * const r = NETMAP_RXRING(w->nif, ri);
 		log(3, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
@@ -458,10 +458,10 @@ struct warpcore * w_init(const char * const ifname)
 		if (CPU_ISSET(i, &myset))
 			break;
 	if (i == 0)
-		die("Not allowed to run on any CPUs!?");
+		die("not allowed to run on any CPUs!?");
 
 	// Set new CPU mask
-	log(1, "Setting affinity to CPU %d", i);
+	log(1, "setting affinity to CPU %d", i);
 	CPU_ZERO(&myset);
 	CPU_SET(i, &myset);
 
