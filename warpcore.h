@@ -194,18 +194,20 @@ static inline __attribute__((always_inline)) void w_rx_done(struct w_sock * cons
 
 // Internal warpcore function. Given an IP protocol number and a local port
 // number, returns a pointer to the w_sock pointer.
-static inline __attribute__((always_inline)) struct w_sock ** w_get_sock(const struct warpcore * const w,
-                                          const uint8_t p, const uint16_t port)
-{
-	// find the respective "socket"
-	if (likely(p == IP_P_UDP))
-		return &w->udp[port];
-	if (likely(p == IP_P_TCP))
-		return &w->tcp[port];
-	die("cannot find socket for IP proto %d", p);
-	return 0;
-}
+// static inline __attribute__((always_inline)) struct w_sock ** w_get_sock(const struct warpcore * const w,
+//                                           const uint8_t p, const uint16_t port)
+// {
+// 	// find the respective "socket"
+// 	if (likely(p == IP_P_UDP))
+// 		return &w->udp[port];
+// 	if (likely(p == IP_P_TCP))
+// 		return &w->tcp[port];
+// 	die("cannot find socket for IP proto %d", p);
+// 	return 0;
+// }
 
+
+#define w_get_sock(w, p, port) ((p) == IP_P_UDP ? &(w)->udp[port] : &(w)->tcp[port])
 
 // Receive a UDP packet.
 static inline __attribute__((always_inline)) void udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
@@ -367,9 +369,9 @@ static inline __attribute__((always_inline)) bool eth_tx(struct warpcore *w, str
 	// check if there is space in the current txr
 	struct netmap_ring *txr = 0;
 	uint16_t i;
-	for (i = 0; i < w->nif->ni_rx_rings; i++) {
-		txr = NETMAP_TXRING(w->nif, w->cur_rxr);
-		if (likely(txr->tail != nm_ring_next(txr, txr->cur)))
+	for (i = 0; i < w->nif->ni_tx_rings; i++) {
+		txr = NETMAP_TXRING(w->nif, w->cur_txr);
+		if (likely(nm_ring_space(txr)))
 			// we have space in this ring
 			break;
 		else
@@ -378,7 +380,8 @@ static inline __attribute__((always_inline)) bool eth_tx(struct warpcore *w, str
 	}
 
 	// return false if all rings are full
-	if (unlikely(i == w->nif->ni_rx_rings)) {
+	if (unlikely(i == w->nif->ni_tx_rings)) {
+		die("all tx rings are full");
 		log(3, "all tx rings are full");
 		return false;
 	}
@@ -405,7 +408,7 @@ static inline __attribute__((always_inline)) bool eth_tx(struct warpcore *w, str
 	    ntohs(eth->type), len + sizeof(struct eth_hdr));
 #endif
 
-	// place the original rx buffer in v
+	// place the original tx buffer in v
 	v->idx = tmp_idx;
 
 	// advance tx ring
