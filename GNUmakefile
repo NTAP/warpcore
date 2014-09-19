@@ -1,26 +1,26 @@
 OS=$(shell uname -s)
 
 CC=cc
-COPT=-Ofast -march=native -fno-strict-aliasing
-CDIA=-Wall -Wextra -fdiagnostics-color=auto
-# CDEB=-g
+
+CFLAGS+=-pipe -std=c11
+CFLAGS+=-Ofast -march=native -fno-strict-aliasing
+CFLAGS+=-Wall -Wextra -fdiagnostics-color=auto
+CFLAGS+=-g
 # -pg -ftrapv -DDLEVEL=10
-# CDEB+=-DNDEBUG
+# CFLAGS+=-DNDEBUG
 
 ifeq ($(CC), gcc49)
-# COPT+=-finline-limit=65535
-CDIA+=-Winline
+# CFLAGS+=-finline-limit=65535
+CFLAGS+=-Winline
 else
-CDIA+=-Weverything -pedantic -Wno-gnu-zero-variadic-macro-arguments
-CDIA+=-Wno-padded -Wno-packed -Wno-missing-prototypes -Wno-cast-align -Wno-conversion
+CFLAGS+=-pedantic -Weverything
+CFLAGS+=-Wno-gnu-zero-variadic-macro-arguments -Wno-padded -Wno-packed
+CFLAGS+=-Wno-missing-prototypes -Wno-cast-align -Wno-conversion
 endif
 
 ifeq ($(OS), Linux)
-CDEF+=-D_GNU_SOURCE
-CINC+=-isystem ~/netmap/sys
+CFLAGS+=-D_GNU_SOURCE -isystem ~/netmap/sys
 endif
-
-CFLAGS+=-pipe -std=c11 $(COPT) $(CDEB) $(CDIA) $(CDEF) $(CINC)
 
 # see http://bruno.defraine.net/techtips/makefile-auto-dependencies-with-gcc/
 OUTPUT_OPTION=-MMD -MP -o $@
@@ -39,7 +39,7 @@ DEP=$(COBJ:.o=.d) $(LOBJ:.o=.d)
 
 all: $(OS) $(CMD)
 
-$(CSRC) $(LSRC): GNUmakefile
+$(CSRC) $(LSRC) $(wildcard *.h): GNUmakefile
 
 $(OS)/%.o: %.c
 	$(CC) $(CFLAGS) -c $(OUTPUT_OPTION) $<
