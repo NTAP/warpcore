@@ -68,8 +68,10 @@ void icmp_rx(struct warpcore * w, char * const buf,
 		break;
 	case ICMP_TYPE_UNREACH:
 		{
+#ifndef NDEBUG
 		struct ip_hdr * const ip = (struct ip_hdr * const)
 			(buf + off + sizeof(struct icmp_hdr) + 4);
+#endif
 		switch (icmp->code) {
 		case ICMP_UNREACH_PROTOCOL:
 			log(1, "ICMP protocol %d unreachable", ip->p);
@@ -78,10 +80,12 @@ void icmp_rx(struct warpcore * w, char * const buf,
 			{
 			// we abuse the fact the UDP and TCP port numbers
 			// are in the same bit position here
+#ifndef NDEBUG
 			struct udp_hdr * const udp = (struct udp_hdr * const)
 				((char *)ip + ip->hl * 4);
 			log(1, "ICMP IP proto %d port %d unreachable", ip->p,
 			    ntohs(udp->dport));
+#endif
 			break;
 			}
 		default:
