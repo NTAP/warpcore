@@ -129,8 +129,10 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 
 	// initialize the remaining fields of outgoing template header
 	struct eth_hdr * const eth = (struct eth_hdr *)s->hdr;
-	struct ip_hdr * const ip = (struct ip_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
-	struct udp_hdr * const udp = (struct udp_hdr *)((char *)(ip) + sizeof(struct ip_hdr));
+	struct ip_hdr * const ip =
+		(struct ip_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
+	struct udp_hdr * const udp =
+		(struct udp_hdr *)((char *)(ip) + sizeof(struct ip_hdr));
 	switch (s->p) {
 	case IP_P_UDP:
 		udp->dport = dport;
@@ -213,7 +215,8 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 
 // Helper function for w_cleanup that links together extra bufs allocated
 // by netmap in the strange format it requires to free them correctly.
-static const struct w_iov * w_chain_extra_bufs(const struct warpcore * const w, const struct w_iov *v)
+static const struct w_iov * w_chain_extra_bufs(const struct warpcore * const w,
+					       const struct w_iov *v)
 {
 	const struct w_iov * n;
 	do {
@@ -236,6 +239,17 @@ void w_cleanup(struct warpcore * const w)
 {
 	log(3, "warpcore shutting down");
 
+	// clean out all the tx rings
+	for (uint16_t i = 0; i < w->nif->ni_rx_rings; i++) {
+		struct netmap_ring * const txr =
+			NETMAP_TXRING(w->nif, w->cur_txr);
+		while (nm_tx_pending(txr)) {
+			log(5, "tx pending on ring %d", w->cur_txr);
+			w_kick_tx(w);
+			usleep(1); // wait 1 tick
+		}
+	}
+
 	// re-construct the extra bufs list, so netmap can free the memory
 	const struct w_iov * last = w_chain_extra_bufs(w, SLIST_FIRST(&w->iov));
 	struct w_sock *s;
@@ -256,13 +270,6 @@ void w_cleanup(struct warpcore * const w)
 		*(uint32_t *)(last->buf) = 0;
 	}
 	w->nif->ni_bufs_head = SLIST_FIRST(&w->iov)->idx;
-
-	// int n = w->nif->ni_bufs_head;
-	// while (n) {
-	// 	char *b = IDX2BUF(w, n);
-	// 	log(5, "buf in extra chain idx %d", n);
-	// 	n = *(uint32_t *)b;
-	// }
 
 	if (munmap(w->mem, w->req.nr_memsize) == -1)
 		die("cannot munmap netmap memory");
@@ -291,10 +298,6 @@ struct warpcore * w_init(const char * const ifname)
 	// allocate struct
 	if ((w = calloc(1, sizeof(struct warpcore))) == 0)
 		die("cannot allocate struct warpcore");
-
-	// open /dev/netmap
-	if ((w->fd = open("/dev/netmap", O_RDWR)) == -1)
-		die("cannot open /dev/netmap");
 
 	// get interface information
 	struct ifaddrs *ifap;
@@ -344,6 +347,9 @@ struct warpcore * w_init(const char * const ifname)
 				// get link speed
 				w->mbps = (uint64_t)((struct if_data *)
 					  (i->ifa_data))->ifi_baudrate/1000000;
+
+				if (((uint8_t)((struct if_data *)(i->ifa_data))->ifi_link_state) != LINK_STATE_UP)
+					die("link not up");
 #endif
 				log(1, "%s addr %s, MTU %d, speed %dG",
 				    i->ifa_name,
@@ -379,6 +385,10 @@ struct warpcore * w_init(const char * const ifname)
 	log(1, "%s has IP broadcast addr %s", ifname,
 	    ip_ntoa(w->bcast, bcast, IP_ADDR_STRLEN));
 #endif
+
+	// open /dev/netmap
+	if ((w->fd = open("/dev/netmap", O_RDWR)) == -1)
+		die("cannot open /dev/netmap");
 
 	// switch interface to netmap mode
 	strncpy(w->req.nr_name, ifname, sizeof w->req.nr_name);
