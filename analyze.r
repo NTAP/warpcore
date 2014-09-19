@@ -52,14 +52,14 @@ plot(kern$size, kern$mean, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="o", co
 # plot(kern$size, kern$min, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="l", lty=2, col="blue")
 # par(new=T)
 # plot(kern$size, kern$max, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="l", lty=2, col="blue")
-segments(kern$size, kern$mean-kern$sd/2, kern$size, kern$mean+kern$sd/2)
+segments(kern$size, kern$mean-kern$sd/2, kern$size, kern$mean+kern$sd/2, col="blue")
 par(new=T)
 plot(warp$size, warp$mean, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="red")
 # par(new=T)
 # plot(warp$size, warp$min, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="l", lty=2, col="red")
 # par(new=T)
 # plot(warp$size, warp$max, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="l", lty=2, col="red")
-segments(warp$size, warp$mean-warp$sd/2, warp$size, warp$mean+warp$sd/2)
+segments(warp$size, warp$mean-warp$sd/2, warp$size, warp$mean+warp$sd/2, col="red")
 legend("topleft", c("kern", "warp"), col=c("blue", "red"), lty=1)
 
 plot(0, type="n", xlim=xr, ylim=yr,
@@ -68,9 +68,9 @@ plot(0, type="n", xlim=xr, ylim=yr,
 grid()
 par(new=T)
 plot(kern$size, kern$median, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="blue")
-segments(kern$size, kern$q25, kern$size, kern$q75)
+segments(kern$size, kern$q25, kern$size, kern$q75, col="blue")
 par(new=T)
 plot(warp$size, warp$median, xlim=xr, ylim=yr, axes=FALSE, ann=FALSE, type="o", col="red")
-segments(warp$size, warp$q25, warp$size, warp$q75)
+segments(warp$size, warp$q25, warp$size, warp$q75, col="red")
 legend("topleft", c("kern", "warp"), col=c("blue", "red"), lty=1)
 
