@@ -62,8 +62,8 @@ static inline void arp_who_has(struct warpcore * const w, const uint32_t dip)
 	char spa[IP_ADDR_STRLEN];
 	char tpa[IP_ADDR_STRLEN];
 	log(3, "ARP request who has %s tell %s",
-	    ip_ntoa(arp->tpa, tpa, sizeof tpa),
-	    ip_ntoa(arp->spa, spa, sizeof spa));
+	    ip_ntoa(arp->tpa, tpa, IP_ADDR_STRLEN),
+	    ip_ntoa(arp->spa, spa, IP_ADDR_STRLEN));
 #endif
 
 	// send the Ethernet packet
@@ -110,7 +110,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 #ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
 	log(3, "connect IP proto %d dst %s port %d", s->p,
-	    ip_ntoa(dip, str, sizeof str), ntohs(dport));
+	    ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
 #endif
 	s->dip = dip;
 	s->dport = dport;
@@ -129,8 +129,8 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 
 	// initialize the remaining fields of outgoing template header
 	struct eth_hdr * const eth = (struct eth_hdr *)s->hdr;
-	struct ip_hdr * const ip = (struct ip_hdr *)((char *)(eth) + sizeof *eth);
-	struct udp_hdr * const udp = (struct udp_hdr *)((char *)(ip) + sizeof *ip);
+	struct ip_hdr * const ip = (struct ip_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
+	struct udp_hdr * const udp = (struct udp_hdr *)((char *)(ip) + sizeof(struct ip_hdr));
 	switch (s->p) {
 	case IP_P_UDP:
 		udp->dport = dport;
@@ -146,7 +146,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
 
 	log(3, "IP proto %d socket connected to %s port %d", s->p,
-	    ip_ntoa(dip, str, sizeof str), ntohs(dport));
+	    ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
 }
 
 
@@ -161,7 +161,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 		return 0;
 	}
 
-	if ((*s = calloc(1, sizeof **s)) == 0)
+	if ((*s = calloc(1, sizeof(struct w_sock))) == 0)
 		die("cannot allocate struct w_sock");
 
 	(*s)->p = p;
@@ -178,12 +178,11 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 	case IP_P_UDP:
 		(*s)->hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr) +
 			     sizeof(struct udp_hdr);
-		(*s)->hdr = calloc(1, (*s)->hdr_len);
-		if ((*s)->hdr == 0)
+		if (((*s)->hdr = calloc(1, (*s)->hdr_len)) == 0)
 			die("cannot allocate w_hdr");
 		eth = (struct eth_hdr *)(*s)->hdr;
-		ip = (struct ip_hdr *)((char *)(eth) + sizeof *eth);
-		udp = (struct udp_hdr *)((char *)(ip) + sizeof *ip);
+		ip = (struct ip_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
+		udp = (struct udp_hdr *)((char *)(ip) + sizeof(struct ip_hdr));
 
 		udp->sport = (*s)->sport;
 		// udp->dport is set on w_connect()
@@ -279,8 +278,10 @@ void w_cleanup(struct warpcore * const w)
 
 
 // Interrupt handler.
-static void w_sigint(int sig __attribute__((__unused__))) {}
-
+static void w_sigint(int sig __attribute__((__unused__)))
+{
+       signal(SIGINT, SIG_DFL);
+}
 
 // Initialize warpcore on the given interface.
 struct warpcore * w_init(const char * const ifname)
@@ -288,7 +289,7 @@ struct warpcore * w_init(const char * const ifname)
 	struct warpcore *w;
 
 	// allocate struct
-	if ((w = calloc(1, sizeof *w)) == 0)
+	if ((w = calloc(1, sizeof(struct warpcore))) == 0)
 		die("cannot allocate struct warpcore");
 
 	// open /dev/netmap
@@ -312,7 +313,7 @@ struct warpcore * w_init(const char * const ifname)
 				// get MAC addr
 				memcpy(&w->mac,
 				       ((struct sockaddr_ll *)i->ifa_addr)->sll_addr,
-				       sizeof w->mac);
+				       ETH_ADDR_LEN);
 				// get MTU
 				int s;
 				struct ifreq ifr;
@@ -336,7 +337,7 @@ struct warpcore * w_init(const char * const ifname)
 				memcpy(&w->mac,
 				       LLADDR((struct sockaddr_dl *)
 					      i->ifa_addr),
-				       sizeof w->mac);
+				       ETH_ADDR_LEN);
 				// get MTU
 				w->mtu = (uint16_t)((struct if_data *)
 					 (i->ifa_data))->ifi_mtu;
@@ -357,8 +358,8 @@ struct warpcore * w_init(const char * const ifname)
 					w->mask = ((struct sockaddr_in *)
 						   i->ifa_netmask)->sin_addr.s_addr;
 					log(1, "%s has IP addr %s/%s", i->ifa_name,
-					    ip_ntoa(w->ip, ip, sizeof ip),
-					    ip_ntoa(w->mask, mask, sizeof mask));
+					    ip_ntoa(w->ip, ip, IP_ADDR_STRLEN),
+					    ip_ntoa(w->mask, mask, IP_ADDR_STRLEN));
 				}
 				break;
 			default:
@@ -376,7 +377,7 @@ struct warpcore * w_init(const char * const ifname)
 #ifndef NDEBUG
 	char bcast[IP_ADDR_STRLEN];
 	log(1, "%s has IP broadcast addr %s", ifname,
-	    ip_ntoa(w->bcast, bcast, sizeof bcast));
+	    ip_ntoa(w->bcast, bcast, IP_ADDR_STRLEN));
 #endif
 
 	// switch interface to netmap mode
@@ -418,7 +419,7 @@ struct warpcore * w_init(const char * const ifname)
 	SLIST_INIT(&w->iov);
 	for (uint32_t n = 0, i = w->nif->ni_bufs_head;
 	     n < w->req.nr_arg3; n++) {
-		struct w_iov * const v = malloc(sizeof *v);
+		struct w_iov * const v = malloc(sizeof(struct w_iov));
 		if (v == 0)
 			die("cannot allocate w_iov");
 		v->buf = IDX2BUF(w, i);
@@ -440,8 +441,10 @@ struct warpcore * w_init(const char * const ifname)
 	SLIST_INIT(&w->sock);
 
 	// allocate socket pointers
-	w->udp = calloc(UINT16_MAX, sizeof(uint16_t));
-	w->tcp = calloc(UINT16_MAX, sizeof(uint16_t));
+	if ((w->udp = calloc(UINT16_MAX, sizeof(struct w_sock *))) == 0)
+		die("cannot allocate UDP sockets");
+	if ((w->tcp = calloc(UINT16_MAX, sizeof(struct w_sock *))) == 0)
+		die("cannot allocate TCP sockets");
 
 	// initialize random generator
 	srandomdev();
@@ -450,7 +453,7 @@ struct warpcore * w_init(const char * const ifname)
 	int i;
 	cpuset_t myset;
 	if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
-	    sizeof(myset), &myset) == -1)
+	    sizeof(cpuset_t), &myset) == -1)
 		die("cpuset_getaffinity");
 
 	// Find last available CPU
@@ -466,7 +469,7 @@ struct warpcore * w_init(const char * const ifname)
 	CPU_SET(i, &myset);
 
 	if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
-	    sizeof(myset), &myset) == -1)
+	    sizeof(cpuset_t), &myset) == -1)
 		die("cpuset_setaffinity");
 
 	// block SIGINT
