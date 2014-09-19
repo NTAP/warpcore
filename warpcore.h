@@ -37,6 +37,7 @@ struct w_iov {
 	uint16_t		len;	// length of user data (inside buffer)
 	uint16_t		port;	// sender port (only valid on rx)
 	uint32_t		ip;	// sender IP address (only valid on rx)
+	struct timeval		ts;
 } __attribute__((__aligned__(4)));
 
 
@@ -252,6 +253,9 @@ static inline __attribute__((always_inline)) void udp_rx(struct warpcore * const
 	i->ip = ip;
 	i->port = udp->sport;
 
+	// copy over the rx timestamp
+	memcpy(&i->ts, &rxr->ts, sizeof(struct timeval));
+
 	// add the iov to the socket
 	// TODO: XXX this needs to insert at the tail!
 	SLIST_INSERT_HEAD(&(*s)->iv, i, next);
@@ -279,7 +283,7 @@ static inline __attribute__((always_inline)) void ip_rx(struct warpcore * const 
 
 	// make sure the packet is for us (or broadcast)
 	if (unlikely(ip->dst != w->ip && ip->dst != w->bcast)) {
-		log(5, "IP packet to %s (not us); ignoring",
+		log(1, "IP packet to %s (not us); ignoring",
 		    ip_ntoa(ip->dst, dst, sizeof dst));
 		return;
 	}
@@ -495,7 +499,7 @@ static inline __attribute__((always_inline)) void w_tx(struct w_sock * const s)
 		} else {
 			// no space in ring
 			w_kick_tx(s->w);
-			log(5, "polling for send space");
+			log(1, "polling for send space");
 			if (w_poll(s->w, POLLOUT, -1) == false)
 				// interrupt received during poll
 				return;

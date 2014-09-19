@@ -1,6 +1,6 @@
 printf <- function(...) cat(sprintf(...))
 
-ximport <- function(kind) {
+import <- function(kind) {
 	tmp <- c()
 	for (f in list.files(pattern=paste(kind, ".*.txt", sep=""))) {
 		data <- read.table(f, header=TRUE)
@@ -10,6 +10,8 @@ ximport <- function(kind) {
 		max <- max(data$us)
 		mean <- mean(data$us)
 		sd <- sd(data$us)
+		codemean <- mean(data$codeus)
+		codesd <- sd(data$codeus)
 		median <- median(data$us)
 		q25 <- quantile(data$us, probs = c(.25))
 		q75 <- quantile(data$us, probs = c(.75))
@@ -20,19 +22,22 @@ ximport <- function(kind) {
 		tmp$max <- append(tmp$max, max)
 		tmp$mean <- append(tmp$mean, mean)
 		tmp$sd <- append(tmp$sd, sd)
+		tmp$codemean <- append(tmp$codemean, codemean)
+		tmp$codesd <- append(tmp$codesd, codesd)
 		tmp$median <- append(tmp$median, median)
 		tmp$q25 <- append(tmp$q25, q25)
 		tmp$q75 <- append(tmp$q75, q75)
 	}
 	tmp <- data.frame(size=tmp$size, n=tmp$n, min=tmp$min, max=tmp$max,
 	                  mean=tmp$mean, sd=tmp$sd, median=tmp$median,
-	                  q25=tmp$q25, q75=tmp$q75)
+	                  q25=tmp$q25, q75=tmp$q75, codemean=tmp$codemean,
+	                  codesd=tmp$codesd)
 	tmp <- tmp[order(tmp$size), ]
 	return(tmp)
 }
 
-kern <- ximport("kern")
-warp <- ximport("warp")
+kern <- import("kern")
+warp <- import("warp")
 
 kern
 warp

@@ -114,8 +114,9 @@ int main(int argc, char *argv[])
 		after = calloc(1, size);
 	}
 
-	printf("us\tsize\n");
+	printf("us\tcodeus\tsize\n");
 	while (likely(loops--)) {
+		struct timeval *rx = 0;
 		if (use_warpcore) {
 			struct w_iov * const o = w_tx_alloc(ws, size);
 			if (unlikely(gettimeofday((struct timeval *)o->buf,
@@ -124,12 +125,13 @@ int main(int argc, char *argv[])
 			w_tx(ws);
 			if (unlikely(w_poll(w, POLLIN, 100) == false))
 				goto done;
-			const struct w_iov * const i = w_rx(ws);
+			struct w_iov * const i = w_rx(ws);
 			if (unlikely(i == 0)) {
 				log(1, "packet loss?");
 				continue;
 			}
 			after = i->buf;
+			rx = &i->ts;
 		} else {
 			if (unlikely(gettimeofday((struct timeval *)before,
 			                           0) == -1))
@@ -160,10 +162,16 @@ int main(int argc, char *argv[])
 			die("time difference is more than %ld sec",
 			    diff.tv_sec);
 
-		printf("%ld\t%d\n", diff.tv_usec, size);
+		printf("%ld\t", diff.tv_usec);
 
-		if (use_warpcore)
+		if (use_warpcore) {
+			tv_diff(&diff, &now, rx);
+			printf("%ld\t", diff.tv_usec);
 			w_rx_done(ws);
+		} else
+			printf("0\t");
+		printf("%d\n", size);
+
 	}
 done:
 	if (use_warpcore) {
