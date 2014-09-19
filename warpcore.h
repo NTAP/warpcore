@@ -228,6 +228,8 @@ static inline __attribute__((always_inline)) void udp_rx(struct warpcore * const
 
 	// grab an unused iov for the data in this packet
 	struct w_iov * const i = SLIST_FIRST(&w->iov);
+	if (unlikely(i == 0))
+		die("out of spare bufs");
 	struct netmap_ring * const rxr =
 		NETMAP_RXRING(w->nif, w->cur_rxr);
 	struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
