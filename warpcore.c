@@ -5,17 +5,19 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/param.h>
-#include <sys/cpuset.h>
 
 #ifdef __linux__
 #include <netinet/ether.h>
 #include <netpacket/packet.h>
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
+#include <sched.h>
+#include <time.h>
 #else
 #include <sys/types.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
+#include <sys/cpuset.h>
 #endif
 
 #include "warpcore.h"
@@ -117,6 +119,8 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 
 	// find the Ethernet addr of the destination
 	while (IS_ZERO(s->dmac)) {
+		log(3, "doing ARP lookup for %s",
+		    ip_ntoa(dip, str, IP_ADDR_STRLEN));
 		arp_who_has(s->w, dip);
 		if(w_poll(s->w, POLLIN, 200) == false)
 			// interrupt received during poll
@@ -457,14 +461,24 @@ struct warpcore * w_init(const char * const ifname)
 		die("cannot allocate TCP sockets");
 
 	// initialize random generator
+#ifdef __linux__
+	srandom(time(0));
+#else
 	srandomdev();
+#endif
 
 	// Set CPU affinity to highest core
 	int i;
+#ifdef __linux__
+	cpu_set_t myset;
+	if (sched_getaffinity(0, sizeof(cpu_set_t), &myset) == -1)
+		die("sched_getaffinity");
+#else
 	cpuset_t myset;
 	if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
 	    sizeof(cpuset_t), &myset) == -1)
 		die("cpuset_getaffinity");
+#endif
 
 	// Find last available CPU
 	for (i = CPU_SETSIZE-1; i >= 0; i--)
@@ -478,9 +492,14 @@ struct warpcore * w_init(const char * const ifname)
 	CPU_ZERO(&myset);
 	CPU_SET(i, &myset);
 
+#ifdef __linux__
+	if (sched_setaffinity(0, sizeof(myset), &myset) == -1)
+		die("sched_setaffinity");
+#else
 	if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
 	    sizeof(cpuset_t), &myset) == -1)
 		die("cpuset_setaffinity");
+#endif
 
 	// block SIGINT
 	if (signal(SIGINT, w_sigint) == SIG_ERR)
