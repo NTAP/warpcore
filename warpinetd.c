@@ -40,7 +40,6 @@ int main(int argc, char *argv[])
 	}
 
 	struct warpcore *w = w_init(ifname);
-	log(1, "main process ready");
 
 	// start the inetd-like "small services"
 	struct w_sock *ech = w_bind(w, IP_P_UDP, htons(7));
@@ -105,7 +104,6 @@ int main(int argc, char *argv[])
 	w_close(dtm);
 	w_close(tme);
 
-	log(1, "main process exiting");
 	w_cleanup(w);
 
 	return 0;
