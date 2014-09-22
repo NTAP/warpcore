@@ -25,7 +25,7 @@
 #include "udp.h"
 #include "icmp.h"
 
-#define NUM_EXTRA_BUFS	65536
+#define NUM_EXTRA_BUFS	16384
 
 
 // Use a spare iov to transmit an ARP query for the given destination
@@ -281,6 +281,13 @@ void w_cleanup(struct warpcore * const w)
 	if (close(w->fd) == -1)
 		die("cannot close /dev/netmap");
 
+	// free extra buffer list
+	while (!SLIST_EMPTY(&w->iov)) {
+		struct w_iov * const n = SLIST_FIRST(&w->iov);
+		SLIST_REMOVE_HEAD(&w->iov, next);
+		free(n);
+	}
+
 	free(w->udp);
 	free(w->tcp);
 
@@ -324,6 +331,7 @@ struct warpcore * w_init(const char * const ifname)
 				// get MTU
 				int s;
 				struct ifreq ifr;
+				bzero(&ifr, sizeof(struct ifreq));
 				if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 					die("%s socket", ifname);
 				strcpy(ifr.ifr_name, i->ifa_name);
