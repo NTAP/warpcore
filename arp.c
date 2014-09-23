@@ -37,6 +37,7 @@ static void arp_is_at(struct warpcore * w, char * const buf)
 
 	// send the Ethernet packet
 	eth_tx_rx_cur(w, buf, sizeof(struct arp_hdr));
+	w_kick_tx(w);
 }
 
 

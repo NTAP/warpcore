@@ -13,18 +13,23 @@ static void usage(const char * const name)
 {
 	printf("%s\n", name);
 	printf("\t -i interface           interface to run over\n");
+	printf("\t[-b]                    busy-wait\n");
 }
 
 
 int main(int argc, char *argv[])
 {
 	const char *ifname = 0;
+	bool busywait = false;
 
 	int ch;
-	while ((ch = getopt(argc, argv, "hi:")) != -1) {
+	while ((ch = getopt(argc, argv, "hi:b")) != -1) {
 		switch (ch) {
 		case 'i':
 			ifname = optarg;
+			break;
+		case 'b':
+			busywait = true;
 			break;
 		case 'h':
 		case '?':
@@ -47,7 +52,13 @@ int main(int argc, char *argv[])
 	struct w_sock *dtm = w_bind(w, IP_P_UDP, htons(13));
 	struct w_sock *tme = w_bind(w, IP_P_UDP, htons(37));
 
-	while (likely(w_poll(w, POLLIN, -1))) {
+	bool loop = true;
+	while (loop) {
+		if (!busywait) {
+			loop = w_poll(w, POLLIN, -1);
+		} else
+			w_kick_rx(w);
+
 		// echo service
 		struct w_iov *i = w_rx(ech);
 		while (likely(i)) {

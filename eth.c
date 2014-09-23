@@ -40,7 +40,7 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 	rxs->buf_idx = tmp_idx;
 	txs->len = len + sizeof(struct eth_hdr);
 	txs->flags = rxs->flags = NS_BUF_CHANGED;
-	// we don't need to advance the rx ring here, w_poll does this
+	// we don't need to advance the rx ring here
 	txr->head = txr->cur = nm_ring_next(txr, txr->cur);
 
 #ifndef NDEBUG

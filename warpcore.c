@@ -70,6 +70,7 @@ static inline void arp_who_has(struct warpcore * const w, const uint32_t dip)
 
 	// send the Ethernet packet
 	eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
+	w_kick_tx(w);
 
 	// make iov available again
 	SLIST_INSERT_HEAD(&w->iov, v, next);
@@ -125,6 +126,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 		if(w_poll(s->w, POLLIN, 200) == false)
 			// interrupt received during poll
 			return;
+		w_kick_rx(s->w);
 		w_rx(s);
 		if(!IS_ZERO(s->dmac))
 			break;
@@ -407,8 +409,8 @@ struct warpcore * w_init(const char * const ifname)
 	w->req.nr_name[sizeof w->req.nr_name - 1] = '\0';
 	w->req.nr_version = NETMAP_API;
 	w->req.nr_ringid &= ~NETMAP_RING_MASK;
-	// for now, we do want poll to also kick the tx ring
-	// w->req.nr_ringid |= (NETMAP_NO_TX_POLL | NETMAP_DO_RX_POLL);
+	// don't always transmit on poll
+	w->req.nr_ringid |= NETMAP_NO_TX_POLL;
 	w->req.nr_flags = NR_REG_ALL_NIC;
 	w->req.nr_arg3 = NUM_EXTRA_BUFS; // request extra buffers
 	if (ioctl(w->fd, NIOCREGIF, &w->req) == -1)

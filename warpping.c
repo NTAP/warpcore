@@ -21,6 +21,7 @@ static void usage(const char * const name, const uint16_t size,
 	printf("\t -d destination IP      peer to connect to\n");
 	printf("\t[-s packet size]        optional, default %d\n", size);
 	printf("\t[-l loop interations]   optional, default %d\n", loops);
+	printf("\t[-b]                    busy-wait\n");
 }
 
 
@@ -53,9 +54,10 @@ int main(int argc, char *argv[])
 	uint32_t loops = 1;
 	uint16_t size = sizeof(struct timeval);
 	bool use_warpcore = true;
+	bool busywait = false;
 
 	int ch;
-	while ((ch = getopt(argc, argv, "hi:d:l:s:k")) != -1) {
+	while ((ch = getopt(argc, argv, "hi:d:l:s:kb")) != -1) {
 		switch (ch) {
                 case 'i':
                         ifname = optarg;
@@ -71,6 +73,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'k':
 			use_warpcore = false;
+			break;
+		case 'b':
+			busywait = true;
 			break;
 		case 'h':
 		case '?':
@@ -123,8 +128,12 @@ int main(int argc, char *argv[])
 			    			  0) == -1))
 				die("clock_gettime");
 			w_tx(ws);
-			if (unlikely(w_poll(w, POLLIN, 100) == false))
+
+			if (!busywait && unlikely(w_poll(w, POLLIN, 100) == false))
 				goto done;
+			else
+				w_kick_rx(w);
+
 			struct w_iov * const i = w_rx(ws);
 			if (unlikely(i == 0)) {
 				log(1, "packet loss?");
@@ -136,15 +145,17 @@ int main(int argc, char *argv[])
 			if (unlikely(gettimeofday((struct timeval *)before,
 			                           0) == -1))
 				die("gettimeofday");
-
 			sendto(ks, before, size, 0, res->ai_addr,
 			       res->ai_addrlen);
-			const int p = poll(&fds, 1, 100);
-			if (unlikely(p == -1))
-				die("poll");
-			else if (unlikely(p == 0)) {
-				log(1, "packet loss?");
-				continue;
+
+			if (!busywait) {
+				const int p = poll(&fds, 1, 100);
+				if (unlikely(p == -1))
+					die("poll");
+				else if (unlikely(p == 0)) {
+					log(1, "packet loss?");
+					continue;
+				}
 			}
 
 			socklen_t fromlen = res->ai_addrlen;

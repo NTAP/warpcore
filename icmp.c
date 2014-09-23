@@ -19,6 +19,7 @@ static void icmp_tx(struct warpcore * w, char * const buf,
 
 	// do IP transmit preparation
 	ip_tx_with_rx_buf(w, IP_P_ICMP, buf, len);
+	w_kick_tx(w);
 }
 
 

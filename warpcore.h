@@ -484,6 +484,14 @@ static inline __attribute__((always_inline)) void w_kick_tx(const struct warpcor
 }
 
 
+// Internal warpcore function. Kick the rx ring.
+static inline __attribute__((always_inline)) void w_kick_rx(const struct warpcore * const w)
+{
+	if (unlikely(ioctl(w->fd, NIOCRXSYNC, 0) == -1))
+		die("cannot kick rx ring");
+}
+
+
 // Prepends all network headers and places s->ov in the tx ring.
 static inline __attribute__((always_inline)) void w_tx(struct w_sock * const s)
 {
