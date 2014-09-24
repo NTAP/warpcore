@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 
 			struct w_iov * const i = w_rx(ws);
 			if (unlikely(i == 0)) {
-				log(1, "packet loss?");
+				log(5, "packet loss?");
 				continue;
 			}
 			after = i->buf;
