@@ -32,8 +32,8 @@
 
 
 struct w_iov {
-	SLIST_ENTRY(w_iov) 	next;	// next iov
 	char *			buf;	// start of user data (inside buffer)
+	SLIST_ENTRY(w_iov) 	next;	// next iov
 	uint32_t		idx;	// index of netmap buffer
 	uint16_t		len;	// length of user data (inside buffer)
 	uint16_t		port;	// sender port (only valid on rx)
@@ -58,28 +58,25 @@ struct w_sock {
 
 
 struct warpcore {
-	// netmap information
-	void *			mem;			// netmap memory
 	struct netmap_if *	nif;			// netmap interface
-	int			fd;			// netmap descriptor
-
-	// warpcore information
-	uint32_t		ip;			// our IP address
-	SLIST_HEAD(iovh, w_iov)	iov;			// our available bufs
-
+	void *			mem;			// netmap memory
 	struct w_sock **	udp;			// UDP "sockets"
 	struct w_sock **	tcp;			// TCP "sockets"
-
-	uint16_t		cur_txr;		// our current tx ring
-	uint16_t		cur_rxr;		// our current rx ring
+	uint32_t		cur_txr;		// our current tx ring
+	uint32_t		cur_rxr;		// our current rx ring
+	SLIST_HEAD(iovh, w_iov)	iov;			// our available bufs
+	uint32_t		ip;			// our IP address
+	uint32_t		bcast;			// our broadcast address
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address
 
+	// mtu could be pushed into the second cacheline
 	uint16_t		mtu;			// our MTU
-	uint32_t		mbps;			// our link speed
+
         // --- cacheline 1 boundary (64 bytes) ---
+	uint32_t		mbps;			// our link speed
 	SLIST_HEAD(sh, w_sock)	sock;			// our open sockets
 	uint32_t		mask;			// our IP netmask
-	uint32_t		bcast;			// our broadcast address
+	int			fd;			// netmap descriptor
 	struct nmreq		req;			// netmap request
 } __attribute__((__aligned__(4)));
 
@@ -189,7 +186,7 @@ static inline __attribute__((always_inline)) void w_rx_done(struct w_sock * cons
 		i = n;
 	}
 	// TODO: should be a no-op; check
-	SLIST_INIT(&s->iv);
+	// SLIST_INIT(&s->iv);
 }
 
 
@@ -220,7 +217,7 @@ static inline __attribute__((always_inline)) void udp_rx(struct warpcore * const
 	const uint16_t len = ntohs(udp->len);
 
 	log(5, "UDP :%d -> :%d, len %ld",
-	    ntohs(udp->sport), ntohs(udp->dport), len - sizeof *udp);
+	    ntohs(udp->sport), ntohs(udp->dport), len - sizeof(struct udp_hdr));
 
 	struct w_sock **s = w_get_sock(w, IP_P_UDP, udp->dport);
 	if (unlikely(*s == 0)) {
@@ -246,8 +243,8 @@ static inline __attribute__((always_inline)) void udp_rx(struct warpcore * const
 	const uint32_t tmp_idx = i->idx;
 
 	// move the received data into the iov
-	i->buf = buf + off + sizeof *udp;
-	i->len = len - sizeof *udp;
+	i->buf = buf + off + sizeof(struct udp_hdr);
+	i->len = len - sizeof(struct udp_hdr);
 	i->idx = rxs->buf_idx;
 
 	// tag the iov with the sender's information
@@ -351,7 +348,7 @@ static inline __attribute__((always_inline)) void eth_rx(struct warpcore * const
 static inline __attribute__((always_inline)) struct w_iov * w_rx(struct w_sock * const s)
 {
 	// loop over all rx rings starting with cur_rxr and wrapping around
-	for (uint16_t i = 0; likely(i < s->w->nif->ni_rx_rings); i++) {
+	for (uint32_t i = 0; likely(i < s->w->nif->ni_rx_rings); i++) {
 		struct netmap_ring * const r =
 			NETMAP_RXRING(s->w->nif, s->w->cur_rxr);
 		while (likely(!nm_ring_empty(r))) {
@@ -373,7 +370,7 @@ static inline __attribute__((always_inline)) bool eth_tx(struct warpcore *w, str
 {
 	// check if there is space in the current txr
 	struct netmap_ring *txr = 0;
-	uint16_t i;
+	uint32_t i;
 	for (i = 0; i < w->nif->ni_tx_rings; i++) {
 		txr = NETMAP_TXRING(w->nif, w->cur_txr);
 		if (likely(nm_ring_space(txr)))
@@ -436,7 +433,7 @@ static inline __attribute__((always_inline)) bool ip_tx(struct warpcore * w, str
 
 	// fill in remaining header fields
 	ip->len = htons(l);
-	ip->id = random(); // no need to do htons() for random value
+	ip->id = (uint16_t)random(); // no need to do htons() for random value
 	ip->cksum = in_cksum(ip, sizeof *ip); // IP checksum is over header only
 
 #ifndef NDEBUG

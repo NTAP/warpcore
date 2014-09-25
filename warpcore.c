@@ -246,7 +246,7 @@ void w_cleanup(struct warpcore * const w)
 	log(3, "warpcore shutting down");
 
 	// clean out all the tx rings
-	for (uint16_t i = 0; i < w->nif->ni_rx_rings; i++) {
+	for (uint32_t i = 0; i < w->nif->ni_rx_rings; i++) {
 		struct netmap_ring * const txr =
 			NETMAP_TXRING(w->nif, w->cur_txr);
 		while (nm_tx_pending(txr)) {
@@ -359,7 +359,7 @@ struct warpcore * w_init(const char * const ifname)
 				w->mtu = (uint16_t)((struct if_data *)
 					 (i->ifa_data))->ifi_mtu;
 				// get link speed
-				w->mbps = (uint64_t)((struct if_data *)
+				w->mbps = (uint32_t)((struct if_data *)
 					  (i->ifa_data))->ifi_baudrate/1000000;
 
 				if (((uint8_t)((struct if_data *)(i->ifa_data))->ifi_link_state) != LINK_STATE_UP)
@@ -418,8 +418,14 @@ struct warpcore * w_init(const char * const ifname)
 
 	// mmap the buffer region
 	// TODO: see TODO in nm_open() in netmap_user.h
+	const int flags =
+#ifdef __linux__
+		MAP_POPULATE|MAP_HUGETLB|MAP_LOCKED;
+#else
+		MAP_PREFAULT_READ|MAP_NOSYNC|MAP_ALIGNED_SUPER;
+#endif
 	if ((w->mem = mmap(0, w->req.nr_memsize, PROT_WRITE|PROT_READ,
-	    MAP_SHARED, w->fd, 0)) == MAP_FAILED)
+	    MAP_SHARED|flags, w->fd, 0)) == MAP_FAILED)
 		die("cannot mmap netmap memory");
 
 	// direct pointer to the netmap interface struct for convenience
