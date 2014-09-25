@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
 		          ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr,
 		          ((struct sockaddr_in *)res->ai_addr)->sin_port);
 	} else {
+		w_init_common();
 	   	ks = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	   	if (ks == -1)
 	   		die("socket");

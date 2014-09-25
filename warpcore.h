@@ -81,8 +81,10 @@ struct warpcore {
 } __attribute__((__aligned__(4)));
 
 
-// see udp.c for documentation of functions
+// see warpcore.c for documentation of functions
 extern struct warpcore * w_init(const char * const ifname);
+
+extern void w_init_common(void);
 
 extern void w_cleanup(struct warpcore * const w);
 

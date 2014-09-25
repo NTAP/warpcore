@@ -303,6 +303,56 @@ static void w_sigint(int sig __attribute__((__unused__)))
        signal(SIGINT, SIG_DFL);
 }
 
+
+void w_init_common(void)
+{
+	// initialize random generator
+#ifdef __linux__
+	srandom(time(0));
+#else
+	srandomdev();
+#endif
+
+	// Set CPU affinity to highest core
+	int i;
+#ifdef __linux__
+	cpu_set_t myset;
+	if (sched_getaffinity(0, sizeof(cpu_set_t), &myset) == -1)
+		die("sched_getaffinity");
+#else
+	cpuset_t myset;
+	if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
+	    sizeof(cpuset_t), &myset) == -1)
+		die("cpuset_getaffinity");
+#endif
+
+	// Find last available CPU
+	for (i = CPU_SETSIZE-1; i >= 0; i--)
+		if (CPU_ISSET(i, &myset))
+			break;
+	if (i == 0)
+		die("not allowed to run on any CPUs!?");
+
+	// Set new CPU mask
+	log(1, "setting affinity to CPU %d", i);
+	CPU_ZERO(&myset);
+	CPU_SET(i, &myset);
+
+#ifdef __linux__
+	if (sched_setaffinity(0, sizeof(myset), &myset) == -1)
+		die("sched_setaffinity");
+#else
+	if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
+	    sizeof(cpuset_t), &myset) == -1)
+		die("cpuset_setaffinity");
+#endif
+
+	// lock memory
+	if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1)
+		die("mlockall");
+}
+
+
 // Initialize warpcore on the given interface.
 struct warpcore * w_init(const char * const ifname)
 {
@@ -476,50 +526,8 @@ struct warpcore * w_init(const char * const ifname)
 	if ((w->tcp = calloc(UINT16_MAX, sizeof(struct w_sock *))) == 0)
 		die("cannot allocate TCP sockets");
 
-	// initialize random generator
-#ifdef __linux__
-	srandom(time(0));
-#else
-	srandomdev();
-#endif
-
-	// Set CPU affinity to highest core
-	int i;
-#ifdef __linux__
-	cpu_set_t myset;
-	if (sched_getaffinity(0, sizeof(cpu_set_t), &myset) == -1)
-		die("sched_getaffinity");
-#else
-	cpuset_t myset;
-	if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
-	    sizeof(cpuset_t), &myset) == -1)
-		die("cpuset_getaffinity");
-#endif
-
-	// Find last available CPU
-	for (i = CPU_SETSIZE-1; i >= 0; i--)
-		if (CPU_ISSET(i, &myset))
-			break;
-	if (i == 0)
-		die("not allowed to run on any CPUs!?");
-
-	// Set new CPU mask
-	log(1, "setting affinity to CPU %d", i);
-	CPU_ZERO(&myset);
-	CPU_SET(i, &myset);
-
-#ifdef __linux__
-	if (sched_setaffinity(0, sizeof(myset), &myset) == -1)
-		die("sched_setaffinity");
-#else
-	if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
-	    sizeof(cpuset_t), &myset) == -1)
-		die("cpuset_setaffinity");
-#endif
-
-	// lock memory
-	if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1)
-		die("mlockall");
+	// do the common system setup which is also useful for non-warpcore
+	w_init_common();
 
 	// block SIGINT
 	if (signal(SIGINT, w_sigint) == SIG_ERR)
