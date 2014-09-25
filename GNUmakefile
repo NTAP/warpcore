@@ -13,13 +13,15 @@ ifeq ($(CC), gcc49)
 # CFLAGS+=-finline-limit=65535
 CFLAGS+=-Winline
 else
-CFLAGS+=-pedantic -Weverything
 CFLAGS+=-Wno-gnu-zero-variadic-macro-arguments -Wno-padded -Wno-packed
-CFLAGS+=-Wno-missing-prototypes -Wno-cast-align -Wno-conversion
+CFLAGS+=-Wno-cast-align
 endif
 
 ifeq ($(OS), Linux)
 CFLAGS+=-D_GNU_SOURCE -isystem ~/netmap/sys
+else
+CFLAGS+=-pedantic
+CFLAGS+=-Weverything
 endif
 
 # see http://bruno.defraine.net/techtips/makefile-auto-dependencies-with-gcc/
@@ -28,7 +30,7 @@ OUTPUT_OPTION=-MMD -MP -o $@
 # LDLIBS=-pthread
 LDFLAGS=$(CFLAGS)
 
-CSRC=warptest.c warpinetd.c warpping.c
+CSRC=warpinetd.c warpping.c
 COBJ=$(addprefix $(OS)/, $(CSRC:.c=.o))
 CMD=$(COBJ:.o=)
 
