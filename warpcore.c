@@ -443,7 +443,7 @@ struct warpcore * w_init(const char * const ifname)
 	SLIST_INIT(&w->iov);
 	for (uint32_t n = 0, i = w->nif->ni_bufs_head;
 	     n < w->req.nr_arg3; n++) {
-		struct w_iov * const v = malloc(sizeof(struct w_iov));
+		struct w_iov * const v = calloc(1, sizeof(struct w_iov));
 		if (v == 0)
 			die("cannot allocate w_iov");
 		v->buf = IDX2BUF(w, i);
@@ -510,6 +510,10 @@ struct warpcore * w_init(const char * const ifname)
 	    sizeof(cpuset_t), &myset) == -1)
 		die("cpuset_setaffinity");
 #endif
+
+	// lock memory
+	if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1)
+		die("mlockall");
 
 	// block SIGINT
 	if (signal(SIGINT, w_sigint) == SIG_ERR)
