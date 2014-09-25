@@ -357,21 +357,27 @@ void w_init_common(void)
 struct warpcore * w_init(const char * const ifname)
 {
 	struct warpcore *w;
+	bool link_up = false;
 
 	// allocate struct
 	if ((w = calloc(1, sizeof(struct warpcore))) == 0)
 		die("cannot allocate struct warpcore");
 
-	// get interface information
-	struct ifaddrs *ifap;
-	if (getifaddrs(&ifap) == -1)
-		die("%s: cannot get interface information", ifname);
-	for (const struct ifaddrs *i = ifap; i->ifa_next; i = i->ifa_next) {
-		if (strcmp(i->ifa_name, ifname) == 0) {
+	// we mostly loop here because the link may be down
+	while (link_up == false || IS_ZERO(w->mac) ||
+	       w->mtu == 0 || w->mbps == 0 || w->ip == 0 || w->mask == 0) {
+
+		// get interface information
+		struct ifaddrs *ifap;
+		if (getifaddrs(&ifap) == -1)
+			die("%s: cannot get interface information", ifname);
+
+		for (const struct ifaddrs *i = ifap; i->ifa_next;
+		     i = i->ifa_next) {
+			if (strcmp(i->ifa_name, ifname) != 0)
+				continue;
 #ifndef NDEBUG
 			char mac[ETH_ADDR_STRLEN];
-			char ip[IP_ADDR_STRLEN];
-			char mask[IP_ADDR_STRLEN];
 #endif
 			switch (i->ifa_addr->sa_family) {
 #ifdef __linux__
@@ -380,6 +386,7 @@ struct warpcore * w_init(const char * const ifname)
 				memcpy(&w->mac,
 				       ((struct sockaddr_ll *)i->ifa_addr)->sll_addr,
 				       ETH_ADDR_LEN);
+
 				// get MTU
 				int s;
 				struct ifreq ifr;
@@ -390,6 +397,7 @@ struct warpcore * w_init(const char * const ifname)
 				if (ioctl(s, SIOCGIFMTU, &ifr) < 0)
 					die("%s ioctl", ifname);
 				w->mtu = ifr.ifr_ifru.ifru_mtu;
+
 				// get link speed
 				struct ethtool_cmd edata;
 				ifr.ifr_data = (__caddr_t)&edata;
@@ -405,32 +413,29 @@ struct warpcore * w_init(const char * const ifname)
 				       LLADDR((struct sockaddr_dl *)
 					      i->ifa_addr),
 				       ETH_ADDR_LEN);
+
 				// get MTU
 				w->mtu = (uint16_t)((struct if_data *)
 					 (i->ifa_data))->ifi_mtu;
+
 				// get link speed
 				w->mbps = (uint32_t)((struct if_data *)
 					  (i->ifa_data))->ifi_baudrate/1000000;
 
-				if (((uint8_t)((struct if_data *)(i->ifa_data))->ifi_link_state) != LINK_STATE_UP)
-					die("link not up");
+				link_up = (((uint8_t)((struct if_data *)(i->ifa_data))->ifi_link_state) == LINK_STATE_UP);
 #endif
-				log(1, "%s addr %s, MTU %d, speed %dG",
+				log(1, "%s addr %s, MTU %d, speed %dG, link %s",
 				    i->ifa_name,
 				    ether_ntoa_r((struct ether_addr *)w->mac,
-						 mac), w->mtu, w->mbps/1000);
+						 mac), w->mtu, w->mbps/1000,
+				    link_up ? "up" : "down");
 				break;
 			case AF_INET:
 				// get IP addr and netmask
-				if (w->ip == 0) {
-					w->ip = ((struct sockaddr_in *)
-						 i->ifa_addr)->sin_addr.s_addr;
-					w->mask = ((struct sockaddr_in *)
-						   i->ifa_netmask)->sin_addr.s_addr;
-					log(1, "%s has IP addr %s/%s", i->ifa_name,
-					    ip_ntoa(w->ip, ip, IP_ADDR_STRLEN),
-					    ip_ntoa(w->mask, mask, IP_ADDR_STRLEN));
-				}
+				w->ip = ((struct sockaddr_in *)
+					 i->ifa_addr)->sin_addr.s_addr;
+				w->mask = ((struct sockaddr_in *)
+					   i->ifa_netmask)->sin_addr.s_addr;
 				break;
 			default:
 				log(3, "ignoring unknown addr family %d on %s",
@@ -438,13 +443,20 @@ struct warpcore * w_init(const char * const ifname)
 				break;
 			}
 		}
+		freeifaddrs(ifap);
+		sleep(1);
 	}
-	freeifaddrs(ifap);
 	if (w->ip == 0 || w->mask == 0 || w->mtu == 0 || IS_ZERO(w->mac))
 		die("%s: cannot obtain needed interface information", ifname);
 
 	w->bcast = w->ip | (~w->mask);
+
 #ifndef NDEBUG
+	char ip[IP_ADDR_STRLEN];
+	char mask[IP_ADDR_STRLEN];
+	log(1, "%s has IP addr %s/%s", ifname,
+	    ip_ntoa(w->ip, ip, IP_ADDR_STRLEN),
+	    ip_ntoa(w->mask, mask, IP_ADDR_STRLEN));
 	char bcast[IP_ADDR_STRLEN];
 	log(1, "%s has IP broadcast addr %s", ifname,
 	    ip_ntoa(w->bcast, bcast, IP_ADDR_STRLEN));
