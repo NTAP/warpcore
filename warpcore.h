@@ -5,6 +5,7 @@
 #include <sys/queue.h>
 #include <poll.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 
 #include <net/netmap_user.h>
 
@@ -73,14 +74,12 @@ struct warpcore {
 	uint16_t		cur_rxr;		// our current rx ring
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address
 
-        // XXX 4 bytes hole, try to pack
-        // --- cacheline 1 boundary (64 bytes) ---
-
 	uint16_t		mtu;			// our MTU
+	uint32_t		mbps;			// our link speed
+        // --- cacheline 1 boundary (64 bytes) ---
 	SLIST_HEAD(sh, w_sock)	sock;			// our open sockets
 	uint32_t		mask;			// our IP netmask
 	uint32_t		bcast;			// our broadcast address
-	uint32_t		mbps;			// our link speed
 	struct nmreq		req;			// netmap request
 } __attribute__((__aligned__(4)));
 
