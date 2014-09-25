@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #define u_short uint16_t
 #define u_char uint8_t
+extern uint16_t in_cksum(const void * const buf, const uint16_t len);
 #endif
 
 /*

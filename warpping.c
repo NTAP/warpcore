@@ -13,14 +13,14 @@
 
 
 static void usage(const char * const name, const uint16_t size,
-                  const uint32_t loops)
+                  const long loops)
 {
 	printf("%s\n", name);
 	printf("\t[-k]                    use kernel, default is warpcore\n");
 	printf("\t -i interface           interface to run over\n");
 	printf("\t -d destination IP      peer to connect to\n");
 	printf("\t[-s packet size]        optional, default %d\n", size);
-	printf("\t[-l loop interations]   optional, default %d\n", loops);
+	printf("\t[-l loop interations]   optional, default %ld\n", loops);
 	printf("\t[-b]                    busy-wait\n");
 }
 
@@ -31,12 +31,12 @@ static void tv_diff(struct timeval * const r, struct timeval * const x,
 {
 	// Perform the carry for the later subtraction by updating y
 	if (x->tv_usec < y->tv_usec) {
-		const int usec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+		const long usec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
 		y->tv_usec -= 1000000 * usec;
 		y->tv_sec += usec;
 	}
 	if (x->tv_usec - y->tv_usec > 1000000) {
-		const int usec = (x->tv_usec - y->tv_usec) / 1000000;
+		const long usec = (x->tv_usec - y->tv_usec) / 1000000;
 		y->tv_usec += 1000000 * usec;
 		y->tv_sec -= usec;
 	}
@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 {
 	const char *ifname = 0;
 	const char *dst = 0;
-	uint32_t loops = 1;
+	long loops = 1;
 	uint16_t size = sizeof(struct timeval);
 	bool use_warpcore = true;
 	bool busywait = false;
@@ -69,7 +69,8 @@ int main(int argc, char *argv[])
 			loops = strtol(optarg, 0, 10);
 			break;
 		case 's':
-			size = MAX(size, strtol(optarg, 0, 10));
+			size = (uint16_t)MIN(UINT16_MAX,
+			                     MAX(size, strtol(optarg, 0, 10)));
 			break;
 		case 'k':
 			use_warpcore = false;
@@ -105,7 +106,7 @@ int main(int argc, char *argv[])
 	char *after = 0;
 	if (use_warpcore) {
 		w = w_init(ifname);
-		ws = w_bind(w, IP_P_UDP, random());
+		ws = w_bind(w, IP_P_UDP, (uint16_t)random());
 		w_connect(ws,
 		          ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr,
 		          ((struct sockaddr_in *)res->ai_addr)->sin_port);

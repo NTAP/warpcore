@@ -48,7 +48,7 @@ void ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 
 	// set other header fields
 	ip->p = p;
-	ip->id = random(); // no need to do htons() for random value
+	ip->id = (uint16_t)random(); // no need to do htons() for random value
 
 	// TODO: we should zero out any IP options here,
 	// since we're reflecing a received packet

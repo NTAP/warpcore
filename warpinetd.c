@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 			log(5, "daytime %d bytes in buf %d", i->len, i->idx);
 			const time_t t = time(0);
 			const char *c = ctime(&t);
-			const size_t l = strlen(c);
+			const uint32_t l = (uint32_t)strlen(c);
 			struct w_iov *o = w_tx_alloc(dtm, l);
 			memcpy(o->buf, c, l);
 			w_connect(dtm, i->ip, i->port);
