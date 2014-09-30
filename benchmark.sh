@@ -3,20 +3,23 @@
 set -e
 
 iface=ix0
-peeriface=ix0
-# iface=igb0
-# peeriface=igb0
+piface=ix0
+#iface=igb0
+#piface=igb0
 peer=mora2
-peerip=$(ssh $peer "ifconfig $peeriface | grep 'inet ' | cut -f 2 -d' '")
+peerip=$(ssh $peer "ifconfig $piface | grep 'inet ' | cut -f 2 -d' '")
+loops=10000
+
+busywait=-b
 
 run () {
 	local flag
 	if [ "$1" == "kern" ]; then
 		flag=-k
 	fi
-	local cmd="FreeBSD/warpping -i $iface -d $peerip -l 10000"
-	# for (( size=16; size <= 1458; size+=103)); do
-	for (( size=16; size <= 1458; size+=303)); do
+	local cmd="FreeBSD/warpping -i $iface -d $peerip -l $loops $busywait"
+	for (( size=16; size <= 1458; size+=103)); do
+	#for (( size=16; size <= 1458; size+=303)); do
 		echo "Running $1 size $size"
 		$cmd $flag -s $size > "$1.$size.txt"
 	done
@@ -24,12 +27,12 @@ run () {
 
 
 if [ -z "$(/sbin/ifconfig $iface | grep 'inet ')" ]; then
-	echo local interface has no IP
+	echo local interface has no IP address
 	exit
 fi
 
 if [ -z "$peerip" ]; then
-        echo remote interface has no IP
+        echo remote interface has no IP address
         exit
 fi
 
@@ -37,14 +40,21 @@ rm kern*.txt warp*.txt > /dev/null 2>&1 || true
 
 # kill dhclient during the time the interfaces are in netmap mode
 sudo pkill -f "dhclient.*$iface" || true
-ssh $peer "sudo pkill -f 'dhclient.*$peeriface'" || true
+sudo sysctl hw.ix.enable_aim=0 || true
+sudo cpuset -l 1 -p $(pgrep ^inetd)
 
-ssh $peer "sudo pkill -INT warpinetd; cd ~/warpcore; nohup FreeBSD/warpinetd -i $peeriface > warpinetd.log 2>&1 &"
+ssh $peer "sudo pkill -f 'dhclient.*$piface'" || true
+ssh $peer "pkill -INT -f warpinetd; pkill -INT -f warpinetd" || true
+ssh $peer "sudo sysctl hw.ix.enable_aim=0" || true
+ssh $peer 'sudo cpuset -l 1 -p $(pgrep ^inetd)' || true
+
+ssh $peer "cd ~/warpcore; nohup FreeBSD/warpinetd -i $piface $busywait > warpinetd.log 2>&1 &" || true
 run warp
-ssh $peer "sudo pkill -INT warpinetd" || true
+ssh $peer "pkill -INT -f warpinetd; pkill -INT -f warpinetd" || true
+
 sleep 3
 run kern
 
 # restart dhclient
 sudo dhclient $iface
-ssh $peer "sudo dhclient $peeriface"
+ssh $peer "sudo dhclient $piface" || true
