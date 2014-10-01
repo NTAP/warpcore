@@ -188,7 +188,7 @@ static inline __attribute__((always_inline)) void w_rx_done(struct w_sock * cons
 		i = n;
 	}
 	// TODO: should be a no-op; check
-	// SLIST_INIT(&s->iv);
+	SLIST_INIT(&s->iv);
 }
 
 
@@ -283,7 +283,8 @@ static inline __attribute__((always_inline)) void ip_rx(struct warpcore * const 
 
 	// make sure the packet is for us (or broadcast)
 	if (unlikely(ip->dst != w->ip && ip->dst != w->bcast)) {
-		log(1, "IP packet to %s (not us); ignoring",
+		log(1, "IP packet from %s to %s (not us); ignoring",
+		    ip_ntoa(ip->src, src, sizeof src),
 		    ip_ntoa(ip->dst, dst, sizeof dst));
 		return;
 	}
@@ -353,14 +354,14 @@ static inline __attribute__((always_inline)) struct w_iov * w_rx(struct w_sock *
 	for (uint32_t i = 0; likely(i < s->w->nif->ni_rx_rings); i++) {
 		struct netmap_ring * const r =
 			NETMAP_RXRING(s->w->nif, s->w->cur_rxr);
-		while (likely(!nm_ring_empty(r))) {
+		while (!nm_ring_empty(r)) {
 			eth_rx(s->w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
 			r->head = r->cur = nm_ring_next(r, r->cur);
 		}
 		s->w->cur_rxr = (s->w->cur_rxr + 1) % s->w->nif->ni_rx_rings;
 	}
 
-	if (likely(s))
+	if (s)
 		return SLIST_FIRST(&s->iv);
 	return 0;
 }
