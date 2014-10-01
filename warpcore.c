@@ -498,7 +498,7 @@ w_init(const char * const ifname)
 	// TODO: see TODO in nm_open() in netmap_user.h
 	const int flags =
 #ifdef __linux__
-		MAP_POPULATE|MAP_HUGETLB|MAP_LOCKED;
+		MAP_POPULATE|MAP_LOCKED;
 #else
 		MAP_PREFAULT_READ|MAP_NOSYNC|MAP_ALIGNED_SUPER;
 #endif
