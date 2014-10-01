@@ -412,6 +412,12 @@ w_init(const char * const ifname)
 				if (ioctl(s, SIOCETHTOOL, &ifr) < 0)
 					die("%s ioctl", ifname);
 				w->mbps = ethtool_cmd_speed(&edata);
+
+				// get link status
+				if (ioctl(s, SIOCGIFFLAGS, &ifr) < 0)
+					die("%s ioctl", ifname);
+				link_up = (ifr.ifr_flags & IFF_UP) &&
+					  (ifr.ifr_flags & IFF_RUNNING);
 				close(s);
 #else
 			case AF_LINK:
@@ -429,6 +435,7 @@ w_init(const char * const ifname)
 				w->mbps = (uint32_t)((struct if_data *)
 					  (i->ifa_data))->ifi_baudrate/1000000;
 
+				// get link status
 				link_up = (((uint8_t)((struct if_data *)
 				           (i->ifa_data))->ifi_link_state) ==
 					   LINK_STATE_UP);
