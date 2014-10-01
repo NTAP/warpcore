@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
 				die("clock_gettime");
 			w_tx(ws);
 
-			if (!busywait && unlikely(w_poll(w, POLLIN, 100) == false))
+			if (!busywait && unlikely(!w_poll(w, POLLIN, 100)))
 				goto done;
 			else
 				w_kick_rx(w);

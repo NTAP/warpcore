@@ -30,7 +30,8 @@
 
 // Use a spare iov to transmit an ARP query for the given destination
 // IP address.
-static inline void arp_who_has(struct warpcore * const w, const uint32_t dip)
+static inline void
+arp_who_has(struct warpcore * const w, const uint32_t dip)
 {
 	// grab a spare buffer
 	struct w_iov * const v = SLIST_FIRST(&w->iov);
@@ -78,7 +79,8 @@ static inline void arp_who_has(struct warpcore * const w, const uint32_t dip)
 
 
 // Close a warpcore socket, making all its iovs available again.
-void w_close(struct w_sock * const s)
+void
+w_close(struct w_sock * const s)
 {
 	struct w_sock **ss = w_get_sock(s->w, s->p, s->sport);
 
@@ -107,8 +109,8 @@ void w_close(struct w_sock * const s)
 
 
 // Connect a bound socket to a remote IP address and port.
-void w_connect(struct w_sock * const s, const uint32_t dip,
-	       const uint16_t dport)
+void
+w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 {
 #ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
@@ -159,8 +161,8 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 
 
 // Bind a socket for the given IP protocol and local port number.
-struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
-		       const uint16_t port)
+struct w_sock *
+w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 {
 	struct w_sock **s = w_get_sock(w, p, port);
 	if (*s) {
@@ -221,8 +223,8 @@ struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
 
 // Helper function for w_cleanup that links together extra bufs allocated
 // by netmap in the strange format it requires to free them correctly.
-static const struct w_iov * w_chain_extra_bufs(const struct warpcore * const w,
-					       const struct w_iov *v)
+static const struct w_iov *
+w_chain_extra_bufs(const struct warpcore * const w, const struct w_iov *v)
 {
 	const struct w_iov * n;
 	do {
@@ -241,7 +243,8 @@ static const struct w_iov * w_chain_extra_bufs(const struct warpcore * const w,
 
 
 // Shut down warpcore cleanly.
-void w_cleanup(struct warpcore * const w)
+void
+w_cleanup(struct warpcore * const w)
 {
 	log(3, "warpcore shutting down");
 
@@ -298,14 +301,16 @@ void w_cleanup(struct warpcore * const w)
 
 
 // Interrupt handler.
-static void w_handler(int sig __attribute__((__unused__)))
+static void
+w_handler(int sig __attribute__((__unused__)))
 {
        signal(SIGINT, SIG_DFL);
        signal(SIGTERM, SIG_DFL);
 }
 
 
-void w_init_common(void)
+void
+w_init_common(void)
 {
 	// initialize random generator
 #ifdef __linux__
@@ -355,7 +360,8 @@ void w_init_common(void)
 
 
 // Initialize warpcore on the given interface.
-struct warpcore * w_init(const char * const ifname)
+struct warpcore *
+w_init(const char * const ifname)
 {
 	struct warpcore *w;
 	bool link_up = false;
@@ -385,8 +391,8 @@ struct warpcore * w_init(const char * const ifname)
 			case AF_PACKET:
 				// get MAC addr
 				memcpy(&w->mac,
-				       ((struct sockaddr_ll *)i->ifa_addr)->sll_addr,
-				       ETH_ADDR_LEN);
+				       ((struct sockaddr_ll *)i->ifa_addr)
+				       ->sll_addr, ETH_ADDR_LEN);
 
 				// get MTU
 				int s;

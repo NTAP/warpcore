@@ -48,7 +48,8 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 	char dst[ETH_ADDR_STRLEN];
 	log(3, "Eth %s -> %s, type %d",
 	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
-	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst), ntohs(eth->type));
+	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+	    ntohs(eth->type));
 #endif
 }
 
