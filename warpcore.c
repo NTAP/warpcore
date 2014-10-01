@@ -123,7 +123,7 @@ void w_connect(struct w_sock * const s, const uint32_t dip,
 		log(3, "doing ARP lookup for %s",
 		    ip_ntoa(dip, str, IP_ADDR_STRLEN));
 		arp_who_has(s->w, dip);
-		if(w_poll(s->w, POLLIN, 200) == false)
+		if(w_poll(s->w, POLLIN, 1000) == false)
 			// interrupt received during poll
 			return;
 		w_kick_rx(s->w);
@@ -298,9 +298,10 @@ void w_cleanup(struct warpcore * const w)
 
 
 // Interrupt handler.
-static void w_sigint(int sig __attribute__((__unused__)))
+static void w_handler(int sig __attribute__((__unused__)))
 {
        signal(SIGINT, SIG_DFL);
+       signal(SIGTERM, SIG_DFL);
 }
 
 
@@ -543,9 +544,11 @@ struct warpcore * w_init(const char * const ifname)
 	// do the common system setup which is also useful for non-warpcore
 	w_init_common();
 
-	// block SIGINT
-	if (signal(SIGINT, w_sigint) == SIG_ERR)
-		die("cannot register signal handler");
+	// block SIGINT and SIGTERM
+	if (signal(SIGINT, w_handler) == SIG_ERR)
+		die("cannot register SIGINT handler");
+	if (signal(SIGTERM, w_handler) == SIG_ERR)
+		die("cannot register SIGTERM handler");
 
 	return w;
 }
