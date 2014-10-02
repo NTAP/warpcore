@@ -1,3 +1,5 @@
+#! /usr/bin/env Rscript
+
 printf <- function(...) cat(sprintf(...))
 
 import <- function(kind) {
