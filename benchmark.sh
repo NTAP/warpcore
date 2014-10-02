@@ -7,9 +7,9 @@ piface=ix0
 # iface=igb0
 # piface=igb0
 iname=$(echo $iface | tr -d 0-9)
-peer=mora2
-peerip=$(ssh $peer "ifconfig $piface | grep 'inet ' | cut -f 2 -d' '")
-loops=10000
+peer=six
+peerip=$(ssh $peer "/sbin/ifconfig $piface | grep 'inet ' | cut -f 2 -d' '")
+loops=100000
 
 busywait=-b
 
@@ -20,10 +20,13 @@ run () {
 	fi
 	local cmd="FreeBSD/warpping -i $iface -d $peerip -l $loops $busywait"
 	for (( size=16; size <= 1458; size+=103)); do
-	#for (( size=16; size <= 1458; size+=303)); do
+	# for (( size=16; size <= 1458; size+=303)); do
 		echo "Running $1 size $size"
-		$cmd $flag -s $size > "$1.$size.txt"
+		$cmd $flag -s $size >> "$1.txt"
 	done
+	echo "us	codeus	size" > $1.new
+	grep -v codeus $1.txt >> $1.new
+	mv $1.new $1.txt
 }
 
 
