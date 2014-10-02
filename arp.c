@@ -16,16 +16,17 @@
 
 // This modifies the ARP query in the current receive buffer into an ARP reply
 // and sends it out.
-static void arp_is_at(struct warpcore * w, char * const buf)
+static void
+arp_is_at(struct warpcore * w, char * const buf)
 {
 	struct arp_hdr * const arp =
 		(struct arp_hdr * const)(buf + sizeof(struct eth_hdr));
 #ifndef NDEBUG
-	char sha[ETH_ADDR_STRLEN];
-	char spa[IP_ADDR_STRLEN];
+	char tha[ETH_ADDR_STRLEN];
+	char tpa[IP_ADDR_STRLEN];
 	log(3, "ARP reply %s is at %s",
-	    ip_ntoa(arp->spa, spa, sizeof spa),
-	    ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
+	    ip_ntoa(arp->tpa, tpa, sizeof tpa),
+	    ether_ntoa_r((const struct ether_addr *)arp->tha, tha));
 #endif
 
 	// modify ARP header
@@ -42,7 +43,8 @@ static void arp_is_at(struct warpcore * w, char * const buf)
 
 
 // Receive an ARP packet, and react
-void arp_rx(struct warpcore * w, char * const buf)
+void
+arp_rx(struct warpcore * w, char * const buf)
 {
 #ifndef NDEBUG
 	char tpa[IP_ADDR_STRLEN];
