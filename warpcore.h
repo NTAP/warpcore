@@ -127,6 +127,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 		if (unlikely(v == 0))
 			die("out of spare bufs after grabbing %d", n);
 		SLIST_REMOVE_HEAD(&s->w->iov, next);
+		log(5, "grabbing spare buf %d for user tx", v->idx);
 		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
 		v->len = s->w->mtu - hdr_len;
 		l -= v->len;
@@ -143,7 +144,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 	// adjust length of last iov so chain is the exact length requested
 	v->len += l; // l is negative
 
-	log(3, "allocating iovec (len %d in %d bufs) for user tx", len, n);
+	log(3, "allocating iov (len %d in %d bufs) for user tx", len, n);
 
 	return SLIST_FIRST(&s->ov);
 }
@@ -245,8 +246,8 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
 	SLIST_REMOVE_HEAD(&w->iov, next);
 
-	// log("swapping rx slot %d (buf %d) and spare buf %d",
-	//     rxr->cur, rxs->buf_idx, i->idx);
+	log(5, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
+	    w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
 
 	// remember index of this buffer
 	const uint32_t tmp_idx = i->idx;
@@ -267,7 +268,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	// TODO: XXX this needs to insert at the tail!
 	SLIST_INSERT_HEAD(&(*s)->iv, i, next);
 
-	// use the original buffer in the iov for the receive ring
+	// put the original buffer of the iov into the receive ring
 	rxs->buf_idx = tmp_idx;
 	rxs->flags = NS_BUF_CHANGED;
 }
@@ -404,7 +405,7 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 
 	struct netmap_slot * const txs = &txr->slot[txr->cur];
 
-	log(5, "placing iov %d in tx ring %d slot %d (current buf %d)",
+	log(5, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
 	    v->idx, w->cur_txr, txr->cur, txs->buf_idx);
 
 	// place v in the current tx ring
