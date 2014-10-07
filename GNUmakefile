@@ -1,14 +1,23 @@
 OS=$(shell uname -s)
 
+# parallelize the build
+ifeq ($(OS), Linux)
+NPROCS:=$(shell grep -c ^processor /proc/cpuinfo)
+else
+NPROCS:=$(shell sysctl -n hw.ncpu)
+endif
+MAKEFLAGS+="-j -l $(NPROCS)"
+
 CC=cc
 
+# CFLAGS for all compilers
 CFLAGS+=-pipe -std=c11
 CFLAGS+=-Ofast -march=native -fno-strict-aliasing
 CFLAGS+=-Wall -Wextra -fdiagnostics-color=auto
-CFLAGS+=-g
-# -pg -ftrapv -DDLEVEL=10
+CFLAGS+=-g -pg -ftrapv -DDLEVEL=10
 # CFLAGS+=-DNDEBUG
 
+# additional CFLAGS that are compiler-specific
 ifeq ($(CC), gcc49)
 # CFLAGS+=-finline-limit=65535
 CFLAGS+=-Winline
@@ -17,11 +26,11 @@ CFLAGS+=-Wno-gnu-zero-variadic-macro-arguments -Wno-padded -Wno-packed
 CFLAGS+=-Wno-cast-align
 endif
 
+# additional CFLAGS that are platform-specific
 ifeq ($(OS), Linux)
 CFLAGS+=-D_GNU_SOURCE -isystem ~/netmap/sys
 else
-CFLAGS+=-pedantic
-CFLAGS+=-Weverything
+CFLAGS+=-pedantic -Weverything
 endif
 
 # see http://bruno.defraine.net/techtips/makefile-auto-dependencies-with-gcc/
