@@ -44,6 +44,7 @@ enum dlevel { crit, err, warn, notice, info, debug };
 #else
 
 #define dlog(fmt, ...)	do {} while (0)
+#define drlog(fmt, ...)	do {} while (0)
 
 #endif
 
