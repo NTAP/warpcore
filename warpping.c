@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 			else
 				w_kick_rx(w);
 
-			if (w->interrupt)
+			if (unlikely(w->interrupt))
 				goto done;
 
 			struct w_iov * const i = w_rx(ws);
