@@ -117,9 +117,11 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 {
 #ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
-	dlog(notice, "connect IP proto %d dst %s port %d", s->p,
-	     ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
 #endif
+	if (s->dip == dip && s->dport == dport)
+		// already connected to that peer
+		return;
+
 	s->dip = dip;
 	s->dport = dport;
 
@@ -364,7 +366,7 @@ w_init_common(void)
 		die("not allowed to run on any CPUs!?");
 
 	// Set new CPU mask
-	dlog(notice, "setting affinity to CPU %d", i);
+	dlog(info, "setting affinity to CPU %d", i);
 	CPU_ZERO(&myset);
 	CPU_SET(i, &myset);
 
@@ -464,14 +466,14 @@ w_init(const char * const ifname)
 
 				// get link status
 				link_up = (((uint8_t)((struct if_data *)
-				           (i->ifa_data))->ifi_link_state) ==
+					   (i->ifa_data))->ifi_link_state) ==
 					   LINK_STATE_UP);
 #endif
 				dlog(notice,
 				     "%s addr %s, MTU %d, speed %dG, link %s",
 				     i->ifa_name,
 				     ether_ntoa_r((struct ether_addr *)w->mac,
-					 	 mac), w->mtu, w->mbps/1000,
+						 mac), w->mtu, w->mbps/1000,
 				     link_up ? "up" : "down");
 				break;
 			case AF_INET:

@@ -87,7 +87,7 @@ struct warpcore {
 	// mtu could be pushed into the second cacheline
 	uint16_t		mtu;			// our MTU
 
-        // --- cacheline 1 boundary (64 bytes) ---
+	// --- cacheline 1 boundary (64 bytes) ---
 	uint32_t		mbps;			// our link speed
 	SLIST_HEAD(sh, w_sock)	sock;			// our open sockets
 	uint32_t		mask;			// our IP netmask
@@ -104,10 +104,10 @@ extern void w_init_common(void);
 extern void w_cleanup(struct warpcore * const w);
 
 extern struct w_sock * w_bind(struct warpcore * const w, const uint8_t p,
-                              const uint16_t port);
+			      const uint16_t port);
 
 extern void w_connect(struct w_sock * const s, const uint32_t ip,
-                      const uint16_t port);
+		      const uint16_t port);
 
 extern void w_close(struct w_sock * const s);
 
@@ -142,7 +142,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 		if (unlikely(v == 0))
 			die("out of spare bufs after grabbing %d", n);
 		SLIST_REMOVE_HEAD(&s->w->iov, next);
-		dlog(info, "grabbing spare buf %d for user tx", v->idx);
+		dlog(debug, "grabbing spare buf %d for user tx", v->idx);
 		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
 		v->len = s->w->mtu - hdr_len;
 		l -= v->len;
@@ -231,7 +231,7 @@ w_rx_done(struct w_sock * const s)
 // Receive a UDP packet.
 static inline __always_inline void
 udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
-            const uint32_t ip)
+	    const uint32_t ip)
 {
 	const struct udp_hdr * const udp =
 		(const struct udp_hdr * const)(buf + off);
@@ -257,7 +257,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
 	SLIST_REMOVE_HEAD(&w->iov, next);
 
-	dlog(info, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
+	dlog(debug, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
 	     w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
 
 	// remember index of this buffer
@@ -299,7 +299,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 #ifndef NDEBUG
 	char dst[IP_ADDR_STRLEN];
 	char src[IP_ADDR_STRLEN];
-	dlog(notice, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
+	dlog(info, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
 	     ip_ntoa(ip->src, src, sizeof src),
 	     ip_ntoa(ip->dst, dst, sizeof dst),
 	     ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
@@ -349,7 +349,7 @@ eth_rx(struct warpcore * const w, char * const buf)
 #ifndef NDEBUG
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	dlog(notice, "Eth %s -> %s, type %d",
+	dlog(info, "Eth %s -> %s, type %d",
 	     ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	     ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
 	     ntohs(eth->type));
@@ -382,8 +382,8 @@ w_rx(struct w_sock * const s)
 			NETMAP_RXRING(s->w->nif, s->w->cur_rxr);
 		while (!nm_ring_empty(r)) {
 			// prefetch the next slot into the cache
-			_mm_prefetch(NETMAP_BUF(r, r->slot[r->cur + 1].buf_idx),
-			             _MM_HINT_T0);
+			_mm_prefetch(NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx),
+				     _MM_HINT_T1);
 
 			// process the current slot
 			eth_rx(s->w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
@@ -411,9 +411,11 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 		if (likely(nm_ring_space(txr)))
 			// we have space in this ring
 			break;
-		else
+		else {
 			// current txr is full, try next
 			w->cur_txr = (w->cur_txr + 1) % w->nif->ni_tx_rings;
+			dlog(warn, "moving to tx ring %d", w->cur_txr);
+		}
 	}
 
 	// return false if all rings are full
@@ -426,10 +428,11 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 	struct netmap_slot * const txs = &txr->slot[txr->cur];
 
 	// prefetch the next slot into the cache, too
-	_mm_prefetch(NETMAP_BUF(txr, txr->slot[txr->cur + 1].buf_idx),
-	             _MM_HINT_T0);
+	_mm_prefetch(NETMAP_BUF(txr,
+				txr->slot[nm_ring_next(txr, txr->cur)].buf_idx),
+		     _MM_HINT_T1);
 
-	dlog(info, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
+	dlog(debug, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
 	     v->idx, w->cur_txr, txr->cur, txs->buf_idx);
 
 	// place v in the current tx ring
@@ -443,7 +446,7 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 		(const struct eth_hdr * const)NETMAP_BUF(txr, txs->buf_idx);
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	dlog(notice, "Eth %s -> %s, type %d, len %ld",
+	dlog(info, "Eth %s -> %s, type %d, len %ld",
 	     ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	     ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
 	     ntohs(eth->type), len + sizeof(struct eth_hdr));
@@ -469,7 +472,7 @@ ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 	char * const start = IDX2BUF(w, v->idx);
 	struct ip_hdr * const ip =
 		(struct ip_hdr * const)(start + sizeof(struct eth_hdr));
- 	const uint16_t l = len + 20; // ip->hl * 4
+	const uint16_t l = len + 20; // ip->hl * 4
 
 	// fill in remaining header fields
 	ip->len = htons(l);
@@ -479,7 +482,7 @@ ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 #ifndef NDEBUG
 	char dst[IP_ADDR_STRLEN];
 	char src[IP_ADDR_STRLEN];
-	dlog(notice, "IP tx buf %d, %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
+	dlog(info, "IP tx buf %d, %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
 	     v->idx, ip_ntoa(ip->src, src, sizeof src),
 	     ip_ntoa(ip->dst, dst, sizeof dst),
 	     ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
@@ -500,7 +503,7 @@ udp_tx(const struct w_sock * const s, struct w_iov * const v)
 
 	struct udp_hdr * const udp =
 		(struct udp_hdr * const)(v->buf - sizeof(struct udp_hdr));
- 	const uint16_t l = v->len + sizeof(struct udp_hdr);
+	const uint16_t l = v->len + sizeof(struct udp_hdr);
 
 	dlog(info, "UDP :%d -> :%d, len %d",
 	     ntohs(udp->sport), ntohs(udp->dport), v->len);
@@ -549,7 +552,7 @@ w_tx(struct w_sock * const s)
 			SLIST_REMOVE_HEAD(&s->ov, next);
 			SLIST_INSERT_HEAD(&s->w->iov, v, next);
 		} else {
-			// no space in ring
+			// no space in rings
 			w_kick_tx(s->w);
 			dlog(warn, "polling for send space");
 			w_poll(s->w, POLLOUT, -1);
