@@ -8,16 +8,17 @@
 
 #ifndef NDEBUG
 
+enum dlevel { crit, err, warn, notice, info, debug };
+
 #ifndef DLEVEL
-#define DLEVEL 1
+#define DLEVEL err
 #endif
 
 #include <sys/time.h>
 
-// these macros are based on the "D" ones defined by netmap
-
-#define log(level, fmt, ...)                                          	\
-	if (DLEVEL >= level) {                                          \
+// These macros are based on the "D" ones defined by netmap
+#define dlog(dlevel, fmt, ...)                                          	\
+	if (DLEVEL >= dlevel) {                                          \
 		struct timeval _lt0;                                	\
 		gettimeofday(&_lt0, 0);                             	\
 		fprintf(stderr, "%03d.%06d %s [%d] " fmt "\n",    	\
@@ -26,8 +27,8 @@
 	}
 
 // Rate limited version of "log", lps indicates how many per second
-#define rlog(level, lps, format, ...)                                 	\
-	if (DLEVEL >= level) {                                          \
+#define drlog(dlevel, lps, format, ...)                                 	\
+	if (DLEVEL >= dlevel) {                                          \
 		static int _rt0, _rcnt;                               	\
 		struct timeval _rts;                              	\
 		gettimeofday(&_rts, 0);                           	\
@@ -40,22 +41,11 @@
 		}                                                 	\
 	}
 
-
-#define die(fmt, ...)                                             	\
-	do {                                                      	\
-		const int e = errno;                              	\
-		if (e) {                                           	\
-			log(0, "abort: " fmt ": %s", ##__VA_ARGS__,    	\
-			     strerror(e));                        	\
-		} else {                                              	\
-			log(0, "abort: " fmt , ##__VA_ARGS__);        	\
-		}							\
-		abort();                                          	\
-	} while (0)
-
 #else
 
-#define log(fmt, ...)	do {} while(0)
+#define dlog(fmt, ...)	do {} while (0)
+
+#endif
 
 #define die(fmt, ...)                                             	\
 	do {                                                      	\
@@ -68,9 +58,6 @@
 			        ##__VA_ARGS__);                         \
 		abort();                                          	\
 	} while (0)
-
-
-#endif
 
 extern void hexdump(const void * const ptr, const unsigned len);
 

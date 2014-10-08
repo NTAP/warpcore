@@ -67,7 +67,7 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
 #ifndef NDEBUG
 	char spa[IP_ADDR_STRLEN];
 	char tpa[IP_ADDR_STRLEN];
-	log(3, "ARP request who has %s tell %s",
+	dlog(notice, "ARP request who has %s tell %s",
 	    ip_ntoa(arp->tpa, tpa, IP_ADDR_STRLEN),
 	    ip_ntoa(arp->spa, spa, IP_ADDR_STRLEN));
 #endif
@@ -90,13 +90,13 @@ w_close(struct w_sock * const s)
 	// make iovs of the socket available again
 	while (!SLIST_EMPTY(&s->iv)) {
 	     struct w_iov * const v = SLIST_FIRST(&s->iv);
-	     log(15, "free iv buf %d", v->idx);
+	     dlog(debug, "free iv buf %d", v->idx);
 	     SLIST_REMOVE_HEAD(&s->iv, next);
 	     SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}
 	while (!SLIST_EMPTY(&s->ov)) {
 	     struct w_iov * const v = SLIST_FIRST(&s->ov);
-	     log(15, "free ov buf %d", v->idx);
+	     dlog(debug, "free ov buf %d", v->idx);
 	     SLIST_REMOVE_HEAD(&s->ov, next);
 	     SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}
@@ -117,7 +117,7 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 {
 #ifndef NDEBUG
 	char str[IP_ADDR_STRLEN];
-	log(3, "connect IP proto %d dst %s port %d", s->p,
+	dlog(notice, "connect IP proto %d dst %s port %d", s->p,
 	    ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
 #endif
 	s->dip = dip;
@@ -125,7 +125,7 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 
 	// find the Ethernet addr of the destination
 	while (IS_ZERO(s->dmac)) {
-		log(3, "doing ARP lookup for %s",
+		dlog(notice, "doing ARP lookup for %s",
 		    ip_ntoa(dip, str, IP_ADDR_STRLEN));
 		arp_who_has(s->w, dip);
 		w_poll(s->w, POLLIN, 1000);
@@ -133,7 +133,7 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 		w_rx(s);
 		if (!IS_ZERO(s->dmac))
 			break;
-		log(1, "no ARP reply, retrying");
+		dlog(warn, "no ARP reply, retrying");
 	}
 
 	// initialize the remaining fields of outgoing template header
@@ -156,7 +156,7 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 	ip->dst = dip;
 	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
 
-	log(3, "IP proto %d socket connected to %s port %d", s->p,
+	dlog(notice, "IP proto %d socket connected to %s port %d", s->p,
 	    ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
 }
 
@@ -167,7 +167,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 {
 	struct w_sock **s = w_get_sock(w, p, port);
 	if (*s) {
-		log(1, "IP proto %d source port %d already in use",
+		dlog(warn, "IP proto %d source port %d already in use",
 		    p, ntohs(port));
 		return 0;
 	}
@@ -216,7 +216,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 	memcpy(eth->src, (*s)->w->mac, ETH_ADDR_LEN);
 	// eth->dst is set on w_connect()
 
-	log(1, "IP proto %d socket bound to port %d", (*s)->p, ntohs(port));
+	dlog(warn, "IP proto %d socket bound to port %d", (*s)->p, ntohs(port));
 
 	return *s;
 }
@@ -247,14 +247,14 @@ w_chain_extra_bufs(const struct warpcore * const w, const struct w_iov *v)
 void
 w_cleanup(struct warpcore * const w)
 {
-	log(3, "warpcore shutting down");
+	dlog(notice, "warpcore shutting down");
 
 	// clean out all the tx rings
 	for (uint32_t i = 0; i < w->nif->ni_rx_rings; i++) {
 		struct netmap_ring * const txr =
 			NETMAP_TXRING(w->nif, w->cur_txr);
 		while (nm_tx_pending(txr)) {
-			log(5, "tx pending on ring %d", w->cur_txr);
+			dlog(info, "tx pending on ring %d", w->cur_txr);
 			w_kick_tx(w);
 			usleep(1); // wait 1 tick
 		}
@@ -286,13 +286,13 @@ w_cleanup(struct warpcore * const w)
 	for (uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
 		const struct netmap_ring * const txr = NETMAP_TXRING(w->nif, ri);
 		for (uint32_t txs = 0; txs < txr->num_slots; txs++)
-			log(15, "tx ring %d slot %d buf %d", ri, txs,
+			dlog(debug, "tx ring %d slot %d buf %d", ri, txs,
 			    txr->slot[txs].buf_idx);
 	}
 	for (uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
 		const struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, ri);
 		for (uint32_t rxs = 0; rxs < rxr->num_slots; rxs++)
-			log(15, "rx ring %d slot %d buf %d", ri, rxs,
+			dlog(debug, "rx ring %d slot %d buf %d", ri, rxs,
 			    rxr->slot[rxs].buf_idx);
 	}
 #endif
@@ -358,7 +358,7 @@ w_init_common(void)
 		die("not allowed to run on any CPUs!?");
 
 	// Set new CPU mask
-	log(1, "setting affinity to CPU %d", i);
+	dlog(warn, "setting affinity to CPU %d", i);
 	CPU_ZERO(&myset);
 	CPU_SET(i, &myset);
 
@@ -461,7 +461,7 @@ w_init(const char * const ifname)
 				           (i->ifa_data))->ifi_link_state) ==
 					   LINK_STATE_UP);
 #endif
-				log(1, "%s addr %s, MTU %d, speed %dG, link %s",
+				dlog(warn, "%s addr %s, MTU %d, speed %dG, link %s",
 				    i->ifa_name,
 				    ether_ntoa_r((struct ether_addr *)w->mac,
 						 mac), w->mtu, w->mbps/1000,
@@ -477,7 +477,7 @@ w_init(const char * const ifname)
 						   i->ifa_netmask)->sin_addr.s_addr;
 				break;
 			default:
-				log(3, "ignoring unknown addr family %d on %s",
+				dlog(notice, "ignoring unknown addr family %d on %s",
 				    i->ifa_addr->sa_family, i->ifa_name);
 				break;
 			}
@@ -493,11 +493,11 @@ w_init(const char * const ifname)
 #ifndef NDEBUG
 	char ip[IP_ADDR_STRLEN];
 	char mask[IP_ADDR_STRLEN];
-	log(1, "%s has IP addr %s/%s", ifname,
+	dlog(warn, "%s has IP addr %s/%s", ifname,
 	    ip_ntoa(w->ip, ip, IP_ADDR_STRLEN),
 	    ip_ntoa(w->mask, mask, IP_ADDR_STRLEN));
 	char bcast[IP_ADDR_STRLEN];
-	log(1, "%s has IP broadcast addr %s", ifname,
+	dlog(warn, "%s has IP broadcast addr %s", ifname,
 	    ip_ntoa(w->bcast, bcast, IP_ADDR_STRLEN));
 #endif
 
@@ -536,12 +536,12 @@ w_init(const char * const ifname)
 	// print some info about our rings
 	for (uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
 		const struct netmap_ring * const r = NETMAP_TXRING(w->nif, ri);
-		log(3, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+		dlog(notice, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 	for (uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
 		const struct netmap_ring * const r = NETMAP_RXRING(w->nif, ri);
-		log(3, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+		dlog(notice, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 #endif
@@ -555,7 +555,7 @@ w_init(const char * const ifname)
 			die("cannot allocate w_iov");
 		v->buf = IDX2BUF(w, i);
 		v->idx = i;
-		// log(3, "available extra buf %d", i);
+		// dlog(notice, "available extra buf %d", i);
 		SLIST_INSERT_HEAD(&w->iov, v, next);
 		char * const b = v->buf;
 		i = *(uint32_t *)b;
@@ -565,7 +565,7 @@ w_init(const char * const ifname)
 		die("can only allocate %d/%d extra buffers",
 		    w->req.nr_arg3, NUM_EXTRA_BUFS);
 	else
-		log(1, "allocated %d extra buffers", w->req.nr_arg3);
+		dlog(warn, "allocated %d extra buffers", w->req.nr_arg3);
 
 
 	// initialize list of sockets

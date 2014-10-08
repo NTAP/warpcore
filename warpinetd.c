@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 		// echo service
 		struct w_iov *i = w_rx(ech);
 		while (likely(i)) {
-			log(5, "echo %d bytes in buf %d", i->len, i->idx);
+			dlog(info, "echo %d bytes in buf %d", i->len, i->idx);
 			// ech the data
 			struct w_iov *o = w_tx_alloc(ech, i->len);
 			memcpy(o->buf, i->buf, i->len);
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 		// discard service
 		i = w_rx(dsc);
 		while (likely(i)) {
-			log(5, "discard %d bytes in buf %d", i->len, i->idx);
+			dlog(info, "discard %d bytes in buf %d", i->len, i->idx);
 			// dscard the data
 			i = SLIST_NEXT(i, next);
 		}
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 		// daytime service
 		i = w_rx(dtm);
 		while (likely(i)) {
-			log(5, "daytime %d bytes in buf %d", i->len, i->idx);
+			dlog(info, "daytime %d bytes in buf %d", i->len, i->idx);
 			const time_t t = time(0);
 			const char *c = ctime(&t);
 			const uint32_t l = (uint32_t)strlen(c);
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 		// time service
 		i = w_rx(tme);
 		while (likely(i)) {
-			log(5, "time %d bytes in buf %d", i->len, i->idx);
+			dlog(info, "time %d bytes in buf %d", i->len, i->idx);
 			const time_t t = time(0);
 			struct w_iov *o = w_tx_alloc(tme, sizeof(uint32_t));
 			uint32_t * const b = (uint32_t *)o->buf;

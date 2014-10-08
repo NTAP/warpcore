@@ -103,7 +103,7 @@ static inline __attribute__((always_inline)) struct w_iov *
 w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
 	if (unlikely(!SLIST_EMPTY(&s->ov))) {
-		log(1, "output iov already allocated");
+		dlog(warn, "output iov already allocated");
 		return 0;
 	}
 
@@ -128,7 +128,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 		if (unlikely(v == 0))
 			die("out of spare bufs after grabbing %d", n);
 		SLIST_REMOVE_HEAD(&s->w->iov, next);
-		log(5, "grabbing spare buf %d for user tx", v->idx);
+		dlog(info, "grabbing spare buf %d for user tx", v->idx);
 		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
 		v->len = s->w->mtu - hdr_len;
 		l -= v->len;
@@ -145,7 +145,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 	// adjust length of last iov so chain is the exact length requested
 	v->len += l; // l is negative
 
-	log(3, "allocating iov (len %d in %d bufs) for user tx", len, n);
+	dlog(notice, "allocating iov (len %d in %d bufs) for user tx", len, n);
 
 	return SLIST_FIRST(&s->ov);
 }
@@ -164,17 +164,17 @@ w_poll(const struct warpcore * const w, const short ev, const int to)
 
 	if (unlikely(n == -1)) {
 		if (errno == EINTR) {
-			log(3, "poll: interrupt");
+			dlog(notice, "poll: interrupt");
 			return;
 		} else
 			die("poll");
 	}
 	if (unlikely(n == 0)) {
-		// log(1, "poll: timeout expired");
+		// dlog(warn, "poll: timeout expired");
 		return;
 	}
 
-	// rlog(1, 1, "poll: %d descriptors ready", n);
+	// rdlog(warn, 1, "poll: %d descriptors ready", n);
 	return;
 }
 
@@ -227,7 +227,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 		(const struct udp_hdr * const)(buf + off);
 	const uint16_t len = ntohs(udp->len);
 
-	log(5, "UDP :%d -> :%d, len %ld",
+	dlog(info, "UDP :%d -> :%d, len %ld",
 	    ntohs(udp->sport), ntohs(udp->dport), len - sizeof(struct udp_hdr));
 
 	struct w_sock **s = w_get_sock(w, IP_P_UDP, udp->dport);
@@ -247,7 +247,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
 	SLIST_REMOVE_HEAD(&w->iov, next);
 
-	log(5, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
+	dlog(info, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
 	    w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
 
 	// remember index of this buffer
@@ -285,7 +285,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 #ifndef NDEBUG
 	char dst[IP_ADDR_STRLEN];
 	char src[IP_ADDR_STRLEN];
-	log(3, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
+	dlog(notice, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
 	    ip_ntoa(ip->src, src, sizeof src),
 	    ip_ntoa(ip->dst, dst, sizeof dst),
 	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
@@ -293,7 +293,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 
 	// make sure the packet is for us (or broadcast)
 	if (unlikely(ip->dst != w->ip && ip->dst != w->bcast)) {
-		log(1, "IP packet from %s to %s (not us); ignoring",
+		dlog(warn, "IP packet from %s to %s (not us); ignoring",
 		    ip_ntoa(ip->src, src, sizeof src),
 		    ip_ntoa(ip->dst, dst, sizeof dst));
 		return;
@@ -301,7 +301,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 
 	// validate the IP checksum
 	if (unlikely(in_cksum(ip, sizeof *ip) != 0)) {
-		log(1, "invalid IP checksum, received %x", ip->cksum);
+		dlog(warn, "invalid IP checksum, received %x", ip->cksum);
 		return;
 	}
 
@@ -317,7 +317,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 	else if (ip->p == IP_P_ICMP)
 		icmp_rx(w, buf, off, len);
 	else {
-		log(1, "unhandled IP protocol %d", ip->p);
+		dlog(warn, "unhandled IP protocol %d", ip->p);
 		// be standards compliant and send an ICMP unreachable
 		icmp_tx_unreach(w, ICMP_UNREACH_PROTOCOL, buf, off);
 	}
@@ -335,7 +335,7 @@ eth_rx(struct warpcore * const w, char * const buf)
 #ifndef NDEBUG
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	log(3, "Eth %s -> %s, type %d",
+	dlog(notice, "Eth %s -> %s, type %d",
 	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
 	    ntohs(eth->type));
@@ -344,7 +344,7 @@ eth_rx(struct warpcore * const w, char * const buf)
 	// make sure the packet is for us (or broadcast)
 	if (unlikely(memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
 		     memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN))) {
-		log(1, "Ethernet packet not destined to us; ignoring");
+		dlog(warn, "Ethernet packet not destined to us; ignoring");
 		return;
 	}
 
@@ -400,13 +400,13 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 	// return false if all rings are full
 	if (unlikely(i == w->nif->ni_tx_rings)) {
 		die("all tx rings are full");
-		log(3, "all tx rings are full");
+		dlog(notice, "all tx rings are full");
 		return false;
 	}
 
 	struct netmap_slot * const txs = &txr->slot[txr->cur];
 
-	log(5, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
+	dlog(info, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
 	    v->idx, w->cur_txr, txr->cur, txs->buf_idx);
 
 	// place v in the current tx ring
@@ -420,7 +420,7 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 		(const struct eth_hdr * const)NETMAP_BUF(txr, txs->buf_idx);
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	log(3, "Eth %s -> %s, type %d, len %ld",
+	dlog(notice, "Eth %s -> %s, type %d, len %ld",
 	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
 	    ntohs(eth->type), len + sizeof(struct eth_hdr));
@@ -456,7 +456,7 @@ ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 #ifndef NDEBUG
 	char dst[IP_ADDR_STRLEN];
 	char src[IP_ADDR_STRLEN];
-	log(3, "IP tx buf %d, %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
+	dlog(notice, "IP tx buf %d, %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
 	    v->idx, ip_ntoa(ip->src, src, sizeof src),
 	    ip_ntoa(ip->dst, dst, sizeof dst),
 	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
@@ -479,7 +479,7 @@ udp_tx(const struct w_sock * const s, struct w_iov * const v)
 		(struct udp_hdr * const)(v->buf - sizeof(struct udp_hdr));
  	const uint16_t l = v->len + sizeof(struct udp_hdr);
 
-	log(5, "UDP :%d -> :%d, len %d",
+	dlog(info, "UDP :%d -> :%d, len %d",
 	    ntohs(udp->sport), ntohs(udp->dport), v->len);
 
 	udp->len = htons(l);
@@ -526,11 +526,11 @@ w_tx(struct w_sock * const s)
 		} else {
 			// no space in ring
 			w_kick_tx(s->w);
-			log(1, "polling for send space");
+			dlog(warn, "polling for send space");
 			w_poll(s->w, POLLOUT, -1);
 		}
 	}
-	log(3, "UDP tx iov (len %d in %d bufs) done", l, n);
+	dlog(notice, "UDP tx iov (len %d in %d bufs) done", l, n);
 
 	// kick tx ring
 	w_kick_tx(s->w);

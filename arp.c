@@ -24,7 +24,7 @@ arp_is_at(struct warpcore * w, char * const buf)
 #ifndef NDEBUG
 	char tha[ETH_ADDR_STRLEN];
 	char tpa[IP_ADDR_STRLEN];
-	log(3, "ARP reply %s is at %s",
+	dlog(notice, "ARP reply %s is at %s",
 	    ip_ntoa(arp->tpa, tpa, sizeof tpa),
 	    ether_ntoa_r((const struct ether_addr *)arp->tha, tha));
 #endif
@@ -66,18 +66,18 @@ arp_rx(struct warpcore * w, char * const buf)
 	const uint16_t op = ntohs(arp->op);
 	switch (op) {
 	case ARP_OP_REQUEST:
-		log(3, "ARP request who has %s tell %s",
+		dlog(notice, "ARP request who has %s tell %s",
 		    ip_ntoa(arp->tpa, tpa, sizeof tpa),
 		    ip_ntoa(arp->spa, spa, sizeof spa));
 		if (arp->tpa == w->ip)
 			arp_is_at(w, buf);
 		else
-			log(3, "ignoring ARP request not asking for us");
+			dlog(notice, "ignoring ARP request not asking for us");
 		break;
 
 	case ARP_OP_REPLY:
 		{
-		log(3, "ARP reply %s is at %s",
+		dlog(notice, "ARP reply %s is at %s",
 		    ip_ntoa(arp->spa, spa, sizeof spa),
 		    ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
 
@@ -86,7 +86,7 @@ arp_rx(struct warpcore * w, char * const buf)
 		struct w_sock *s;
 		SLIST_FOREACH(s, &w->sock, next)
 			if (s->dip == arp->spa) {
-				log(1, "updating socket with %s for %s",
+				dlog(warn, "updating socket with %s for %s",
 				    ether_ntoa_r((const struct ether_addr *)
 				                 arp->sha, sha),
 				    ip_ntoa(arp->spa, spa, sizeof spa));

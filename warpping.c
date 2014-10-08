@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 
 			struct w_iov * const i = w_rx(ws);
 			if (unlikely(i == 0)) {
-				log(5, "packet loss?");
+				dlog(info, "packet loss?");
 				continue;
 			}
 			after = i->buf;
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 				if (unlikely(p == -1))
 					die("poll");
 				else if (unlikely(p == 0)) {
-					log(1, "packet loss?");
+					dlog(warn, "packet loss?");
 					continue;
 				}
 			}
