@@ -131,10 +131,13 @@ int main(int argc, char *argv[])
 				die("clock_gettime");
 			w_tx(ws);
 
-			if (!busywait && unlikely(!w_poll(w, POLLIN, 100)))
-				goto done;
+			if (!busywait)
+				w_poll(w, POLLIN, 1000);
 			else
 				w_kick_rx(w);
+
+			if (w->interrupt)
+				goto done;
 
 			struct w_iov * const i = w_rx(ws);
 			if (unlikely(i == 0)) {

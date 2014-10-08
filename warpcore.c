@@ -27,6 +27,9 @@
 
 #define NUM_EXTRA_BUFS	16384
 
+// global pointer to netmap engine
+static struct warpcore * _w = 0;
+
 
 // Use a spare iov to transmit an ARP query for the given destination
 // IP address.
@@ -87,13 +90,13 @@ w_close(struct w_sock * const s)
 	// make iovs of the socket available again
 	while (!SLIST_EMPTY(&s->iv)) {
 	     struct w_iov * const v = SLIST_FIRST(&s->iv);
-	     // log(5, "free buf %d", v->idx);
+	     log(15, "free iv buf %d", v->idx);
 	     SLIST_REMOVE_HEAD(&s->iv, next);
 	     SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}
 	while (!SLIST_EMPTY(&s->ov)) {
 	     struct w_iov * const v = SLIST_FIRST(&s->ov);
-	     // log(5, "free buf %d", v->idx);
+	     log(15, "free ov buf %d", v->idx);
 	     SLIST_REMOVE_HEAD(&s->ov, next);
 	     SLIST_INSERT_HEAD(&s->w->iov, v, next);
 	}
@@ -125,12 +128,10 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 		log(3, "doing ARP lookup for %s",
 		    ip_ntoa(dip, str, IP_ADDR_STRLEN));
 		arp_who_has(s->w, dip);
-		if(w_poll(s->w, POLLIN, 1000) == false)
-			// interrupt received during poll
-			return;
+		w_poll(s->w, POLLIN, 1000);
 		w_kick_rx(s->w);
 		w_rx(s);
-		if(!IS_ZERO(s->dmac))
+		if (!IS_ZERO(s->dmac))
 			break;
 		log(1, "no ARP reply, retrying");
 	}
@@ -280,6 +281,22 @@ w_cleanup(struct warpcore * const w)
 	}
 	w->nif->ni_bufs_head = SLIST_FIRST(&w->iov)->idx;
 
+#ifndef NDEBUG
+	// print some info about our rings
+	for (uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
+		const struct netmap_ring * const txr = NETMAP_TXRING(w->nif, ri);
+		for (uint32_t txs = 0; txs < txr->num_slots; txs++)
+			log(15, "tx ring %d slot %d buf %d", ri, txs,
+			    txr->slot[txs].buf_idx);
+	}
+	for (uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
+		const struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, ri);
+		for (uint32_t rxs = 0; rxs < rxr->num_slots; rxs++)
+			log(15, "rx ring %d slot %d buf %d", ri, rxs,
+			    rxr->slot[rxs].buf_idx);
+	}
+#endif
+
 	if (munmap(w->mem, w->req.nr_memsize) == -1)
 		die("cannot munmap netmap memory");
 
@@ -297,6 +314,7 @@ w_cleanup(struct warpcore * const w)
 	free(w->tcp);
 
 	free(w);
+	_w = 0;
 }
 
 
@@ -304,8 +322,8 @@ w_cleanup(struct warpcore * const w)
 static void
 w_handler(int sig __attribute__((__unused__)))
 {
-       signal(SIGINT, SIG_DFL);
-       signal(SIGTERM, SIG_DFL);
+	if (_w)
+		_w->interrupt = true;
 }
 
 
@@ -365,6 +383,9 @@ w_init(const char * const ifname)
 {
 	struct warpcore *w;
 	bool link_up = false;
+
+	if (_w)
+		die("can only have one warpcore engine active");
 
 	// allocate struct
 	if ((w = calloc(1, sizeof(struct warpcore))) == 0)
@@ -448,10 +469,12 @@ w_init(const char * const ifname)
 				break;
 			case AF_INET:
 				// get IP addr and netmask
-				w->ip = ((struct sockaddr_in *)
-					 i->ifa_addr)->sin_addr.s_addr;
-				w->mask = ((struct sockaddr_in *)
-					   i->ifa_netmask)->sin_addr.s_addr;
+				if (!w->ip)
+					w->ip = ((struct sockaddr_in *)
+						 i->ifa_addr)->sin_addr.s_addr;
+				if (!w->mask)
+					w->mask = ((struct sockaddr_in *)
+						   i->ifa_netmask)->sin_addr.s_addr;
 				break;
 			default:
 				log(3, "ignoring unknown addr family %d on %s",
@@ -511,12 +534,12 @@ w_init(const char * const ifname)
 
 #ifndef NDEBUG
 	// print some info about our rings
-	for(uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
+	for (uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
 		const struct netmap_ring * const r = NETMAP_TXRING(w->nif, ri);
 		log(3, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
-	for(uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
+	for (uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
 		const struct netmap_ring * const r = NETMAP_RXRING(w->nif, ri);
 		log(3, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		    r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
@@ -563,5 +586,6 @@ w_init(const char * const ifname)
 	if (signal(SIGTERM, w_handler) == SIG_ERR)
 		die("cannot register SIGTERM handler");
 
+	_w = w;
 	return w;
 }

@@ -2,8 +2,8 @@
 
 set -e
 
-loops=1000
-# busywait=-b
+loops=10000
+busywait=-b
 peer=tux
 iface=em1
 piface=eth1
@@ -52,13 +52,13 @@ sudo sysctl hw.$iname.enable_aim=0 || true
 sudo cpuset -l 1 -p $(pgrep ^inetd)
 
 ssh $peer "sudo pkill -f 'dhclient.*$piface'" || true
-ssh $peer "pkill -INT -f warpinetd; sleep 1; pkill -INT -f warpinetd" || true
+ssh $peer "pkill -INT -f warpinetd" || true
 ssh $peer "sudo sysctl hw.$iname.enable_aim=0" || true
 ssh $peer 'sudo cpuset -l 1 -p $(pgrep ^inetd)' || true
 
 ssh $peer "cd ~/warpcore; nohup $peeros/warpinetd -i $piface $busywait > warpinetd.log 2>&1 &" || true
 run warp
-ssh $peer "pkill -INT -f warpinetd; sleep 1; pkill -INT -f warpinetd" || true
+ssh $peer "pkill -INT -f warpinetd" || true
 
 ssh $peer "sudo dhclient $piface" || true
 sleep 3

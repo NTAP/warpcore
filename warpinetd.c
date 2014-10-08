@@ -52,11 +52,10 @@ int main(int argc, char *argv[])
 	struct w_sock *dtm = w_bind(w, IP_P_UDP, htons(13));
 	struct w_sock *tme = w_bind(w, IP_P_UDP, htons(37));
 
-	bool loop = true;
-	while (loop) {
-		if (!busywait) {
-			loop = w_poll(w, POLLIN, -1);
-		} else
+	while (!w->interrupt) {
+		if (!busywait)
+			w_poll(w, POLLIN, -1);
+		else
 			w_kick_rx(w);
 
 		// echo service

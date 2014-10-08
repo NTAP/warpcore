@@ -68,6 +68,7 @@ struct warpcore {
 	uint32_t		ip;			// our IP address
 	uint32_t		bcast;			// our broadcast address
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address
+	bool			interrupt;		// termination flag
 
 	// mtu could be pushed into the second cacheline
 	uint16_t		mtu;			// our MTU
@@ -135,7 +136,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 
 		// add the iov to the tail of the socket
 		// using a STAILQ would be simpler, but slower
-		if(SLIST_EMPTY(&s->ov))
+		if (SLIST_EMPTY(&s->ov))
 			SLIST_INSERT_HEAD(&s->ov, v, next);
 		else
 			SLIST_INSERT_AFTER(ov_tail, v, next);
@@ -155,7 +156,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 // Returns false if an interrupt occurs during the poll, which usually means
 // someone hit Ctrl-C.
 // (TODO: This interrupt handling needs some rethinking.)
-static inline __attribute__((always_inline)) bool
+static inline __attribute__((always_inline)) void
 w_poll(const struct warpcore * const w, const short ev, const int to)
 {
 	struct pollfd fds = { .fd = w->fd, .events = ev };
@@ -164,17 +165,17 @@ w_poll(const struct warpcore * const w, const short ev, const int to)
 	if (unlikely(n == -1)) {
 		if (errno == EINTR) {
 			log(3, "poll: interrupt");
-			return false;
+			return;
 		} else
 			die("poll");
 	}
 	if (unlikely(n == 0)) {
 		// log(1, "poll: timeout expired");
-		return true;
+		return;
 	}
 
 	// rlog(1, 1, "poll: %d descriptors ready", n);
-	return true;
+	return;
 }
 
 
@@ -526,9 +527,7 @@ w_tx(struct w_sock * const s)
 			// no space in ring
 			w_kick_tx(s->w);
 			log(1, "polling for send space");
-			if (w_poll(s->w, POLLOUT, -1) == false)
-				// interrupt received during poll
-				return;
+			w_poll(s->w, POLLOUT, -1);
 		}
 	}
 	log(3, "UDP tx iov (len %d in %d bufs) done", l, n);
