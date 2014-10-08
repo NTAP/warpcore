@@ -25,25 +25,25 @@ static void usage(const char * const name, const uint16_t size,
 }
 
 
-// Subtract the struct timeval values x and y (x-y), storing the result in r
-static void tv_diff(struct timeval * const r, struct timeval * const x,
-                   struct timeval * const y)
+// Subtract the struct timespec values x and y (x-y), storing the result in r
+static void time_diff(struct timespec * const r, struct timespec * const x,
+                   struct timespec * const y)
 {
 	// Perform the carry for the later subtraction by updating y
-	if (x->tv_usec < y->tv_usec) {
-		const long usec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
-		y->tv_usec -= 1000000 * usec;
-		y->tv_sec += usec;
+	if (x->tv_nsec < y->tv_nsec) {
+		const long nsec = (y->tv_nsec - x->tv_nsec) / 1000000000 + 1;
+		y->tv_nsec -= 1000000000 * nsec;
+		y->tv_sec += nsec;
 	}
-	if (x->tv_usec - y->tv_usec > 1000000) {
-		const long usec = (x->tv_usec - y->tv_usec) / 1000000;
-		y->tv_usec += 1000000 * usec;
-		y->tv_sec -= usec;
+	if (x->tv_nsec - y->tv_nsec > 1000000000) {
+		const long nsec = (x->tv_nsec - y->tv_nsec) / 1000000000;
+		y->tv_nsec += 1000000000 * nsec;
+		y->tv_sec -= nsec;
 	}
 
-	// Compute the result; tv_usec is certainly positive.
+	// Compute the result; tv_nsec is certainly positive.
 	r->tv_sec = x->tv_sec - y->tv_sec;
-	r->tv_usec = x->tv_usec - y->tv_usec;
+	r->tv_nsec = x->tv_nsec - y->tv_nsec;
 }
 
 
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 	const char *ifname = 0;
 	const char *dst = 0;
 	long loops = 1;
-	uint16_t size = sizeof(struct timeval);
+	uint16_t size = sizeof(struct timespec);
 	bool use_warpcore = true;
 	bool busywait = false;
 
@@ -121,13 +121,13 @@ int main(int argc, char *argv[])
 		after = calloc(1, size);
 	}
 
-	printf("us\tcodeus\tsize\n");
+	printf("time\tcodetime\tsize\n");
 	while (likely(loops--)) {
-		struct timeval *rx = 0;
+		// struct timeval *rx = 0;
 		if (use_warpcore) {
 			struct w_iov * const o = w_tx_alloc(ws, size);
-			if (unlikely(gettimeofday((struct timeval *)o->buf,
-			    			  0) == -1))
+			if (clock_gettime(CLOCK_MONOTONIC,
+			                  (struct timespec *)o->buf) == -1)
 				die("clock_gettime");
 			w_tx(ws);
 
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 			else
 				w_kick_rx(w);
 
-			if (unlikely(w->interrupt))
+			if (w->interrupt)
 				goto done;
 
 			struct w_iov * const i = w_rx(ws);
@@ -145,16 +145,16 @@ int main(int argc, char *argv[])
 				continue;
 			}
 			after = i->buf;
-			rx = &i->ts;
+			// rx = &i->ts;
 		} else {
-			if (unlikely(gettimeofday((struct timeval *)before,
-			                           0) == -1))
-				die("gettimeofday");
+			if (clock_gettime(CLOCK_MONOTONIC,
+			                  (struct timespec *)before) == -1)
+				die("clock_gettime");
 			sendto(ks, before, size, 0, res->ai_addr,
 			       res->ai_addrlen);
 
 			if (!busywait) {
-				const int p = poll(&fds, 1, 100);
+				const int p = poll(&fds, 1, 1000);
 				if (unlikely(p == -1))
 					die("poll");
 				else if (unlikely(p == 0)) {
@@ -169,20 +169,21 @@ int main(int argc, char *argv[])
 				die("recvfrom");
 		}
 
-		struct timeval diff, now;
-		if (unlikely(gettimeofday(&now, 0) == -1))
+		struct timespec diff, now;
+		if (clock_gettime(CLOCK_MONOTONIC, &now) == -1)
 			die("clock_gettime");
 
-		tv_diff(&diff, &now, (struct timeval *)after);
+		time_diff(&diff, &now, (struct timespec *)after);
 		if (unlikely(diff.tv_sec != 0))
 			die("time difference is more than %ld sec",
 			    diff.tv_sec);
 
-		printf("%ld\t", diff.tv_usec);
+		printf("%ld\t", diff.tv_nsec);
 
 		if (use_warpcore) {
-			tv_diff(&diff, &now, rx);
-			printf("%ld\t", diff.tv_usec);
+			// time_diff(&diff, &now, rx);
+			// printf("%ld\t", diff.tv_nsec);
+			printf("0\t");
 			w_rx_done(ws);
 		} else
 			printf("0\t");

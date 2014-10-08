@@ -25,8 +25,8 @@ run () {
 		echo "Running $1 size $size"
 		$cmd $flag -s $size >> "$1.txt" 2> warpping.$1.log
 	done
-	echo "us	codeus	size" > $1.new
-	grep -v codeus $1.txt >> $1.new
+	echo "time	code	size" > $1.new
+	grep -v code $1.txt >> $1.new
 	mv $1.new $1.txt
 }
 
