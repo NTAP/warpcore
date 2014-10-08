@@ -31,8 +31,8 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 	memcpy(eth->src, w->mac, sizeof eth->src);
 
 	dlog(info, "swapping rx ring %d slot %d (buf %d) and "
-	    "tx ring %d slot %d (buf %d)", w->cur_rxr, rxr->cur, rxs->buf_idx,
-	    w->cur_txr, txr->cur, txs->buf_idx);
+	     "tx ring %d slot %d (buf %d)", w->cur_rxr, rxr->cur, rxs->buf_idx,
+	     w->cur_txr, txr->cur, txs->buf_idx);
 
 	// move modified rx slot to tx ring, and move an unused tx slot back
 	const uint32_t tmp_idx = txs->buf_idx;
@@ -47,9 +47,9 @@ void eth_tx_rx_cur(struct warpcore *w, char * const buf,
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
 	dlog(notice, "Eth %s -> %s, type %d",
-	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
-	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
-	    ntohs(eth->type));
+	     ether_ntoa_r((const struct ether_addr *)eth->src, src),
+	     ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+	     ntohs(eth->type));
 #endif
 }
 

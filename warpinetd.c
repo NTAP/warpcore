@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 		struct w_iov *i = w_rx(ech);
 		while (i) {
 			dlog(info, "echo %d bytes in buf %d", i->len, i->idx);
-			// ech the data
+			// echo the data
 			struct w_iov *o = w_tx_alloc(ech, i->len);
 			memcpy(o->buf, i->buf, i->len);
 			w_connect(ech, i->ip, i->port);
@@ -74,8 +74,9 @@ int main(int argc, char *argv[])
 		// discard service
 		i = w_rx(dsc);
 		while (i) {
-			dlog(info, "discard %d bytes in buf %d", i->len, i->idx);
-			// dscard the data
+			dlog(info, "discard %d bytes in buf %d",
+			     i->len, i->idx);
+			// discard the data
 			i = SLIST_NEXT(i, next);
 		}
 		w_rx_done(dsc);
@@ -83,7 +84,8 @@ int main(int argc, char *argv[])
 		// daytime service
 		i = w_rx(dtm);
 		while (i) {
-			dlog(info, "daytime %d bytes in buf %d", i->len, i->idx);
+			dlog(info, "daytime %d bytes in buf %d",
+			     i->len, i->idx);
 			const time_t t = time(0);
 			const char *c = ctime(&t);
 			const uint32_t l = (uint32_t)strlen(c);

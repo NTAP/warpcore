@@ -2,14 +2,11 @@
 
 set -e
 
-loops=10000
+loops=100000
 busywait=-b
-peer=tux
-iface=em1
-piface=eth1
-
-# iface=igb0
-# piface=igb0
+peer=mora2
+iface=ix0
+piface=ix0
 
 iname=$(echo $iface | tr -d 0-9)
 peerip=$(ssh $peer "/sbin/ifconfig $piface" | sed -e s/addr:// -e s/^[[:space:]]*//g | grep 'inet ' | cut -f 2 -d' ')

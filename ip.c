@@ -63,9 +63,9 @@ void ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 	char src[IP_ADDR_STRLEN];
 	char dst[IP_ADDR_STRLEN];
 	dlog(notice, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
-	    ip_ntoa(ip->src, src, sizeof src),
-	    ip_ntoa(ip->dst, dst, sizeof dst),
-	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
+	     ip_ntoa(ip->src, src, sizeof src),
+	     ip_ntoa(ip->dst, dst, sizeof dst),
+	     ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
 #endif
 
 	// do Ethernet transmit preparation

@@ -237,8 +237,8 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 		(const struct udp_hdr * const)(buf + off);
 	const uint16_t len = ntohs(udp->len);
 
-	dlog(info, "UDP :%d -> :%d, len %ld",
-	    ntohs(udp->sport), ntohs(udp->dport), len - sizeof(struct udp_hdr));
+	dlog(info, "UDP :%d -> :%d, len %ld", ntohs(udp->sport),
+	     ntohs(udp->dport), len - sizeof(struct udp_hdr));
 
 	struct w_sock **s = w_get_sock(w, IP_P_UDP, udp->dport);
 	if (unlikely(*s == 0)) {
@@ -258,7 +258,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	SLIST_REMOVE_HEAD(&w->iov, next);
 
 	dlog(info, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
-	    w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
+	     w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
 
 	// remember index of this buffer
 	const uint32_t tmp_idx = i->idx;
@@ -300,16 +300,16 @@ ip_rx(struct warpcore * const w, char * const buf)
 	char dst[IP_ADDR_STRLEN];
 	char src[IP_ADDR_STRLEN];
 	dlog(notice, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
-	    ip_ntoa(ip->src, src, sizeof src),
-	    ip_ntoa(ip->dst, dst, sizeof dst),
-	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
+	     ip_ntoa(ip->src, src, sizeof src),
+	     ip_ntoa(ip->dst, dst, sizeof dst),
+	     ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
 #endif
 
 	// make sure the packet is for us (or broadcast)
 	if (unlikely(ip->dst != w->ip && ip->dst != w->bcast)) {
 		dlog(warn, "IP packet from %s to %s (not us); ignoring",
-		    ip_ntoa(ip->src, src, sizeof src),
-		    ip_ntoa(ip->dst, dst, sizeof dst));
+		     ip_ntoa(ip->src, src, sizeof src),
+		     ip_ntoa(ip->dst, dst, sizeof dst));
 		return;
 	}
 
@@ -350,9 +350,9 @@ eth_rx(struct warpcore * const w, char * const buf)
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
 	dlog(notice, "Eth %s -> %s, type %d",
-	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
-	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
-	    ntohs(eth->type));
+	     ether_ntoa_r((const struct ether_addr *)eth->src, src),
+	     ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+	     ntohs(eth->type));
 #endif
 
 	// make sure the packet is for us (or broadcast)
@@ -419,7 +419,7 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 	// return false if all rings are full
 	if (unlikely(i == w->nif->ni_tx_rings)) {
 		die("all tx rings are full");
-		dlog(notice, "all tx rings are full");
+		dlog(warn, "all tx rings are full");
 		return false;
 	}
 
@@ -430,7 +430,7 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 	             _MM_HINT_T0);
 
 	dlog(info, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
-	    v->idx, w->cur_txr, txr->cur, txs->buf_idx);
+	     v->idx, w->cur_txr, txr->cur, txs->buf_idx);
 
 	// place v in the current tx ring
 	const uint32_t tmp_idx = txs->buf_idx;
@@ -444,9 +444,9 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
 	dlog(notice, "Eth %s -> %s, type %d, len %ld",
-	    ether_ntoa_r((const struct ether_addr *)eth->src, src),
-	    ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
-	    ntohs(eth->type), len + sizeof(struct eth_hdr));
+	     ether_ntoa_r((const struct ether_addr *)eth->src, src),
+	     ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+	     ntohs(eth->type), len + sizeof(struct eth_hdr));
 #endif
 
 	// place the original tx buffer in v
@@ -480,9 +480,9 @@ ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 	char dst[IP_ADDR_STRLEN];
 	char src[IP_ADDR_STRLEN];
 	dlog(notice, "IP tx buf %d, %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
-	    v->idx, ip_ntoa(ip->src, src, sizeof src),
-	    ip_ntoa(ip->dst, dst, sizeof dst),
-	    ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
+	     v->idx, ip_ntoa(ip->src, src, sizeof src),
+	     ip_ntoa(ip->dst, dst, sizeof dst),
+	     ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
 #endif
 
 	// do Ethernet transmit preparation
@@ -503,7 +503,7 @@ udp_tx(const struct w_sock * const s, struct w_iov * const v)
  	const uint16_t l = v->len + sizeof(struct udp_hdr);
 
 	dlog(info, "UDP :%d -> :%d, len %d",
-	    ntohs(udp->sport), ntohs(udp->dport), v->len);
+	     ntohs(udp->sport), ntohs(udp->dport), v->len);
 
 	udp->len = htons(l);
 

@@ -84,8 +84,8 @@ void icmp_rx(struct warpcore * w, char * const buf,
 #ifndef NDEBUG
 			struct udp_hdr * const udp = (struct udp_hdr * const)
 				((char *)ip + ip->hl * 4);
-			dlog(warn, "ICMP IP proto %d port %d unreachable", ip->p,
-			    ntohs(udp->dport));
+			dlog(warn, "ICMP IP proto %d port %d unreachable",
+			     ip->p, ntohs(udp->dport));
 #endif
 			break;
 			}

@@ -25,8 +25,8 @@ arp_is_at(struct warpcore * w, char * const buf)
 	char tha[ETH_ADDR_STRLEN];
 	char tpa[IP_ADDR_STRLEN];
 	dlog(notice, "ARP reply %s is at %s",
-	    ip_ntoa(arp->tpa, tpa, sizeof tpa),
-	    ether_ntoa_r((const struct ether_addr *)arp->tha, tha));
+	     ip_ntoa(arp->tpa, tpa, sizeof tpa),
+	     ether_ntoa_r((const struct ether_addr *)arp->tha, tha));
 #endif
 
 	// modify ARP header
@@ -67,29 +67,29 @@ arp_rx(struct warpcore * w, char * const buf)
 	switch (op) {
 	case ARP_OP_REQUEST:
 		dlog(notice, "ARP request who has %s tell %s",
-		    ip_ntoa(arp->tpa, tpa, sizeof tpa),
-		    ip_ntoa(arp->spa, spa, sizeof spa));
+		     ip_ntoa(arp->tpa, tpa, sizeof tpa),
+		     ip_ntoa(arp->spa, spa, sizeof spa));
 		if (arp->tpa == w->ip)
 			arp_is_at(w, buf);
 		else
-			dlog(notice, "ignoring ARP request not asking for us");
+			dlog(warn, "ignoring ARP request not asking for us");
 		break;
 
 	case ARP_OP_REPLY:
 		{
 		dlog(notice, "ARP reply %s is at %s",
-		    ip_ntoa(arp->spa, spa, sizeof spa),
-		    ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
+		     ip_ntoa(arp->spa, spa, sizeof spa),
+		     ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
 
 		// check if any socket has an IP address matching this ARP
 		// reply, and if so, set its destination MAC
 		struct w_sock *s;
 		SLIST_FOREACH(s, &w->sock, next)
 			if (s->dip == arp->spa) {
-				dlog(warn, "updating socket with %s for %s",
-				    ether_ntoa_r((const struct ether_addr *)
-				                 arp->sha, sha),
-				    ip_ntoa(arp->spa, spa, sizeof spa));
+				dlog(notice, "updating socket with %s for %s",
+				     ether_ntoa_r((const struct ether_addr *)
+				                  arp->sha, sha),
+				     ip_ntoa(arp->spa, spa, sizeof spa));
 				memcpy(s->dmac, arp->sha, ETH_ADDR_LEN);
 			}
 		break;
