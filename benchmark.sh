@@ -41,7 +41,7 @@ if [ -z "$peerip" ]; then
         exit
 fi
 
-rm kern*.txt warp*.txt > /dev/null 2>&1 || true
+rm kern*.txt warp*.txt *.log > /dev/null 2>&1 || true
 
 # kill dhclient during the time the interfaces are in netmap mode
 sudo pkill -f "dhclient.*$iface" || true
