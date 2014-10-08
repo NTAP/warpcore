@@ -57,6 +57,7 @@ struct w_iov {
 struct w_sock {
 	struct warpcore *	w;			// warpcore instance
 	SLIST_HEAD(ivh, w_iov)	iv;			// iov for read data
+	struct w_iov *		iv_tail;
 	SLIST_HEAD(ovh, w_iov)	ov;			// iov for data to write
 	char *			hdr;			// header template
 	uint16_t		hdr_len;		// length of template
@@ -165,9 +166,6 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 
 // Wait until netmap is ready to send or receive more data. Parameters
 // "event" and "timeout" identical to poll system call.
-// Returns false if an interrupt occurs during the poll, which usually means
-// someone hit Ctrl-C.
-// (TODO: This interrupt handling needs some rethinking.)
 static inline __always_inline void
 w_poll(const struct warpcore * const w, const short ev, const int to)
 {
@@ -204,8 +202,7 @@ w_rx_done(struct w_sock * const s)
 		SLIST_INSERT_HEAD(&s->w->iov, i, next);
 		i = n;
 	}
-	// TODO: should be a no-op; check
-	SLIST_INIT(&s->iv);
+	s->iv_tail = 0;
 }
 
 
@@ -277,9 +274,13 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	// copy over the rx timestamp
 	memcpy(&i->ts, &rxr->ts, sizeof(struct timeval));
 
-	// add the iov to the socket
-	// TODO: XXX this needs to insert at the tail!
-	SLIST_INSERT_HEAD(&(*s)->iv, i, next);
+	// append the iov to the socket
+	// using a STAILQ would be simpler, but slower
+	if (SLIST_EMPTY(&(*s)->iv))
+		SLIST_INSERT_HEAD(&(*s)->iv, i, next);
+	else
+		SLIST_INSERT_AFTER((*s)->iv_tail, i, next);
+	(*s)->iv_tail = i;
 
 	// put the original buffer of the iov into the receive ring
 	rxs->buf_idx = tmp_idx;
@@ -495,7 +496,9 @@ udp_tx(const struct w_sock * const s, struct w_iov * const v)
 	    ntohs(udp->sport), ntohs(udp->dport), v->len);
 
 	udp->len = htons(l);
-	// udp->cksum = in_cksum(udp, l); // XXX need to muck up a pseudo header
+
+	// TODO: need to muck up a pseudo header to calculate checksum
+	// udp->cksum = in_cksum(udp, l);
 
 	// do IP transmit preparation
 	return ip_tx(s->w, v, l);
