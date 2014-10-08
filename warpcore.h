@@ -6,6 +6,7 @@
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <xmmintrin.h>
 
 #include <net/netmap_user.h>
 
@@ -180,11 +181,11 @@ w_poll(const struct warpcore * const w, const short ev, const int to)
 			die("poll");
 	}
 	if (unlikely(n == 0)) {
-		// dlog(warn, "poll: timeout expired");
+		dlog(notice, "poll: timeout expired");
 		return;
 	}
 
-	// rdlog(warn, 1, "poll: %d descriptors ready", n);
+	drlog(debug, 1, "poll: %d descriptors ready", n);
 	return;
 }
 
@@ -380,6 +381,11 @@ w_rx(struct w_sock * const s)
 		struct netmap_ring * const r =
 			NETMAP_RXRING(s->w->nif, s->w->cur_rxr);
 		while (!nm_ring_empty(r)) {
+			// prefetch the next slot into the cache
+			_mm_prefetch(NETMAP_BUF(r, r->slot[r->cur + 1].buf_idx),
+			             _MM_HINT_T0);
+
+			// process the current slot
 			eth_rx(s->w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
 			r->head = r->cur = nm_ring_next(r, r->cur);
 		}
@@ -418,6 +424,10 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 	}
 
 	struct netmap_slot * const txs = &txr->slot[txr->cur];
+
+	// prefetch the next slot into the cache, too
+	_mm_prefetch(NETMAP_BUF(txr, txr->slot[txr->cur + 1].buf_idx),
+	             _MM_HINT_T0);
 
 	dlog(info, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
 	    v->idx, w->cur_txr, txr->cur, txs->buf_idx);
@@ -533,7 +543,7 @@ w_tx(struct w_sock * const s)
 	uint32_t n = 0, l = 0;
 	while (likely(!SLIST_EMPTY(&s->ov))) {
 		struct w_iov * const v = SLIST_FIRST(&s->ov);
-		if (likely(udp_tx(s, v))) {
+		if (udp_tx(s, v)) {
 			n++;
 			l += v->len;
 			SLIST_REMOVE_HEAD(&s->ov, next);
