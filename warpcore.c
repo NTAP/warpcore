@@ -129,6 +129,8 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 		    ip_ntoa(dip, str, IP_ADDR_STRLEN));
 		arp_who_has(s->w, dip);
 		w_poll(s->w, POLLIN, 1000);
+		if (s->w->interrupt)
+			return;
 		w_kick_rx(s->w);
 		w_rx(s);
 		if (!IS_ZERO(s->dmac))
