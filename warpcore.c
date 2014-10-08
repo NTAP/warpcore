@@ -320,7 +320,7 @@ w_cleanup(struct warpcore * const w)
 
 // Interrupt handler.
 static void
-w_handler(int sig __attribute__((__unused__)))
+w_handler(int sig __unused)
 {
 	if (_w)
 		_w->interrupt = true;

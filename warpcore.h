@@ -20,6 +20,18 @@
 #include <net/if_dl.h>
 #endif
 
+#ifndef __aligned
+#define __aligned(x)	__attribute__((__aligned__(x)))
+#endif
+
+#ifndef __packed
+#define __packed	__attribute__((__packed__))
+#endif
+
+#ifndef __unused
+#define __unused	__attribute__((__unused__))
+#endif
+
 #include "debug.h"
 #include "eth.h"
 #include "arp.h"
@@ -39,7 +51,7 @@ struct w_iov {
 	uint16_t		port;	// sender port (only valid on rx)
 	uint32_t		ip;	// sender IP address (only valid on rx)
 	struct timeval		ts;
-} __attribute__((__aligned__(4)));
+} __aligned(4);
 
 
 struct w_sock {
@@ -54,7 +66,7 @@ struct w_sock {
 	uint16_t		dport;			// dst port
 	SLIST_ENTRY(w_sock) 	next;			// next socket
 	uint8_t			p;			// protocol
-} __attribute__((__aligned__(4)));
+} __aligned(4);
 
 
 struct warpcore {
@@ -79,7 +91,7 @@ struct warpcore {
 	uint32_t		mask;			// our IP netmask
 	int			fd;			// netmap descriptor
 	struct nmreq		req;			// netmap request
-} __attribute__((__aligned__(4)));
+} __aligned(4);
 
 
 // see warpcore.c for documentation of functions
@@ -99,7 +111,7 @@ extern void w_close(struct w_sock * const s);
 
 
 // Allocates an iov of a given size for tx preparation.
-static inline __attribute__((always_inline)) struct w_iov *
+static inline __always_inline struct w_iov *
 w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
 	if (unlikely(!SLIST_EMPTY(&s->ov))) {
@@ -156,7 +168,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 // Returns false if an interrupt occurs during the poll, which usually means
 // someone hit Ctrl-C.
 // (TODO: This interrupt handling needs some rethinking.)
-static inline __attribute__((always_inline)) void
+static inline __always_inline void
 w_poll(const struct warpcore * const w, const short ev, const int to)
 {
 	struct pollfd fds = { .fd = w->fd, .events = ev };
@@ -181,7 +193,7 @@ w_poll(const struct warpcore * const w, const short ev, const int to)
 
 // User needs to call this once they are done with touching any received data.
 // This makes the iov that holds the received data available to warpcore again.
-static inline __attribute__((always_inline)) void
+static inline __always_inline void
 w_rx_done(struct w_sock * const s)
 {
 	struct w_iov *i = SLIST_FIRST(&s->iv);
@@ -200,7 +212,7 @@ w_rx_done(struct w_sock * const s)
 
 // Internal warpcore function. Given an IP protocol number and a local port
 // number, returns a pointer to the w_sock pointer.
-// static inline __attribute__((always_inline)) struct w_sock **
+// static inline __always_inline struct w_sock **
 // w_get_sock(const struct warpcore * const w, const uint8_t p,
 //            const uint16_t port)
 // {
@@ -219,7 +231,7 @@ w_rx_done(struct w_sock * const s)
 
 
 // Receive a UDP packet.
-static inline __attribute__((always_inline)) void
+static inline __always_inline void
 udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
             const uint32_t ip)
 {
@@ -277,7 +289,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 
 
 // Receive an IP packet.
-static inline __attribute__((always_inline)) void
+static inline __always_inline void
 ip_rx(struct warpcore * const w, char * const buf)
 {
 	const struct ip_hdr * const ip =
@@ -327,7 +339,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 
 // Receive an Ethernet packet. This is the lowest level inbound function,
 // called from w_poll.
-static inline __attribute__((always_inline)) void
+static inline __always_inline void
 eth_rx(struct warpcore * const w, char * const buf)
 {
 	const struct eth_hdr * const eth = (const struct eth_hdr * const)buf;
@@ -359,7 +371,7 @@ eth_rx(struct warpcore * const w, char * const buf)
 
 // Pulls new received data out of the rx ring and places it into socket iovs.
 // Returns an iov of any data received.
-static inline __attribute__((always_inline)) struct w_iov *
+static inline __always_inline struct w_iov *
 w_rx(struct w_sock * const s)
 {
 	// loop over all rx rings starting with cur_rxr and wrapping around
@@ -381,7 +393,7 @@ w_rx(struct w_sock * const s)
 
 // Swap the buffer in the iov into the tx ring, placing an empty one
 // into the iov.
-static inline __attribute__((always_inline)) bool
+static inline __always_inline bool
 eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 {
 	// check if there is space in the current txr
@@ -440,7 +452,7 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 // Fill in the IP header information that isn't set as part of the
 // socket packet template, calculate the header checksum, and hand off
 // to the Ethernet layer.
-static inline __attribute__((always_inline)) bool
+static inline __always_inline bool
 ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 {
 	char * const start = IDX2BUF(w, v->idx);
@@ -468,7 +480,7 @@ ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 
 
 // Put the socket template header in front of the data in the iov and send.
-static inline __attribute__((always_inline)) bool
+static inline __always_inline bool
 udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
 	// copy template header into buffer and fill in remaining fields
@@ -491,7 +503,7 @@ udp_tx(const struct w_sock * const s, struct w_iov * const v)
 
 
 // Internal warpcore function. Kick the tx ring.
-static inline __attribute__((always_inline)) void
+static inline __always_inline void
 w_kick_tx(const struct warpcore * const w)
 {
 	if (unlikely(ioctl(w->fd, NIOCTXSYNC, 0) == -1))
@@ -500,7 +512,7 @@ w_kick_tx(const struct warpcore * const w)
 
 
 // Internal warpcore function. Kick the rx ring.
-static inline __attribute__((always_inline)) void
+static inline __always_inline void
 w_kick_rx(const struct warpcore * const w)
 {
 	if (unlikely(ioctl(w->fd, NIOCRXSYNC, 0) == -1))
@@ -509,7 +521,7 @@ w_kick_rx(const struct warpcore * const w)
 
 
 // Prepends all network headers and places s->ov in the tx ring.
-static inline __attribute__((always_inline)) void
+static inline __always_inline void
 w_tx(struct w_sock * const s)
 {
 	// TODO: handle other protocols
