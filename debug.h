@@ -17,8 +17,8 @@ enum dlevel { crit, err, warn, notice, info, debug };
 #include <sys/time.h>
 
 // These macros are based on the "D" ones defined by netmap
-#define dlog(dlevel, fmt, ...)                                          	\
-	if (DLEVEL >= dlevel) {                                          \
+#define dlog(dlevel, fmt, ...)                                         	\
+	if (DLEVEL >= dlevel) {                                         \
 		struct timeval _lt0;                                	\
 		gettimeofday(&_lt0, 0);                             	\
 		fprintf(stderr, "%03d.%06d %s [%d] " fmt "\n",    	\
@@ -27,8 +27,8 @@ enum dlevel { crit, err, warn, notice, info, debug };
 	}
 
 // Rate limited version of "log", lps indicates how many per second
-#define drlog(dlevel, lps, format, ...)                                 	\
-	if (DLEVEL >= dlevel) {                                          \
+#define drlog(dlevel, lps, format, ...)                                	\
+	if (DLEVEL >= dlevel) {                                         \
 		static int _rt0, _rcnt;                               	\
 		struct timeval _rts;                              	\
 		gettimeofday(&_rts, 0);                           	\
@@ -37,7 +37,7 @@ enum dlevel { crit, err, warn, notice, info, debug };
 			_rcnt = 0;                                  	\
 		}                                                 	\
 		if (_rcnt++ < lps) {                                	\
-			log(level, format, ##__VA_ARGS__);             	\
+			dlog(dlevel, format, ##__VA_ARGS__);          	\
 		}                                                 	\
 	}
 
