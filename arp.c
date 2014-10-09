@@ -21,13 +21,6 @@ arp_is_at(struct warpcore * w, char * const buf)
 {
 	struct arp_hdr * const arp =
 		(struct arp_hdr * const)(buf + sizeof(struct eth_hdr));
-#ifndef NDEBUG
-	char tha[ETH_ADDR_STRLEN];
-	char tpa[IP_ADDR_STRLEN];
-	dlog(notice, "ARP reply %s is at %s",
-	     ip_ntoa(arp->tpa, tpa, sizeof tpa),
-	     ether_ntoa_r((const struct ether_addr *)arp->tha, tha));
-#endif
 
 	// modify ARP header
 	arp->op = htons(ARP_OP_REPLY);
@@ -35,6 +28,14 @@ arp_is_at(struct warpcore * w, char * const buf)
 	arp->tpa = arp->spa;
 	memcpy(arp->sha, w->mac, sizeof arp->sha);
 	arp->spa = w->ip;
+
+#ifndef NDEBUG
+	char sha[ETH_ADDR_STRLEN];
+	char spa[IP_ADDR_STRLEN];
+	dlog(notice, "ARP reply %s is at %s",
+	     ip_ntoa(arp->spa, spa, sizeof spa),
+	     ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
+#endif
 
 	// send the Ethernet packet
 	eth_tx_rx_cur(w, buf, sizeof(struct arp_hdr));
