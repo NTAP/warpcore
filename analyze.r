@@ -6,13 +6,12 @@ printf <- function(...) cat(sprintf(...))
 
 import <- function(file) {
 	dt <- data.table::fread(file)
-  dt[, time:=time/1000]
-	stats <- dt[order(size), list(n=length(time), min=min(time), max=max(time),
-			   mean=mean(time), sd=sd(time),
-			   median=as.double(median(time)),
-			   q25=quantile(time, probs=c(.25)),
-			   q75=quantile(time, probs=c(.75)),
-			   cmean=mean(code), csd=sd(code)), by=size]
+	dt[, nsec:=nsec/1000]
+	stats <- dt[order(size), list(n=length(nsec), min=min(nsec), max=max(nsec),
+			   mean=mean(nsec), sd=sd(nsec),
+			   median=as.double(median(nsec)),
+			   q25=quantile(nsec, probs=c(.25)),
+			   q75=quantile(nsec, probs=c(.75))), by=size]
 	return(stats)
 }
 

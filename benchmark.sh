@@ -2,7 +2,7 @@
 
 set -e
 
-loops=100000
+loops=10000
 busywait=-b
 peer=mora2
 iface=ix0
@@ -25,8 +25,8 @@ run () {
 		echo "Running $1 size $size"
 		$cmd $flag -s $size >> "$1.txt" 2> warpping.$1.log
 	done
-	echo "time	code	size" > $1.new
-	grep -v code $1.txt >> $1.new
+	echo "nsec	size" > $1.new
+	grep -v nsec $1.txt >> $1.new
 	mv $1.new $1.txt
 }
 
@@ -37,8 +37,8 @@ if [ -z "$(/sbin/ifconfig $iface | grep 'inet ')" ]; then
 fi
 
 if [ -z "$peerip" ]; then
-        echo remote interface has no IP address
-        exit
+	echo remote interface has no IP address
+	exit
 fi
 
 rm kern*.txt warp*.txt *.log > /dev/null 2>&1 || true
