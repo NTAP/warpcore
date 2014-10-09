@@ -13,7 +13,7 @@
 
 
 static void usage(const char * const name, const uint16_t size,
-                  const long loops)
+		  const long loops)
 {
 	printf("%s\n", name);
 	printf("\t[-k]                    use kernel, default is warpcore\n");
@@ -27,7 +27,7 @@ static void usage(const char * const name, const uint16_t size,
 
 // Subtract the struct timespec values x and y (x-y), storing the result in r
 static void time_diff(struct timespec * const r, struct timespec * const x,
-                   struct timespec * const y)
+		   struct timespec * const y)
 {
 	// Perform the carry for the later subtraction by updating y
 	if (x->tv_nsec < y->tv_nsec) {
@@ -59,9 +59,9 @@ int main(int argc, char *argv[])
 	int ch;
 	while ((ch = getopt(argc, argv, "hi:d:l:s:kb")) != -1) {
 		switch (ch) {
-                case 'i':
-                        ifname = optarg;
-                        break;
+		case 'i':
+			ifname = optarg;
+			break;
 		case 'd':
 			dst = optarg;
 			break;
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			size = (uint16_t)MIN(UINT16_MAX,
-			                     MAX(size, strtol(optarg, 0, 10)));
+					     MAX(size, strtol(optarg, 0, 10)));
 			break;
 		case 'k':
 			use_warpcore = false;
@@ -108,48 +108,46 @@ int main(int argc, char *argv[])
 		w = w_init(ifname);
 		ws = w_bind(w, IP_P_UDP, (uint16_t)random());
 		w_connect(ws,
-		          ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr,
-		          ((struct sockaddr_in *)res->ai_addr)->sin_port);
+			  ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr,
+			  ((struct sockaddr_in *)res->ai_addr)->sin_port);
 	} else {
 		w_init_common();
-	   	ks = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	   	if (ks == -1)
-	   		die("socket");
+		ks = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		if (ks == -1)
+			die("socket");
 		fds.fd = ks;
 		fds.events = POLLIN;
 		before = calloc(1, size);
 		after = calloc(1, size);
 	}
 
-	printf("time\tcodetime\tsize\n");
+	printf("nsec\tsize\n");
 	while (likely(loops--)) {
-		// struct timeval *rx = 0;
 		if (use_warpcore) {
 			struct w_iov * const o = w_tx_alloc(ws, size);
-			if (clock_gettime(CLOCK_MONOTONIC,
-			                  (struct timespec *)o->buf) == -1)
-				die("clock_gettime");
+			before = o->buf;
+		}
+
+		if (clock_gettime(CLOCK_MONOTONIC,
+				  (struct timespec *)before) == -1)
+			die("clock_gettime");
+
+		if (use_warpcore) {
 			w_tx(ws);
 
 			if (!busywait)
 				w_poll(w, POLLIN, 1000);
-			else
+
+			struct w_iov * i = 0;
+			do {
 				w_kick_rx(w);
+				i = w_rx(ws);
+				if (unlikely(w->interrupt))
+					goto done;
+			} while (i == 0);
 
-			if (w->interrupt)
-				goto done;
-
-			struct w_iov * const i = w_rx(ws);
-			if (unlikely(i == 0)) {
-				dlog(info, "packet loss?");
-				continue;
-			}
 			after = i->buf;
-			// rx = &i->ts;
 		} else {
-			if (clock_gettime(CLOCK_MONOTONIC,
-			                  (struct timespec *)before) == -1)
-				die("clock_gettime");
 			sendto(ks, before, size, 0, res->ai_addr,
 			       res->ai_addrlen);
 
@@ -158,14 +156,13 @@ int main(int argc, char *argv[])
 				if (unlikely(p == -1))
 					die("poll");
 				else if (unlikely(p == 0)) {
-					dlog(warn, "packet loss?");
 					continue;
 				}
 			}
 
 			socklen_t fromlen = res->ai_addrlen;
 			if (unlikely(recvfrom(ks, after, size, 0, res->ai_addr,
-			                      &fromlen) == -1))
+					      &fromlen) == -1))
 				die("recvfrom");
 		}
 
@@ -178,16 +175,9 @@ int main(int argc, char *argv[])
 			die("time difference is more than %ld sec",
 			    diff.tv_sec);
 
-		printf("%ld\t", diff.tv_nsec);
-
-		if (use_warpcore) {
-			// time_diff(&diff, &now, rx);
-			// printf("%ld\t", diff.tv_nsec);
-			printf("0\t");
+		printf("%ld\t%d\n", diff.tv_nsec, size);
+		if (use_warpcore)
 			w_rx_done(ws);
-		} else
-			printf("0\t");
-		printf("%d\n", size);
 
 	}
 done:
