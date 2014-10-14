@@ -9,7 +9,8 @@
 #include "ip.h"
 
 
-static void usage(const char * const name)
+static void
+usage(const char * const name)
 {
 	printf("%s\n", name);
 	printf("\t -i interface           interface to run over\n");
@@ -17,7 +18,8 @@ static void usage(const char * const name)
 }
 
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	const char *ifname = 0;
 	bool busywait = false;

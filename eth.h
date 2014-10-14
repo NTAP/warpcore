@@ -26,7 +26,13 @@ struct warpcore;
 struct w_iov;
 
 // see eth.c for documentation of functions
-extern void eth_tx_rx_cur(struct warpcore * w, char * const buf,
-		          const uint16_t len);
+extern void
+eth_tx_rx_cur(struct warpcore * w, char * const buf, const uint16_t len);
+
+extern void
+eth_rx(struct warpcore * const w, char * const buf);
+
+extern bool
+eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len);
 
 #endif

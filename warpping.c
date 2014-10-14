@@ -12,8 +12,8 @@
 #include "ip.h"
 
 
-static void usage(const char * const name, const uint16_t size,
-		  const long loops)
+static void
+usage(const char * const name, const uint16_t size, const long loops)
 {
 	printf("%s\n", name);
 	printf("\t[-k]                    use kernel, default is warpcore\n");
@@ -26,8 +26,9 @@ static void usage(const char * const name, const uint16_t size,
 
 
 // Subtract the struct timespec values x and y (x-y), storing the result in r
-static void time_diff(struct timespec * const r, struct timespec * const x,
-		   struct timespec * const y)
+static void
+time_diff(struct timespec * const r, struct timespec * const x,
+	  struct timespec * const y)
 {
 	// Perform the carry for the later subtraction by updating y
 	if (x->tv_nsec < y->tv_nsec) {
@@ -47,7 +48,8 @@ static void time_diff(struct timespec * const r, struct timespec * const x,
 }
 
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	const char *ifname = 0;
 	const char *dst = 0;
@@ -113,8 +115,8 @@ int main(int argc, char *argv[])
 	} else {
 		w_init_common();
 		ks = socket(res->ai_family,
-		            res->ai_socktype|(busywait ? SOCK_NONBLOCK : 0),
-		            res->ai_protocol);
+			    res->ai_socktype|(busywait ? SOCK_NONBLOCK : 0),
+			    res->ai_protocol);
 		if (ks == -1)
 			die("socket");
 		fds.fd = ks;
@@ -166,7 +168,7 @@ int main(int argc, char *argv[])
 			ssize_t s = 0;
 			do {
 				s = recvfrom(ks, after, size, 0,
-				             res->ai_addr, &fromlen);
+					     res->ai_addr, &fromlen);
 			} while (s == 0 | s == -1 && errno == EAGAIN);
 		}
 

@@ -7,8 +7,9 @@
 
 
 // Send the modified ICMP packet in the current receive buffer.
-static void icmp_tx(struct warpcore * w, char * const buf,
-             const uint16_t off, const uint16_t len)
+static void
+icmp_tx(struct warpcore * w, char * const buf, const uint16_t off,
+	const uint16_t len)
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
 	dlog(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
@@ -25,8 +26,9 @@ static void icmp_tx(struct warpcore * w, char * const buf,
 
 // Make an ICMP unreachable message with the given code out of the
 // current received packet.
-void icmp_tx_unreach(struct warpcore * w, const uint8_t code,
-                     char * const buf, const uint16_t off)
+void
+icmp_tx_unreach(struct warpcore * w, const uint8_t code, char * const buf,
+		const uint16_t off)
 {
 	// copy IP hdr + 64 bytes of the original IP packet as the ICMP payload
 	struct ip_hdr * const ip =
@@ -49,8 +51,9 @@ void icmp_tx_unreach(struct warpcore * w, const uint8_t code,
 
 
 // Handle an incoming ICMP packet, and optionally respond to it.
-void icmp_rx(struct warpcore * w, char * const buf,
-             const uint16_t off, const uint16_t len)
+void
+icmp_rx(struct warpcore * w, char * const buf, const uint16_t off,
+	const uint16_t len)
 {
 	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
 	dlog(notice, "ICMP type %d, code %d", icmp->type, icmp->code);

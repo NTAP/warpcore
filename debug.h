@@ -53,10 +53,10 @@ enum dlevel { crit, err, warn, notice, info, debug };
 		const int e = errno;                              	\
 		if (e)                                            	\
 			fprintf(stderr, "abort: " fmt ": %s\n",       	\
-			        ##__VA_ARGS__, strerror(e));      	\
+				##__VA_ARGS__, strerror(e));      	\
 		else                                              	\
 			fprintf(stderr, "abort: " fmt "\n",             \
-			        ##__VA_ARGS__);                         \
+				##__VA_ARGS__);                         \
 		abort();                                          	\
 	} while (0)
 

@@ -31,53 +31,172 @@
 static struct warpcore * _w = 0;
 
 
-// Use a spare iov to transmit an ARP query for the given destination
-// IP address.
-static inline void
-arp_who_has(struct warpcore * const w, const uint32_t dip)
+// Allocates an iov of a given size for tx preparation.
+struct w_iov *
+w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
-	// grab a spare buffer
-	struct w_iov * const v = SLIST_FIRST(&w->iov);
-	if (v == 0)
-		die("out of spare bufs");
-	SLIST_REMOVE_HEAD(&w->iov, next);
-	v->buf = IDX2BUF(w, v->idx);
+	if (unlikely(!SLIST_EMPTY(&s->ov))) {
+		dlog(warn, "output iov already allocated");
+		return 0;
+	}
 
-	// pointers to the start of the various headers
-	struct eth_hdr * const eth = (struct eth_hdr *)(v->buf);
-	struct arp_hdr * const arp =
-		(struct arp_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
+	// determine space needed for header
+	uint16_t hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
+	if (likely(s->p == IP_P_UDP))
+		hdr_len += sizeof(struct udp_hdr);
+	else {
+		die("unhandled IP proto %d", s->p);
+		return 0;
+	}
 
-	// set Ethernet header fields
-	memcpy(eth->dst, ETH_BCAST, ETH_ADDR_LEN);
-	memcpy(eth->src, w->mac, ETH_ADDR_LEN);
-	eth->type = ETH_TYPE_ARP;
+	// add enough buffers to the iov so it is > len
+	SLIST_INIT(&s->ov);
+	struct w_iov *ov_tail = 0;
+	struct w_iov *v = 0;
+	int32_t l = (int32_t)len;
+	uint32_t n = 0;
+	while (l > 0) {
+		// grab a spare buffer
+		v = SLIST_FIRST(&s->w->iov);
+		if (unlikely(v == 0))
+			die("out of spare bufs after grabbing %d", n);
+		SLIST_REMOVE_HEAD(&s->w->iov, next);
+		dlog(debug, "grabbing spare buf %d for user tx", v->idx);
+		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
+		v->len = s->w->mtu - hdr_len;
+		l -= v->len;
+		n++;
 
-	// set ARP header fields
-	arp->hrd =	htons(ARP_HRD_ETHER);
-	arp->pro =	ETH_TYPE_IP;
-	arp->hln =	ETH_ADDR_LEN;
-	arp->pln =	IP_ADDR_LEN;
-	arp->op =	htons(ARP_OP_REQUEST);
-	memcpy(arp->sha, w->mac, ETH_ADDR_LEN);
-	arp->spa =	w->ip;
-	bzero(arp->tha, ETH_ADDR_LEN);
-	arp->tpa =	dip;
+		// add the iov to the tail of the socket
+		// using a STAILQ would be simpler, but slower
+		if (SLIST_EMPTY(&s->ov))
+			SLIST_INSERT_HEAD(&s->ov, v, next);
+		else
+			SLIST_INSERT_AFTER(ov_tail, v, next);
+		ov_tail = v;
+	}
+	// adjust length of last iov so chain is the exact length requested
+	v->len += l; // l is negative
 
-#ifndef NDEBUG
-	char spa[IP_ADDR_STRLEN];
-	char tpa[IP_ADDR_STRLEN];
-	dlog(notice, "ARP request who has %s tell %s",
-	     ip_ntoa(arp->tpa, tpa, IP_ADDR_STRLEN),
-	     ip_ntoa(arp->spa, spa, IP_ADDR_STRLEN));
-#endif
+	dlog(notice, "allocating iov (len %d in %d bufs) for user tx", len, n);
 
-	// send the Ethernet packet
-	eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
-	w_kick_tx(w);
+	return SLIST_FIRST(&s->ov);
+}
 
-	// make iov available again
-	SLIST_INSERT_HEAD(&w->iov, v, next);
+
+// Wait until netmap is ready to send or receive more data. Parameters
+// "event" and "timeout" identical to poll system call.
+void
+w_poll(const struct warpcore * const w, const short ev, const int to)
+{
+	struct pollfd fds = { .fd = w->fd, .events = ev };
+	const int n = poll(&fds, 1, to);
+
+	if (unlikely(n == -1)) {
+		if (errno == EINTR) {
+			dlog(notice, "poll: interrupt");
+			return;
+		} else
+			die("poll");
+	}
+	if (unlikely(n == 0)) {
+		dlog(notice, "poll: timeout expired");
+		return;
+	}
+
+	drlog(debug, 1, "poll: %d descriptors ready", n);
+	return;
+}
+
+
+// User needs to call this once they are done with touching any received data.
+// This makes the iov that holds the received data available to warpcore again.
+void
+w_rx_done(struct w_sock * const s)
+{
+	struct w_iov *i = SLIST_FIRST(&s->iv);
+	while (i) {
+		// move i from the socket to the available iov list
+		struct w_iov * const n = SLIST_NEXT(i, next);
+		SLIST_REMOVE_HEAD(&s->iv, next);
+		SLIST_INSERT_HEAD(&s->w->iov, i, next);
+		i = n;
+	}
+	s->iv_tail = 0;
+}
+
+
+// Pulls new received data out of the rx ring and places it into socket iovs.
+// Returns an iov of any data received.
+struct w_iov *
+w_rx(struct w_sock * const s)
+{
+	// loop over all rx rings starting with cur_rxr and wrapping around
+	for (uint32_t i = 0; likely(i < s->w->nif->ni_rx_rings); i++) {
+		struct netmap_ring * const r =
+			NETMAP_RXRING(s->w->nif, s->w->cur_rxr);
+		while (!nm_ring_empty(r)) {
+			// prefetch the next slot into the cache
+			_mm_prefetch(NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx),
+				     _MM_HINT_T1);
+
+			// process the current slot
+			eth_rx(s->w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
+			r->head = r->cur = nm_ring_next(r, r->cur);
+		}
+		s->w->cur_rxr = (s->w->cur_rxr + 1) % s->w->nif->ni_rx_rings;
+	}
+
+	if (s)
+		return SLIST_FIRST(&s->iv);
+	return 0;
+}
+
+
+// Internal warpcore function. Kick the tx ring.
+void
+w_kick_tx(const struct warpcore * const w)
+{
+	if (unlikely(ioctl(w->fd, NIOCTXSYNC, 0) == -1))
+		die("cannot kick tx ring");
+}
+
+
+// Internal warpcore function. Kick the rx ring.
+void
+w_kick_rx(const struct warpcore * const w)
+{
+	if (unlikely(ioctl(w->fd, NIOCRXSYNC, 0) == -1))
+		die("cannot kick rx ring");
+}
+
+
+// Prepends all network headers and places s->ov in the tx ring.
+void
+w_tx(struct w_sock * const s)
+{
+	// TODO: handle other protocols
+
+	// packetize bufs and place in tx ring
+	uint32_t n = 0, l = 0;
+	while (likely(!SLIST_EMPTY(&s->ov))) {
+		struct w_iov * const v = SLIST_FIRST(&s->ov);
+		if (udp_tx(s, v)) {
+			n++;
+			l += v->len;
+			SLIST_REMOVE_HEAD(&s->ov, next);
+			SLIST_INSERT_HEAD(&s->w->iov, v, next);
+		} else {
+			// no space in rings
+			w_kick_tx(s->w);
+			dlog(warn, "polling for send space");
+			w_poll(s->w, POLLOUT, -1);
+		}
+	}
+	dlog(notice, "UDP tx iov (len %d in %d bufs) done", l, n);
+
+	// kick tx ring
+	w_kick_tx(s->w);
 }
 
 

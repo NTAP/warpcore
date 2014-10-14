@@ -31,6 +31,10 @@ struct warpcore;
 
 // see arp.c for documentation of functions
 
-extern void arp_rx(struct warpcore * w, char * const buf);
+extern void
+arp_rx(struct warpcore * w, char * const buf);
+
+extern void
+arp_who_has(struct warpcore * const w, const uint32_t dip);
 
 #endif

@@ -33,14 +33,25 @@ struct warpcore;
 struct w_iov;
 
 // see ip.c for documentation of functions
-extern void ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
-                              char * const buf, const uint16_t len);
+extern void
+ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p, char * const buf,
+		  const uint16_t len);
 
-extern const char * ip_ntoa(uint32_t ip, char * const buf, const size_t size);
+extern const char *
+ip_ntoa(uint32_t ip, char * const buf, const size_t size);
 
-extern uint32_t ip_aton(const char * const ip);
+extern uint32_t
+ip_aton(const char * const ip);
+
+extern void
+ip_rx(struct warpcore * const w, char * const buf);
+
+extern bool
+ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len);
 
 // this is defined in in_chksum.c, which is the FreeBSD checksum code
-extern uint16_t in_cksum(const void * const buf, const uint16_t len);
+extern uint16_t
+in_cksum(const void * const buf, const uint16_t len);
+
 
 #endif
