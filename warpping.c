@@ -112,7 +112,9 @@ int main(int argc, char *argv[])
 			  ((struct sockaddr_in *)res->ai_addr)->sin_port);
 	} else {
 		w_init_common();
-		ks = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		ks = socket(res->ai_family,
+		            res->ai_socktype|(busywait ? SOCK_NONBLOCK : 0),
+		            res->ai_protocol);
 		if (ks == -1)
 			die("socket");
 		fds.fd = ks;
@@ -161,9 +163,11 @@ int main(int argc, char *argv[])
 			}
 
 			socklen_t fromlen = res->ai_addrlen;
-			if (unlikely(recvfrom(ks, after, size, 0, res->ai_addr,
-					      &fromlen) == -1))
-				die("recvfrom");
+			ssize_t s = 0;
+			do {
+				s = recvfrom(ks, after, size, 0,
+				             res->ai_addr, &fromlen);
+			} while (s == 0 | s == -1 && errno == EAGAIN);
 		}
 
 		struct timespec diff, now;
