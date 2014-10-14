@@ -11,12 +11,12 @@ MAKEFLAGS+="-j -l $(NPROCS)"
 CC=cc
 
 # CFLAGS for all compilers
-CFLAGS+=-pipe -std=c11
+CFLAGS+=-pipe -std=c11 -g
 CFLAGS+=-Ofast -march=native -fno-strict-aliasing
 CFLAGS+=-Wall -Wextra -fdiagnostics-color=auto
-CFLAGS+=-g -DDLEVEL=notice
-# CFLAGS+=-pg -ftrapv
+CFLAGS+=-DDLEVEL=notice
 # CFLAGS+=-DNDEBUG
+# CFLAGS+=-pg -ftrapv
 
 # additional CFLAGS that are compiler-specific
 ifeq ($(CC), gcc49)

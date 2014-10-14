@@ -78,7 +78,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 	// adjust length of last iov so chain is the exact length requested
 	v->len += l; // l is negative
 
-	dlog(notice, "allocating iov (len %d in %d bufs) for user tx", len, n);
+	dlog(info, "allocating iov (len %d in %d bufs) for user tx", len, n);
 
 	return SLIST_FIRST(&s->ov);
 }
@@ -193,7 +193,7 @@ w_tx(struct w_sock * const s)
 			w_poll(s->w, POLLOUT, -1);
 		}
 	}
-	dlog(notice, "UDP tx iov (len %d in %d bufs) done", l, n);
+	dlog(info, "UDP tx iov (len %d in %d bufs) done", l, n);
 
 	// kick tx ring
 	w_kick_tx(s->w);
