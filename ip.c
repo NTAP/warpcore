@@ -113,6 +113,8 @@ ip_rx(struct warpcore * const w, char * const buf)
 
 	if (likely(ip->p == IP_P_UDP))
 		udp_rx(w, buf, off, ip->src);
+	else if (ip->p == IP_P_TCP)
+		tcp_rx(w, buf, off, len, ip->src);
 	else if (ip->p == IP_P_ICMP)
 		icmp_rx(w, buf, off, len);
 	else {
