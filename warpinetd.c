@@ -67,7 +67,7 @@ main(int argc, char *argv[])
 			// echo the data
 			struct w_iov *o = w_tx_alloc(ech, i->len);
 			memcpy(o->buf, i->buf, i->len);
-			w_connect(ech, i->ip, i->port);
+			w_connect(ech, i->src, i->sport);
 			w_tx(ech);
 			i = SLIST_NEXT(i, next);
 		}
@@ -93,7 +93,7 @@ main(int argc, char *argv[])
 			const uint32_t l = (uint32_t)strlen(c);
 			struct w_iov *o = w_tx_alloc(dtm, l);
 			memcpy(o->buf, c, l);
-			w_connect(dtm, i->ip, i->port);
+			w_connect(dtm, i->src, i->sport);
 			w_tx(dtm);
 			i = SLIST_NEXT(i, next);
 		}
@@ -107,7 +107,7 @@ main(int argc, char *argv[])
 			struct w_iov *o = w_tx_alloc(tme, sizeof(uint32_t));
 			uint32_t * const b = (uint32_t *)o->buf;
 			*b = htonl(t);
-			w_connect(tme, i->ip, i->port);
+			w_connect(tme, i->src, i->sport);
 			w_tx(tme);
 			i = SLIST_NEXT(i, next);
 		}

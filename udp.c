@@ -9,7 +9,7 @@
 // Receive a UDP packet.
 void
 udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
-	    const uint32_t ip)
+	    const uint32_t src)
 {
 	const struct udp_hdr * const udp =
 		(const struct udp_hdr * const)(buf + off);
@@ -47,8 +47,8 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	i->idx = rxs->buf_idx;
 
 	// tag the iov with the sender's information
-	i->ip = ip;
-	i->port = udp->sport;
+	i->src = src;
+	i->sport = udp->sport;
 
 	// copy over the rx timestamp
 	memcpy(&i->ts, &rxr->ts, sizeof(struct timeval));

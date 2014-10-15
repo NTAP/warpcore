@@ -49,8 +49,8 @@ struct w_iov {
 	SLIST_ENTRY(w_iov) 	next;	// next iov
 	uint32_t		idx;	// index of netmap buffer
 	uint16_t		len;	// length of user data (inside buffer)
-	uint16_t		port;	// sender port (only valid on rx)
-	uint32_t		ip;	// sender IP address (only valid on rx)
+	uint16_t		sport;	// sender port (only valid on rx)
+	uint32_t		src;	// sender IP address (only valid on rx)
 	struct timeval		ts;
 } __aligned(4);
 
