@@ -11,7 +11,7 @@
 enum dlevel { crit, err, warn, notice, info, debug };
 
 #ifndef DLEVEL
-#define DLEVEL err
+#define DLEVEL info
 #endif
 
 #include <sys/time.h>
