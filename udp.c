@@ -64,26 +64,51 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 
 
 // Put the socket template header in front of the data in the iov and send.
-bool
-udp_tx(const struct w_sock * const s, struct w_iov * const v)
+void
+udp_tx(struct w_sock * const s)
 {
-	// copy template header into buffer and fill in remaining fields
-	char *start = IDX2BUF(s->w, v->idx);
-	memcpy(start, s->hdr, s->hdr_len);
+#ifndef NDEBUG
+	uint32_t n = 0, l = 0;
+#endif
+	// packetize bufs and place in tx ring
+	while (likely(!STAILQ_EMPTY(&s->ov))) {
+		struct w_iov * const v = STAILQ_FIRST(&s->ov);
 
-	struct udp_hdr * const udp =
-		(struct udp_hdr * const)(v->buf - sizeof(struct udp_hdr));
-	const uint16_t l = v->len + sizeof(struct udp_hdr);
+		// copy template header into buffer and fill in remaining fields
+		char *start = IDX2BUF(s->w, v->idx);
+		memcpy(start, s->hdr, s->hdr_len);
 
-	dlog(info, "UDP :%d -> :%d, len %d",
-	     ntohs(udp->sport), ntohs(udp->dport), v->len);
+		struct udp_hdr * const udp =
+			(struct udp_hdr * const)(v->buf -
+			                         sizeof(struct udp_hdr));
+		const uint16_t len = v->len + sizeof(struct udp_hdr);
 
-	udp->len = htons(l);
+		dlog(info, "UDP :%d -> :%d, len %d",
+		     ntohs(udp->sport), ntohs(udp->dport), v->len);
 
-	// TODO: need to muck up a pseudo header to calculate checksum
-	// udp->cksum = in_cksum(udp, l);
+		udp->len = htons(len);
 
-	// do IP transmit preparation
-	return ip_tx(s->w, v, l);
+		// TODO: need to muck up a pseudo header to calculate checksum
+		// udp->cksum = in_cksum(udp, l);
+
+		// do IP transmit preparation
+		if (ip_tx(s->w, v, len)) {
+#ifndef NDEBUG
+			n++;
+			l += v->len;
+#endif
+			STAILQ_REMOVE_HEAD(&s->ov, next);
+			STAILQ_INSERT_HEAD(&s->w->iov, v, next);
+		} else {
+			// no space in rings
+			w_kick_tx(s->w);
+			dlog(warn, "polling for send space");
+			w_poll(s->w, POLLOUT, -1);
+		}
+	}
+	dlog(info, "proto %d tx iov (len %d in %d bufs) done", s->p, l, n);
+
+	// kick tx ring
+	w_kick_tx(s->w);
 }
 

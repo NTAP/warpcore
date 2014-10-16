@@ -21,8 +21,7 @@ extern void
 udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
        const uint32_t src);
 
-extern bool
-udp_tx(const struct w_sock * const s, struct w_iov * const v);
-
+extern void
+udp_tx(struct w_sock * const s);
 
 #endif

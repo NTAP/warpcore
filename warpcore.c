@@ -39,15 +39,6 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 		return 0;
 	}
 
-	// determine space needed for header
-	uint16_t hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
-	if (likely(s->p == IP_P_UDP))
-		hdr_len += sizeof(struct udp_hdr);
-	else {
-		die("unhandled IP proto %d", s->p);
-		return 0;
-	}
-
 	// add enough buffers to the iov so it is > len
 	STAILQ_INIT(&s->ov);
 	struct w_iov *v = 0;
@@ -60,8 +51,8 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 			die("out of spare bufs after grabbing %d", n);
 		STAILQ_REMOVE_HEAD(&s->w->iov, next);
 		dlog(debug, "grabbing spare buf %d for user tx", v->idx);
-		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
-		v->len = s->w->mtu - hdr_len;
+		v->buf = IDX2BUF(s->w, v->idx) + s->hdr_len;
+		v->len = s->w->mtu - s->hdr_len;
 		l -= v->len;
 		n++;
 
@@ -167,28 +158,12 @@ w_kick_rx(const struct warpcore * const w)
 void
 w_tx(struct w_sock * const s)
 {
-	// TODO: handle other protocols
-
-	// packetize bufs and place in tx ring
-	uint32_t n = 0, l = 0;
-	while (likely(!STAILQ_EMPTY(&s->ov))) {
-		struct w_iov * const v = STAILQ_FIRST(&s->ov);
-		if (udp_tx(s, v)) {
-			n++;
-			l += v->len;
-			STAILQ_REMOVE_HEAD(&s->ov, next);
-			STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-		} else {
-			// no space in rings
-			w_kick_tx(s->w);
-			dlog(warn, "polling for send space");
-			w_poll(s->w, POLLOUT, -1);
-		}
-	}
-	dlog(info, "UDP tx iov (len %d in %d bufs) done", l, n);
-
-	// kick tx ring
-	w_kick_tx(s->w);
+	if (s->p == IP_P_UDP)
+		udp_tx(s);
+	else if (s->p == IP_P_TCP)
+		tcp_tx(s);
+	else
+		die("unhandled IP proto %d", s->p);
 }
 
 
