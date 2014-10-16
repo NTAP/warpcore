@@ -21,6 +21,7 @@
 #include "warpcore.h"
 #include "ip.h"
 #include "udp.h"
+#include "tcp.h"
 #include "icmp.h"
 
 #define NUM_EXTRA_BUFS	16384
@@ -253,23 +254,21 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 
 	// initialize the remaining fields of outgoing template header
 	struct eth_hdr * const eth = (struct eth_hdr *)s->hdr;
+	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
+
 	struct ip_hdr * const ip =
 		(struct ip_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
-	struct udp_hdr * const udp =
-		(struct udp_hdr *)((char *)(ip) + sizeof(struct ip_hdr));
-	switch (s->p) {
-	case IP_P_UDP:
-		udp->dport = dport;
-		break;
-	// case IP_P_TCP:
-	// 	break;
-	default:
-		die("unhandled IP proto %d", s->p);
-		break;
-	}
-
 	ip->dst = dip;
-	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
+
+	if (s->p == IP_P_UDP || s->p == IP_P_TCP) {
+		// this abuses the side effect that the port fields are
+		// in the same bit position for UDP and TCP
+		struct udp_hdr * const udp =
+			(struct udp_hdr *)((char *)(ip) +
+			                   sizeof(struct ip_hdr));
+		udp->dport = dport;
+	} else
+		die("unhandled IP proto %d", s->p);
 
 	dlog(notice, "IP proto %d socket connected to %s port %d", s->p,
 	     ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
@@ -297,39 +296,38 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 	SLIST_INSERT_HEAD(&w->sock, *s, next);
 
 	// initialize the non-zero fields of outgoing template header
-	struct eth_hdr *eth;
-	struct ip_hdr *ip;
-	struct udp_hdr *udp;
-	switch ((*s)->p) {
-	case IP_P_UDP:
-		(*s)->hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr) +
-			     sizeof(struct udp_hdr);
-		if (((*s)->hdr = calloc(1, (*s)->hdr_len)) == 0)
-			die("cannot allocate w_hdr");
-		eth = (struct eth_hdr *)(*s)->hdr;
-		ip = (struct ip_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
-		udp = (struct udp_hdr *)((char *)(ip) + sizeof(struct ip_hdr));
+	const uint16_t hl = sizeof(struct eth_hdr) + sizeof(struct ip_hdr) +
+			    MAX(sizeof(struct udp_hdr),
+				sizeof(struct tcp_hdr));
+	if (((*s)->hdr = calloc(1, hl)) == 0)
+		die("cannot allocate w->hdr");
 
-		udp->sport = (*s)->sport;
-		// udp->dport is set on w_connect()
-		ip->p =	IP_P_UDP;
-		break;
-	// case IP_P_TCP:
-	// 	break;
-	default:
-		die("unhandled IP proto %d", (*s)->p);
-		break;
-	}
-
-	ip->hl = 5;
-	ip->v = 4;
-	ip->ttl = 4;
-	ip->src = (*s)->w->ip;
-	// ip->dst  is set on w_connect()
-
+	struct eth_hdr * const eth = (struct eth_hdr *)(*s)->hdr;
 	eth->type = ETH_TYPE_IP;
 	memcpy(eth->src, (*s)->w->mac, ETH_ADDR_LEN);
 	// eth->dst is set on w_connect()
+
+	struct ip_hdr * const ip =
+		(struct ip_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
+	ip->hl = 5;
+	ip->v = 4;
+	ip->ttl = 4; // XXX TODO: pick something sensible
+	ip->p = p;
+	ip->src = (*s)->w->ip;
+	// ip->dst  is set on w_connect()
+
+	(*s)->hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
+	if (p == IP_P_UDP || p == IP_P_TCP) {
+		// this abuses the side effect that the port fields are
+		// in the same bit position for UDP and TCP
+		(*s)->hdr_len += sizeof(struct udp_hdr);
+		struct udp_hdr * const udp =
+			(struct udp_hdr *)((char *)(ip) +
+					   sizeof(struct ip_hdr));
+		udp->sport = (*s)->sport;
+		// dport is set on w_connect()
+	} else
+		die("unhandled IP proto %d", (*s)->p);
 
 	dlog(notice, "IP proto %d socket bound to port %d",
 	     (*s)->p, ntohs(port));
@@ -396,24 +394,6 @@ w_cleanup(struct warpcore * const w)
 		*(uint32_t *)(last->buf) = 0;
 	}
 	w->nif->ni_bufs_head = STAILQ_FIRST(&w->iov)->idx;
-
-#ifndef NDEBUG
-	// print some info about our rings
-	for (uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
-		const struct netmap_ring * const txr =
-			NETMAP_TXRING(w->nif, ri);
-		for (uint32_t txs = 0; txs < txr->num_slots; txs++)
-			dlog(debug, "tx ring %d slot %d buf %d", ri, txs,
-			    txr->slot[txs].buf_idx);
-	}
-	for (uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
-		const struct netmap_ring * const rxr =
-			NETMAP_RXRING(w->nif, ri);
-		for (uint32_t rxs = 0; rxs < rxr->num_slots; rxs++)
-			dlog(debug, "rx ring %d slot %d buf %d", ri, rxs,
-			    rxr->slot[rxs].buf_idx);
-	}
-#endif
 
 	if (munmap(w->mem, w->req.nr_memsize) == -1)
 		die("cannot munmap netmap memory");
