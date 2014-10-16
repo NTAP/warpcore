@@ -11,6 +11,10 @@
 #include "warpcore.h"
 #include "ip.h"
 
+#ifdef __linux__
+#define CLOCK_REALTIME_PRECISE	CLOCK_REALTIME
+#endif
+
 
 static void
 usage(const char * const name, const uint16_t size, const long loops)
@@ -132,7 +136,7 @@ main(int argc, char *argv[])
 			before = o->buf;
 		}
 
-		if (clock_gettime(CLOCK_MONOTONIC,
+		if (clock_gettime(CLOCK_REALTIME_PRECISE,
 				  (struct timespec *)before) == -1)
 			die("clock_gettime");
 
@@ -173,7 +177,7 @@ main(int argc, char *argv[])
 		}
 
 		struct timespec diff, now;
-		if (clock_gettime(CLOCK_MONOTONIC, &now) == -1)
+		if (clock_gettime(CLOCK_REALTIME_PRECISE, &now) == -1)
 			die("clock_gettime");
 
 		time_diff(&diff, &now, (struct timespec *)after);
