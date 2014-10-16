@@ -14,8 +14,8 @@ piface=$iface
 iname=$(echo $iface | tr -d 0-9)
 peerip=$(ssh $peer "/sbin/ifconfig $piface" | sed -e s/addr:// -e s/^[[:space:]]*//g | grep 'inet ' | cut -f 2 -d' ')
 
-os=$(uname -s)
-peeros=$(ssh $peer "uname -s")
+os=$(uname -s | tr '[:upper:]' '[:lower:]')
+peeros=$(ssh $peer "uname -s" | tr '[:upper:]' '[:lower:]')
 
 run () {
 	local flag
