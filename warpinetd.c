@@ -69,7 +69,7 @@ main(int argc, char *argv[])
 			memcpy(o->buf, i->buf, i->len);
 			w_connect(ech, i->src, i->sport);
 			w_tx(ech);
-			i = SLIST_NEXT(i, next);
+			i = STAILQ_NEXT(i, next);
 		}
 		w_rx_done(ech);
 
@@ -79,7 +79,7 @@ main(int argc, char *argv[])
 			dlog(info, "discard %d bytes in buf %d",
 			     i->len, i->idx);
 			// discard the data
-			i = SLIST_NEXT(i, next);
+			i = STAILQ_NEXT(i, next);
 		}
 		w_rx_done(dsc);
 
@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 			memcpy(o->buf, c, l);
 			w_connect(dtm, i->src, i->sport);
 			w_tx(dtm);
-			i = SLIST_NEXT(i, next);
+			i = STAILQ_NEXT(i, next);
 		}
 		w_rx_done(dtm);
 
@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 			*b = htonl(t);
 			w_connect(tme, i->src, i->sport);
 			w_tx(tme);
-			i = SLIST_NEXT(i, next);
+			i = STAILQ_NEXT(i, next);
 		}
 		w_rx_done(tme);
 	}

@@ -33,7 +33,7 @@ static struct warpcore * _w = 0;
 struct w_iov *
 w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
-	if (unlikely(!SLIST_EMPTY(&s->ov))) {
+	if (unlikely(!STAILQ_EMPTY(&s->ov))) {
 		dlog(warn, "output iov already allocated");
 		return 0;
 	}
@@ -48,17 +48,16 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 	}
 
 	// add enough buffers to the iov so it is > len
-	SLIST_INIT(&s->ov);
-	struct w_iov *ov_tail = 0;
+	STAILQ_INIT(&s->ov);
 	struct w_iov *v = 0;
 	int32_t l = (int32_t)len;
 	uint32_t n = 0;
 	while (l > 0) {
 		// grab a spare buffer
-		v = SLIST_FIRST(&s->w->iov);
+		v = STAILQ_FIRST(&s->w->iov);
 		if (unlikely(v == 0))
 			die("out of spare bufs after grabbing %d", n);
-		SLIST_REMOVE_HEAD(&s->w->iov, next);
+		STAILQ_REMOVE_HEAD(&s->w->iov, next);
 		dlog(debug, "grabbing spare buf %d for user tx", v->idx);
 		v->buf = IDX2BUF(s->w, v->idx) + hdr_len;
 		v->len = s->w->mtu - hdr_len;
@@ -66,19 +65,14 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 		n++;
 
 		// add the iov to the tail of the socket
-		// using a STAILQ would be simpler, but slower
-		if (SLIST_EMPTY(&s->ov))
-			SLIST_INSERT_HEAD(&s->ov, v, next);
-		else
-			SLIST_INSERT_AFTER(ov_tail, v, next);
-		ov_tail = v;
+		STAILQ_INSERT_TAIL(&s->ov, v, next);
 	}
 	// adjust length of last iov so chain is the exact length requested
 	v->len += l; // l is negative
 
 	dlog(info, "allocating iov (len %d in %d bufs) for user tx", len, n);
 
-	return SLIST_FIRST(&s->ov);
+	return STAILQ_FIRST(&s->ov);
 }
 
 
@@ -112,15 +106,14 @@ w_poll(const struct warpcore * const w, const short ev, const int to)
 void
 w_rx_done(struct w_sock * const s)
 {
-	struct w_iov *i = SLIST_FIRST(&s->iv);
+	struct w_iov *i = STAILQ_FIRST(&s->iv);
 	while (i) {
 		// move i from the socket to the available iov list
-		struct w_iov * const n = SLIST_NEXT(i, next);
-		SLIST_REMOVE_HEAD(&s->iv, next);
-		SLIST_INSERT_HEAD(&s->w->iov, i, next);
+		struct w_iov * const n = STAILQ_NEXT(i, next);
+		STAILQ_REMOVE_HEAD(&s->iv, next);
+		STAILQ_INSERT_HEAD(&s->w->iov, i, next);
 		i = n;
 	}
-	s->iv_tail = 0;
 }
 
 
@@ -146,7 +139,7 @@ w_rx(struct w_sock * const s)
 	}
 
 	if (s)
-		return SLIST_FIRST(&s->iv);
+		return STAILQ_FIRST(&s->iv);
 	return 0;
 }
 
@@ -177,13 +170,13 @@ w_tx(struct w_sock * const s)
 
 	// packetize bufs and place in tx ring
 	uint32_t n = 0, l = 0;
-	while (likely(!SLIST_EMPTY(&s->ov))) {
-		struct w_iov * const v = SLIST_FIRST(&s->ov);
+	while (likely(!STAILQ_EMPTY(&s->ov))) {
+		struct w_iov * const v = STAILQ_FIRST(&s->ov);
 		if (udp_tx(s, v)) {
 			n++;
 			l += v->len;
-			SLIST_REMOVE_HEAD(&s->ov, next);
-			SLIST_INSERT_HEAD(&s->w->iov, v, next);
+			STAILQ_REMOVE_HEAD(&s->ov, next);
+			STAILQ_INSERT_HEAD(&s->w->iov, v, next);
 		} else {
 			// no space in rings
 			w_kick_tx(s->w);
@@ -205,17 +198,17 @@ w_close(struct w_sock * const s)
 	struct w_sock **ss = w_get_sock(s->w, s->p, s->sport);
 
 	// make iovs of the socket available again
-	while (!SLIST_EMPTY(&s->iv)) {
-	     struct w_iov * const v = SLIST_FIRST(&s->iv);
+	while (!STAILQ_EMPTY(&s->iv)) {
+	     struct w_iov * const v = STAILQ_FIRST(&s->iv);
 	     dlog(debug, "free iv buf %d", v->idx);
-	     SLIST_REMOVE_HEAD(&s->iv, next);
-	     SLIST_INSERT_HEAD(&s->w->iov, v, next);
+	     STAILQ_REMOVE_HEAD(&s->iv, next);
+	     STAILQ_INSERT_HEAD(&s->w->iov, v, next);
 	}
-	while (!SLIST_EMPTY(&s->ov)) {
-	     struct w_iov * const v = SLIST_FIRST(&s->ov);
+	while (!STAILQ_EMPTY(&s->ov)) {
+	     struct w_iov * const v = STAILQ_FIRST(&s->ov);
 	     dlog(debug, "free ov buf %d", v->idx);
-	     SLIST_REMOVE_HEAD(&s->ov, next);
-	     SLIST_INSERT_HEAD(&s->w->iov, v, next);
+	     STAILQ_REMOVE_HEAD(&s->ov, next);
+	     STAILQ_INSERT_HEAD(&s->w->iov, v, next);
 	}
 
 	// remove the socket from list of sockets
@@ -300,7 +293,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 	(*s)->p = p;
 	(*s)->sport = port;
 	(*s)->w = w;
-	SLIST_INIT(&(*s)->iv);
+	STAILQ_INIT(&(*s)->iv);
 	SLIST_INSERT_HEAD(&w->sock, *s, next);
 
 	// initialize the non-zero fields of outgoing template header
@@ -352,7 +345,7 @@ w_chain_extra_bufs(const struct warpcore * const w, const struct w_iov *v)
 {
 	const struct w_iov * n;
 	do {
-		n = SLIST_NEXT(v, next);
+		n = STAILQ_NEXT(v, next);
 		uint32_t * const buf = (uint32_t *)IDX2BUF(w, v->idx);
 		if (n) {
 			*buf = n->idx;
@@ -384,25 +377,25 @@ w_cleanup(struct warpcore * const w)
 	}
 
 	// re-construct the extra bufs list, so netmap can free the memory
-	const struct w_iov * last = w_chain_extra_bufs(w, SLIST_FIRST(&w->iov));
+	const struct w_iov * last = w_chain_extra_bufs(w, STAILQ_FIRST(&w->iov));
 	struct w_sock *s;
 	SLIST_FOREACH(s, &w->sock, next) {
-		if (!SLIST_EMPTY(&s->iv)) {
+		if (!STAILQ_EMPTY(&s->iv)) {
 			const struct w_iov * const l =
-				w_chain_extra_bufs(w, SLIST_FIRST(&s->iv));
-			*(uint32_t *)(last->buf) = SLIST_FIRST(&s->iv)->idx;
+				w_chain_extra_bufs(w, STAILQ_FIRST(&s->iv));
+			*(uint32_t *)(last->buf) = STAILQ_FIRST(&s->iv)->idx;
 			last = l;
 
 		}
-		if (!SLIST_EMPTY(&s->ov)) {
+		if (!STAILQ_EMPTY(&s->ov)) {
 			const struct w_iov * const lov =
-				w_chain_extra_bufs(w, SLIST_FIRST(&s->ov));
-			*(uint32_t *)(last->buf) = SLIST_FIRST(&s->ov)->idx;
+				w_chain_extra_bufs(w, STAILQ_FIRST(&s->ov));
+			*(uint32_t *)(last->buf) = STAILQ_FIRST(&s->ov)->idx;
 			last = lov;
 		}
 		*(uint32_t *)(last->buf) = 0;
 	}
-	w->nif->ni_bufs_head = SLIST_FIRST(&w->iov)->idx;
+	w->nif->ni_bufs_head = STAILQ_FIRST(&w->iov)->idx;
 
 #ifndef NDEBUG
 	// print some info about our rings
@@ -429,9 +422,9 @@ w_cleanup(struct warpcore * const w)
 		die("cannot close /dev/netmap");
 
 	// free extra buffer list
-	while (!SLIST_EMPTY(&w->iov)) {
-		struct w_iov * const n = SLIST_FIRST(&w->iov);
-		SLIST_REMOVE_HEAD(&w->iov, next);
+	while (!STAILQ_EMPTY(&w->iov)) {
+		struct w_iov * const n = STAILQ_FIRST(&w->iov);
+		STAILQ_REMOVE_HEAD(&w->iov, next);
 		free(n);
 	}
 
@@ -587,7 +580,7 @@ w_init(const char * const ifname)
 #endif
 
 	// save the indices of the extra buffers in the warpcore structure
-	SLIST_INIT(&w->iov);
+	STAILQ_INIT(&w->iov);
 	for (uint32_t n = 0, i = w->nif->ni_bufs_head;
 	     n < w->req.nr_arg3; n++) {
 		struct w_iov * const v = calloc(1, sizeof(struct w_iov));
@@ -595,7 +588,7 @@ w_init(const char * const ifname)
 			die("cannot allocate w_iov");
 		v->buf = IDX2BUF(w, i);
 		v->idx = i;
-		SLIST_INSERT_HEAD(&w->iov, v, next);
+		STAILQ_INSERT_HEAD(&w->iov, v, next);
 		char * const b = v->buf;
 		i = *(uint32_t *)b;
 	}

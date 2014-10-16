@@ -49,10 +49,10 @@ void
 arp_who_has(struct warpcore * const w, const uint32_t dip)
 {
 	// grab a spare buffer
-	struct w_iov * const v = SLIST_FIRST(&w->iov);
+	struct w_iov * const v = STAILQ_FIRST(&w->iov);
 	if (v == 0)
 		die("out of spare bufs");
-	SLIST_REMOVE_HEAD(&w->iov, next);
+	STAILQ_REMOVE_HEAD(&w->iov, next);
 	v->buf = IDX2BUF(w, v->idx);
 
 	// pointers to the start of the various headers
@@ -89,7 +89,7 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
 	w_kick_tx(w);
 
 	// make iov available again
-	SLIST_INSERT_HEAD(&w->iov, v, next);
+	STAILQ_INSERT_HEAD(&w->iov, v, next);
 }
 
 

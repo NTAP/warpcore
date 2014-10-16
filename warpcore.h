@@ -35,7 +35,7 @@
 
 struct w_iov {
 	char *			buf;	// start of user data (inside buffer)
-	SLIST_ENTRY(w_iov) 	next;	// next iov
+	STAILQ_ENTRY(w_iov) 	next;	// next iov
 	uint32_t		idx;	// index of netmap buffer
 	uint16_t		len;	// length of user data (inside buffer)
 	uint16_t		sport;	// sender port (only valid on rx)
@@ -46,9 +46,8 @@ struct w_iov {
 
 struct w_sock {
 	struct warpcore *	w;			// warpcore instance
-	SLIST_HEAD(ivh, w_iov)	iv;			// iov for read data
-	struct w_iov *		iv_tail;
-	SLIST_HEAD(ovh, w_iov)	ov;			// iov for data to write
+	STAILQ_HEAD(ivh, w_iov)	iv;			// iov for read data
+	STAILQ_HEAD(ovh, w_iov)	ov;			// iov for data to write
 	char *			hdr;			// header template
 	uint16_t		hdr_len;		// length of template
 	uint8_t 		dmac[ETH_ADDR_LEN];	// dst Eth address
@@ -67,7 +66,7 @@ struct warpcore {
 	struct w_sock **	tcp;			// TCP "sockets"
 	uint32_t		cur_txr;		// our current tx ring
 	uint32_t		cur_rxr;		// our current rx ring
-	SLIST_HEAD(iovh, w_iov)	iov;			// our available bufs
+	STAILQ_HEAD(iovh, w_iov) iov;			// our available bufs
 	uint32_t		ip;			// our IP address
 	uint32_t		bcast;			// our broadcast address
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address

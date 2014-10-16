@@ -27,13 +27,13 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	}
 
 	// grab an unused iov for the data in this packet
-	struct w_iov * const i = SLIST_FIRST(&w->iov);
+	struct w_iov * const i = STAILQ_FIRST(&w->iov);
 	if (unlikely(i == 0))
 		die("out of spare bufs");
 	struct netmap_ring * const rxr =
 		NETMAP_RXRING(w->nif, w->cur_rxr);
 	struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
-	SLIST_REMOVE_HEAD(&w->iov, next);
+	STAILQ_REMOVE_HEAD(&w->iov, next);
 
 	dlog(debug, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
 	     w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
@@ -54,12 +54,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	memcpy(&i->ts, &rxr->ts, sizeof(struct timeval));
 
 	// append the iov to the socket
-	// using a STAILQ would be simpler, but slower
-	if (SLIST_EMPTY(&(*s)->iv))
-		SLIST_INSERT_HEAD(&(*s)->iv, i, next);
-	else
-		SLIST_INSERT_AFTER((*s)->iv_tail, i, next);
-	(*s)->iv_tail = i;
+	STAILQ_INSERT_TAIL(&(*s)->iv, i, next);
 
 	// put the original buffer of the iov into the receive ring
 	rxs->buf_idx = tmp_idx;
