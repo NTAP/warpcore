@@ -6,6 +6,7 @@
 #include "ip.h"
 #include "icmp.h"
 #include "udp.h"
+#include "tcp.h"
 
 
 // Convert a network byte order IP address into a string.
