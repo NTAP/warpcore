@@ -51,12 +51,12 @@ enum dlevel { crit, err, warn, notice, info, debug };
 #define die(fmt, ...)                                             	\
 	do {                                                      	\
 		const int e = errno;                              	\
-		if (e)                                            	\
-			fprintf(stderr, "abort: " fmt ": %s\n",       	\
-				##__VA_ARGS__, strerror(e));      	\
-		else                                              	\
-			fprintf(stderr, "abort: " fmt "\n",             \
-				##__VA_ARGS__);                         \
+		struct timeval _lt0;                                	\
+		gettimeofday(&_lt0, 0);                             	\
+		fprintf(stderr, "%03d.%06d %s [%d] abort: " fmt 	\
+			" [%s]\n", (int)(_lt0.tv_sec % 1000), 		\
+			(int)_lt0.tv_usec, __FUNCTION__, __LINE__, 	\
+			##__VA_ARGS__, (e ? strerror(e) : ""));		\
 		abort();                                          	\
 	} while (0)
 
