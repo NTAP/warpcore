@@ -1,4 +1,4 @@
-OS=$(shell uname -s)
+OS=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 # parallelize the build
 ifeq ($(OS), Linux)
@@ -45,6 +45,8 @@ COBJ=$(addprefix $(OS)/, $(CSRC:.c=.o))
 CMD=$(COBJ:.o=)
 
 LSRC=$(filter-out $(CSRC), $(wildcard *.c))
+LSRC:=$(filter-out $(wildcard plat_*.c), $(LSRC))
+LSRC+=plat_$(OS).c
 LOBJ=$(addprefix $(OS)/, $(LSRC:.c=.o))
 
 DEP=$(COBJ:.o=.d) $(LOBJ:.o=.d)

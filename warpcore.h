@@ -7,19 +7,8 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <xmmintrin.h>
-
 #include <net/netmap_user.h>
 
-#ifdef __linux__
-#include <netinet/ether.h>
-#include <netpacket/packet.h>
-#include <linux/ethtool.h>
-#include <linux/sockios.h>
-#else
-#include <sys/types.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
-#endif
 
 #ifndef __aligned
 #define __aligned(x)	__attribute__((__aligned__(x)))

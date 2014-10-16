@@ -11,15 +11,13 @@
 #include <netpacket/packet.h>
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
-#include <sched.h>
-#include <time.h>
 #else
 #include <sys/types.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
-#include <sys/cpuset.h>
 #endif
 
+#include "plat.h"
 #include "warpcore.h"
 #include "ip.h"
 #include "udp.h"
@@ -458,45 +456,10 @@ void
 w_init_common(void)
 {
 	// initialize random generator
-#ifdef __linux__
-	srandom(time(0));
-#else
-	srandomdev();
-#endif
+	plat_srandom();
 
-	// Set CPU affinity to highest core
-	int i;
-#ifdef __linux__
-	cpu_set_t myset;
-	if (sched_getaffinity(0, sizeof(cpu_set_t), &myset) == -1)
-		die("sched_getaffinity");
-#else
-	cpuset_t myset;
-	if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
-	    sizeof(cpuset_t), &myset) == -1)
-		die("cpuset_getaffinity");
-#endif
-
-	// Find last available CPU
-	for (i = CPU_SETSIZE-1; i >= 0; i--)
-		if (CPU_ISSET(i, &myset))
-			break;
-	if (i == 0)
-		die("not allowed to run on any CPUs!?");
-
-	// Set new CPU mask
-	dlog(info, "setting affinity to CPU %d", i);
-	CPU_ZERO(&myset);
-	CPU_SET(i, &myset);
-
-#ifdef __linux__
-	if (sched_setaffinity(0, sizeof(myset), &myset) == -1)
-		die("sched_setaffinity");
-#else
-	if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
-	    sizeof(cpuset_t), &myset) == -1)
-		die("cpuset_setaffinity");
-#endif
+	// Set CPU affinity to one core
+	plat_setaffinity();
 
 	// lock memory
 	if (mlockall(MCL_CURRENT|MCL_FUTURE) == -1)
@@ -531,69 +494,22 @@ w_init(const char * const ifname)
 		     i = i->ifa_next) {
 			if (strcmp(i->ifa_name, ifname) != 0)
 				continue;
-#ifndef NDEBUG
-			char mac[ETH_ADDR_STRLEN];
-#endif
+
 			switch (i->ifa_addr->sa_family) {
-#ifdef __linux__
-			case AF_PACKET:
-				// get MAC addr
-				memcpy(&w->mac,
-				       ((struct sockaddr_ll *)i->ifa_addr)
-				       ->sll_addr, ETH_ADDR_LEN);
-
-				// get MTU
-				int s;
-				struct ifreq ifr;
-				bzero(&ifr, sizeof(struct ifreq));
-				if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-					die("%s socket", ifname);
-				strcpy(ifr.ifr_name, i->ifa_name);
-				if (ioctl(s, SIOCGIFMTU, &ifr) < 0)
-					die("%s ioctl", ifname);
-				w->mtu = ifr.ifr_ifru.ifru_mtu;
-
-				// get link speed
-				struct ethtool_cmd edata;
-				ifr.ifr_data = (__caddr_t)&edata;
-				edata.cmd = ETHTOOL_GSET;
-				if (ioctl(s, SIOCETHTOOL, &ifr) < 0)
-					die("%s ioctl", ifname);
-				w->mbps = ethtool_cmd_speed(&edata);
-
-				// get link status
-				if (ioctl(s, SIOCGIFFLAGS, &ifr) < 0)
-					die("%s ioctl", ifname);
-				link_up = (ifr.ifr_flags & IFF_UP) &&
-					  (ifr.ifr_flags & IFF_RUNNING);
-				close(s);
-#else
 			case AF_LINK:
-				// get MAC addr
-				memcpy(&w->mac,
-				       LLADDR((struct sockaddr_dl *)
-					      i->ifa_addr),
-				       ETH_ADDR_LEN);
-
-				// get MTU
-				w->mtu = (uint16_t)((struct if_data *)
-					 (i->ifa_data))->ifi_mtu;
-
-				// get link speed
-				w->mbps = (uint32_t)(((struct if_data *)
-					  (i->ifa_data))->ifi_baudrate/1000000);
-
-				// get link status
-				link_up = (((uint8_t)((struct if_data *)
-					   (i->ifa_data))->ifi_link_state) ==
-					   LINK_STATE_UP);
-#endif
+				plat_get_mac(w->mac, i);
+				w->mtu = plat_get_mtu(i);
+				w->mbps = plat_get_mbps(i);
+				link_up = plat_get_link(i);
+#ifndef NDEBUG
+				char mac[ETH_ADDR_STRLEN];
 				dlog(notice,
 				     "%s addr %s, MTU %d, speed %dG, link %s",
 				     i->ifa_name,
 				     ether_ntoa_r((struct ether_addr *)w->mac,
 						 mac), w->mtu, w->mbps/1000,
 				     link_up ? "up" : "down");
+#endif
 				break;
 			case AF_INET:
 				// get IP addr and netmask
@@ -648,12 +564,7 @@ w_init(const char * const ifname)
 
 	// mmap the buffer region
 	// TODO: see TODO in nm_open() in netmap_user.h
-	const int flags =
-#ifdef __linux__
-		MAP_POPULATE|MAP_LOCKED;
-#else
-		MAP_PREFAULT_READ|MAP_NOSYNC|MAP_ALIGNED_SUPER;
-#endif
+	const int flags = PLAT_MMFLAGS;
 	if ((w->mem = mmap(0, w->req.nr_memsize, PROT_WRITE|PROT_READ,
 	    MAP_SHARED|flags, w->fd, 0)) == MAP_FAILED)
 		die("cannot mmap netmap memory");
