@@ -29,7 +29,7 @@ enum dlevel { crit, err, warn, notice, info, debug };
 // Rate limited version of "log", lps indicates how many per second
 #define drlog(dlevel, lps, format, ...)                                	\
 	if (DLEVEL >= dlevel) {                                         \
-		static int _rt0, _rcnt;                               	\
+		static time_t _rt0, _rcnt;                               	\
 		struct timeval _rts;                              	\
 		gettimeofday(&_rts, 0);                           	\
 		if (_rt0 != _rts.tv_sec) {                          	\
