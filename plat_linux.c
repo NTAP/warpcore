@@ -5,10 +5,13 @@
 #include <sched.h>
 #include <time.h>
 #include <ifaddrs.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 #include "plat.h"
 #include "debug.h"
-
+#include "eth.h"
 
 void
 plat_srandom(void)
@@ -54,14 +57,16 @@ uint16_t
 plat_get_mtu(const struct ifaddrs *i)
 {
 	int s;
-	struct ifreq ifr;
-
-	bzero(&ifr, sizeof(struct ifreq));
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-		die("%s socket", ifname);
+		die("%s socket", i->ifa_name);
+
+	struct ifreq ifr;
+	bzero(&ifr, sizeof(struct ifreq));
 	strcpy(ifr.ifr_name, i->ifa_name);
+
 	if (ioctl(s, SIOCGIFMTU, &ifr) < 0)
-		die("%s ioctl", ifname);
+		die("%s ioctl", i->ifa_name);
+
 	const uint16_t mtu = ifr.ifr_ifru.ifru_mtu;
 	close(s);
 
@@ -72,11 +77,20 @@ plat_get_mtu(const struct ifaddrs *i)
 uint32_t
 plat_get_mbps(const struct ifaddrs *i)
 {
+	int s;
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+		die("%s socket", i->ifa_name);
+
+	struct ifreq ifr;
+	bzero(&ifr, sizeof(struct ifreq));
+	strcpy(ifr.ifr_name, i->ifa_name);
+
 	struct ethtool_cmd edata;
 	ifr.ifr_data = (__caddr_t)&edata;
 	edata.cmd = ETHTOOL_GSET;
 	if (ioctl(s, SIOCETHTOOL, &ifr) < 0)
-		die("%s ioctl", ifname);
+		die("%s ioctl", i->ifa_name);
+
 	return ethtool_cmd_speed(&edata);
 }
 
@@ -85,16 +99,18 @@ bool
 plat_get_link(const struct ifaddrs *i)
 {
 	int s;
-	struct ifreq ifr;
-	bool link;
-
-	bzero(&ifr, sizeof(struct ifreq));
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-		die("%s socket", ifname);
+		die("%s socket", i->ifa_name);
+
+	struct ifreq ifr;
+	bzero(&ifr, sizeof(struct ifreq));
 	strcpy(ifr.ifr_name, i->ifa_name);
+
 	if (ioctl(s, SIOCGIFFLAGS, &ifr) < 0)
-		die("%s ioctl", ifname);
-	link = (ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING);
+		die("%s ioctl", i->ifa_name);
+
+	const bool link = (ifr.ifr_flags & IFF_UP) &&
+			  (ifr.ifr_flags & IFF_RUNNING);
 	close(s);
 
 	return link;

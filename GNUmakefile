@@ -1,7 +1,7 @@
 OS=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 
 # parallelize the build
-ifeq ($(OS), Linux)
+ifeq ($(OS), linux)
 NPROCS:=$(shell grep -c ^processor /proc/cpuinfo)
 else
 NPROCS:=$(shell sysctl -n hw.ncpu)
@@ -28,7 +28,7 @@ CFLAGS+=-Wno-cast-align
 endif
 
 # additional CFLAGS that are platform-specific
-ifeq ($(OS), Linux)
+ifeq ($(OS), linux)
 CFLAGS+=-D_GNU_SOURCE -isystem ~/netmap/sys
 else
 CFLAGS+=-pedantic -Weverything
