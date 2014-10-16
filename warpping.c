@@ -169,7 +169,7 @@ main(int argc, char *argv[])
 			do {
 				s = recvfrom(ks, after, size, 0,
 					     res->ai_addr, &fromlen);
-			} while (s == 0 | s == -1 && errno == EAGAIN);
+			} while (s == 0 || (s == -1 && errno == EAGAIN));
 		}
 
 		struct timespec diff, now;
