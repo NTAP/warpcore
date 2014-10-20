@@ -24,8 +24,10 @@ plat_setaffinity(void)
 	int i;
 	cpuset_t myset;
 	if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
-	    sizeof(cpuset_t), &myset) == -1)
-		die("cpuset_getaffinity");
+	    sizeof(cpuset_t), &myset) == -1) {
+		dlog(crit, "cpuset_getaffinity failed");
+		return;
+	}
 
 	// Find last available CPU
 	for (i = CPU_SETSIZE-1; i >= 0; i--)
@@ -41,7 +43,7 @@ plat_setaffinity(void)
 
 	if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
 	    sizeof(cpuset_t), &myset) == -1)
-		die("cpuset_setaffinity");
+		dlog(crit, "cpuset_setaffinity failed");
 }
 
 void
