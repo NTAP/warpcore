@@ -192,6 +192,7 @@ w_close(struct w_sock * const s)
 
 	// free the socket
 	free(s->hdr);
+	free(s->cb);
 	free(*ss);
 	*ss = 0;
 }
@@ -292,15 +293,26 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 	// ip->dst  is set on w_connect()
 
 	(*s)->hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
-	if (p == IP_P_UDP || p == IP_P_TCP) {
-		// this abuses the side effect that the port fields are
-		// in the same bit position for UDP and TCP
+	if (p == IP_P_UDP) {
 		(*s)->hdr_len += sizeof(struct udp_hdr);
-		struct udp_hdr * const udp =
-			(struct udp_hdr *)((char *)(ip) +
-					   sizeof(struct ip_hdr));
+		struct udp_hdr * const udp = (struct udp_hdr *)
+			((char *)(ip) + sizeof(struct ip_hdr));
 		udp->sport = (*s)->sport;
 		// dport is set on w_connect()
+
+	// allocate TCP control block and set some additional header fields
+	} else if (p == IP_P_TCP) {
+		(*s)->hdr_len += sizeof(struct tcp_hdr);
+		struct tcp_hdr * const tcp = (struct tcp_hdr *)
+			((char *)(ip) + sizeof(struct ip_hdr));
+		tcp->seq = (uint32_t)random();
+		tcp->off = 5; // XXX TODO: handle options
+		tcp->sport = (*s)->sport;
+		// dport is set on w_connect()
+
+		if (((*s)->cb = calloc(1, sizeof(struct tcp_cb))) == 0)
+			die("cannot allocate TCP control block");
+
 	} else
 		die("unhandled IP proto %d", (*s)->p);
 

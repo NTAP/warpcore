@@ -56,6 +56,8 @@ struct w_sock {
 	uint16_t		dport;			// dst port
 	SLIST_ENTRY(w_sock) 	next;			// next socket
 	uint8_t			p;			// protocol
+	struct tcp_cb *		cb;			// TCP ctrl block
+							// (unused for UDP)
 } __aligned(4);
 
 

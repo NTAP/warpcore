@@ -78,9 +78,8 @@ udp_tx(struct w_sock * const s)
 		char *start = IDX2BUF(s->w, v->idx);
 		memcpy(start, s->hdr, s->hdr_len);
 
-		struct udp_hdr * const udp =
-			(struct udp_hdr * const)(v->buf -
-			                         sizeof(struct udp_hdr));
+		struct udp_hdr * const udp = (struct udp_hdr * const)
+			(v->buf - sizeof(struct udp_hdr));
 		const uint16_t len = v->len + sizeof(struct udp_hdr);
 
 		dlog(info, "UDP :%d -> :%d, len %d",

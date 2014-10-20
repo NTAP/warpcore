@@ -5,14 +5,14 @@
 
 #include "warpcore.h"
 
-#define FIN  0x01
-#define SYN  0x02
-#define RST  0x04
-#define PUSH 0x08
-#define ACK  0x10
-#define URG  0x20
-#define ECE  0x40
-#define CWR  0x80
+#define FIN  	0x01
+#define SYN  	0x02
+#define RST  	0x04
+#define PUSH 	0x08
+#define ACK  	0x10
+#define URG  	0x20
+#define ECE  	0x40
+#define CWR  	0x80
 
 struct tcp_hdr {
 	uint16_t 	sport;		// source port
@@ -28,12 +28,28 @@ struct tcp_hdr {
 	uint8_t 	unused:4,	// (unused)
 			off:4;		// data offset
 #endif
-        uint8_t 	flags;		// flags
-        uint16_t 	win;		// window
-        uint16_t 	sum;		// checksum
-        uint16_t 	urp;		// urgent pointer
+	uint8_t 	flags;		// flags
+	uint16_t 	win;		// window
+	uint16_t 	sum;		// checksum
+	uint16_t 	urp;		// urgent pointer
 } __packed __aligned(4);
 
+
+#define CLOSED		0		// closed
+#define LISTEN		1		// listening for connection
+#define SYN_SENT	2		// active, have sent syn
+#define SYN_RECEIVED	3		// have sent and received syn
+#define ESTABLISHED	4		// established
+#define CLOSE_WAIT	5		// rcvd fin, waiting for close
+#define FIN_WAIT_1	6		// have closed, sent fin
+#define CLOSING		7		// closed xchd FIN; await FIN ACK
+#define LAST_ACK	8		// had fin and close; await FIN ACK
+#define FIN_WAIT_2	9		// have closed, fin is acked
+#define TIME_WAIT	10		// in 2*msl quiet wait after close
+
+struct tcp_cb {
+	uint8_t		state;		// state of this connection
+} __aligned(4);
 
 
 struct warpcore;
