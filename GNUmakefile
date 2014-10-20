@@ -14,7 +14,7 @@ CC=cc
 CFLAGS+=-pipe -std=c11 -g
 CFLAGS+=-Ofast -march=native -fno-strict-aliasing
 CFLAGS+=-Wall -Wextra -fdiagnostics-color=auto
-CFLAGS+=-DDLEVEL=notice
+CFLAGS+=-DDLEVEL=debug
 # CFLAGS+=-DNDEBUG
 # CFLAGS+=-pg -ftrapv
 
