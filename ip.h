@@ -49,9 +49,11 @@ ip_rx(struct warpcore * const w, char * const buf);
 extern bool
 ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len);
 
-// this is defined in in_chksum.c, which is the FreeBSD checksum code
+// these are defined in in_chksum.c, which is the FreeBSD checksum code
 extern uint16_t
 in_cksum(const void * const buf, const uint16_t len);
+
+extern uint16_t in_pseudo(uint32_t sum, uint32_t b, uint32_t c);
 
 
 #endif
