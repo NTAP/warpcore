@@ -30,7 +30,7 @@ struct tcp_hdr {
 #endif
 	uint8_t 	flags;		// flags
 	uint16_t 	win;		// window
-	uint16_t 	sum;		// checksum
+	uint16_t 	cksum;		// checksum
 	uint16_t 	urp;		// urgent pointer
 } __packed __aligned(4);
 
