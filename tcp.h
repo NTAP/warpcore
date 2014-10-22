@@ -8,7 +8,7 @@
 #define FIN  	0x01
 #define SYN  	0x02
 #define RST  	0x04
-#define PUSH 	0x08
+#define PSH 	0x08
 #define ACK  	0x10
 #define URG  	0x20
 #define ECE  	0x40
