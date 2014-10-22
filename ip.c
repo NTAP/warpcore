@@ -101,7 +101,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 
 	// validate the IP checksum
 	if (unlikely(in_cksum(ip, sizeof(struct ip_hdr)) != 0)) {
-		dlog(warn, "invalid IP checksum, received %#x",
+		dlog(warn, "invalid IP checksum, received 0x%04x",
 		     ntohs(ip->cksum));
 		return;
 	}

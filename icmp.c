@@ -60,7 +60,8 @@ icmp_rx(struct warpcore * w, char * const buf, const uint16_t off,
 
 	// validate the ICMP checksum
 	if (in_cksum(icmp, len) != 0) {
-		dlog(warn, "invalid ICMP checksum, received %#x", icmp->cksum);
+		dlog(warn, "invalid ICMP checksum, received 0x%04x",
+		     ntohs(icmp->cksum));
 		return;
 	}
 

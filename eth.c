@@ -82,7 +82,7 @@ eth_rx(struct warpcore * const w, char * const buf)
 	else if (eth->type == ETH_TYPE_ARP)
 		arp_rx(w, buf);
 	else
-		die("unhandled ethertype %#x", eth->type);
+		die("unhandled ethertype 0x%04x", ntohs(eth->type));
 }
 
 
