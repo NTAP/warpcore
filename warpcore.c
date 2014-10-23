@@ -287,7 +287,9 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 		(struct ip_hdr *)((char *)(eth) + sizeof(struct eth_hdr));
 	ip->hl = 5;
 	ip->v = 4;
-	ip->ttl = 4; // XXX TODO: pick something sensible
+	ip->ttl = 1; // XXX TODO: pick something sensible
+
+	ip->off |= htons(IP_DF);
 	ip->p = p;
 	ip->src = (*s)->w->ip;
 	// ip->dst  is set on w_connect()
