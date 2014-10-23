@@ -4,20 +4,20 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define IP_P_ICMP 	 1	// IP protocol number for ICMP
-#define IP_P_TCP	 6	// IP protocol number for TCP
+#define IP_P_ICMP 	1	// IP protocol number for ICMP
+#define IP_P_TCP	6	// IP protocol number for TCP
 #define IP_P_UDP	17	// IP protocol number for UDP
 
-#define IP_ECN_ECT1	 1
-#define IP_ECN_ECT0	 2
-#define IP_ECN_CE	 3
+#define IP_ECT1		1
+#define IP_ECT0		2
+#define IP_CE	 	3
 
 #define IP_RF		0x8000	// reserved fragment flag
 #define IP_DF		0x4000	// don't fragment flag
 #define IP_MF		0x2000	// more fragments flag
 #define IP_OFFMASK	0x1fff	// mask for fragmenting bits
 
-#define IP_ADDR_LEN	 4	// IPv4 addresses are four bytes
+#define IP_ADDR_LEN	4	// IPv4 addresses are four bytes
 #define IP_ADDR_STRLEN	16	// xxx.xxx.xxx.xxx\0
 
 struct ip_hdr {

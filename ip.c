@@ -9,6 +9,24 @@
 #include "tcp.h"
 
 
+static inline void
+ip_log(const struct ip_hdr * const ip)
+{
+#ifndef NDEBUG
+	char src[IP_ADDR_STRLEN];
+	char dst[IP_ADDR_STRLEN];
+#endif
+	dlog(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "
+	     "flags [%s%s], proto %d, hlen/tot %d/%d",
+	     ip_ntoa(ip->src, src, sizeof src),
+	     ip_ntoa(ip->dst, dst, sizeof dst),
+	     ntohs(ip->dscp), ip->ecn, ip->ttl, ntohs(ip->id),
+	     ntohs(ip->off) & IP_MF ? "MF" : "",
+	     ntohs(ip->off) & IP_DF ? "DF" : "",
+	     ip->p, ip->hl * 4, ntohs(ip->len));
+}
+
+
 // Convert a network byte order IP address into a string.
 const char *
 ip_ntoa(uint32_t ip, char * const buf, const size_t size)
@@ -63,14 +81,7 @@ ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 	ip->cksum = 0;
 	ip->cksum = in_cksum(ip, l);
 
-#ifndef NDEBUG
-	char src[IP_ADDR_STRLEN];
-	char dst[IP_ADDR_STRLEN];
-	dlog(notice, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
-	     ip_ntoa(ip->src, src, sizeof src),
-	     ip_ntoa(ip->dst, dst, sizeof dst),
-	     ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
-#endif
+	ip_log(ip);
 
 	// do Ethernet transmit preparation
 	eth_tx_rx_cur(w, buf, l);
@@ -82,17 +93,15 @@ ip_rx(struct warpcore * const w, char * const buf)
 {
 	const struct ip_hdr * const ip =
 		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
-#ifndef NDEBUG
-	char dst[IP_ADDR_STRLEN];
-	char src[IP_ADDR_STRLEN];
-	dlog(info, "IP %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
-	     ip_ntoa(ip->src, src, sizeof src),
-	     ip_ntoa(ip->dst, dst, sizeof dst),
-	     ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
-#endif
+
+	ip_log(ip);
 
 	// make sure the packet is for us (or broadcast)
 	if (unlikely(ip->dst != w->ip && ip->dst != w->bcast)) {
+#ifndef NDEBUG
+		char src[IP_ADDR_STRLEN];
+		char dst[IP_ADDR_STRLEN];
+#endif
 		dlog(warn, "IP packet from %s to %s (not us); ignoring",
 		     ip_ntoa(ip->src, src, sizeof src),
 		     ip_ntoa(ip->dst, dst, sizeof dst));
@@ -108,6 +117,10 @@ ip_rx(struct warpcore * const w, char * const buf)
 
 	// TODO: handle IP options
 	if (unlikely(ip->hl * 4 != 20))
+		die("no support for IP options");
+
+	// TODO: handle IP fragments
+	if (unlikely(ntohs(ip->off) & IP_OFFMASK))
 		die("no support for IP options");
 
 	const uint16_t off = sizeof(struct eth_hdr) + ip->hl * 4;
@@ -144,14 +157,7 @@ ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 	ip->id = (uint16_t)random(); // no need to do htons() for random value
 	ip->cksum = in_cksum(ip, sizeof *ip); // IP checksum is over header only
 
-#ifndef NDEBUG
-	char dst[IP_ADDR_STRLEN];
-	char src[IP_ADDR_STRLEN];
-	dlog(info, "IP tx buf %d, %s -> %s, proto %d, ttl %d, hlen/tot %d/%d",
-	     v->idx, ip_ntoa(ip->src, src, sizeof src),
-	     ip_ntoa(ip->dst, dst, sizeof dst),
-	     ip->p, ip->ttl, ip->hl * 4, ntohs(ip->len));
-#endif
+	ip_log(ip);
 
 	// do Ethernet transmit preparation
 	return eth_tx(w, v, l);
