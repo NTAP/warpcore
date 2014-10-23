@@ -29,6 +29,8 @@ struct arp_hdr {
 
 struct warpcore;
 
+#define arp_hdr_offset(x) (struct arp_hdr *)(x + sizeof(struct eth_hdr))
+
 // see arp.c for documentation of functions
 
 extern void
