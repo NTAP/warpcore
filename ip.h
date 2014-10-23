@@ -8,6 +8,15 @@
 #define IP_P_TCP	 6	// IP protocol number for TCP
 #define IP_P_UDP	17	// IP protocol number for UDP
 
+#define IP_ECN_ECT1	 1
+#define IP_ECN_ECT0	 2
+#define IP_ECN_CE	 3
+
+#define IP_RF		0x8000	// reserved fragment flag
+#define IP_DF		0x4000	// don't fragment flag
+#define IP_MF		0x2000	// more fragments flag
+#define IP_OFFMASK	0x1fff	// mask for fragmenting bits
+
 #define IP_ADDR_LEN	 4	// IPv4 addresses are four bytes
 #define IP_ADDR_STRLEN	16	// xxx.xxx.xxx.xxx\0
 
@@ -15,14 +24,17 @@ struct ip_hdr {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	uint8_t		hl:4,		// header length
 			v:4;		// version
+	uint8_t		ecn:2,		// ECN
+			dscp:6;		// diff-serv code point
 #else
 	uint8_t		v:4,		// version
 			hl:4;		// header length
+	uint8_t		dscp:6,		// diff-serv code point
+			ecn:2;		// ECN
 #endif
-	uint8_t		dscp;		// diff-serv code point
 	uint16_t	len;		// total length
 	uint16_t	id;		// identification
-	uint16_t	off;		// fragment offset field
+	uint16_t        off;            // flags & fragment offset field
 	uint8_t		ttl;		// time to live
 	uint8_t		p;		// protocol
 	uint16_t	cksum;		// checksum
