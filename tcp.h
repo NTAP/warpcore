@@ -49,12 +49,18 @@ struct tcp_hdr {
 
 struct tcp_cb {
 	uint8_t		state;		// state of this connection
+	uint32_t	rx_win;		// receive window
+	uint32_t	snd_una;
 } __aligned(4);
 
 
 struct warpcore;
 struct w_sock;
 struct w_iov;
+
+#define tcp_hdr_offset(x) (struct tcp_hdr *)\
+	(x + sizeof(struct eth_hdr) + \
+	 (((struct ip_hdr *)(x + sizeof(struct eth_hdr)))->hl*4))
 
 extern void
 tcp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
