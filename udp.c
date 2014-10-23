@@ -11,8 +11,7 @@ void
 udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	    const uint32_t src)
 {
-	const struct udp_hdr * const udp =
-		(const struct udp_hdr * const)(buf + off);
+	const struct udp_hdr * const udp = udp_hdr_offset(buf);
 	const uint16_t len = ntohs(udp->len);
 
 	dlog(info, "UDP :%d -> :%d, len %ld", ntohs(udp->sport),
@@ -78,8 +77,7 @@ udp_tx(struct w_sock * const s)
 		char *start = IDX2BUF(s->w, v->idx);
 		memcpy(start, s->hdr, s->hdr_len);
 
-		struct udp_hdr * const udp = (struct udp_hdr * const)
-			(v->buf - sizeof(struct udp_hdr));
+		struct udp_hdr * const udp = udp_hdr_offset(v->buf);
 		const uint16_t len = v->len + sizeof(struct udp_hdr);
 
 		dlog(info, "UDP :%d -> :%d, len %d",
