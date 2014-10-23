@@ -44,6 +44,8 @@ struct ip_hdr {
 struct warpcore;
 struct w_iov;
 
+#define ip_hdr_offset(x) (struct ip_hdr *)(x + sizeof(struct eth_hdr))
+
 // see ip.c for documentation of functions
 extern void
 ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p, char * const buf,

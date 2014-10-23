@@ -57,8 +57,7 @@ void
 ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 		  char * const buf, const uint16_t len)
 {
-	struct ip_hdr * const ip =
-		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
+	struct ip_hdr * const ip = ip_hdr_offset(buf);
 
 	// make the original IP src address the new dst, and set the src
 	ip->dst = ip->src;
@@ -91,8 +90,7 @@ ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 void
 ip_rx(struct warpcore * const w, char * const buf)
 {
-	const struct ip_hdr * const ip =
-		(const struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
+	const struct ip_hdr * const ip = ip_hdr_offset(buf);
 
 	ip_log(ip);
 
@@ -147,9 +145,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 bool
 ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 {
-	char * const start = IDX2BUF(w, v->idx);
-	struct ip_hdr * const ip =
-		(struct ip_hdr * const)(start + sizeof(struct eth_hdr));
+	struct ip_hdr * const ip = ip_hdr_offset(IDX2BUF(w, v->idx));
 	const uint16_t l = len + 20; // ip->hl * 4
 
 	// fill in remaining header fields
