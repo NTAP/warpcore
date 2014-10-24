@@ -6,15 +6,36 @@
 #include "icmp.h"
 #include "ip.h"
 
+
+// Log a UDP segment
+static inline void
+udp_log(const struct udp_hdr * const udp)
+{
+	dlog(info, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport),
+	     ntohs(udp->dport), ntohs(udp->cksum), ntohs(udp->len));
+}
+
+
 // Receive a UDP packet.
 void
 udp_rx(struct warpcore * const w, char * const buf, const uint32_t src)
 {
-	const struct udp_hdr * const udp = ip_data(buf);
+	const struct ip_hdr * const ip = eth_data(buf);
+	struct udp_hdr * const udp = ip_data(buf);
 	const uint16_t len = ntohs(udp->len);
 
-	dlog(info, "UDP :%d -> :%d, len %ld", ntohs(udp->sport),
-	     ntohs(udp->dport), len - sizeof(struct udp_hdr));
+	udp_log(udp);
+
+	// validate the checksum
+	const uint16_t orig = udp->cksum;
+	udp->cksum = in_pseudo(ip->src, ip->dst, htons(len + ip->p));
+	const uint16_t cksum = in_cksum(udp, len);
+	udp->cksum = orig;
+	if (unlikely(orig != cksum)) {
+		dlog(warn, "invalid UDP checksum, received 0x%04x != 0x%04x",
+		     ntohs(orig), ntohs(cksum));
+		return;
+	}
 
 	struct w_sock **s = w_get_sock(w, IP_P_UDP, udp->dport);
 	if (unlikely(*s == 0)) {
@@ -73,19 +94,18 @@ udp_tx(struct w_sock * const s)
 		struct w_iov * const v = STAILQ_FIRST(&s->ov);
 
 		// copy template header into buffer and fill in remaining fields
-		char *start = IDX2BUF(s->w, v->idx);
-		memcpy(start, s->hdr, s->hdr_len);
+		char * const buf = IDX2BUF(s->w, v->idx);
+		memcpy(buf, s->hdr, s->hdr_len);
 
-		struct udp_hdr * const udp = ip_data(v->buf);
+		struct udp_hdr * const udp = ip_data(buf);
 		const uint16_t len = v->len + sizeof(struct udp_hdr);
-
-		dlog(info, "UDP :%d -> :%d, len %d",
-		     ntohs(udp->sport), ntohs(udp->dport), v->len);
-
 		udp->len = htons(len);
 
-		// TODO: need to muck up a pseudo header to calculate checksum
-		// udp->cksum = in_cksum(udp, l);
+		// compute the checksum
+		udp->cksum = in_pseudo(s->w->ip, s->dip, htons(len + IP_P_UDP));
+		udp->cksum = in_cksum(udp, len);
+
+		udp_log(udp);
 
 		// do IP transmit preparation
 		if (ip_tx(s->w, v, len)) {
