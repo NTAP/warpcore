@@ -8,10 +8,9 @@
 
 // Send the modified ICMP packet in the current receive buffer.
 static void
-icmp_tx(struct warpcore * w, char * const buf, const uint16_t off,
-	const uint16_t len)
+icmp_tx(struct warpcore * w, char * const buf, const uint16_t len)
 {
-	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
+	struct icmp_hdr * const icmp = ip_data(buf);
 	dlog(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
 
 	// calculate the new ICMP checksum
@@ -27,38 +26,38 @@ icmp_tx(struct warpcore * w, char * const buf, const uint16_t off,
 // Make an ICMP unreachable message with the given code out of the
 // current received packet.
 void
-icmp_tx_unreach(struct warpcore * w, const uint8_t code, char * const buf,
-		const uint16_t off)
+icmp_tx_unreach(struct warpcore * w, const uint8_t code, char * const buf)
 {
 	// copy IP hdr + 64 bytes of the original IP packet as the ICMP payload
-	struct ip_hdr * const ip =
-		(struct ip_hdr * const)(buf + sizeof(struct eth_hdr));
+	struct ip_hdr * const ip = eth_data(buf);
 	const uint16_t len = ip->hl * 4 + 64;
 	// use memmove (instead of memcpy), since the regions overlap
-	memmove(buf + off + sizeof(struct icmp_hdr) + 4, ip, len);
+	struct ip_hdr * const payload = (struct ip_hdr * const)
+		((char *)ip_data(buf) + sizeof(struct icmp_hdr));
+	memmove((char *)payload + 4, ip, len);
 
 	// insert an ICMP header and set the fields
-	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
+	struct icmp_hdr * const icmp = ip_data(buf);
 	icmp->type = ICMP_TYPE_UNREACH;
 	icmp->code = code;
 
 	// TODO: implement RFC4884 instead of setting the padding to zero
-	uint32_t * const p = (uint32_t *)(buf + off + sizeof(struct icmp_hdr));
+	uint32_t * const p = (uint32_t *)(payload);
 	*p = 0;
 
-	icmp_tx(w, buf, off, sizeof(struct icmp_hdr) + 4 + len); // does cksum
+	icmp_tx(w, buf, sizeof(struct icmp_hdr) + 4 + len); // does cksum
 }
 
 
 // Handle an incoming ICMP packet, and optionally respond to it.
 void
-icmp_rx(struct warpcore * w, char * const buf, const uint16_t off,
-	const uint16_t len)
+icmp_rx(struct warpcore * w, char * const buf)
 {
-	struct icmp_hdr * const icmp = (struct icmp_hdr * const)(buf + off);
+	struct icmp_hdr * const icmp = ip_data(buf);
 	dlog(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
 
 	// validate the ICMP checksum
+	const uint16_t len = ip_data_len((struct ip_hdr *)eth_data(buf));
 	if (in_cksum(icmp, len) != 0) {
 		dlog(warn, "invalid ICMP checksum, received 0x%04x",
 		     ntohs(icmp->cksum));
@@ -69,13 +68,13 @@ icmp_rx(struct warpcore * w, char * const buf, const uint16_t off,
 	case ICMP_TYPE_ECHO:
 		// transform the received echo into an echo reply and send it
 		icmp->type = ICMP_TYPE_ECHOREPLY;
-		icmp_tx(w, buf, off, len);
+		icmp_tx(w, buf, len);
 		break;
 	case ICMP_TYPE_UNREACH:
 		{
 #ifndef NDEBUG
 		struct ip_hdr * const ip = (struct ip_hdr * const)
-			(buf + off + sizeof(struct icmp_hdr) + 4);
+			((char *)ip_data(buf) + sizeof(struct icmp_hdr) + 4);
 #endif
 		switch (icmp->code) {
 		case ICMP_UNREACH_PROTOCOL:

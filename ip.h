@@ -41,10 +41,15 @@ struct ip_hdr {
 	uint32_t	src, dst;	// source and dest address
 } __packed __aligned(4);
 
+
 struct warpcore;
 struct w_iov;
 
-#define ip_hdr_offset(x) (struct ip_hdr *)(x + sizeof(struct eth_hdr))
+#define ip_data(x) ((void *) \
+	((char *)(eth_data(x)) + \
+	 ((struct ip_hdr *)((x) + sizeof(struct eth_hdr)))->hl*4))
+
+#define ip_data_len(x) (ntohs((x)->len) - (x)->hl * 4)
 
 // see ip.c for documentation of functions
 extern void

@@ -8,10 +8,9 @@
 
 // Receive a UDP packet.
 void
-udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
-	    const uint32_t src)
+udp_rx(struct warpcore * const w, char * const buf, const uint32_t src)
 {
-	const struct udp_hdr * const udp = udp_hdr_offset(buf);
+	const struct udp_hdr * const udp = ip_data(buf);
 	const uint16_t len = ntohs(udp->len);
 
 	dlog(info, "UDP :%d -> :%d, len %ld", ntohs(udp->sport),
@@ -21,7 +20,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	if (unlikely(*s == 0)) {
 		// nobody bound to this port locally
 		// send an ICMP unreachable
-		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
+		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf);
 		return;
 	}
 
@@ -41,7 +40,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	const uint32_t tmp_idx = i->idx;
 
 	// move the received data into the iov
-	i->buf = buf + off + sizeof(struct udp_hdr);
+	i->buf = (char *)ip_data(buf) + sizeof(struct udp_hdr);
 	i->len = len - sizeof(struct udp_hdr);
 	i->idx = rxs->buf_idx;
 
@@ -77,7 +76,7 @@ udp_tx(struct w_sock * const s)
 		char *start = IDX2BUF(s->w, v->idx);
 		memcpy(start, s->hdr, s->hdr_len);
 
-		struct udp_hdr * const udp = udp_hdr_offset(v->buf);
+		struct udp_hdr * const udp = ip_data(v->buf);
 		const uint16_t len = v->len + sizeof(struct udp_hdr);
 
 		dlog(info, "UDP :%d -> :%d, len %d",

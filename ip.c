@@ -57,7 +57,7 @@ void
 ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 		  char * const buf, const uint16_t len)
 {
-	struct ip_hdr * const ip = ip_hdr_offset(buf);
+	struct ip_hdr * const ip = eth_data(buf);
 
 	// make the original IP src address the new dst, and set the src
 	ip->dst = ip->src;
@@ -90,7 +90,7 @@ ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 void
 ip_rx(struct warpcore * const w, char * const buf)
 {
-	const struct ip_hdr * const ip = ip_hdr_offset(buf);
+	const struct ip_hdr * const ip = eth_data(buf);
 
 	ip_log(ip);
 
@@ -121,19 +121,16 @@ ip_rx(struct warpcore * const w, char * const buf)
 	if (unlikely(ntohs(ip->off) & IP_OFFMASK))
 		die("no support for IP options");
 
-	const uint16_t off = sizeof(struct eth_hdr) + ip->hl * 4;
-	const uint16_t len = ntohs(ip->len) - ip->hl * 4;
-
 	if (likely(ip->p == IP_P_UDP))
-		udp_rx(w, buf, off, ip->src);
+		udp_rx(w, buf, ip->src);
 	else if (ip->p == IP_P_TCP)
-		tcp_rx(w, buf, off, len, ip->src);
+		tcp_rx(w, buf);
 	else if (ip->p == IP_P_ICMP)
-		icmp_rx(w, buf, off, len);
+		icmp_rx(w, buf);
 	else {
 		dlog(warn, "unhandled IP protocol %d", ip->p);
 		// be standards compliant and send an ICMP unreachable
-		icmp_tx_unreach(w, ICMP_UNREACH_PROTOCOL, buf, off);
+		icmp_tx_unreach(w, ICMP_UNREACH_PROTOCOL, buf);
 	}
 }
 
@@ -145,7 +142,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 bool
 ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 {
-	struct ip_hdr * const ip = ip_hdr_offset(IDX2BUF(w, v->idx));
+	struct ip_hdr * const ip = eth_data(IDX2BUF(w, v->idx));
 	const uint16_t l = len + 20; // ip->hl * 4
 
 	// fill in remaining header fields

@@ -21,11 +21,9 @@ struct warpcore;
 
 // see icmp.c for documentation of functions
 extern void
-icmp_tx_unreach(struct warpcore * w, const uint8_t code, char * const buf,
-		const uint16_t off);
+icmp_tx_unreach(struct warpcore * w, const uint8_t code, char * const buf);
 
 extern void
-icmp_rx(struct warpcore * w, char * const buf, const uint16_t off,
-	const uint16_t len);
+icmp_rx(struct warpcore * w, char * const buf);
 
 #endif

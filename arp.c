@@ -19,7 +19,7 @@
 static void
 arp_is_at(struct warpcore * w, char * const buf)
 {
-	struct arp_hdr * const arp = arp_hdr_offset(buf);
+	struct arp_hdr * const arp = eth_data(buf);
 
 	// modify ARP header
 	arp->op = htons(ARP_OP_REPLY);
@@ -56,7 +56,7 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
 
 	// pointers to the start of the various headers
 	struct eth_hdr * const eth = (struct eth_hdr *)(v->buf);
-	struct arp_hdr * const arp = arp_hdr_offset(v->buf);
+	struct arp_hdr * const arp = eth_data(v->buf);
 
 	// set Ethernet header fields
 	memcpy(eth->dst, ETH_BCAST, ETH_ADDR_LEN);
@@ -100,7 +100,7 @@ arp_rx(struct warpcore * w, char * const buf)
 	char spa[IP_ADDR_STRLEN];
 	char sha[ETH_ADDR_STRLEN];
 #endif
-	const struct arp_hdr * const arp = arp_hdr_offset(buf);
+	const struct arp_hdr * const arp = eth_data(buf);
 	const uint16_t hrd = ntohs(arp->hrd);
 
 	if (hrd != ARP_HRD_ETHER || arp->hln != ETH_ADDR_LEN)

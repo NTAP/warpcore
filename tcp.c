@@ -61,7 +61,7 @@ tcp_tx_prep(struct w_sock * const s)
 	memcpy(v->buf, s->hdr, s->hdr_len);
 
 	// set the rx window
-	struct tcp_hdr * const tcp = tcp_hdr_offset(v->buf);
+	struct tcp_hdr * const tcp = ip_data(v->buf);
 	tcp->win = (uint16_t)MIN(UINT16_MAX, rx_space(s));
 
 	return v;
@@ -72,7 +72,7 @@ static inline void
 tcp_tx_do(struct w_sock * const s, struct w_iov * const v)
 {
 	// compute the checksum
-	struct tcp_hdr * const tcp = tcp_hdr_offset(v->buf);
+	struct tcp_hdr * const tcp = ip_data(v->buf);
 	tcp->cksum = in_pseudo(s->w->ip, s->dip,
 	                       htons(sizeof(struct tcp_hdr) + IP_P_TCP));
 	tcp->cksum = in_cksum(tcp, sizeof(struct tcp_hdr));
@@ -93,7 +93,7 @@ tcp_tx_syn(struct w_sock * const s)
 {
 	// grab a spare buffer
 	struct w_iov * const v = tcp_tx_prep(s);
-	struct tcp_hdr * const tcp = tcp_hdr_offset(v->buf);
+	struct tcp_hdr * const tcp = ip_data(v->buf);
 
 	// set the ISN
 	s->cb->snd_una = tcp->seq = (uint32_t)random();
@@ -106,7 +106,7 @@ static void
 tcp_tx_rts(struct w_sock * const s)
 {
 	struct w_iov * const v = tcp_tx_prep(s);
-	struct tcp_hdr * const tcp = tcp_hdr_offset(v->buf);
+	struct tcp_hdr * const tcp = ip_data(v->buf);
 
 	tcp->flags = RST;
 	// tcp->ack = s->cb->rx_ack;
@@ -116,14 +116,14 @@ tcp_tx_rts(struct w_sock * const s)
 
 
 void
-tcp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
-       const uint16_t len, const uint32_t src)
+tcp_rx(struct warpcore * const w, char * const buf)
 {
-	const struct ip_hdr * const ip = ip_hdr_offset(buf);
-	struct tcp_hdr * const tcp = tcp_hdr_offset(buf);
+	const struct ip_hdr * const ip = eth_data(buf);
+	struct tcp_hdr * const tcp = ip_data(buf);
 
 	// validate the checksum
 	const uint16_t orig = tcp->cksum;
+	const uint16_t len = ip_data_len(ip);
 	tcp->cksum = in_pseudo(ip->src, ip->dst, htons(len + ip->p));
 	const uint16_t cksum = in_cksum(tcp, len);
 	tcp->cksum = orig;
@@ -143,7 +143,7 @@ tcp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
 	if (unlikely(*s == 0)) {
 		// nobody bound to this port locally
 		// send an ICMP unreachable
-		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf, off);
+		icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf);
 		return;
 	}
 

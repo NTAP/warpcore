@@ -25,6 +25,9 @@ struct eth_hdr {
 struct warpcore;
 struct w_iov;
 
+#define eth_data(x) ((void *)((x) + sizeof(struct eth_hdr)))
+
+
 // see eth.c for documentation of functions
 extern void
 eth_tx_rx_cur(struct warpcore * w, char * const buf, const uint16_t len);

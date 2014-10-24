@@ -58,13 +58,8 @@ struct warpcore;
 struct w_sock;
 struct w_iov;
 
-#define tcp_hdr_offset(x) (struct tcp_hdr *)\
-	(x + sizeof(struct eth_hdr) + \
-	 (((struct ip_hdr *)(x + sizeof(struct eth_hdr)))->hl*4))
-
 extern void
-tcp_rx(struct warpcore * const w, char * const buf, const uint16_t off,
-       const uint16_t len, const uint32_t src);
+tcp_rx(struct warpcore * const w, char * const buf);
 
 extern void
 tcp_tx(struct w_sock * const s);

@@ -232,13 +232,13 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 	struct eth_hdr * const eth = (struct eth_hdr *)s->hdr;
 	memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
 
-	struct ip_hdr * const ip = ip_hdr_offset(s->hdr);
+	struct ip_hdr * const ip = eth_data(s->hdr);
 	ip->dst = dip;
 
 	if (s->p == IP_P_UDP || s->p == IP_P_TCP) {
 		// this abuses the side effect that the port fields are
 		// in the same bit position for UDP and TCP
-		struct udp_hdr * const udp = udp_hdr_offset(s->hdr);
+		struct udp_hdr * const udp = ip_data(s->hdr);
 		udp->dport = dport;
 	} else
 		die("unhandled IP proto %d", s->p);
@@ -280,7 +280,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 	memcpy(eth->src, (*s)->w->mac, ETH_ADDR_LEN);
 	// eth->dst is set on w_connect()
 
-	struct ip_hdr * const ip = ip_hdr_offset((*s)->hdr);
+	struct ip_hdr * const ip = eth_data((*s)->hdr);
 	ip->hl = 5;
 	ip->v = 4;
 	ip->ttl = 1; // XXX TODO: pick something sensible
@@ -293,14 +293,14 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 	(*s)->hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
 	if (p == IP_P_UDP) {
 		(*s)->hdr_len += sizeof(struct udp_hdr);
-		struct udp_hdr * const udp = udp_hdr_offset((*s)->hdr);
+		struct udp_hdr * const udp = ip_data((*s)->hdr);
 		udp->sport = (*s)->sport;
 		// dport is set on w_connect()
 
 	// allocate TCP control block and set some additional header fields
 	} else if (p == IP_P_TCP) {
 		(*s)->hdr_len += sizeof(struct tcp_hdr);
-		struct tcp_hdr * const tcp = tcp_hdr_offset((*s)->hdr);
+		struct tcp_hdr * const tcp = ip_data((*s)->hdr);
 		tcp->off = 5; // XXX TODO: handle options
 		tcp->sport = (*s)->sport;
 		// dport is set on w_connect()
