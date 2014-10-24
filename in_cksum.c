@@ -186,7 +186,7 @@ in_addword(u_short a, u_short b)
 	u_int64_t sum = a + b;
 
 	ADDCARRY(sum);
-	return (sum);
+	return (u_short)(sum);
 }
 
 u_short
@@ -198,7 +198,7 @@ in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
 
 	sum = (u_int64_t) a + b + c;
 	REDUCE16;
-	return (sum);
+	return (u_short)(sum);
 }
 
 #if 0
