@@ -49,8 +49,9 @@ struct tcp_hdr {
 
 struct tcp_cb {
 	uint8_t		state;		// state of this connection
-	uint32_t	rx_win;		// receive window
 	uint32_t	snd_una;
+	uint32_t	irs;
+	uint32_t	iss;
 } __aligned(4);
 
 
