@@ -11,7 +11,7 @@
 static inline void
 udp_log(const struct udp_hdr * const udp)
 {
-	dlog(info, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport),
+	warn(info, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport),
 	     ntohs(udp->dport), ntohs(udp->cksum), ntohs(udp->len));
 }
 
@@ -32,7 +32,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint32_t src)
 	const uint16_t cksum = in_cksum(udp, len);
 	udp->cksum = orig;
 	if (unlikely(orig != cksum)) {
-		dlog(warn, "invalid UDP checksum, received 0x%04x != 0x%04x",
+		warn(warn, "invalid UDP checksum, received 0x%04x != 0x%04x",
 		     ntohs(orig), ntohs(cksum));
 		return;
 	}
@@ -54,7 +54,7 @@ udp_rx(struct warpcore * const w, char * const buf, const uint32_t src)
 	struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
 	STAILQ_REMOVE_HEAD(&w->iov, next);
 
-	dlog(debug, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
+	warn(debug, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
 	     w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
 
 	// remember index of this buffer
@@ -118,11 +118,11 @@ udp_tx(struct w_sock * const s)
 		} else {
 			// no space in rings
 			w_kick_tx(s->w);
-			dlog(warn, "polling for send space");
+			warn(warn, "polling for send space");
 			w_poll(s->w, POLLOUT, -1);
 		}
 	}
-	dlog(info, "proto %d tx iov (len %d in %d bufs) done", s->p, l, n);
+	warn(info, "proto %d tx iov (len %d in %d bufs) done", s->p, l, n);
 
 	// kick tx ring
 	w_kick_tx(s->w);

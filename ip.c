@@ -16,7 +16,7 @@ ip_log(const struct ip_hdr * const ip)
 	char src[IP_ADDR_STRLEN];
 	char dst[IP_ADDR_STRLEN];
 #endif
-	dlog(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "
+	warn(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "
 	     "flags [%s%s], proto %d, hlen/tot %d/%d",
 	     ip_ntoa(ip->src, src, sizeof src),
 	     ip_ntoa(ip->dst, dst, sizeof dst),
@@ -100,7 +100,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 		char src[IP_ADDR_STRLEN];
 		char dst[IP_ADDR_STRLEN];
 #endif
-		dlog(warn, "IP packet from %s to %s (not us); ignoring",
+		warn(warn, "IP packet from %s to %s (not us); ignoring",
 		     ip_ntoa(ip->src, src, sizeof src),
 		     ip_ntoa(ip->dst, dst, sizeof dst));
 		return;
@@ -108,7 +108,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 
 	// validate the IP checksum
 	if (unlikely(in_cksum(ip, sizeof(struct ip_hdr)) != 0)) {
-		dlog(warn, "invalid IP checksum, received 0x%04x",
+		warn(warn, "invalid IP checksum, received 0x%04x",
 		     ntohs(ip->cksum));
 		return;
 	}
@@ -128,7 +128,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 	else if (ip->p == IP_P_ICMP)
 		icmp_rx(w, buf);
 	else {
-		dlog(warn, "unhandled IP protocol %d", ip->p);
+		warn(warn, "unhandled IP protocol %d", ip->p);
 		// be standards compliant and send an ICMP unreachable
 		icmp_tx_unreach(w, ICMP_UNREACH_PROTOCOL, buf);
 	}

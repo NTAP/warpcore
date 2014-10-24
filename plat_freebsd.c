@@ -25,7 +25,7 @@ plat_setaffinity(void)
 	cpuset_t myset;
 	if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
 	    sizeof(cpuset_t), &myset) == -1) {
-		dlog(crit, "cpuset_getaffinity failed");
+		warn(crit, "cpuset_getaffinity failed");
 		return;
 	}
 
@@ -37,13 +37,13 @@ plat_setaffinity(void)
 		die("not allowed to run on any CPUs!?");
 
 	// Set new CPU mask
-	dlog(info, "setting affinity to CPU %d", i);
+	warn(info, "setting affinity to CPU %d", i);
 	CPU_ZERO(&myset);
 	CPU_SET(i, &myset);
 
 	if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
 	    sizeof(cpuset_t), &myset) == -1)
-		dlog(crit, "cpuset_setaffinity failed");
+		warn(crit, "cpuset_setaffinity failed");
 }
 
 void

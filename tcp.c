@@ -9,7 +9,7 @@
 static inline void
 tcp_log(const struct tcp_hdr * const tcp, const uint16_t len)
 {
-	dlog(info, "TCP :%d -> :%d, flags [%s%s%s%s%s%s%s%s], cksum 0x%04x, "
+	warn(info, "TCP :%d -> :%d, flags [%s%s%s%s%s%s%s%s], cksum 0x%04x, "
 	     "seq %u, ack %u, win %u, urp %u, len %u",
 	     ntohs(tcp->sport), ntohs(tcp->dport),
 	     tcp->flags & FIN ? "F" : "", tcp->flags & SYN ? "S" : "",
@@ -130,7 +130,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	const uint16_t cksum = in_cksum(tcp, len);
 	tcp->cksum = orig;
 	if (unlikely(orig != cksum)) {
-		dlog(warn, "invalid TCP checksum, received 0x%04x != 0x%04x",
+		warn(warn, "invalid TCP checksum, received 0x%04x != 0x%04x",
 		     ntohs(orig), ntohs(cksum));
 		return;
 	}
@@ -156,7 +156,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			(*s)->cb->state = SYN_RECEIVED;
 		break;
 	default:
-		dlog(crit, "unknown transition in TCP state %d", (*s)->cb->state);
+		warn(crit, "unknown transition in TCP state %d", (*s)->cb->state);
 		tcp_tx_rts(*s);
 	}
 }
@@ -171,7 +171,7 @@ tcp_tx(struct w_sock * const s)
 		s->cb->state = SYN_SENT;
 		break;
 	default:
-		dlog(crit, "unknown transition in TCP state %d", s->cb->state);
+		warn(crit, "unknown transition in TCP state %d", s->cb->state);
 		tcp_tx_rts(s);
 	}
 }

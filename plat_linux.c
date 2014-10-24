@@ -36,7 +36,7 @@ plat_setaffinity(void)
 		die("not allowed to run on any CPUs!?");
 
 	// Set new CPU mask
-	dlog(info, "setting affinity to CPU %d", i);
+	warn(info, "setting affinity to CPU %d", i);
 	CPU_ZERO(&myset);
 	CPU_SET(i, &myset);
 

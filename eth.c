@@ -30,7 +30,7 @@ eth_tx_rx_cur(struct warpcore *w, char * const buf, const uint16_t len)
 	memcpy(eth->dst, eth->src, sizeof eth->dst);
 	memcpy(eth->src, w->mac, sizeof eth->src);
 
-	dlog(info, "swapping rx ring %d slot %d (buf %d) and "
+	warn(info, "swapping rx ring %d slot %d (buf %d) and "
 	     "tx ring %d slot %d (buf %d)", w->cur_rxr, rxr->cur, rxs->buf_idx,
 	     w->cur_txr, txr->cur, txs->buf_idx);
 
@@ -46,7 +46,7 @@ eth_tx_rx_cur(struct warpcore *w, char * const buf, const uint16_t len)
 #ifndef NDEBUG
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	dlog(notice, "Eth %s -> %s, type %d",
+	warn(notice, "Eth %s -> %s, type %d",
 	     ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	     ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
 	     ntohs(eth->type));
@@ -64,7 +64,7 @@ eth_rx(struct warpcore * const w, char * const buf)
 #ifndef NDEBUG
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	dlog(info, "Eth %s -> %s, type %d",
+	warn(info, "Eth %s -> %s, type %d",
 	     ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	     ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
 	     ntohs(eth->type));
@@ -73,7 +73,7 @@ eth_rx(struct warpcore * const w, char * const buf)
 	// make sure the packet is for us (or broadcast)
 	if (unlikely(memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
 		     memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN))) {
-		dlog(warn, "Ethernet packet not destined to us; ignoring");
+		warn(warn, "Ethernet packet not destined to us; ignoring");
 		return;
 	}
 
@@ -102,14 +102,14 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 		else {
 			// current txr is full, try next
 			w->cur_txr = (w->cur_txr + 1) % w->nif->ni_tx_rings;
-			dlog(warn, "moving to tx ring %d", w->cur_txr);
+			warn(warn, "moving to tx ring %d", w->cur_txr);
 		}
 	}
 
 	// return false if all rings are full
 	if (unlikely(i == w->nif->ni_tx_rings)) {
 		die("all tx rings are full");
-		dlog(warn, "all tx rings are full");
+		warn(warn, "all tx rings are full");
 		return false;
 	}
 
@@ -120,7 +120,7 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 				txr->slot[nm_ring_next(txr, txr->cur)].buf_idx),
 		     _MM_HINT_T1);
 
-	dlog(debug, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
+	warn(debug, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
 	     v->idx, w->cur_txr, txr->cur, txs->buf_idx);
 
 	// place v in the current tx ring
@@ -134,7 +134,7 @@ eth_tx(struct warpcore *w, struct w_iov * const v, const uint16_t len)
 		(const struct eth_hdr * const)NETMAP_BUF(txr, txs->buf_idx);
 	char src[ETH_ADDR_STRLEN];
 	char dst[ETH_ADDR_STRLEN];
-	dlog(info, "Eth %s -> %s, type %d, len %ld",
+	warn(info, "Eth %s -> %s, type %d, len %ld",
 	     ether_ntoa_r((const struct ether_addr *)eth->src, src),
 	     ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
 	     ntohs(eth->type), len + sizeof(struct eth_hdr));

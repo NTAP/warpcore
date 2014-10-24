@@ -63,7 +63,7 @@ main(int argc, char *argv[])
 		// echo service
 		struct w_iov *i = w_rx(ech);
 		while (i) {
-			dlog(info, "echo %d bytes in buf %d", i->len, i->idx);
+			warn(info, "echo %d bytes in buf %d", i->len, i->idx);
 			// echo the data
 			struct w_iov *o = w_tx_alloc(ech, i->len);
 			memcpy(o->buf, i->buf, i->len);
@@ -76,7 +76,7 @@ main(int argc, char *argv[])
 		// discard service
 		i = w_rx(dsc);
 		while (i) {
-			dlog(info, "discard %d bytes in buf %d",
+			warn(info, "discard %d bytes in buf %d",
 			     i->len, i->idx);
 			// discard the data
 			i = STAILQ_NEXT(i, next);
@@ -86,7 +86,7 @@ main(int argc, char *argv[])
 		// daytime service
 		i = w_rx(dtm);
 		while (i) {
-			dlog(info, "daytime %d bytes in buf %d",
+			warn(info, "daytime %d bytes in buf %d",
 			     i->len, i->idx);
 			const time_t t = time(0);
 			const char *c = ctime(&t);
@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 		// time service
 		i = w_rx(tme);
 		while (i) {
-			dlog(info, "time %d bytes in buf %d", i->len, i->idx);
+			warn(info, "time %d bytes in buf %d", i->len, i->idx);
 			const time_t t = time(0);
 			struct w_iov *o = w_tx_alloc(tme, sizeof(uint32_t));
 			uint32_t * const b = (uint32_t *)o->buf;

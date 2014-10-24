@@ -35,7 +35,7 @@ struct w_iov *
 w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
 	if (unlikely(!STAILQ_EMPTY(&s->ov))) {
-		dlog(warn, "output iov already allocated");
+		warn(warn, "output iov already allocated");
 		return 0;
 	}
 
@@ -50,7 +50,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 		if (unlikely(v == 0))
 			die("out of spare bufs after grabbing %d", n);
 		STAILQ_REMOVE_HEAD(&s->w->iov, next);
-		dlog(debug, "grabbing spare buf %d for user tx", v->idx);
+		warn(debug, "grabbing spare buf %d for user tx", v->idx);
 		v->buf = IDX2BUF(s->w, v->idx) + s->hdr_len;
 		v->len = s->w->mtu - s->hdr_len;
 		l -= v->len;
@@ -62,7 +62,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 	// adjust length of last iov so chain is the exact length requested
 	v->len += l; // l is negative
 
-	dlog(info, "allocating iov (len %d in %d bufs) for user tx", len, n);
+	warn(info, "allocating iov (len %d in %d bufs) for user tx", len, n);
 
 	return STAILQ_FIRST(&s->ov);
 }
@@ -78,17 +78,17 @@ w_poll(const struct warpcore * const w, const short ev, const int to)
 
 	if (unlikely(n == -1)) {
 		if (errno == EINTR) {
-			dlog(notice, "poll: interrupt");
+			warn(notice, "poll: interrupt");
 			return;
 		} else
 			die("poll");
 	}
 	if (unlikely(n == 0)) {
-		dlog(notice, "poll: timeout expired");
+		warn(notice, "poll: timeout expired");
 		return;
 	}
 
-	drlog(debug, 1, "poll: %d descriptors ready", n);
+	rwarn(debug, 1, "poll: %d descriptors ready", n);
 	return;
 }
 
@@ -176,13 +176,13 @@ w_close(struct w_sock * const s)
 	// make iovs of the socket available again
 	while (!STAILQ_EMPTY(&s->iv)) {
 	     struct w_iov * const v = STAILQ_FIRST(&s->iv);
-	     dlog(debug, "free iv buf %d", v->idx);
+	     warn(debug, "free iv buf %d", v->idx);
 	     STAILQ_REMOVE_HEAD(&s->iv, next);
 	     STAILQ_INSERT_HEAD(&s->w->iov, v, next);
 	}
 	while (!STAILQ_EMPTY(&s->ov)) {
 	     struct w_iov * const v = STAILQ_FIRST(&s->ov);
-	     dlog(debug, "free ov buf %d", v->idx);
+	     warn(debug, "free ov buf %d", v->idx);
 	     STAILQ_REMOVE_HEAD(&s->ov, next);
 	     STAILQ_INSERT_HEAD(&s->w->iov, v, next);
 	}
@@ -214,7 +214,7 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 
 	// find the Ethernet addr of the destination
 	while (IS_ZERO(s->dmac)) {
-		dlog(notice, "doing ARP lookup for %s",
+		warn(notice, "doing ARP lookup for %s",
 		     ip_ntoa(dip, str, IP_ADDR_STRLEN));
 		arp_who_has(s->w, dip);
 		w_poll(s->w, POLLIN, 1000);
@@ -224,7 +224,7 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 		w_rx(s);
 		if (!IS_ZERO(s->dmac))
 			break;
-		dlog(warn, "no ARP reply for %s, retrying",
+		warn(warn, "no ARP reply for %s, retrying",
 		     ip_ntoa(dip, str, IP_ADDR_STRLEN));
 	}
 
@@ -243,7 +243,7 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 	} else
 		die("unhandled IP proto %d", s->p);
 
-	dlog(notice, "IP proto %d socket connected to %s port %d", s->p,
+	warn(notice, "IP proto %d socket connected to %s port %d", s->p,
 	     ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
 }
 
@@ -254,7 +254,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 {
 	struct w_sock **s = w_get_sock(w, p, port);
 	if (*s) {
-		dlog(warn, "IP proto %d source port %d already in use",
+		warn(warn, "IP proto %d source port %d already in use",
 		     p, ntohs(port));
 		return 0;
 	}
@@ -311,7 +311,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 	} else
 		die("unhandled IP proto %d", (*s)->p);
 
-	dlog(notice, "IP proto %d socket bound to port %d",
+	warn(notice, "IP proto %d socket bound to port %d",
 	     (*s)->p, ntohs(port));
 
 	return *s;
@@ -343,14 +343,14 @@ w_chain_extra_bufs(const struct warpcore * const w, const struct w_iov *v)
 void
 w_cleanup(struct warpcore * const w)
 {
-	dlog(notice, "warpcore shutting down");
+	warn(notice, "warpcore shutting down");
 
 	// clean out all the tx rings
 	for (uint32_t i = 0; i < w->nif->ni_rx_rings; i++) {
 		struct netmap_ring * const txr =
 			NETMAP_TXRING(w->nif, w->cur_txr);
 		while (nm_tx_pending(txr)) {
-			dlog(info, "tx pending on ring %d", w->cur_txr);
+			warn(info, "tx pending on ring %d", w->cur_txr);
 			w_kick_tx(w);
 			usleep(1); // wait 1 tick
 		}
@@ -458,7 +458,7 @@ w_init(const char * const ifname)
 				link_up = plat_get_link(i);
 #ifndef NDEBUG
 				char mac[ETH_ADDR_STRLEN];
-				dlog(notice,
+				warn(notice,
 				     "%s addr %s, MTU %d, speed %dG, link %s",
 				     i->ifa_name,
 				     ether_ntoa_r((struct ether_addr *)w->mac,
@@ -476,7 +476,7 @@ w_init(const char * const ifname)
 						   i->ifa_netmask)->sin_addr.s_addr;
 				break;
 			default:
-				dlog(notice,
+				warn(notice,
 				     "ignoring unknown addr family %d on %s",
 				     i->ifa_addr->sa_family, i->ifa_name);
 				break;
@@ -493,11 +493,11 @@ w_init(const char * const ifname)
 #ifndef NDEBUG
 	char ip[IP_ADDR_STRLEN];
 	char mask[IP_ADDR_STRLEN];
-	dlog(notice, "%s has IP addr %s/%s", ifname,
+	warn(notice, "%s has IP addr %s/%s", ifname,
 	     ip_ntoa(w->ip, ip, IP_ADDR_STRLEN),
 	     ip_ntoa(w->mask, mask, IP_ADDR_STRLEN));
 	char bcast[IP_ADDR_STRLEN];
-	dlog(notice, "%s has IP broadcast addr %s", ifname,
+	warn(notice, "%s has IP broadcast addr %s", ifname,
 	     ip_ntoa(w->bcast, bcast, IP_ADDR_STRLEN));
 #endif
 
@@ -531,12 +531,12 @@ w_init(const char * const ifname)
 	// print some info about our rings
 	for (uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
 		const struct netmap_ring * const r = NETMAP_TXRING(w->nif, ri);
-		dlog(info, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+		warn(info, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		     r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 	for (uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
 		const struct netmap_ring * const r = NETMAP_RXRING(w->nif, ri);
-		dlog(info, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+		warn(info, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
 		     r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
 	}
 #endif
@@ -559,7 +559,7 @@ w_init(const char * const ifname)
 		die("can only allocate %d/%d extra buffers",
 		    w->req.nr_arg3, NUM_EXTRA_BUFS);
 	else
-		dlog(notice, "allocated %d extra buffers", w->req.nr_arg3);
+		warn(notice, "allocated %d extra buffers", w->req.nr_arg3);
 
 
 	// initialize list of sockets

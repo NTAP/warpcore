@@ -11,7 +11,7 @@ static void
 icmp_tx(struct warpcore * w, char * const buf, const uint16_t len)
 {
 	struct icmp_hdr * const icmp = ip_data(buf);
-	dlog(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
+	warn(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
 
 	// calculate the new ICMP checksum
 	icmp->cksum = 0;
@@ -54,12 +54,12 @@ void
 icmp_rx(struct warpcore * w, char * const buf)
 {
 	struct icmp_hdr * const icmp = ip_data(buf);
-	dlog(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
+	warn(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
 
 	// validate the ICMP checksum
 	const uint16_t len = ip_data_len((struct ip_hdr *)eth_data(buf));
 	if (in_cksum(icmp, len) != 0) {
-		dlog(warn, "invalid ICMP checksum, received 0x%04x",
+		warn(warn, "invalid ICMP checksum, received 0x%04x",
 		     ntohs(icmp->cksum));
 		return;
 	}
@@ -78,7 +78,7 @@ icmp_rx(struct warpcore * w, char * const buf)
 #endif
 		switch (icmp->code) {
 		case ICMP_UNREACH_PROTOCOL:
-			dlog(warn, "ICMP protocol %d unreachable", ip->p);
+			warn(warn, "ICMP protocol %d unreachable", ip->p);
 			break;
 		case ICMP_UNREACH_PORT:
 			{
@@ -87,7 +87,7 @@ icmp_rx(struct warpcore * w, char * const buf)
 #ifndef NDEBUG
 			struct udp_hdr * const udp = (struct udp_hdr * const)
 				((char *)ip + ip->hl * 4);
-			dlog(warn, "ICMP IP proto %d port %d unreachable",
+			warn(warn, "ICMP IP proto %d port %d unreachable",
 			     ip->p, ntohs(udp->dport));
 #endif
 			break;
