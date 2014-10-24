@@ -120,10 +120,12 @@ tcp_rx(struct warpcore * const w, char * const buf)
 {
 	const struct ip_hdr * const ip = eth_data(buf);
 	struct tcp_hdr * const tcp = ip_data(buf);
+	const uint16_t len = ip_data_len(ip);
+
+	tcp_log(tcp, len);
 
 	// validate the checksum
 	const uint16_t orig = tcp->cksum;
-	const uint16_t len = ip_data_len(ip);
 	tcp->cksum = in_pseudo(ip->src, ip->dst, htons(len + ip->p));
 	const uint16_t cksum = in_cksum(tcp, len);
 	tcp->cksum = orig;
@@ -132,8 +134,6 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		     ntohs(orig), ntohs(cksum));
 		return;
 	}
-
-	tcp_log(tcp, len);
 
 	// TODO: handle urgent pointer
 	if (unlikely(tcp->urp))
