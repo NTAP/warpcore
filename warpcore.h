@@ -1,7 +1,6 @@
 #ifndef _warpcore_h_
 #define _warpcore_h_
 
-#include <stdbool.h>
 #include <sys/queue.h>
 #include <poll.h>
 #include <sys/ioctl.h>

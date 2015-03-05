@@ -2,8 +2,6 @@
 #define _udp_h_
 
 #include <stdint.h>
-#include <stdbool.h>
-
 
 struct udp_hdr {
 	uint16_t sport;		// source port
