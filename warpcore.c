@@ -300,7 +300,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 	} else if (p == IP_P_TCP) {
 		(*s)->hdr_len += sizeof(struct tcp_hdr);
 		struct tcp_hdr * const tcp = ip_data((*s)->hdr);
-		tcp->off = 5; // XXX TODO: handle options
+		tcp->offx = 5 << 4; // XXX TODO: handle options
 		tcp->sport = (*s)->sport;
 		// dport is set on w_connect()
 

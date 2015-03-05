@@ -65,7 +65,7 @@ static inline void
 tcp_tx_do(struct w_sock * const s, struct w_iov * const v)
 {
 	struct tcp_hdr * const seg = ip_data(IDX2BUF(s->w, v->idx));
-	const uint16_t len = v->len + seg->off * 4;
+	const uint16_t len = v->len + tcp_off(seg) * 4;
 
 	// set the rx window
 	seg->win = htons((uint16_t)MIN(UINT16_MAX, rx_space(s)));
@@ -170,7 +170,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		if (seg->flags & ACK)
 			cb->snd_una = ntohl(seg->ack);
 
-		const uint16_t data_len = len - seg->off * 4;
+		const uint16_t data_len = len - tcp_off(seg) * 4;
 		if (data_len == 0)
 			return;
 
@@ -194,7 +194,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		const uint32_t tmp_idx = i->idx;
 
 		// move the received data into the iov
-		i->buf = (char *)seg + seg->off * 4;
+		i->buf = (char *)seg + tcp_off(seg) * 4;
 		i->len = data_len;
 		i->idx = rxs->buf_idx;
 

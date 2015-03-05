@@ -19,21 +19,14 @@ struct tcp_hdr {
 	uint16_t 	dport;		// destination port
 	uint32_t 	seq;
 	uint32_t 	ack;
-
-#if BYTE_ORDER == LITTLE_ENDIAN
-	uint8_t 	unused:4,	// (unused)
-			off:4;		// data offset
-#endif
-#if BYTE_ORDER == BIG_ENDIAN
-	uint8_t 	unused:4,	// (unused)
-			off:4;		// data offset
-#endif
+	uint8_t 	offx;		// data offset + reserved
 	uint8_t 	flags;		// flags
 	uint16_t 	win;		// window
 	uint16_t 	cksum;		// checksum
 	uint16_t 	urp;		// urgent pointer
 } __packed __aligned(4);
 
+#define tcp_off(tcp)	(((tcp)->offx & 0xf0) >> 4)
 
 #define CLOSED		0		// closed
 #define LISTEN		1		// listening for connection
