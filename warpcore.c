@@ -24,7 +24,7 @@
 #include "tcp.h"
 #include "icmp.h"
 
-#define NUM_EXTRA_BUFS	16384
+#define NUM_EXTRA_BUFS	256 //16384
 
 // global pointer to netmap engine
 static struct warpcore * _w = 0;
@@ -281,8 +281,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 	// eth->dst is set on w_connect()
 
 	struct ip_hdr * const ip = eth_data((*s)->hdr);
-	ip->hl = 5;
-	ip->v = 4;
+	ip->vhl = (4 << 4) + 5;
 	ip->ttl = 1; // XXX TODO: pick something sensible
 
 	ip->off |= htons(IP_DF);

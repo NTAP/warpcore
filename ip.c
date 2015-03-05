@@ -19,11 +19,10 @@ ip_log(const struct ip_hdr * const ip)
 	warn(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "
 	     "flags [%s%s], proto %d, hlen/tot %d/%d",
 	     ip_ntoa(ip->src, src, sizeof src),
-	     ip_ntoa(ip->dst, dst, sizeof dst),
-	     ntohs(ip->dscp), ip->ecn, ip->ttl, ntohs(ip->id),
-	     ntohs(ip->off) & IP_MF ? "MF" : "",
-	     ntohs(ip->off) & IP_DF ? "DF" : "",
-	     ip->p, ip->hl * 4, ntohs(ip->len));
+	     ip_ntoa(ip->dst, dst, sizeof dst), ip_dscp(ip), ip_ecn(ip),
+	     ip->ttl, ntohs(ip->id), ntohs(ip->off) & IP_MF ? "MF" : "",
+	     ntohs(ip->off) & IP_DF ? "DF" : "", ip->p, ip_hl(ip),
+	     ntohs(ip->len));
 }
 
 
@@ -64,7 +63,7 @@ ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 	ip->src = w->ip;
 
 	// set the IP length
-	const uint16_t l = ip->hl * 4 + len;
+	const uint16_t l = ip_hl(ip) + len;
 	ip->len = htons(l);
 
 	// set other header fields
@@ -73,7 +72,7 @@ ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 
 	// TODO: we should zero out any IP options here,
 	// since we're reflecing a received packet
-	if (ip->hl * 4 > 20)
+	if (ip_hl(ip) > 20)
 		die("packet seems to have IP options");
 
 	// finally, calculate the IP checksum
@@ -114,7 +113,7 @@ ip_rx(struct warpcore * const w, char * const buf)
 	}
 
 	// TODO: handle IP options
-	if (unlikely(ip->hl * 4 != 20))
+	if (unlikely(ip_hl(ip) != 20))
 		die("no support for IP options");
 
 	// TODO: handle IP fragments
@@ -143,7 +142,7 @@ bool
 ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 {
 	struct ip_hdr * const ip = eth_data(IDX2BUF(w, v->idx));
-	const uint16_t l = len + 20; // ip->hl * 4
+	const uint16_t l = len + 20; // ip_hl(ip)
 
 	// fill in remaining header fields
 	ip->len = htons(l);

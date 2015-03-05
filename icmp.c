@@ -30,7 +30,7 @@ icmp_tx_unreach(struct warpcore * w, const uint8_t code, char * const buf)
 {
 	// copy IP hdr + 64 bytes of the original IP packet as the ICMP payload
 	struct ip_hdr * const ip = eth_data(buf);
-	const uint16_t len = ip->hl * 4 + 64;
+	const uint16_t len = ip_hl(ip) + 64;
 	// use memmove (instead of memcpy), since the regions overlap
 	struct ip_hdr * const payload = (struct ip_hdr * const)
 		((char *)ip_data(buf) + sizeof(struct icmp_hdr));
@@ -86,7 +86,7 @@ icmp_rx(struct warpcore * w, char * const buf)
 			// are in the same bit position here
 #ifndef NDEBUG
 			struct udp_hdr * const udp = (struct udp_hdr * const)
-				((char *)ip + ip->hl * 4);
+				((char *)ip + ip_hl(ip));
 			warn(warn, "ICMP IP proto %d port %d unreachable",
 			     ip->p, ntohs(udp->dport));
 #endif

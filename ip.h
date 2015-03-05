@@ -21,17 +21,8 @@
 #define IP_ADDR_STRLEN	16	// xxx.xxx.xxx.xxx\0
 
 struct ip_hdr {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	uint8_t		hl:4,		// header length
-			v:4;		// version
-	uint8_t		ecn:2,		// ECN
-			dscp:6;		// diff-serv code point
-#else
-	uint8_t		v:4,		// version
-			hl:4;		// header length
-	uint8_t		dscp:6,		// diff-serv code point
-			ecn:2;		// ECN
-#endif
+	uint8_t		vhl;		// header length + version
+	uint8_t		tos;		// DSCP + ECN
 	uint16_t	len;		// total length
 	uint16_t	id;		// identification
 	uint16_t        off;            // flags & fragment offset field
@@ -45,11 +36,16 @@ struct ip_hdr {
 struct warpcore;
 struct w_iov;
 
+#define ip_v(ip)	(((ip)->vhl & 0xf0) >> 4)
+#define ip_hl(ip)	(((ip)->vhl & 0x0f) * 4)
+#define ip_dscp(ip)	(((ip)->tos & 0xfc) >> 2)
+#define ip_ecn(ip)	((ip)->tos & 0x02)
+
 #define ip_data(x) ((void *) \
 	((char *)(eth_data(x)) + \
-	 ((struct ip_hdr *)((x) + sizeof(struct eth_hdr)))->hl*4))
+	 ip_hl((struct ip_hdr *)((x) + sizeof(struct eth_hdr)))))
 
-#define ip_data_len(x) (ntohs((x)->len) - (x)->hl * 4)
+#define ip_data_len(x) (ntohs((x)->len) - ip_hl(x))
 
 // see ip.c for documentation of functions
 extern void
