@@ -11,6 +11,62 @@ static const char * const tcp_state_name[] = {
 };
 
 
+// Parse options in a TCP segment and update the control block
+static inline void
+tcp_parse_options(const struct tcp_hdr * const seg, struct tcp_cb * const cb)
+{
+	const uint8_t *n = (uint8_t *)(seg) + sizeof(struct tcp_hdr);
+	do {
+		const uint8_t kind = *n;
+		const uint8_t len = *(n+1); // XXX unsure if this is always safe
+
+		// see http://www.iana.org/assignments/tcp-parameters/
+		// tcp-parameters.xhtml#tcp-parameters-1
+		switch (kind) {
+		case 0:	// End of Option List
+			warn(debug, "eol");
+			goto done;
+		case 1:	// No-Operation
+			warn(debug, "noop");
+			n++;
+			break;
+		case 2:	// Maximum Segment Size
+			cb->mss = ntohs((uint16_t)*(n+2));
+			warn(debug, "mss %u", cb->mss);
+			n += len;
+			break;
+		case 3:	// Window Scale
+			cb->shift_cnt = *(n+2);
+			warn(debug, "shift_cnt %u", cb->shift_cnt);
+			n += len;
+			break;
+		case 4:	// SACK Permitted
+			cb->sack = true;
+			warn(debug, "sack true");
+			n += len;
+			break;
+		case 8:	// Timestamps
+			cb->ts_val = ntohl((uint32_t)*n);
+			cb->ts_val = ntohl((uint32_t)*(n+4));
+			warn(debug, "ts_val %u, ts_ecr %u",
+			     cb->ts_val, cb->ts_ecr);
+			n += len;
+			break;
+		default:
+			warn(warn, "unknown option %u, data %u, len %u",
+			     kind, len-2, len);
+			n += len;
+			break;
+		}
+	} while (n < (uint8_t *)(seg) + tcp_off(seg));
+done:
+	if (n < (uint8_t *)(seg) + tcp_off(seg)) {
+		warn(warn, "%ld bytes of padding after options",
+		     (uint8_t *)(seg) + tcp_off(seg) - n);
+	}
+}
+
+
 // Log a TCP segment
 static inline void
 tcp_log(const struct tcp_hdr * const seg, const uint16_t len)
@@ -24,7 +80,6 @@ tcp_log(const struct tcp_hdr * const seg, const uint16_t len)
 	     seg->flags & ECE ? "E" : "", seg->flags & CWR ? "C" : "",
 	     ntohs(seg->cksum), ntohl(seg->seq), ntohl(seg->ack),
 	     ntohs(seg->win), len);
-	// TODO: log options
 }
 
 
@@ -65,7 +120,7 @@ static inline void
 tcp_tx_do(struct w_sock * const s, struct w_iov * const v)
 {
 	struct tcp_hdr * const seg = ip_data(IDX2BUF(s->w, v->idx));
-	const uint16_t len = v->len + tcp_off(seg) * 4;
+	const uint16_t len = v->len + tcp_off(seg);
 
 	// set the rx window
 	seg->win = htons((uint16_t)MIN(UINT16_MAX, rx_space(s)));
@@ -153,6 +208,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		return;
 	}
 	struct tcp_cb * const cb = (*s)->cb;
+	tcp_parse_options(seg, cb);
 
 	warn(notice, "%s", tcp_state_name[cb->state]);
 
@@ -170,7 +226,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		if (seg->flags & ACK)
 			cb->snd_una = ntohl(seg->ack);
 
-		const uint16_t data_len = len - tcp_off(seg) * 4;
+		const uint16_t data_len = len - tcp_off(seg);
 		if (data_len == 0)
 			return;
 
@@ -194,7 +250,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		const uint32_t tmp_idx = i->idx;
 
 		// move the received data into the iov
-		i->buf = (char *)seg + tcp_off(seg) * 4;
+		i->buf = (char *)seg + tcp_off(seg);
 		i->len = data_len;
 		i->idx = rxs->buf_idx;
 

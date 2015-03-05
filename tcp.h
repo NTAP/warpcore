@@ -26,7 +26,7 @@ struct tcp_hdr {
 	uint16_t 	urp;		// urgent pointer
 } __packed __aligned(4);
 
-#define tcp_off(tcp)	(((tcp)->offx & 0xf0) >> 4)
+#define tcp_off(tcp)	((((tcp)->offx & 0xf0) >> 4) * 4)
 
 #define CLOSED		0		// closed
 #define LISTEN		1		// listening for connection
@@ -44,6 +44,13 @@ struct tcp_cb {
 	uint8_t		state;		// state of this connection
 	uint32_t	snd_una;
 	uint32_t	rcv_next;
+
+	// the fields below store information gleanded from TCP options
+	uint16_t	mss;		// maximum segment size
+	uint32_t	ts_val;		// timestamp value
+	uint32_t	ts_ecr;		// timestamp echo return
+	uint8_t		shift_cnt;	// window scale shift amount
+	bool		sack;		// SACK permitted?
 } __aligned(4);
 
 
