@@ -51,7 +51,7 @@ ip_aton(const char * const ip)
 
 
 // Make an IP reply packet out of the IP packet in the current receive buffer.
-// Only used by icmp_tx.
+// Used by icmp_tx() and tcp_tx_rst().
 void
 ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 		  char * const buf, const uint16_t len)
