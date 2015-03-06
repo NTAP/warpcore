@@ -41,11 +41,11 @@ struct w_iov;
 #define ip_dscp(ip)	(((ip)->tos & 0xfc) >> 2)
 #define ip_ecn(ip)	((ip)->tos & 0x02)
 
-#define ip_data(x) ((void *) \
-	((char *)(eth_data(x)) + \
-	 ip_hl((struct ip_hdr *)((x) + sizeof(struct eth_hdr)))))
+#define ip_data(buf)	((void *)((char *)(eth_data(buf)) + \
+				ip_hl((struct ip_hdr *)((buf) + \
+				sizeof(struct eth_hdr)))))
 
-#define ip_data_len(x) (ntohs((x)->len) - ip_hl(x))
+#define ip_data_len(ip)	((ntohs((ip)->len) - ip_hl(ip)))
 
 // see ip.c for documentation of functions
 extern void
