@@ -306,6 +306,10 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 
 		if (((*s)->cb = calloc(1, sizeof(struct tcp_cb))) == 0)
 			die("cannot allocate TCP control block");
+		(*s)->cb->s = *s;
+
+		// this socket is now listened on
+		(*s)->cb->state = LISTEN;
 
 	} else
 		die("unhandled IP proto %d", (*s)->p);

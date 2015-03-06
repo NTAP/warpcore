@@ -43,8 +43,6 @@ struct tcp_hdr {
 
 // see draft-eddy-rfc793bis
 struct tcp_cb {
-	uint8_t		state;		// state of this connection
-
 	// Send Sequence Space
 	//
 	//            1         2          3          4
@@ -59,8 +57,8 @@ struct tcp_cb {
 
 	uint32_t snd_una;	// SND.UNA - send unacknowledged
 	uint32_t snd_nxt;	// SND.NXT - send next
-	uint32_t snd_wnd;	// SND.WND - send window
-	uint32_t snd_up;	// SND.UP - send urgent pointer
+	uint16_t snd_wnd;	// SND.WND - send window
+	uint16_t snd_up;	// SND.UP - send urgent pointer
 	uint32_t snd_wl1;	// SND.WL1 - SEG.SEQ used for last window update
 	uint32_t snd_wl2;	// SND.WL2 - SEG.ACK used for last window update
 	uint32_t iss;		// ISS - initial send sequence number
@@ -77,16 +75,19 @@ struct tcp_cb {
 	// 3 - future sequence numbers which are not yet allowed
 
 	uint32_t rcv_nxt;	// RCV.NXT - receive next
-	uint32_t rcv_wnd;	// RCV.WND - receive window
+	// uint32_t rcv_wnd;	// RCV.WND - receive window
 	uint32_t rcv_up;	// RCV.UP - receive urgent pointer
 	uint32_t irs;		// IRS - initial receive sequence number
 
 	// the fields below store information gleanded from TCP options
+	uint8_t		shift_cnt;	// window scale shift amount
+	bool		sack;		// SACK permitted?
 	uint16_t	mss;		// maximum segment size
 	uint32_t	ts_val;		// timestamp value
 	uint32_t	ts_ecr;		// timestamp echo return
-	uint8_t		shift_cnt;	// window scale shift amount
-	bool		sack;		// SACK permitted?
+
+	struct w_sock * s;	// pointer back to the socket
+	uint8_t		state;	// state of this connection
 } __aligned(4);
 
 
