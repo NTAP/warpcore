@@ -58,26 +58,26 @@ ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 {
 	struct ip_hdr * const ip = eth_data(buf);
 
+	// TODO: we should zero out any IP options here,
+	// since we're reflecing a received packet
+	if (ip_hl(ip) > sizeof(struct ip_hdr))
+		die("original packet seems to have IP options");
+
 	// make the original IP src address the new dst, and set the src
 	ip->dst = ip->src;
 	ip->src = w->ip;
 
 	// set the IP length
-	const uint16_t l = ip_hl(ip) + len;
+	const uint16_t l = sizeof(struct ip_hdr) + len;
 	ip->len = htons(l);
 
 	// set other header fields
 	ip->p = p;
 	ip->id = (uint16_t)random(); // no need to do htons() for random value
 
-	// TODO: we should zero out any IP options here,
-	// since we're reflecing a received packet
-	if (ip_hl(ip) > 20)
-		die("packet seems to have IP options");
-
-	// finally, calculate the IP checksum
+	// finally, calculate the IP checksum (over header only)
 	ip->cksum = 0;
-	ip->cksum = in_cksum(ip, l);
+	ip->cksum = in_cksum(ip, sizeof(struct ip_hdr));
 
 	ip_log(ip);
 
@@ -142,12 +142,13 @@ bool
 ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 {
 	struct ip_hdr * const ip = eth_data(IDX2BUF(w, v->idx));
-	const uint16_t l = len + 20; // ip_hl(ip)
+	const uint16_t l = len + sizeof(struct ip_hdr);
 
 	// fill in remaining header fields
 	ip->len = htons(l);
 	ip->id = (uint16_t)random(); // no need to do htons() for random value
-	ip->cksum = in_cksum(ip, sizeof *ip); // IP checksum is over header only
+	// IP checksum is over header only
+	ip->cksum = in_cksum(ip, sizeof(struct ip_hdr));
 
 	ip_log(ip);
 
