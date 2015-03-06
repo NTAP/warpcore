@@ -14,36 +14,72 @@
 #define ECE  	0x40
 #define CWR  	0x80
 
+// Use field names similar to draft-eddy-rfc793bis
 struct tcp_hdr {
-	uint16_t 	sport;		// source port
-	uint16_t 	dport;		// destination port
-	uint32_t 	seq;
-	uint32_t 	ack;
-	uint8_t 	offx;		// data offset + reserved
-	uint8_t 	flags;		// flags
-	uint16_t 	win;		// window
-	uint16_t 	cksum;		// checksum
-	uint16_t 	urp;		// urgent pointer
+	uint16_t 	sport;	// source port
+	uint16_t 	dport;	// destination port
+	uint32_t 	seq;	// SEG.SEQ - segment sequence number
+	uint32_t 	ack;	// SEG.ACK - segment acknowledgment number
+	uint8_t 	offx;	// data offset + reserved
+	uint8_t 	flags;	// flags
+	uint16_t 	wnd;	// SEG.WND - segment window
+	uint16_t 	cksum;	// checksum
+	uint16_t 	up;	// SEG.UP  - segment urgent pointer
 } __packed __aligned(4);
 
-#define tcp_off(tcp)	((((tcp)->offx & 0xf0) >> 4) * 4)
+#define tcp_off(tcp)		((((tcp)->offx & 0xf0) >> 4) * 4)
 
-#define CLOSED		0		// closed
-#define LISTEN		1		// listening for connection
-#define SYN_SENT	2		// active, have sent syn
-#define SYN_RECEIVED	3		// have sent and received syn
-#define ESTABLISHED	4		// established
-#define CLOSE_WAIT	5		// rcvd fin, waiting for close
-#define FIN_WAIT_1	6		// have closed, sent fin
-#define CLOSING		7		// closed xchd FIN; await FIN ACK
-#define LAST_ACK	8		// had fin and close; await FIN ACK
-#define FIN_WAIT_2	9		// have closed, fin is acked
-#define TIME_WAIT	10		// in 2*msl quiet wait after close
+#define CLOSED		0	// closed
+#define LISTEN		1	// listening for connection
+#define SYN_SENT	2	// active, have sent syn
+#define SYN_RECEIVED	3	// have sent and received syn
+#define ESTABLISHED	4	// established
+#define CLOSE_WAIT	5	// rcvd fin, waiting for close
+#define FIN_WAIT_1	6	// have closed, sent fin
+#define CLOSING		7	// closed xchd FIN; await FIN ACK
+#define LAST_ACK	8	// had fin and close; await FIN ACK
+#define FIN_WAIT_2	9	// have closed, fin is acked
+#define TIME_WAIT	10	// in 2*msl quiet wait after close
 
+// see draft-eddy-rfc793bis
 struct tcp_cb {
 	uint8_t		state;		// state of this connection
-	uint32_t	snd_una;
-	uint32_t	rcv_next;
+
+	// Send Sequence Space
+	//
+	//            1         2          3          4
+	//       ----------|----------|----------|----------
+	//              SND.UNA    SND.NXT    SND.UNA
+	//                                   +SND.WND
+	//
+	// 1 - old sequence numbers which have been acknowledged
+	// 2 - sequence numbers of unacknowledged data
+	// 3 - sequence numbers allowed for new data transmission
+	// 4 - future sequence numbers which are not yet allowed
+
+	uint32_t snd_una;	// SND.UNA - send unacknowledged
+	uint32_t snd_nxt;	// SND.NXT - send next
+	uint32_t snd_wnd;	// SND.WND - send window
+	uint32_t snd_up;	// SND.UP - send urgent pointer
+	uint32_t snd_wl1;	// SND.WL1 - SEG.SEQ used for last window update
+	uint32_t snd_wl2;	// SND.WL2 - SEG.ACK used for last window update
+	uint32_t iss;		// ISS - initial send sequence number
+
+	// Receive Sequence Space
+	//
+	//                1          2          3
+	//            ----------|----------|----------
+	//                   RCV.NXT    RCV.NXT
+	//                             +RCV.WND
+	//
+	// 1 - old sequence numbers which have been acknowledged
+	// 2 - sequence numbers allowed for new reception
+	// 3 - future sequence numbers which are not yet allowed
+
+	uint32_t rcv_nxt;	// RCV.NXT - receive next
+	uint32_t rcv_wnd;	// RCV.WND - receive window
+	uint32_t rcv_up;	// RCV.UP - receive urgent pointer
+	uint32_t irs;		// IRS - initial receive sequence number
 
 	// the fields below store information gleanded from TCP options
 	uint16_t	mss;		// maximum segment size

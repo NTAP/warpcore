@@ -11,6 +11,21 @@ static const char * const tcp_state_name[] = {
 };
 
 
+// Calculate the length of the TCP payload in a segment. Needs the
+// buffer passed in, since we need the IP length field information for this.
+// Also account for SYN and FIN in the sequence number space.
+static inline uint16_t
+tcp_seg_len(const char * const buf)
+{
+	const uint16_t ip_len = ip_data_len((struct ip_hdr *)eth_data(buf));
+	const struct tcp_hdr * const tcp = (struct tcp_hdr *)ip_data(buf);
+	const uint16_t tcp_hdr_len = tcp_off(tcp);
+
+	return ip_len - tcp_hdr_len + (tcp->flags & SYN ? 1 : 0) +
+		(tcp->flags & FIN ? 1: 0);
+}
+
+
 // Parse options in a TCP segment and update the control block
 static inline void
 tcp_parse_options(const struct tcp_hdr * const seg, struct tcp_cb * const cb)
@@ -79,7 +94,41 @@ tcp_log(const struct tcp_hdr * const seg, const uint16_t len)
 	     seg->flags & ACK ? "A" : "", seg->flags & URG ? "U" : "",
 	     seg->flags & ECE ? "E" : "", seg->flags & CWR ? "C" : "",
 	     ntohs(seg->cksum), ntohl(seg->seq), ntohl(seg->ack),
-	     ntohs(seg->win), len);
+	     ntohs(seg->wnd), len);
+}
+
+
+// Send an RST for the current received packet.
+static inline void
+tcp_tx_rst(struct warpcore * w, char * const buf)
+{
+	struct tcp_hdr * const seg = ip_data(buf);
+
+	if (seg->flags & ACK) {
+		seg->seq = seg->ack;
+		seg->flags = RST;
+	} else {
+		seg->ack = htonl(ntohl(seg->seq) + tcp_seg_len(buf));
+		seg->seq = 0;
+		seg->flags = RST|ACK;
+	}
+	seg->offx = (sizeof(struct tcp_hdr) / sizeof(int32_t)) << 4;
+	const uint16_t tmp = seg->sport;
+	seg->sport = seg->dport;
+	seg->dport = tmp;
+	seg->wnd = 0;
+
+	// compute the checksum
+	const struct ip_hdr * const ip = eth_data(buf);
+	const uint16_t len = tcp_off(seg);
+	seg->cksum = in_pseudo(ip->src, ip->dst, htons(len + IP_P_TCP));
+	seg->cksum = in_cksum(seg, len);
+
+	tcp_log(seg, 20);
+
+	// do IP transmit preparation
+	ip_tx_with_rx_buf(w, IP_P_TCP, buf, sizeof(struct tcp_hdr));
+	w_kick_tx(w);
 }
 
 
@@ -123,7 +172,7 @@ tcp_tx_do(struct w_sock * const s, struct w_iov * const v)
 	const uint16_t len = v->len + tcp_off(seg);
 
 	// set the rx window
-	seg->win = htons((uint16_t)MIN(UINT16_MAX, rx_space(s)));
+	seg->wnd = htons((uint16_t)MIN(UINT16_MAX, rx_space(s)));
 
 	// compute the checksum
 	seg->cksum = in_pseudo(s->w->ip, s->dip, htons(len + IP_P_TCP));
@@ -156,26 +205,6 @@ tcp_tx_syn(struct w_sock * const s)
 }
 
 
-static void
-tcp_tx_rts(struct w_sock * const s, const uint32_t ack)
-{
-	struct w_iov * const v = tcp_tx_prep(s);
-	struct tcp_hdr * const seg = ip_data(v->buf);
-
-	seg->flags = RST;
-	seg->ack = htonl(ack);
-	seg->seq = htonl(++(s->cb->snd_una));
-
-	tcp_tx_do(s, v);
-	w_kick_tx(s->w);
-
-	// make iov available again
-	STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-
-	s->cb->state = CLOSED;
-}
-
-
 void
 tcp_rx(struct warpcore * const w, char * const buf)
 {
@@ -197,7 +226,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	}
 
 	// TODO: handle urgent pointer
-	if (unlikely(seg->urp))
+	if (unlikely(seg->up))
 		die("no support for TCP urgent pointer");
 
 	struct w_sock **s = w_get_sock(w, IP_P_TCP, seg->dport);
@@ -213,10 +242,15 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	warn(notice, "%s", tcp_state_name[cb->state]);
 
 	switch (cb->state) {
+	case CLOSED:
+		if (!(seg->flags & RST))
+			tcp_tx_rst(w, buf);
+		return;
+
 	case SYN_SENT:
 		if (!(seg->flags & (SYN|ACK)))
-			break;
-		cb->rcv_next = ntohl(seg->seq) + 1;
+			return;
+		cb->rcv_nxt = ntohl(seg->seq) + 1;
 		cb->snd_una++;
 		cb->state = ESTABLISHED;
 		tcp_tx(*s);
@@ -230,7 +264,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		if (data_len == 0)
 			return;
 
-		cb->rcv_next += data_len;
+		cb->rcv_nxt += data_len;
 
 		// XXX TODO: code below doesn't preserve byte stream ordering
 
@@ -263,12 +297,19 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// put the original buffer of the iov into the receive ring
 		rxs->buf_idx = tmp_idx;
 		rxs->flags = NS_BUF_CHANGED;
+		return;
 
+	case LISTEN:
+		if (!(seg->flags & SYN))
+			return;
+		cb->iss = (uint32_t)random();
+
+		tcp_tx(*s);
+		cb->state = SYN_RECEIVED;
 		return;
 	}
 
 	die("unknown transition in %s", tcp_state_name[cb->state]);
-	tcp_tx_rts(*s, seg->ack);
 }
 
 
@@ -299,7 +340,7 @@ tcp_tx(struct w_sock * const s)
 			seg->flags |= ACK;
 			if (STAILQ_EMPTY(&s->ov))
 				seg->flags |= PSH;
-			seg->ack = htonl(s->cb->rcv_next);
+			seg->ack = htonl(s->cb->rcv_nxt);
 
 			tcp_tx_do(s, v);
 			STAILQ_INSERT_HEAD(&s->w->iov, v, next);
@@ -309,5 +350,4 @@ tcp_tx(struct w_sock * const s)
 	}
 
 	die("unknown transition in %s", tcp_state_name[s->cb->state]);
-	tcp_tx_rts(s, 0 /*XXX*/);
 }
