@@ -14,7 +14,7 @@ CC=cc
 CFLAGS+=-pipe -std=c11 -g
 CFLAGS+=-Ofast -march=native -fno-strict-aliasing
 CFLAGS+=-Wall -Wextra -fdiagnostics-color=auto
-CFLAGS+=-DDLEVEL=debug
+CFLAGS+=-DDLEVEL=debug -DDCOMPONENT="\"warpcore|ip|tcp\""
 # CFLAGS+=-DNDEBUG
 # CFLAGS+=-pg -ftrapv
 

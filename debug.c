@@ -5,6 +5,16 @@
 
 #ifndef NDEBUG
 
+regex_t _comp;
+
+// Initialize the regular expression used for restricting debug output
+static void __attribute__ ((constructor)) premain()
+{
+	if (regcomp(&_comp, DCOMPONENT, REG_EXTENDED|REG_ICASE|REG_NOSUB))
+		die("mayb not a valid regexp: %s", DCOMPONENT);
+}
+
+
 // Print a hexdump of the given block
 void hexdump(const void * const ptr, const unsigned len)
 {
