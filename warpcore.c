@@ -173,6 +173,19 @@ w_close(struct w_sock * const s)
 {
 	struct w_sock **ss = w_get_sock(s->w, s->p, s->sport);
 
+	// If this is a TCP socket, perform the FIN handshake
+	if (s->p == IP_P_TCP) {
+		// XXX safeguard against runaway control loop
+		uint8_t loops = 10;
+		while (--loops && s->cb->state != CLOSED && !s->w->interrupt) {
+			if (s->cb->state == ESTABLISHED)
+				s->cb->state = FIN_WAIT_1;
+			tcp_tx(s);
+			w_poll(s->w, POLLIN, -1);
+			w_rx(s);
+		}
+	}
+
 	// make iovs of the socket available again
 	while (!STAILQ_EMPTY(&s->iv)) {
 	     struct w_iov * const v = STAILQ_FIRST(&s->iv);
@@ -242,6 +255,10 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 		udp->dport = dport;
 	} else
 		die("unhandled IP proto %d", s->p);
+
+	if (s->p == IP_P_TCP)
+		// was set to LISTEN in w_bind; set it back
+		s->cb->state = CLOSED;
 
 	warn(notice, "IP proto %d socket connected to %s port %d", s->p,
 	     ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));

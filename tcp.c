@@ -11,6 +11,13 @@ static const char * const tcp_state_name[] = {
 	"TIME_WAIT"
 };
 
+// Sequence number comparisons
+#define seq_lt(a, b)	((int32_t)((a) - (b)) < 0)	// a < b
+#define seq_lte(a, b)	((int32_t)((a) - (b)) <= 0)	// a <= b
+#define seq_gt(a, b)	((int32_t)((a) - (b)) > 0)	// a > b
+// #define seq_gte(a, b)	((int32_t)((a) - (b)) >= 0)	// a >= b
+#define seq_in(a, b, c)	((c) - (b) >= (a) - (b))	// b <= a <= c
+
 
 // Calculate the length of the TCP payload in a segment. Needs the
 // buffer passed in, since we need the IP length field information for this.
@@ -84,19 +91,31 @@ done:
 
 
 // Log a TCP segment
-static inline void
-tcp_log(const struct tcp_hdr * const seg, const uint16_t len)
-{
-	warn(info, "TCP :%d -> :%d, flags [%s%s%s%s%s%s%s%s], cksum 0x%04x, "
-	     "seq %u, ack %u, win %u, len %u",
-	     ntohs(seg->sport), ntohs(seg->dport),
-	     seg->flags & FIN ? "F" : "", seg->flags & SYN ? "S" : "",
-	     seg->flags & RST ? "R" : "", seg->flags & PSH ? "P" : "",
-	     seg->flags & ACK ? "A" : "", seg->flags & URG ? "U" : "",
-	     seg->flags & ECE ? "E" : "", seg->flags & CWR ? "C" : "",
-	     ntohs(seg->cksum), ntohl(seg->seq), ntohl(seg->ack),
-	     ntohs(seg->wnd), len);
-}
+#define tcp_log(seg, len) \
+do { \
+	warn(info, "TCP :%d -> :%d, flags [%s%s%s%s%s%s%s%s], cksum 0x%04x, " \
+	     "seq %u, ack %u, win %u, len %u", \
+	     ntohs(seg->sport), ntohs(seg->dport), \
+	     seg->flags & FIN ? "F" : "", seg->flags & SYN ? "S" : "", \
+	     seg->flags & RST ? "R" : "", seg->flags & PSH ? "P" : "", \
+	     seg->flags & ACK ? "A" : "", seg->flags & URG ? "U" : "", \
+	     seg->flags & ECE ? "E" : "", seg->flags & CWR ? "C" : "", \
+	     ntohs(seg->cksum), ntohl(seg->seq), ntohl(seg->ack), \
+	     ntohs(seg->wnd), len); \
+} while (0)
+
+
+// Log the TCP control block
+#define tcp_log_cb(cb) \
+do { \
+	if (cb) \
+		warn(debug, "state %s, snd_una %u, snd_nxt %u, snd_wnd %u, " \
+		     "snd_wl1 %u, snd_wl2 %u, iss %u, rcv_nxt %u, irs %u", \
+		     tcp_state_name[cb->state], \
+		     cb->snd_una, cb->snd_nxt, cb->snd_wnd, \
+		     cb->snd_wl1, cb->snd_wl2, cb->iss, \
+		     cb->rcv_nxt, cb->irs) \
+} while (0)
 
 
 // Send an RST for the current received packet.
@@ -135,131 +154,22 @@ tcp_tx_rst(struct warpcore * w, char * const buf)
 
 // The receive window is limited by the number of free slots in all rx rings
 static inline uint32_t
-tcp_rcv_wnd(struct w_sock * const s)
+tcp_rcv_wnd(struct w_sock * const s __unused)
 {
-	uint32_t rx_bytes_avail = 0;
-	for (uint32_t ri = 0; ri < s->w->nif->ni_rx_rings; ri++) {
-		struct netmap_ring * const r =
-			NETMAP_RXRING(s->w->nif, ri);
-		rx_bytes_avail += (r->num_slots - nm_ring_space(r)) *
-				  (s->w->mtu - s->hdr_len);
-	}
-	return rx_bytes_avail;
+	// uint32_t rx_bytes_avail = 0;
+	// for (uint32_t ri = 0; ri < s->w->nif->ni_rx_rings; ri++) {
+	// 	struct netmap_ring * const r =
+	// 		NETMAP_RXRING(s->w->nif, ri);
+	// 	rx_bytes_avail += (r->num_slots - nm_ring_space(r)) *
+	// 			  (s->w->mtu - s->hdr_len);
+	// }
+	// return rx_bytes_avail;
+	return 0xffff;
 }
 
 
-static inline struct w_iov *
-tcp_tx_prep(struct w_sock * const s)
-{
-	// grab a spare buffer
-	struct w_iov * const v = STAILQ_FIRST(&s->w->iov);
-	if (unlikely(v == 0))
-		die("out of spare bufs");
-	STAILQ_REMOVE_HEAD(&s->w->iov, next);
-
-	// copy template header into buffer and fill in remaining fields
-	v->buf = IDX2BUF(s->w, v->idx);
-	v->len = 0;
-	memcpy(v->buf, s->hdr, s->hdr_len);
-
-	return v;
-}
-
-
-static inline void
-tcp_tx_do(struct w_sock * const s, struct w_iov * const v)
-{
-	struct tcp_hdr * const seg = ip_data(IDX2BUF(s->w, v->idx));
-	const uint16_t len = v->len + tcp_off(seg);
-
-	// set the rx window
-	seg->wnd = htons((uint16_t)MIN(UINT16_MAX, tcp_rcv_wnd(s)));
-
-	// compute the checksum
-	seg->cksum = in_pseudo(s->w->ip, s->dip, htons(len + IP_P_TCP));
-	seg->cksum = in_cksum(seg, len);
-
-	tcp_log(seg, sizeof(struct tcp_hdr));
-
-	// send the IP packet
-	ip_tx(s->w, v, len);
-}
-
-
-static inline void
-tcp_tx_syn(struct w_sock * const s)
-{
-	// grab a spare buffer
-	struct w_iov * const v = tcp_tx_prep(s);
-	struct tcp_hdr * const seg = ip_data(v->buf);
-
-	seg->seq = htonl(s->cb->iss);
-	seg->ack = htonl(s->cb->rcv_nxt);
-	seg->flags = SYN;
-	if (s->cb->state == LISTEN)
-		seg->flags |= ACK;
-
-	tcp_tx_do(s, v);
-	w_kick_tx(s->w);
-
-	// make iov available again
-	STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-}
-
-
-static inline void
-tcp_tx_ack(struct w_sock * const s)
-{
-	// grab a spare buffer
-	struct w_iov * const v = tcp_tx_prep(s);
-	struct tcp_hdr * const seg = ip_data(v->buf);
-
-	// seg->seq = htonl(s->cb->snd_nxt);
-	// seg->ack = htonl(s->cb->rcv_nxt);
-	seg->flags = ACK;
-
-	tcp_tx_do(s, v);
-	w_kick_tx(s->w);
-
-	// make iov available again
-	STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-}
-
-
-static inline bool
-tcp_ack_is_ok(const struct tcp_cb * const cb, const char * const buf)
-{
-	const struct tcp_hdr * const seg = ip_data(buf);
-	const uint32_t seq = ntohl(seg->seq);
-	const uint16_t len = tcp_seg_len(buf);
-	const uint32_t rcv_wnd = tcp_rcv_wnd(cb->s);
-	warn(debug, "len %d, rcv_wnd %d", len, rcv_wnd);
-	if (len == 0) {
-		if (rcv_wnd == 0) {
-			if (seq == cb->rcv_nxt)
-				return true;
-		} else {
-			if (cb->rcv_nxt <= seq &&
-			    seq <= cb->rcv_nxt + rcv_wnd)
-				return true;
-		}
-	} else {
-		if (rcv_wnd == 0) {
-			return false;
-		} else {
-			if ((cb->rcv_nxt <= seq &&
-			     seq < cb->rcv_nxt + rcv_wnd) ||
-			    (cb->rcv_nxt <= seq + len - 1 &&
-			     seq + len - 1 < cb->rcv_nxt + rcv_wnd))
-				return true;
-		}
-	}
-	return false;
-}
-
-
-#define goto_rst { warn(debug, "goto rst"); goto rst; }
-#define goto_drop { warn(debug, "goto drop"); goto drop; }
+#define goto_rst { warn(debug, "XXX goto rst"); goto rst; }
+#define goto_drop { warn(debug, "XXX goto drop"); goto drop; }
 
 void
 tcp_rx(struct warpcore * const w, char * const buf)
@@ -267,8 +177,6 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	const struct ip_hdr * const ip = eth_data(buf);
 	struct tcp_hdr * const seg = ip_data(buf);
 	const uint16_t len = ip_data_len(ip);
-
-	tcp_log(seg, len);
 
 	// validate the checksum
 	const uint16_t orig = seg->cksum;
@@ -298,11 +206,19 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	struct w_sock * const s = *ss;
 	struct tcp_cb * const cb = s->cb;
 
+	tcp_log(seg, len);
+	// tcp_log_cb(cb);
+
 	// if there are TCP options in the segment, parse them
 	if (tcp_off(seg) > sizeof(struct tcp_hdr))
 		tcp_parse_options(seg, cb);
 
-	warn(notice, "am in state %s", tcp_state_name[cb->state]);
+	// some shortcuts for segment header fields
+	const uint32_t seg_seq = ntohl(seg->seq);
+	const uint32_t seg_ack = ntohl(seg->ack);
+	const uint16_t seg_wnd = ntohs(seg->wnd);
+	const uint16_t seg_len = tcp_seg_len(buf);
+	const uint32_t rcv_wnd = tcp_rcv_wnd(cb->s);
 
 	if (cb->state == CLOSED) {
 		// If the state is CLOSED (i.e., TCB does not exist) then:
@@ -337,6 +253,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 				(struct eth_hdr * const)(buf);
 			memcpy(s->dmac, eth->src, ETH_ADDR_LEN);
 			w_connect(s, ip->src, seg->sport);
+			cb->state = SYN_RECEIVED;
 
 			// XXX skipping the precedence stuff
 
@@ -344,8 +261,8 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// any other control or text should be queued for
 			// processing later. ISS should be selected and a SYN
 			// segment sent:
-			cb->rcv_nxt = ntohl(seg->seq) + 1;
-			cb->irs = ntohl(seg->seq);
+			cb->rcv_nxt = seg_seq + 1;
+			cb->irs = seg_seq;
 			cb->iss = (uint32_t)random();
 			tcp_tx(s);
 
@@ -374,6 +291,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// incarnation of the connection.  So you are unlikely
 		// to get here, but if you do, drop the segment, and
 		// return.
+		goto drop;
 	}
 
 	if (cb->state == SYN_SENT) {
@@ -385,8 +303,8 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// If SEG.ACK =< ISS, or SEG.ACK > SND.NXT, send a reset
 			// (unless the RST bit is set, if so drop the segment
 			// and return) and discard the segment.  Return.
-			if (ntohl(seg->ack) <= cb->iss ||
-			    ntohl(seg->ack) > cb->snd_nxt) {
+			if (seq_lte(seg_ack, cb->iss) ||
+			    seq_gt(seg_ack, cb->snd_nxt)) {
 				if (seg->flags & RST) {
 					goto_drop;
 				} else {
@@ -396,8 +314,8 @@ tcp_rx(struct warpcore * const w, char * const buf)
 
 			// If SND.UNA < SEG.ACK =< SND.NXT then the ACK is
 			// acceptable.
-			ack_ok = (cb->snd_una < ntohl(seg->ack) &&
-				  ntohl(seg->ack) <= cb->snd_nxt);
+			// XXX check the + 1 part
+			ack_ok = seq_in(seg_ack, cb->snd_una + 1, cb->snd_nxt);
 		}
 
 		// second check the RST bit
@@ -426,12 +344,12 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// advanced to equal SEG.ACK (if there is an ACK), and
 			// any segments on the retransmission queue which are
 			// thereby acknowledged should be removed.
-			cb->rcv_nxt = ntohl(seg->seq) + 1;
-			cb->irs = ntohl(seg->seq);
+			cb->rcv_nxt = seg_seq + 1;
+			cb->irs = seg_seq;
 			if (seg->flags & ACK)
-				cb->snd_una = ntohl(seg->ack);
+				cb->snd_una = seg_ack;
 
-			if (cb->snd_una > cb->iss) {
+			if (seq_gt(cb->snd_una, cb->iss)) {
 				// If SND.UNA > ISS (our SYN has been ACKed),
 				// change the connection state to ESTABLISHED,
 				// form an ACK segment and send it.  Data or
@@ -456,9 +374,9 @@ tcp_rx(struct warpcore * const w, char * const buf)
 				// SND.WND <- SEG.WND
 				// SND.WL1 <- SEG.SEQ
 				// SND.WL2 <- SEG.ACK
-				cb->snd_wnd = ntohs(seg->wnd);
-				cb->snd_wl1 = ntohl(seg->seq);
-				cb->snd_wl2 = ntohl(seg->ack);
+				cb->snd_wnd = seg_wnd;
+				cb->snd_wl1 = seg_seq;
+				cb->snd_wl2 = seg_ack;
 
 				// If there are other controls or text in the
 				// segment, queue them for processing after the
@@ -475,11 +393,65 @@ tcp_rx(struct warpcore * const w, char * const buf)
 
 	// Otherwise, first check sequence number
 	if (cb->state >= SYN_RECEIVED) {
+		// Segments are processed in sequence.  Initial tests on arrival
+		// are used to discard old duplicates, but further processing is
+		// done in SEG.SEQ order.  If a segment's contents straddle the
+		// boundary between old and new, only the new parts should be
+		// processed.
+
+		// There are four cases for the acceptability test for an
+		// incoming segment:
+
+		// Segment Receive  Test
+		// Length  Window
+		// ------- -------  -------------------------------------------
+
+		//  0       0     SEG.SEQ = RCV.NXT
+
+		//  0      >0     RCV.NXT =< SEG.SEQ < RCV.NXT+RCV.WND
+
+		// >0       0     not acceptable
+
+		// >0      >0     RCV.NXT =< SEG.SEQ < RCV.NXT+RCV.WND or
+		// 		  RCV.NXT =< SEG.SEQ+SEG.LEN-1 < RCV.NXT+RCV.WND
+
+		// If the RCV.WND is zero, no segments will be acceptable, but
+		// special allowance should be made to accept valid ACKs, URGs
+		// and RSTs.
+
+		bool ack_ok = false;
+		if (seg_len == 0) {
+			if (rcv_wnd == 0) {
+				if (seg_seq == cb->rcv_nxt)
+					ack_ok = true;
+				else
+					warn(debug, "case 0 0");
+			} else {
+				if (seq_in(seg_seq, cb->rcv_nxt,
+				           cb->rcv_nxt + rcv_wnd))
+					ack_ok = true;
+				else
+					warn(debug, "case 0 >0");
+			}
+		} else {
+			if (rcv_wnd != 0) {
+				// XXX check the - 1
+				if (seq_in(seg_seq, cb->rcv_nxt,
+				           cb->rcv_nxt + rcv_wnd - 1) ||
+				    seq_in(seg_seq + seg_len - 1, cb->rcv_nxt,
+				           cb->rcv_nxt + rcv_wnd - 1))
+					ack_ok = true;
+				else
+					warn(debug, "case >0 >0");
+			} else
+				warn(debug, "case case >0 0");
+		}
+
 		// If an incoming segment is not acceptable, an acknowledgment
 		// should be sent in reply (unless the RST bit is set, if so
 		// drop the segment and return). After sending the
 		// acknowledgment, drop the unacceptable segment and return.
-		if (!tcp_ack_is_ok(cb, buf)) {
+		if (!ack_ok) {
 			if (!(seg->flags & RST)) {
 				warn(debug, "ACK *NOT* OK");
 				tcp_tx(s);
@@ -532,18 +504,17 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	// fourth, check the SYN bit
 	if (seg->flags & SYN) {
 		if (cb->state >= SYN_RECEIVED) {
-			// If the SYN is in the window it is an error, send a reset,
-			// any outstanding RECEIVEs and SEND should receive "reset"
-			// responses, all segment queues should be flushed, the user
-			// should also receive an unsolicited general "connection
-			// reset" signal, enter the CLOSED state, delete the TCB,
-			// and return.
+			// If the SYN is in the window it is an error, send a
+			// reset, any outstanding RECEIVEs and SEND should
+			// receive "reset" responses, all segment queues should
+			// be flushed, the user should also receive an
+			// unsolicited general "connection reset" signal, enter
+			// the CLOSED state, delete the TCB, and return.
 			die("connection reset");
 
-			// If the SYN is not in the window this step would not be
-			// reached and an ack would have been sent in the first step
-			// (sequence number check).
-
+			// If the SYN is not in the window this step would not
+			// be reached and an ack would have been sent in the
+			// first step (sequence number check).
 		}
 	}
 
@@ -555,8 +526,8 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	} else {
 		// if the ACK bit is on
 		if (cb->state == SYN_RECEIVED) {
-			if (cb->snd_una < ntohl(seg->ack) &&
-			    ntohl(seg->ack) <= cb->snd_nxt) {
+			// XXX check the - 1
+			if (seq_in(seg_ack, cb->snd_una + 1, cb->snd_nxt)) {
 				// If SND.UNA < SEG.ACK =< SND.NXT then enter
 				// ESTABLISHED state and continue processing
 				// with variables below set to:
@@ -564,9 +535,9 @@ tcp_rx(struct warpcore * const w, char * const buf)
 				// SND.WL1 <- SEG.SEQ
 				// SND.WL2 <- SEG.ACK
 				cb->state = ESTABLISHED;
-				cb->snd_wnd = ntohs(seg->wnd);
-				cb->snd_wl1 = ntohl(seg->seq);
-				cb->snd_wl2 = ntohl(seg->ack);
+				cb->snd_wnd = seg_wnd;
+				cb->snd_wl1 = seg_seq;
+				cb->snd_wl2 = seg_ack;
 
 			} else {
 				// If the segment acknowledgment is not
@@ -588,15 +559,15 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// SND.UNA), it can be ignored.  If the ACK acks
 			// something not yet sent (SEG.ACK > SND.NXT) then send
 			// an ACK, drop the segment, and return.
-			if (ntohl(seg->ack) <= cb->snd_una) {
-				warn(debug, "duplicate ACK");
+			if (seq_gt(seg_ack, cb->snd_nxt)) {
+				tcp_tx(s);
+				goto_drop;
 			} else {
-				if (ntohl(seg->ack) > cb->snd_nxt) {
-					tcp_tx(s);
-					goto_drop;
-				} else {
-					cb->snd_una = ntohl(seg->ack);
-				}
+				// (A) see below
+				if (cb->state == FIN_WAIT_1 &&
+				    seg_ack == cb->snd_una + 1)
+					cb->state = FIN_WAIT_2;
+				cb->snd_una = seg_ack;
 			}
 
 			// If SND.UNA =< SEG.ACK =< SND.NXT, the send window
@@ -604,31 +575,28 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// = SEG.SEQ and SND.WL2 =< SEG.ACK)), set SND.WND <-
 			// SEG.WND, set SND.WL1 <- SEG.SEQ, and set SND.WL2 <-
 			// SEG.ACK.
-			if (cb->snd_una <= ntohl(seg->ack) &&
-			    ntohl(seg->ack) <= cb->snd_nxt) {
-				if (cb->snd_wl1 < ntohl(seg->seq) ||
-				    (cb->snd_wl1 == ntohl(seg->seq) &&
-				     cb->snd_wl2 <= ntohl(seg->ack))) {
-					cb->snd_wnd = ntohs(seg->wnd);
-					cb->snd_wl1 = ntohl(seg->seq);
-					cb->snd_wl2 = ntohl(seg->ack);
+			if (seq_in(seg_ack, cb->snd_una, cb->snd_nxt)) {
+				if (seq_lt(cb->snd_wl1, seg_seq) ||
+				    (cb->snd_wl1 == seg_seq &&
+				     seq_lte(cb->snd_wl2, seg_ack))) {
+					cb->snd_wnd = seg_wnd;
+					cb->snd_wl1 = seg_seq;
+					cb->snd_wl2 = seg_ack;
 				}
 			}
 		}
 
-		if (cb->state == FIN_WAIT_1) {
-			// In addition to the processing for the ESTABLISHED
-			// state, if our FIN is now acknowledged then enter FIN-
-			// WAIT-2 and continue processing in that state.
-			die("XXX");
-		}
+		// In addition to the processing for the ESTABLISHED state, if
+		// our FIN is now acknowledged then enter FIN- WAIT-2 and
+		// continue processing in that state.
+		//
+		// XXX We do this at (A) above.
 
 		if (cb->state == FIN_WAIT_2) {
 			// In addition to the processing for the ESTABLISHED
 			// state, if the retransmission queue is empty, the
 			// user's CLOSE can be acknowledged ("ok") but do not
 			// delete the TCB.
-			die("XXX");
 		}
 
 		if (cb->state == CLOSE_WAIT) {
@@ -648,7 +616,12 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// acknowledgment of our FIN.  If our FIN is now
 			// acknowledged, delete the TCB, enter the CLOSED state,
 			// and return.
-			die("XXX");
+			if (seg_ack == cb->snd_una + 1) {
+				// XXX We should set this to LISTEN, if
+				// the socket is a passive open one.
+				cb->state = CLOSED;
+				return;
+			}
 		}
 
 		if (cb->state == TIME_WAIT) {
@@ -664,30 +637,66 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	// seventh, process the segment text,
 	if (cb->state == ESTABLISHED || cb->state == FIN_WAIT_1 ||
 	    cb->state == FIN_WAIT_2) {
-		// Once in the ESTABLISHED state, it is possible to deliver
-		// segment text to user RECEIVE buffers.  Text from segments can
-		// be moved into buffers until either the buffer is full or the
-		// segment is empty.  If the segment empties and carries an PUSH
-		// flag, then the user is informed, when the buffer is returned,
-		// that a PUSH has been received.
+	    	if (len - tcp_off(seg) > 0) {
+			// Once in the ESTABLISHED state, it is possible to
+			// deliver segment text to user RECEIVE buffers.  Text
+			// from segments can be moved into buffers until either
+			// the buffer is full or the segment is empty.  If the
+			// segment empties and carries an PUSH flag, then the
+			// user is informed, when the buffer is returned, that a
+			// PUSH has been received.
 
-		// When the TCP takes responsibility for delivering the data to
-		// the user it must also acknowledge the receipt of the data.
+			// grab an unused iov for the data in this packet
+			struct w_iov * const i = STAILQ_FIRST(&w->iov);
+			if (unlikely(i == 0))
+				die("out of spare bufs");
+			struct netmap_ring * const rxr =
+				NETMAP_RXRING(w->nif, w->cur_rxr);
+			struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
+			STAILQ_REMOVE_HEAD(&w->iov, next);
 
-		// Once the TCP takes responsibility for the data it advances
-		// RCV.NXT over the data accepted, and adjusts RCV.WND as
-		// appropriate to the current buffer availability.  The total of
-		// RCV.NXT and RCV.WND should not be reduced.
-		cb->rcv_nxt = ntohl(seg->seq) + 1;
+			// warn(debug, "swapping rx ring %d slot %d (buf %d) "
+			//      "and spare buf %d",
+			//      w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
 
-		// Please note the window management suggestions in section 3.7.
+			// remember index of this buffer
+			const uint32_t tmp_idx = i->idx;
 
-		// Send an acknowledgment of the form:
-		//   <SEQ=SND.NXT><ACK=RCV.NXT><CTL=ACK>
-		// This acknowledgment should be piggybacked on a segment being
-		// transmitted if possible without incurring undue delay.
-		tcp_tx(s);
-		sleep(3);
+			// move the received data into the iov
+			i->buf = (char *)seg + tcp_off(seg);
+			i->len = len - tcp_off(seg);
+			i->idx = rxs->buf_idx;
+
+			// copy over the rx timestamp
+			memcpy(&i->ts, &rxr->ts, sizeof(struct timeval));
+
+			// append the iov to the socket
+			STAILQ_INSERT_TAIL(&s->iv, i, next);
+
+			// put the original buffer of the iov into the receive
+			// ring
+			rxs->buf_idx = tmp_idx;
+			rxs->flags = NS_BUF_CHANGED;
+
+			// When the TCP takes responsibility for delivering the
+			// data to the user it must also acknowledge the receipt
+			// of the data.
+
+			// Once the TCP takes responsibility for the data it
+			// advances RCV.NXT over the data accepted, and adjusts
+			// RCV.WND as appropriate to the current buffer
+			// availability.  The total of RCV.NXT and RCV.WND
+			// should not be reduced.
+			cb->rcv_nxt = seg_seq + seg_len;
+
+			// Please note the window management suggestions in
+			// section 3.7.
+
+			// Send an acknowledgment. This acknowledgment should be
+			// piggybacked on a segment being transmitted if
+			// possible without incurring undue delay.
+			tcp_tx(s);
+		}
 	}
 
 	// eighth, check the FIN bit
@@ -696,9 +705,8 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// SENT since the SEG.SEQ cannot be validated; drop the segment
 		// and return.
 		if (cb->state == CLOSED || cb->state == LISTEN ||
-		    cb->state == SYN_SENT) {
+		    cb->state == SYN_SENT)
 			goto_drop;
-		}
 
 		// If the FIN bit is set, signal the user "connection closing"
 		// and return any pending RECEIVEs with same message, advance
@@ -715,7 +723,10 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// then enter TIME-WAIT, start the time-wait timer, turn
 			// off the other timers; otherwise enter the CLOSING
 			// state.
-			die("XXX");
+			if (cb->snd_una == cb->snd_nxt)
+				cb->state = TIME_WAIT;
+			else
+				cb->state = CLOSING;
 		}
 
 		if (cb->state == FIN_WAIT_2) {
@@ -737,103 +748,127 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// Remain in the TIME-WAIT state.  Restart the 2 MSL
 		// time-wait timeout.
 
+		cb->rcv_nxt = seg_seq + 1;
+		tcp_tx(s);
+
+		// XXX We don't really implement TIME_WAIT yet.
+		if (cb->state == TIME_WAIT)
+			cb->state = CLOSED;
 		return;
 	}
-
-
-		// if (seg->flags & ACK)
-		// 	cb->snd_una = ntohl(seg->ack);
-
-		// const uint16_t data_len = len - tcp_off(seg);
-		// if (data_len == 0)
-		// 	return;
-
-		// cb->rcv_nxt += data_len;
-
-		// // XXX TODO: code below doesn't preserve byte stream ordering
-
-		// // grab an unused iov for the data in this packet
-		// struct w_iov * const i = STAILQ_FIRST(&w->iov);
-		// if (unlikely(i == 0))
-		// 	die("out of spare bufs");
-		// struct netmap_ring * const rxr =
-		// 	NETMAP_RXRING(w->nif, w->cur_rxr);
-		// struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
-		// STAILQ_REMOVE_HEAD(&w->iov, next);
-
-		// warn(debug, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
-		//      w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
-
-		// // remember index of this buffer
-		// const uint32_t tmp_idx = i->idx;
-
-		// // move the received data into the iov
-		// i->buf = (char *)seg + tcp_off(seg);
-		// i->len = data_len;
-		// i->idx = rxs->buf_idx;
-
-		// // copy over the rx timestamp
-		// memcpy(&i->ts, &rxr->ts, sizeof(struct timeval));
-
-		// // append the iov to the socket
-		// STAILQ_INSERT_TAIL(&s->iv, i, next);
-
-		// // put the original buffer of the iov into the receive ring
-		// rxs->buf_idx = tmp_idx;
-		// rxs->flags = NS_BUF_CHANGED;
-		return;
-	// }
-
+	return;
 rst:
 	tcp_tx_rst(w, buf);
-
 drop:
 	return;
+}
+
+
+static inline struct w_iov *
+tcp_tx_prep(struct w_sock * const s)
+{
+	struct w_iov *v;
+	if (STAILQ_EMPTY(&s->ov) || s->cb->state != ESTABLISHED) {
+		// not ready to send data, this will be an empty segment
+		v = STAILQ_FIRST(&s->w->iov);
+		if (unlikely(v == 0))
+			die("out of spare bufs");
+		STAILQ_REMOVE_HEAD(&s->w->iov, next);
+		v->len = 0;
+		// warn(debug, "grabbing empty iov");
+	} else {
+		// use the first iov with data to send
+		v = STAILQ_FIRST(&s->ov);
+		STAILQ_REMOVE_HEAD(&s->ov, next);
+		// warn(debug, "grabbing iov with %d bytes of data", v->len);
+	}
+
+	// copy template header into buffer, caller to fill in remaining fields
+	v->buf = IDX2BUF(s->w, v->idx);
+	memcpy(v->buf, s->hdr, s->hdr_len);
+
+	return v;
+}
+
+
+static inline void
+tcp_tx_do(struct w_sock * const s, struct w_iov * const v)
+{
+	struct tcp_hdr * const seg = ip_data(IDX2BUF(s->w, v->idx));
+	const uint16_t len = v->len + tcp_off(seg);
+
+	// set the rx window
+	seg->wnd = htons((uint16_t)MIN(UINT16_MAX, tcp_rcv_wnd(s)));
+
+	// compute the checksum
+	seg->cksum = in_pseudo(s->w->ip, s->dip, htons(len + IP_P_TCP));
+	seg->cksum = in_cksum(seg, len);
+
+	tcp_log(seg, len);
+
+	// send the IP packet
+	ip_tx(s->w, v, len);
 }
 
 
 void
 tcp_tx(struct w_sock * const s)
 {
-	warn(notice, "am in state %s", tcp_state_name[s->cb->state]);
+	struct tcp_cb * const cb = s->cb;
+	do {
+		// tcp_log_cb(cb);
 
-	switch (s->cb->state) {
-	case CLOSED:
-		tcp_tx_syn(s);
-		// s->cb->state = SYN_SENT;
-		return;
+		// grab a buffer
+		struct w_iov * const v = tcp_tx_prep(s);
+		struct tcp_hdr * const seg = ip_data(v->buf);
 
-	case LISTEN:
-		tcp_tx_syn(s);
-		return;
-
-	case ESTABLISHED:
-		if (STAILQ_EMPTY(&s->ov)) {
-			tcp_tx_ack(s);
+		if (cb->state == CLOSED) {
+			cb->snd_una = cb->iss = (uint32_t)random();
+			cb->snd_nxt = cb->iss + 1;
+			cb->state = SYN_SENT;
+			seg->flags = SYN;
+			seg->seq = htonl(cb->iss);
 		}
-		// // packetize bufs and place in tx ring
-		// while (likely(!STAILQ_EMPTY(&s->ov))) {
-		// 	struct w_iov * const v = STAILQ_FIRST(&s->ov);
-		// 	STAILQ_REMOVE_HEAD(&s->ov, next);
 
-		// 	// copy template header into buffer and fill in remaining fields
-		// 	char * const buf = IDX2BUF(s->w, v->idx);
-		// 	memcpy(buf, s->hdr, s->hdr_len);
+		if (cb->state == SYN_RECEIVED) {
+			seg->seq = htonl(cb->iss);
+			seg->ack = htonl(cb->rcv_nxt);
+			seg->flags = SYN|ACK;
+		}
 
-		// 	struct tcp_hdr * const seg = ip_data(buf);
-		// 	seg->seq = htonl(s->cb->snd_una);
-		// 	s->cb->snd_una += v->len;
-		// 	seg->flags |= ACK;
-		// 	if (STAILQ_EMPTY(&s->ov))
-		// 		seg->flags |= PSH;
-		// 	seg->ack = htonl(s->cb->rcv_nxt);
+		if (cb->state == FIN_WAIT_1) {
+			if (cb->snd_nxt == cb->snd_una)
+				seg->flags = FIN;
+		}
 
-		// 	tcp_tx_do(s, v);
-		// 	STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-		// }
-		// w_kick_tx(s->w);
-		return;
-	}
+		if (cb->state == ESTABLISHED ||
+		    cb->state == LISTEN ||
+		    cb->state == CLOSE_WAIT ||
+		    cb->state == FIN_WAIT_1 ||
+		    cb->state == FIN_WAIT_2 ||
+		    cb->state == TIME_WAIT) {
+			seg->seq = htonl(cb->snd_nxt);
+			if (seg->flags & FIN)
+				cb->snd_nxt++;
+			seg->ack = htonl(cb->rcv_nxt);
+			seg->flags |= ACK;
+			if (v->len && STAILQ_EMPTY(&s->ov))
+				seg->flags |= PSH;
+			if (cb->state == CLOSE_WAIT && STAILQ_EMPTY(&s->ov)) {
+				seg->flags |= FIN;
+				cb->state = LAST_ACK;
+			}
 
-	die("unknown transition in %s", tcp_state_name[s->cb->state]);
+			s->cb->snd_nxt += v->len;
+		}
+
+		tcp_tx_do(s, v);
+
+		// make iov available again
+		STAILQ_INSERT_HEAD(&s->w->iov, v, next);
+
+	// send more if there is more to send
+	} while (cb->state == ESTABLISHED && !STAILQ_EMPTY(&s->ov));
+
+	w_kick_tx(s->w);
 }
