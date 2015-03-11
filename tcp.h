@@ -58,7 +58,7 @@ struct tcp_cb {
 	uint32_t snd_una;	// SND.UNA - send unacknowledged
 	uint32_t snd_nxt;	// SND.NXT - send next
 	uint16_t snd_wnd;	// SND.WND - send window
-	uint16_t snd_up;	// SND.UP - send urgent pointer
+	// uint16_t snd_up;	// SND.UP - send urgent pointer
 	uint32_t snd_wl1;	// SND.WL1 - SEG.SEQ used for last window update
 	uint32_t snd_wl2;	// SND.WL2 - SEG.ACK used for last window update
 	uint32_t iss;		// ISS - initial send sequence number
@@ -76,7 +76,7 @@ struct tcp_cb {
 
 	uint32_t rcv_nxt;	// RCV.NXT - receive next
 	// uint32_t rcv_wnd;	// RCV.WND - receive window
-	uint32_t rcv_up;	// RCV.UP - receive urgent pointer
+	// uint32_t rcv_up;	// RCV.UP - receive urgent pointer
 	uint32_t irs;		// IRS - initial receive sequence number
 
 	// the fields below store information gleanded from TCP options
