@@ -11,12 +11,68 @@ static const char * const tcp_state_name[] = {
 	"TIME_WAIT"
 };
 
+
 // Sequence number comparisons
 #define seq_lt(a, b)	((int32_t)((a) - (b)) < 0)	// a < b
 #define seq_lte(a, b)	((int32_t)((a) - (b)) <= 0)	// a <= b
 #define seq_gt(a, b)	((int32_t)((a) - (b)) > 0)	// a > b
 // #define seq_gte(a, b)	((int32_t)((a) - (b)) >= 0)	// a >= b
 #define seq_in(a, b, c)	((c) - (b) >= (a) - (b))	// b <= a <= c
+
+
+// Log a TCP segment. Since we're normalizing the sequence number spaces using
+// some static variables, this only really works for a single active connection.
+static uint32_t iss_sm = 0;
+static uint32_t iss_lg = 0;
+#define tcp_log(seg, len)						\
+	do {								\
+		uint32_t _irs;						\
+		if (seg->sport < seg->dport) {				\
+			iss_sm = iss_sm ? iss_sm : ntohl(seg->seq);	\
+			_irs = iss_lg;					\
+		} else {						\
+			iss_lg = iss_lg ? iss_lg : ntohl(seg->seq);	\
+			_irs = iss_sm;					\
+		}							\
+		const uint32_t _seq = ntohl(seg->seq) - 		\
+			(seg->sport < seg->dport ? iss_sm : iss_lg);	\
+		const uint16_t _len = len - tcp_off(seg);		\
+		warn(info, BLD"TCP :%s%d"NRM BLD"->:%s%d"NRM ", "			\
+		     "flags [%s%s%s%s%s%s%s%s], cksum 0x%04x, "		\
+		     "seq " BLD"%s%u%c%u%c"NRM ", ack " BLD"%s%u"NRM 	\
+		     ", win %u, len %u",				\
+		     seg->sport < seg->dport ? RED : BLU,		\
+		     ntohs(seg->sport),					\
+		     seg->sport < seg->dport ? BLU : RED,		\
+		     ntohs(seg->dport),					\
+		     seg->flags & FIN ? RED REV BLD"F"NRM : "",		\
+		     seg->flags & SYN ? RED REV BLD"S"NRM : "",		\
+		     seg->flags & RST ? "R" : "",			\
+		     seg->flags & PSH ? "P" : "",			\
+		     seg->flags & ACK ? "A" : "",			\
+		     seg->flags & URG ? "U" : "",			\
+		     seg->flags & ECE ? "E" : "",			\
+		     seg->flags & CWR ? "C" : "",			\
+		     ntohs(seg->cksum),					\
+		     seg->sport < seg->dport ? RED : BLU,		\
+		     _seq, (_len ? ':' : 0), (_len ? _seq + _len : 0),	\
+		     (_len ? 0 : '\b'),					\
+		     seg->sport < seg->dport ? BLU : RED,		\
+		     ntohl(seg->ack) - _irs, ntohs(seg->wnd), _len);	\
+	} while (0)
+
+#define tcp_log_init	do { iss_sm = iss_lg = 0; } while (0)
+
+
+// Log the TCP control block
+#define tcp_log_cb(cb)							\
+	if (cb)								\
+		warn(debug, "state %s, snd_una %u, snd_nxt %u, "	\
+		     "snd_wnd %u, snd_wl1 %u, snd_wl2 %u, iss %u, "	\
+		     "rcv_nxt %u, irs %u", tcp_state_name[cb->state],	\
+		     cb->snd_una, cb->snd_nxt, cb->snd_wnd,		\
+		     cb->snd_wl1, cb->snd_wl2, cb->iss, cb->rcv_nxt,	\
+		     cb->irs)
 
 
 // Calculate the length of the TCP payload in a segment. Needs the
@@ -88,34 +144,6 @@ done:
 		     (uint8_t *)(seg) + tcp_off(seg) - n);
 	}
 }
-
-
-// Log a TCP segment
-#define tcp_log(seg, len) \
-do { \
-	warn(info, "TCP :%d -> :%d, flags [%s%s%s%s%s%s%s%s], cksum 0x%04x, " \
-	     "seq %u, ack %u, win %u, len %u", \
-	     ntohs(seg->sport), ntohs(seg->dport), \
-	     seg->flags & FIN ? "F" : "", seg->flags & SYN ? "S" : "", \
-	     seg->flags & RST ? "R" : "", seg->flags & PSH ? "P" : "", \
-	     seg->flags & ACK ? "A" : "", seg->flags & URG ? "U" : "", \
-	     seg->flags & ECE ? "E" : "", seg->flags & CWR ? "C" : "", \
-	     ntohs(seg->cksum), ntohl(seg->seq), ntohl(seg->ack), \
-	     ntohs(seg->wnd), len); \
-} while (0)
-
-
-// Log the TCP control block
-#define tcp_log_cb(cb) \
-do { \
-	if (cb) \
-		warn(debug, "state %s, snd_una %u, snd_nxt %u, snd_wnd %u, " \
-		     "snd_wl1 %u, snd_wl2 %u, iss %u, rcv_nxt %u, irs %u", \
-		     tcp_state_name[cb->state], \
-		     cb->snd_una, cb->snd_nxt, cb->snd_wnd, \
-		     cb->snd_wl1, cb->snd_wl2, cb->iss, \
-		     cb->rcv_nxt, cb->irs) \
-} while (0)
 
 
 // Send an RST for the current received packet.
@@ -207,7 +235,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	struct tcp_cb * const cb = s->cb;
 
 	tcp_log(seg, len);
-	// tcp_log_cb(cb);
+	tcp_log_cb(cb);
 
 	// if there are TCP options in the segment, parse them
 	if (tcp_off(seg) > sizeof(struct tcp_hdr))
@@ -491,6 +519,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// If the RST bit is set then, enter the CLOSED state,
 			// delete the TCB, and return.
 			cb->state = CLOSED;
+			tcp_log_init;
 			return;
 		}
 	}
@@ -549,7 +578,15 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// Users should receive positive acknowledgments for
 			// buffers which have been SENT and fully acknowledged
 			// (i.e., SEND buffer should be returned with "ok"
-			// response).  If the ACK is a duplicate (SEG.ACK =<
+			// response).
+
+			// XXX check the - 1
+			if (seq_in(seg_ack, cb->snd_una + 1, cb->snd_nxt)) {
+				warn(debug, "advance");
+				cb->snd_una = seg_ack;
+			}
+
+			//  If the ACK is a duplicate (SEG.ACK =<
 			// SND.UNA), it can be ignored.  If the ACK acks
 			// something not yet sent (SEG.ACK > SND.NXT) then send
 			// an ACK, drop the segment, and return.
@@ -590,6 +627,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// state, if the retransmission queue is empty, the
 			// user's CLOSE can be acknowledged ("ok") but do not
 			// delete the TCB.
+			die("XXX");
 		}
 
 		if (cb->state == CLOSE_WAIT) {
@@ -609,10 +647,10 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// acknowledgment of our FIN.  If our FIN is now
 			// acknowledged, delete the TCB, enter the CLOSED state,
 			// and return.
+			// tcp_log_cb(cb);
 			if (seg_ack == cb->snd_una + 1) {
-				// XXX We should set this to LISTEN, if
-				// the socket is a passive open one.
-				cb->state = CLOSED;
+				cb->state = cb->active ? CLOSED : LISTEN;
+				tcp_log_init;
 				return;
 			}
 		}
@@ -712,6 +750,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// RCV.NXT over the FIN, and send an acknowledgment for the FIN.
 		// Note that FIN implies PUSH for any segment text not yet
 		// delivered to the user.
+		cb->rcv_nxt = seg_seq + 1;
 
 		if (cb->state == SYN_RECEIVED || cb->state == ESTABLISHED)
 			// Enter the CLOSE-WAIT state.
@@ -747,7 +786,6 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// Remain in the TIME-WAIT state.  Restart the 2 MSL
 		// time-wait timeout.
 
-		cb->rcv_nxt = seg_seq + 1;
 		tcp_tx(s);
 
 		// XXX We don't really implement TIME_WAIT yet.
@@ -767,7 +805,7 @@ static inline struct w_iov *
 tcp_tx_prep(struct w_sock * const s)
 {
 	struct w_iov *v;
-	if (STAILQ_EMPTY(&s->ov) || s->cb->state != ESTABLISHED) {
+	if (STAILQ_EMPTY(&s->ov) || s->cb->state < ESTABLISHED) {
 		// not ready to send data, this will be an empty segment
 		v = STAILQ_FIRST(&s->w->iov);
 		if (unlikely(v == 0))
@@ -815,7 +853,7 @@ tcp_tx(struct w_sock * const s)
 {
 	struct tcp_cb * const cb = s->cb;
 	do {
-		// tcp_log_cb(cb);
+		tcp_log_cb(cb);
 
 		// grab a buffer
 		struct w_iov * const v = tcp_tx_prep(s);
@@ -827,6 +865,8 @@ tcp_tx(struct w_sock * const s)
 			cb->state = SYN_SENT;
 			seg->flags = SYN;
 			seg->seq = htonl(cb->iss);
+			// this is an active open
+			cb->active = true;
 		}
 
 		if (cb->state == SYN_RECEIVED) {
@@ -845,6 +885,7 @@ tcp_tx(struct w_sock * const s)
 		    cb->state == CLOSE_WAIT ||
 		    cb->state == FIN_WAIT_1 ||
 		    cb->state == FIN_WAIT_2 ||
+		    cb->state == LAST_ACK ||
 		    cb->state == TIME_WAIT) {
 			seg->seq = htonl(cb->snd_nxt);
 			if (seg->flags & FIN)
@@ -867,7 +908,7 @@ tcp_tx(struct w_sock * const s)
 		STAILQ_INSERT_HEAD(&s->w->iov, v, next);
 
 	// send more if there is more to send
-	} while (cb->state == ESTABLISHED && !STAILQ_EMPTY(&s->ov));
+	} while (!STAILQ_EMPTY(&s->ov));
 
 	w_kick_tx(s->w);
 }
