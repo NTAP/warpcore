@@ -43,26 +43,6 @@ struct tcp_hdr {
 
 // see draft-eddy-rfc793bis
 struct tcp_cb {
-	// Send Sequence Space
-	//
-	//            1         2          3          4
-	//       ----------|----------|----------|----------
-	//              SND.UNA    SND.NXT    SND.UNA
-	//                                   +SND.WND
-	//
-	// 1 - old sequence numbers which have been acknowledged
-	// 2 - sequence numbers of unacknowledged data
-	// 3 - sequence numbers allowed for new data transmission
-	// 4 - future sequence numbers which are not yet allowed
-
-	uint32_t snd_una;	// SND.UNA - send unacknowledged
-	uint32_t snd_nxt;	// SND.NXT - send next
-	uint16_t snd_wnd;	// SND.WND - send window
-	// uint16_t snd_up;	// SND.UP - send urgent pointer
-	uint32_t snd_wl1;	// SND.WL1 - SEG.SEQ used for last window update
-	uint32_t snd_wl2;	// SND.WL2 - SEG.ACK used for last window update
-	uint32_t iss;		// ISS - initial send sequence number
-
 	// Receive Sequence Space
 	//
 	//                1          2          3
@@ -79,15 +59,36 @@ struct tcp_cb {
 	// uint32_t rcv_up;	// RCV.UP - receive urgent pointer
 	uint32_t irs;		// IRS - initial receive sequence number
 
+	// Send Sequence Space
+	//
+	//            1         2          3          4
+	//       ----------|----------|----------|----------
+	//              SND.UNA    SND.NXT    SND.UNA
+	//                                   +SND.WND
+	//
+	// 1 - old sequence numbers which have been acknowledged
+	// 2 - sequence numbers of unacknowledged data
+	// 3 - sequence numbers allowed for new data transmission
+	// 4 - future sequence numbers which are not yet allowed
+
+	uint32_t snd_una;	// SND.UNA - send unacknowledged
+	uint32_t snd_nxt;	// SND.NXT - send next
+	uint32_t snd_wl1;	// SND.WL1 - SEG.SEQ used for last window update
+	uint32_t snd_wl2;	// SND.WL2 - SEG.ACK used for last window update
+	uint32_t iss;		// ISS - initial send sequence number
+	uint16_t snd_wnd;	// SND.WND - send window
+	// uint16_t snd_up;	// SND.UP - send urgent pointer
+
 	// the fields below store information gleanded from TCP options
-	uint8_t		shift_cnt;	// window scale shift amount
-	bool		sack;		// SACK permitted?
 	uint16_t	mss;		// maximum segment size
 	uint32_t	ts_val;		// timestamp value
 	uint32_t	ts_ecr;		// timestamp echo return
+	uint8_t		shift_cnt;	// window scale shift amount
+	bool		sack;		// SACK permitted?
 
-	struct w_sock * s;	// pointer back to the socket
 	uint8_t		state;	// state of this connection
+	bool		active;	// was this connection active-opened by us?
+	struct w_sock * s;	// pointer back to the socket
 } __aligned(4);
 
 
