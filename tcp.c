@@ -255,8 +255,6 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			w_connect(s, ip->src, seg->sport);
 			cb->state = SYN_RECEIVED;
 
-			// XXX skipping the precedence stuff
-
 			// Set RCV.NXT to SEG.SEQ+1, IRS is set to SEG.SEQ and
 			// any other control or text should be queued for
 			// processing later. ISS should be selected and a SYN
@@ -329,8 +327,6 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// Otherwise (no ACK) drop the segment and return.
 			goto_drop;
 		}
-
-		// XXX skipping the precedence stuff
 
 		// fourth check the SYN bit
 		if (seg->flags & SYN) {
@@ -499,8 +495,6 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		}
 	}
 
-	// XXX skipping the precedence stuff
-
 	// fourth, check the SYN bit
 	if (seg->flags & SYN) {
 		if (cb->state >= SYN_RECEIVED) {
@@ -588,9 +582,8 @@ tcp_rx(struct warpcore * const w, char * const buf)
 
 		// In addition to the processing for the ESTABLISHED state, if
 		// our FIN is now acknowledged then enter FIN- WAIT-2 and
-		// continue processing in that state.
-		//
-		// XXX We do this at (A) above.
+		// continue processing in that state. XXX We do this at (A)
+		// above.
 
 		if (cb->state == FIN_WAIT_2) {
 			// In addition to the processing for the ESTABLISHED
@@ -632,8 +625,6 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		}
 	}
 
-        // sixth, check the URG bit
-
 	// seventh, process the segment text,
 	if (cb->state == ESTABLISHED || cb->state == FIN_WAIT_1 ||
 	    cb->state == FIN_WAIT_2) {
@@ -645,6 +636,10 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// segment empties and carries an PUSH flag, then the
 			// user is informed, when the buffer is returned, that a
 			// PUSH has been received.
+
+	    		// If this segment is out of order, panic
+	    		if (seg_seq != cb->rcv_nxt)
+	    			die("XXX out of order segment");
 
 			// grab an unused iov for the data in this packet
 			struct w_iov * const i = STAILQ_FIRST(&w->iov);
@@ -666,6 +661,10 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			i->buf = (char *)seg + tcp_off(seg);
 			i->len = len - tcp_off(seg);
 			i->idx = rxs->buf_idx;
+
+		        // tag the iov with the sender's information
+		        i->src = ip->src;
+		        i->sport = seg->sport;
 
 			// copy over the rx timestamp
 			memcpy(&i->ts, &rxr->ts, sizeof(struct timeval));
