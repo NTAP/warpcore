@@ -21,34 +21,51 @@ enum dlevel { crit, err, warn, notice, info, debug };
 #define DCOMPONENT "warpcore|tcp"
 #endif
 
+// ANSI escape sequences (color, etc.)
+#define NRM "\x1B[0m"	// reset all to normal
+#define BLD "\x1B[1m"	// bold
+#define DIM "\x1B[2m"	// dim
+#define ULN "\x1B[3m"	// underline
+#define BLN "\x1B[5m"	// blink
+#define REV "\x1B[7m"	// reverse
+#define HID "\x1B[8m"	// hidden
+#define BLK "\x1B[30m"	// black
+#define RED "\x1B[31m"	// red
+#define GRN "\x1B[32m"	// green
+#define YEL "\x1B[33m"	// yellow
+#define BLU "\x1B[34m"	// blue
+#define MAG "\x1B[35m"	// magenta
+#define CYN "\x1B[36m"	// cyan
+#define WHT "\x1B[37m"	// white
+
+
 #include <sys/time.h>
 #include <regex.h>
 
 extern regex_t _comp;
 
 // These macros are based on the "D" ones defined by netmap
-#define warn(dlevel, fmt, ...)                                         	\
+#define warn(dlevel, fmt, ...)						\
 	if (DLEVEL >= dlevel && !regexec(&_comp, __FILE__, 0, 0, 0)) {	\
-		struct timeval _lt0;                                	\
-		gettimeofday(&_lt0, 0);                             	\
-		fprintf(stderr, "%03d.%06d %s [%d] " fmt "\n",    	\
-			(int)(_lt0.tv_sec % 1000), (int)_lt0.tv_usec, 	\
-			__FUNCTION__, __LINE__, ##__VA_ARGS__);   	\
+		struct timeval _lt0;					\
+		gettimeofday(&_lt0, 0);					\
+		fprintf(stderr, DIM"%03ld.%03ld"NRM " %s:%d " fmt "\n", \
+			_lt0.tv_sec % 1000, _lt0.tv_usec / 1000,	\
+			__FUNCTION__, __LINE__, ##__VA_ARGS__);		\
 	}
 
 // Rate limited version of "log", lps indicates how many per second
-#define rwarn(dlevel, lps, format, ...)                                	\
+#define rwarn(dlevel, lps, format, ...)					\
 	if (DLEVEL >= dlevel && !regexec(&_comp, __FILE__, 0, 0, 0)) {	\
-		static time_t _rt0, _rcnt;                            	\
-		struct timeval _rts;                              	\
-		gettimeofday(&_rts, 0);                           	\
-		if (_rt0 != _rts.tv_sec) {                          	\
-			_rt0 = _rts.tv_sec;                         	\
-			_rcnt = 0;                                  	\
-		}                                                 	\
-		if (_rcnt++ < lps) {                                	\
-			warn(dlevel, format, ##__VA_ARGS__);          	\
-		}                                                 	\
+		static time_t _rt0, _rcnt;				\
+		struct timeval _rts;					\
+		gettimeofday(&_rts, 0);					\
+		if (_rt0 != _rts.tv_sec) {				\
+			_rt0 = _rts.tv_sec;				\
+			_rcnt = 0;					\
+		}							\
+		if (_rcnt++ < lps)					\
+			warn(dlevel, format, ##__VA_ARGS__);		\
 	}
 
 #else
@@ -58,16 +75,16 @@ extern regex_t _comp;
 
 #endif
 
-#define die(fmt, ...)                                             	\
-	do {                                                      	\
-		const int e = errno;                              	\
-		struct timeval _lt0;                                	\
-		gettimeofday(&_lt0, 0);                             	\
-		fprintf(stderr, "%03d.%06d %s [%d] abort: " fmt 	\
-			" [%s]\n", (int)(_lt0.tv_sec % 1000), 		\
-			(int)_lt0.tv_usec, __FUNCTION__, __LINE__, 	\
-			##__VA_ARGS__, (e ? strerror(e) : ""));		\
-		abort();                                          	\
+#define die(fmt, ...)							\
+	do {								\
+		const int _e = errno;					\
+		struct timeval _lt0;					\
+		gettimeofday(&_lt0, 0);					\
+		fprintf(stderr, BLD"%03ld.%03ld %s [%d] abort: "NRM fmt	\
+			" [%s]\n", _lt0.tv_sec % 1000,			\
+			_lt0.tv_usec / 1000, __FUNCTION__, __LINE__,	\
+			##__VA_ARGS__, (_e ? strerror(_e) : ""));	\
+		abort();						\
 	} while (0)
 
 extern void hexdump(const void * const ptr, const unsigned len);
