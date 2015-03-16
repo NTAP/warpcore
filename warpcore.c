@@ -106,6 +106,11 @@ w_rx_done(struct w_sock * const s)
 		STAILQ_INSERT_HEAD(&s->w->iov, i, next);
 		i = n;
 	}
+
+	// if this is a TCP socket and remote end has closed, do FIN exchange
+	if (s->p == IP_P_TCP &&
+	    (s->cb->state == CLOSE_WAIT || s->cb->state == LAST_ACK))
+		tcp_tx(s);
 }
 
 
@@ -160,9 +165,12 @@ w_tx(struct w_sock * const s)
 {
 	if (s->p == IP_P_UDP)
 		udp_tx(s);
-	else if (s->p == IP_P_TCP)
-		tcp_tx(s);
-	else
+	else if (s->p == IP_P_TCP) {
+		if (s->cb->state >= FIN_WAIT_1)
+			die("w_tx called on closing connection");
+		else
+			tcp_tx(s);
+	} else
 		die("unhandled IP proto %d", s->p);
 }
 
@@ -175,15 +183,16 @@ w_close(struct w_sock * const s)
 
 	// If this is a TCP socket, perform the FIN handshake
 	if (s->p == IP_P_TCP) {
-		// XXX safeguard against runaway control loop
-		uint8_t loops = 10;
-		while (--loops && s->cb->state != CLOSED && !s->w->interrupt) {
-			if (s->cb->state == ESTABLISHED)
-				s->cb->state = FIN_WAIT_1;
+		warn(debug, "do FIN handshake");
+		if (s->cb->state == ESTABLISHED) {
+			s->cb->state = FIN_WAIT_1;
 			tcp_tx(s);
-			w_poll(s->w, POLLIN, -1);
-			w_rx(s);
+			while (s->cb->state != CLOSED && !s->w->interrupt) {
+				w_poll(s->w, POLLIN, -1);
+				w_rx(s);
+			}
 		}
+
 	}
 
 	// make iovs of the socket available again

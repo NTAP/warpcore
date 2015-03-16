@@ -16,8 +16,6 @@ static const char * const tcp_state_name[] = {
 #define seq_lt(a, b)	((int32_t)((a) - (b)) < 0)	// a < b
 #define seq_lte(a, b)	((int32_t)((a) - (b)) <= 0)	// a <= b
 #define seq_gt(a, b)	((int32_t)((a) - (b)) > 0)	// a > b
-// #define seq_gte(a, b)	((int32_t)((a) - (b)) >= 0)	// a >= b
-#define seq_in(a, b, c)	((c) - (b) >= (a) - (b))	// b <= a <= c
 
 
 // Log a TCP segment. Since we're normalizing the sequence number spaces using
@@ -37,9 +35,9 @@ static uint32_t iss_lg = 0;
 		const uint32_t _seq = ntohl(seg->seq) - 		\
 			(seg->sport < seg->dport ? iss_sm : iss_lg);	\
 		const uint16_t _len = len - tcp_off(seg);		\
-		warn(info, BLD"TCP :%s%d"NRM BLD"->:%s%d"NRM ", "			\
+		warn(info, BLD"TCP :%s%d"NRM BLD"->:%s%d"NRM ", "	\
 		     "flags [%s%s%s%s%s%s%s%s], cksum 0x%04x, "		\
-		     "seq " BLD"%s%u%c%u%c"NRM ", ack " BLD"%s%u"NRM 	\
+		     BLD"%sseq %u%c%u%c"NRM ", " BLD"%sack %u"NRM 	\
 		     ", win %u, len %u",				\
 		     seg->sport < seg->dport ? RED : BLU,		\
 		     ntohs(seg->sport),					\
@@ -70,9 +68,10 @@ static uint32_t iss_lg = 0;
 		warn(debug, "state %s, snd_una %u, snd_nxt %u, "	\
 		     "snd_wnd %u, snd_wl1 %u, snd_wl2 %u, iss %u, "	\
 		     "rcv_nxt %u, irs %u", tcp_state_name[cb->state],	\
-		     cb->snd_una, cb->snd_nxt, cb->snd_wnd,		\
-		     cb->snd_wl1, cb->snd_wl2, cb->iss, cb->rcv_nxt,	\
-		     cb->irs)
+		     cb->snd_una - cb->iss, cb->snd_nxt - cb->iss,	\
+		     cb->snd_wnd, cb->snd_wl1 - cb->irs,		\
+		     cb->snd_wl2 - cb->iss, cb->iss,			\
+		     cb->rcv_nxt - cb->irs, cb->irs)
 
 
 // Calculate the length of the TCP payload in a segment. Needs the
@@ -196,9 +195,6 @@ tcp_rcv_wnd(struct w_sock * const s __unused)
 }
 
 
-#define goto_rst { warn(debug, "XXX goto rst"); goto rst; }
-#define goto_drop { warn(debug, "XXX goto drop"); goto drop; }
-
 void
 tcp_rx(struct warpcore * const w, char * const buf)
 {
@@ -228,11 +224,15 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf);
 		// but now send an RST
 		if (!(seg->flags & RST))
-			goto_rst;
+			goto rst;
 		return;
 	}
 	struct w_sock * const s = *ss;
 	struct tcp_cb * const cb = s->cb;
+
+
+	if (cb->state == LISTEN)
+		tcp_log_init;
 
 	tcp_log(seg, len);
 	tcp_log_cb(cb);
@@ -254,8 +254,8 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// segment containing a RST is discarded.  An incoming segment
 		// not containing a RST causes a RST to be sent in response.
 		if (!(seg->flags & RST))
-			goto_rst;
-		goto_drop;
+			goto rst;
+		goto drop;
 	}
 
 	if (cb->state == LISTEN) {
@@ -263,7 +263,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// first check for an RST
 		// An incoming RST should be ignored.  Return.
 		if (seg->flags & RST)
-			goto_drop;
+			goto drop;
 
 		// second check for an ACK
 		// Any acknowledgment is bad if it arrives on a connection
@@ -271,7 +271,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// should be formed for any arriving ACK-bearing segment.
 		// Return.
 		if (seg->flags & ACK)
-			goto_rst;
+			goto rst;
 
 		// third check for a SYN
 		if (seg->flags & SYN) {
@@ -332,16 +332,16 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			if (seq_lte(seg_ack, cb->iss) ||
 			    seq_gt(seg_ack, cb->snd_nxt)) {
 				if (seg->flags & RST) {
-					goto_drop;
+					goto drop;
 				} else {
-					goto_rst;
+					goto rst;
 				}
 			}
 
 			// If SND.UNA < SEG.ACK =< SND.NXT then the ACK is
 			// acceptable.
-			// XXX check the + 1 part
-			ack_ok = seq_in(seg_ack, cb->snd_una + 1, cb->snd_nxt);
+			ack_ok = seq_lt(cb->snd_una, seg_ack) &&
+				 seq_lte(seg_ack, cb->snd_nxt);
 		}
 
 		// second check the RST bit
@@ -353,7 +353,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			if (ack_ok)
 				die("connection reset");
 			// Otherwise (no ACK) drop the segment and return.
-			goto_drop;
+			goto drop;
 		}
 
 		// fourth check the SYN bit
@@ -412,7 +412,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// fifth, if neither of the SYN or RST bits is set then
 		// drop the segment and return.
 		if (seg->flags & SYN || seg->flags & RST)
-			goto_drop;
+			goto drop;
 	}
 
 	// Otherwise, first check sequence number
@@ -448,27 +448,29 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			if (rcv_wnd == 0) {
 				if (seg_seq == cb->rcv_nxt)
 					ack_ok = true;
-				else
-					warn(debug, "case 0 0");
+				// else
+				// 	warn(debug, "case 0 0");
 			} else {
-				if (seq_in(seg_seq, cb->rcv_nxt,
-				           cb->rcv_nxt + rcv_wnd))
+				if (seq_lte(cb->rcv_nxt, seg_seq) &&
+				    seq_lt(seg_seq, cb->rcv_nxt + rcv_wnd))
 					ack_ok = true;
-				else
-					warn(debug, "case 0 >0");
+				// else
+				// 	warn(debug, "case 0 >0");
 			}
 		} else {
 			if (rcv_wnd != 0) {
-				// XXX check the - 1
-				if (seq_in(seg_seq, cb->rcv_nxt,
-				           cb->rcv_nxt + rcv_wnd - 1) ||
-				    seq_in(seg_seq + seg_len - 1, cb->rcv_nxt,
-				           cb->rcv_nxt + rcv_wnd - 1))
+				if ((seq_lte(cb->rcv_nxt, seg_seq) &&
+				     seq_lt(seg_seq, cb->rcv_nxt + rcv_wnd)) ||
+				    (seq_lte(cb->rcv_nxt,
+					     seg_seq + seg_len - 1) &&
+				     seq_lt(seg_seq + seg_len - 1,
+					    cb->rcv_nxt + rcv_wnd)))
 					ack_ok = true;
-				else
-					warn(debug, "case >0 >0");
-			} else
-				warn(debug, "case case >0 0");
+				// else
+				// 	warn(debug, "case >0 >0");
+			}
+			// else
+			// 	warn(debug, "case case >0 0");
 		}
 
 		// If an incoming segment is not acceptable, an acknowledgment
@@ -477,10 +479,10 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// acknowledgment, drop the unacceptable segment and return.
 		if (!ack_ok) {
 			if (!(seg->flags & RST)) {
-				warn(debug, "ACK *NOT* OK");
+				// warn(debug, "ACK *NOT* OK");
 				tcp_tx(s);
 			}
-			goto_drop;
+			goto drop;
 		}
 	}
 
@@ -519,7 +521,6 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// If the RST bit is set then, enter the CLOSED state,
 			// delete the TCB, and return.
 			cb->state = CLOSED;
-			tcp_log_init;
 			return;
 		}
 	}
@@ -545,12 +546,12 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	// fifth check the ACK field,
 	if (!(seg->flags & ACK)) {
 		// if the ACK bit is off drop the segment and return
-		goto_drop;
+		goto drop;
 	} else {
 		// if the ACK bit is on
 		if (cb->state == SYN_RECEIVED) {
-			// XXX check the - 1
-			if (seq_in(seg_ack, cb->snd_una + 1, cb->snd_nxt)) {
+			if (seq_lt(cb->snd_una, seg_ack) &&
+			    seq_lte(seg_ack, cb->snd_nxt)) {
 				// If SND.UNA < SEG.ACK =< SND.NXT then enter
 				// ESTABLISHED state and continue processing
 				// with variables below set to:
@@ -566,12 +567,13 @@ tcp_rx(struct warpcore * const w, char * const buf)
 				// If the segment acknowledgment is not
 				// acceptable, form a reset segment, and send
 				// it.
-				goto_rst;
+				goto rst;
 			}
 		}
 
 		if (cb->state == ESTABLISHED || cb->state == FIN_WAIT_1 ||
-		    cb->state == FIN_WAIT_2 || cb->state == CLOSE_WAIT) {
+		    cb->state == FIN_WAIT_2 || cb->state == CLOSE_WAIT ||
+		    cb->state == CLOSING) {
 			// If SND.UNA < SEG.ACK =< SND.NXT then, set SND.UNA <-
 			// SEG.ACK.  Any segments on the retransmission queue
 			// which are thereby entirely acknowledged are removed.
@@ -579,26 +581,19 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// buffers which have been SENT and fully acknowledged
 			// (i.e., SEND buffer should be returned with "ok"
 			// response).
-
-			// XXX check the - 1
-			if (seq_in(seg_ack, cb->snd_una + 1, cb->snd_nxt)) {
-				warn(debug, "advance");
+			if (seq_lt(cb->snd_una, seg_ack) &&
+			    seq_lte(seg_ack, cb->snd_nxt)) {
 				cb->snd_una = seg_ack;
+				warn(debug, "XXX snd_una advance, do rx queue");
 			}
 
-			//  If the ACK is a duplicate (SEG.ACK =<
-			// SND.UNA), it can be ignored.  If the ACK acks
-			// something not yet sent (SEG.ACK > SND.NXT) then send
-			// an ACK, drop the segment, and return.
+			// If the ACK is a duplicate (SEG.ACK =< SND.UNA), it
+			// can be ignored.  If the ACK acks something not yet
+			// sent (SEG.ACK > SND.NXT) then send an ACK, drop the
+			// segment, and return.
 			if (seq_gt(seg_ack, cb->snd_nxt)) {
 				tcp_tx(s);
-				goto_drop;
-			} else {
-				// (A) see below
-				if (cb->state == FIN_WAIT_1 &&
-				    seg_ack == cb->snd_una + 1)
-					cb->state = FIN_WAIT_2;
-				cb->snd_una = seg_ack;
+				goto drop;
 			}
 
 			// If SND.UNA =< SEG.ACK =< SND.NXT, the send window
@@ -606,7 +601,8 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// = SEG.SEQ and SND.WL2 =< SEG.ACK)), set SND.WND <-
 			// SEG.WND, set SND.WL1 <- SEG.SEQ, and set SND.WL2 <-
 			// SEG.ACK.
-			if (seq_in(seg_ack, cb->snd_una, cb->snd_nxt)) {
+			if (seq_lte(cb->snd_una, seg_ack) &&
+			    seq_lte(seg_ack, cb->snd_nxt)) {
 				if (seq_lt(cb->snd_wl1, seg_seq) ||
 				    (cb->snd_wl1 == seg_seq &&
 				     seq_lte(cb->snd_wl2, seg_ack))) {
@@ -617,22 +613,24 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			}
 		}
 
-		// In addition to the processing for the ESTABLISHED state, if
-		// our FIN is now acknowledged then enter FIN- WAIT-2 and
-		// continue processing in that state. XXX We do this at (A)
-		// above.
+		if (cb->state == FIN_WAIT_1) {
+			// In addition to the processing for the ESTABLISHED
+			// state, if our FIN is now acknowledged then enter FIN-
+			// WAIT-2 and continue processing in that state.
+			if (seg_ack == cb->snd_nxt)
+				cb->state = FIN_WAIT_2;
+		}
 
 		if (cb->state == FIN_WAIT_2) {
 			// In addition to the processing for the ESTABLISHED
 			// state, if the retransmission queue is empty, the
 			// user's CLOSE can be acknowledged ("ok") but do not
 			// delete the TCB.
-			die("XXX");
 		}
 
 		if (cb->state == CLOSE_WAIT) {
 			// Do the same processing as for the ESTABLISHED state.
-			die("XXX");
+			// die("XXX");
 		}
 
 		if (cb->state == CLOSING) {
@@ -648,9 +646,9 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// acknowledged, delete the TCB, enter the CLOSED state,
 			// and return.
 			// tcp_log_cb(cb);
-			if (seg_ack == cb->snd_una + 1) {
+			if (seg_ack == cb->snd_nxt + 1) {
+				warn(debug, "XXX going to CLOSED or LISTEN");
 				cb->state = cb->active ? CLOSED : LISTEN;
-				tcp_log_init;
 				return;
 			}
 		}
@@ -666,7 +664,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 	// seventh, process the segment text,
 	if (cb->state == ESTABLISHED || cb->state == FIN_WAIT_1 ||
 	    cb->state == FIN_WAIT_2) {
-	    	if (len - tcp_off(seg) > 0) {
+		if (len - tcp_off(seg) > 0) {
 			// Once in the ESTABLISHED state, it is possible to
 			// deliver segment text to user RECEIVE buffers.  Text
 			// from segments can be moved into buffers until either
@@ -675,9 +673,9 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			// user is informed, when the buffer is returned, that a
 			// PUSH has been received.
 
-	    		// If this segment is out of order, panic
-	    		if (seg_seq != cb->rcv_nxt)
-	    			die("XXX out of order segment");
+			// If this segment is out of order, panic
+			if (seg_seq != cb->rcv_nxt)
+				die("XXX out of order segment");
 
 			// grab an unused iov for the data in this packet
 			struct w_iov * const i = STAILQ_FIRST(&w->iov);
@@ -700,9 +698,9 @@ tcp_rx(struct warpcore * const w, char * const buf)
 			i->len = len - tcp_off(seg);
 			i->idx = rxs->buf_idx;
 
-		        // tag the iov with the sender's information
-		        i->src = ip->src;
-		        i->sport = seg->sport;
+			// tag the iov with the sender's information
+			i->src = ip->src;
+			i->sport = seg->sport;
 
 			// copy over the rx timestamp
 			memcpy(&i->ts, &rxr->ts, sizeof(struct timeval));
@@ -743,7 +741,7 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// and return.
 		if (cb->state == CLOSED || cb->state == LISTEN ||
 		    cb->state == SYN_SENT)
-			goto_drop;
+			goto drop;
 
 		// If the FIN bit is set, signal the user "connection closing"
 		// and return any pending RECEIVEs with same message, advance
@@ -752,24 +750,28 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// delivered to the user.
 		cb->rcv_nxt = seg_seq + 1;
 
-		if (cb->state == SYN_RECEIVED || cb->state == ESTABLISHED)
+		if (cb->state == SYN_RECEIVED || cb->state == ESTABLISHED) {
 			// Enter the CLOSE-WAIT state.
 			cb->state = CLOSE_WAIT;
+			tcp_tx(s);
+		}
 
 		if (cb->state == FIN_WAIT_1) {
 			// If our FIN has been ACKed (perhaps in this segment),
 			// then enter TIME-WAIT, start the time-wait timer, turn
 			// off the other timers; otherwise enter the CLOSING
 			// state.
-			if (cb->snd_una == cb->snd_nxt)
+			if (seg_seq == cb->snd_nxt)
 				cb->state = TIME_WAIT;
 			else
 				cb->state = CLOSING;
+			tcp_tx(s);
 		}
 
 		if (cb->state == FIN_WAIT_2) {
 			// Enter the TIME-WAIT state.  Start the time-wait
 			// timer, turn off the other timers.
+			tcp_tx(s);
 			cb->state = TIME_WAIT;
 		}
 
@@ -786,11 +788,11 @@ tcp_rx(struct warpcore * const w, char * const buf)
 		// Remain in the TIME-WAIT state.  Restart the 2 MSL
 		// time-wait timeout.
 
-		tcp_tx(s);
-
 		// XXX We don't really implement TIME_WAIT yet.
-		if (cb->state == TIME_WAIT)
+		if (cb->state == TIME_WAIT) {
+			warn(debug, "TIME_WAIT -> CLOSED");
 			cb->state = CLOSED;
+		}
 		return;
 	}
 	return;
@@ -860,6 +862,7 @@ tcp_tx(struct w_sock * const s)
 		struct tcp_hdr * const seg = ip_data(v->buf);
 
 		if (cb->state == CLOSED) {
+			tcp_log_init;
 			cb->snd_una = cb->iss = (uint32_t)random();
 			cb->snd_nxt = cb->iss + 1;
 			cb->state = SYN_SENT;
@@ -875,10 +878,8 @@ tcp_tx(struct w_sock * const s)
 			seg->flags = SYN|ACK;
 		}
 
-		if (cb->state == FIN_WAIT_1) {
-			if (cb->snd_nxt == cb->snd_una)
-				seg->flags = FIN;
-		}
+		if (cb->state == FIN_WAIT_1)
+			seg->flags |= FIN;
 
 		if (cb->state == ESTABLISHED ||
 		    cb->state == LISTEN ||
@@ -888,16 +889,19 @@ tcp_tx(struct w_sock * const s)
 		    cb->state == LAST_ACK ||
 		    cb->state == TIME_WAIT) {
 			seg->seq = htonl(cb->snd_nxt);
-			if (seg->flags & FIN)
-				cb->snd_nxt++;
 			seg->ack = htonl(cb->rcv_nxt);
 			seg->flags |= ACK;
-			if (v->len && STAILQ_EMPTY(&s->ov))
-				seg->flags |= PSH;
-			if (cb->state == CLOSE_WAIT && STAILQ_EMPTY(&s->ov)) {
+			// if (v->len && STAILQ_EMPTY(&s->ov))
+			// 	seg->flags |= PSH;
+			if ((cb->state == CLOSE_WAIT || cb->state == LAST_ACK) &&
+			    STAILQ_EMPTY(&s->ov) &&
+			    STAILQ_EMPTY(&s->iv)) {
 				seg->flags |= FIN;
 				cb->state = LAST_ACK;
 			}
+
+			if (cb->state == FIN_WAIT_1)
+				cb->snd_nxt++;
 
 			s->cb->snd_nxt += v->len;
 		}
@@ -908,7 +912,7 @@ tcp_tx(struct w_sock * const s)
 		STAILQ_INSERT_HEAD(&s->w->iov, v, next);
 
 	// send more if there is more to send
-	} while (!STAILQ_EMPTY(&s->ov));
+	} while (s->cb->state == ESTABLISHED && !STAILQ_EMPTY(&s->ov));
 
 	w_kick_tx(s->w);
 }
