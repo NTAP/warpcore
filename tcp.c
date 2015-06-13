@@ -78,7 +78,7 @@ static uint32_t iss_lg = 0;
 // buffer passed in, since we need the IP length field information for this.
 // Also account for SYN and FIN in the sequence number space.
 static inline uint16_t
-tcp_seg_len(const char * const buf)
+tcp_seg_len(char * const buf)
 {
 	const uint16_t ip_len = ip_data_len((struct ip_hdr *)eth_data(buf));
 	const struct tcp_hdr * const tcp = (struct tcp_hdr *)ip_data(buf);
@@ -93,7 +93,7 @@ tcp_seg_len(const char * const buf)
 static inline void
 tcp_parse_options(const struct tcp_hdr * const seg, struct tcp_cb * const cb)
 {
-	const uint8_t *n = (uint8_t *)(seg) + sizeof(struct tcp_hdr);
+	const uint8_t *n = (const uint8_t *)(seg) + sizeof(struct tcp_hdr);
 	do {
 		const uint8_t kind = *n;
 		const uint8_t len = *(n+1); // XXX unsure if this is always safe
@@ -136,11 +136,11 @@ tcp_parse_options(const struct tcp_hdr * const seg, struct tcp_cb * const cb)
 			n += len;
 			break;
 		}
-	} while (n < (uint8_t *)(seg) + tcp_off(seg));
+	} while (n < (const uint8_t *)(seg) + tcp_off(seg));
 done:
-	if (n < (uint8_t *)(seg) + tcp_off(seg)) {
+	if (n < (const uint8_t *)(seg) + tcp_off(seg)) {
 		warn(warn, "%ld bytes of padding after options",
-		     (uint8_t *)(seg) + tcp_off(seg) - n);
+		     (const uint8_t *)(seg) + tcp_off(seg) - n);
 	}
 }
 
