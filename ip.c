@@ -9,13 +9,12 @@
 #include "tcp.h"
 
 
+#ifndef NDEBUG
 static inline void
 ip_log(const struct ip_hdr * const ip)
 {
-#ifndef NDEBUG
 	char src[IP_ADDR_STRLEN];
 	char dst[IP_ADDR_STRLEN];
-#endif
 	warn(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "
 	     "flags [%s%s], proto %d, hlen/tot %d/%d",
 	     ip_ntoa(ip->src, src, sizeof src),
@@ -24,7 +23,9 @@ ip_log(const struct ip_hdr * const ip)
 	     ntohs(ip->off) & IP_DF ? "DF" : "", ip->p, ip_hl(ip),
 	     ntohs(ip->len));
 }
-
+#else
+#define ip_log(ip)	do {} while (0)
+#endif
 
 // Convert a network byte order IP address into a string.
 const char *
