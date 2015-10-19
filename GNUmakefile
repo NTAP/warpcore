@@ -15,7 +15,8 @@ CFLAGS+=-pipe -std=c11 -g
 CFLAGS+=-Ofast -march=native -fno-strict-aliasing
 CFLAGS+=-Wall -Wextra -fdiagnostics-color=auto
 CFLAGS+=-DDLEVEL=debug -DDCOMPONENT="\"warp(core|inetd|ping)|tcp\""
-# CFLAGS+=-DNDEBUG
+
+CFLAGS+=-DNDEBUG
 # CFLAGS+=-pg -ftrapv
 
 # additional CFLAGS that are compiler-specific
@@ -72,6 +73,9 @@ $(OS)/libwarpcore.a: $(LOBJ)
 
 clean:
 	-@rm -r $(OS) *core vgcore.* *.gmon gmon.out 2> /dev/null || true
+
+distclean:
+	-@rm -r *.log *.pdf *.txt
 
 lint:
 	cppcheck -D1 --enable=all *.c --check-config -I /usr/include
