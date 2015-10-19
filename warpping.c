@@ -97,10 +97,11 @@ main(int argc, char *argv[])
 		return 0;
 	}
 
+	const uint8_t proto = IP_P_UDP;
 	struct addrinfo hints, *res;
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_INET;
-	hints.ai_protocol = IP_P_TCP;
+	hints.ai_protocol = proto;
 	if (getaddrinfo(dst, "echo", &hints, &res) != 0)
 		die("getaddrinfo");
 
@@ -112,7 +113,7 @@ main(int argc, char *argv[])
 	char *after = 0;
 	if (use_warpcore) {
 		w = w_init(ifname);
-		ws = w_bind(w, IP_P_TCP, (uint16_t)random());
+		ws = w_bind(w, proto, (uint16_t)random());
 		w_connect(ws,
 			  ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr,
 			  ((struct sockaddr_in *)res->ai_addr)->sin_port);
