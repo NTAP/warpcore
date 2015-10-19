@@ -1,6 +1,10 @@
 #! /usr/bin/env Rscript
 
-library(data.table)
+if ("data.table" %in% rownames(installed.packages(lib="~/.R")) == FALSE) {
+	install.packages("data.table", lib="~/.R",
+	                 repos="http://cran.r-project.org")
+}
+library(data.table, lib="~/.R")
 
 printf <- function(...) cat(sprintf(...))
 
