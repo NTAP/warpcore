@@ -5,21 +5,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-
-#ifndef NDEBUG
-
-enum dlevel { crit, err, warn, notice, info, debug };
-
-// Set DLEVEL to the level of debug output you want to see in the Makefile
-#ifndef DLEVEL
-#define DLEVEL info
-#endif
-
-// Set DCOMPONENT to a regex matching the components (files) you want to see
-// debug output from in the Makefile
-#ifndef DCOMPONENT
-#define DCOMPONENT "warpcore|tcp"
-#endif
+#include <sys/time.h>
 
 // ANSI escape sequences (color, etc.)
 #define NRM "\x1B[0m"	// reset all to normal
@@ -39,7 +25,21 @@ enum dlevel { crit, err, warn, notice, info, debug };
 #define WHT "\x1B[37m"	// white
 
 
-#include <sys/time.h>
+#ifndef NDEBUG
+
+enum dlevel { crit, err, warn, notice, info, debug };
+
+// Set DLEVEL to the level of debug output you want to see in the Makefile
+#ifndef DLEVEL
+#define DLEVEL info
+#endif
+
+// Set DCOMPONENT to a regex matching the components (files) you want to see
+// debug output from in the Makefile
+#ifndef DCOMPONENT
+#define DCOMPONENT "warpcore|tcp"
+#endif
+
 #include <regex.h>
 
 extern regex_t _comp;

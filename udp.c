@@ -8,13 +8,16 @@
 
 
 // Log a UDP segment
+#ifndef NDEBUG
 static inline void
 udp_log(const struct udp_hdr * const udp)
 {
 	warn(info, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport),
 	     ntohs(udp->dport), ntohs(udp->cksum), ntohs(udp->len));
 }
-
+#else
+#define udp_log(udp)	do {} while (0)
+#endif
 
 // Receive a UDP packet.
 void

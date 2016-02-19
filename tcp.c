@@ -5,13 +5,6 @@
 #include "tcp.h"
 
 
-static const char * const tcp_state_name[] = {
-	"CLOSED", "LISTEN", "SYN_SENT", "SYN_RECEIVED", "ESTABLISHED",
-	"CLOSE_WAIT", "FIN_WAIT_1", "CLOSING", "LAST_ACK", "FIN_WAIT_2",
-	"TIME_WAIT"
-};
-
-
 // Sequence number comparisons
 #define seq_lt(a, b)	((int32_t)((a) - (b)) < 0)	// a < b
 #define seq_lte(a, b)	((int32_t)((a) - (b)) <= 0)	// a <= b
@@ -22,6 +15,14 @@ static const char * const tcp_state_name[] = {
 // some static variables, this only really works for a single active connection.
 static uint32_t iss_sm = 0;
 static uint32_t iss_lg = 0;
+
+#ifndef NDEBUG
+static const char * const tcp_state_name[] = {
+	"CLOSED", "LISTEN", "SYN_SENT", "SYN_RECEIVED", "ESTABLISHED",
+	"CLOSE_WAIT", "FIN_WAIT_1", "CLOSING", "LAST_ACK", "FIN_WAIT_2",
+	"TIME_WAIT"
+};
+
 #define tcp_log(seg, len)						\
 	do {								\
 		uint32_t _irs;						\
@@ -58,6 +59,9 @@ static uint32_t iss_lg = 0;
 		     seg->sport < seg->dport ? BLU : RED,		\
 		     ntohl(seg->ack) - _irs, ntohs(seg->wnd), _len);	\
 	} while (0)
+#else
+#define tcp_log(seg, len)	do {} while (0)
+#endif
 
 #define tcp_log_init	do { iss_sm = iss_lg = 0; } while (0)
 
