@@ -24,10 +24,9 @@
 #define CYN "\x1B[36m"	// cyan
 #define WHT "\x1B[37m"	// white
 
-
 #ifndef NDEBUG
 
-enum dlevel { crit, err, warn, notice, info, debug };
+enum dlevel { crit = 0, err = 1, warn = 2, notice = 3, info = 4, debug = 5 };
 
 // Set DLEVEL to the level of debug output you want to see in the Makefile
 #ifndef DLEVEL
@@ -37,9 +36,12 @@ enum dlevel { crit, err, warn, notice, info, debug };
 // Set DCOMPONENT to a regex matching the components (files) you want to see
 // debug output from in the Makefile
 #ifndef DCOMPONENT
-#define DCOMPONENT "warpcore|tcp"
+#define DCOMPONENT ".*"
 #endif
 
+extern char *col[];
+
+#include <sys/time.h>
 #include <regex.h>
 
 extern regex_t _comp;
@@ -49,8 +51,9 @@ extern regex_t _comp;
 	if (DLEVEL >= dlevel && !regexec(&_comp, __FILE__, 0, 0, 0)) {	\
 		struct timeval _lt0;					\
 		gettimeofday(&_lt0, 0);					\
-		fprintf(stderr, DIM"%03ld.%03ld"NRM " %s:%d " fmt "\n", \
-			_lt0.tv_sec % 1000, _lt0.tv_usec / 1000,	\
+		fprintf(stderr, "%s%03ld.%03ld"NRM " %s:%d " fmt "\n",	\
+			col[DLEVEL], (long)(_lt0.tv_sec % 1000),	\
+			(long)(_lt0.tv_usec / 1000),			\
 			__FUNCTION__, __LINE__, ##__VA_ARGS__);		\
 	}
 
@@ -81,9 +84,10 @@ extern regex_t _comp;
 		struct timeval _lt0;					\
 		gettimeofday(&_lt0, 0);					\
 		fprintf(stderr, BLD"%03ld.%03ld %s [%d] abort: "NRM fmt	\
-			" [%s]\n", _lt0.tv_sec % 1000,			\
-			_lt0.tv_usec / 1000, __FUNCTION__, __LINE__,	\
-			##__VA_ARGS__, (_e ? strerror(_e) : ""));	\
+			" [%s]\n", (long)(_lt0.tv_sec % 1000),		\
+			(long)(_lt0.tv_usec / 1000), __FUNCTION__, 	\
+			__LINE__, ##__VA_ARGS__, 			\
+			(_e ? strerror(_e) : ""));			\
 		abort();						\
 	} while (0)
 
