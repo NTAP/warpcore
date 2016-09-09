@@ -24,6 +24,10 @@
 #define CYN "\x1B[36m"	// cyan
 #define WHT "\x1B[37m"	// white
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma GCC diagnostic ignored "-Wpedantic"
+
 #ifndef NDEBUG
 
 enum dlevel { crit = 0, err = 1, warn = 2, notice = 3, info = 4, debug = 5 };
@@ -54,7 +58,8 @@ extern regex_t _comp;
 		fprintf(stderr, "%s%03ld.%03ld"NRM " %s:%d " fmt "\n",	\
 			col[DLEVEL], (long)(_lt0.tv_sec % 1000),	\
 			(long)(_lt0.tv_usec / 1000),			\
-			__FUNCTION__, __LINE__, ##__VA_ARGS__);		\
+			__func__, __LINE__, ##__VA_ARGS__);		\
+		fflush(stderr);						\
 	}
 
 // Rate limited version of "log", lps indicates how many per second
@@ -85,11 +90,13 @@ extern regex_t _comp;
 		gettimeofday(&_lt0, 0);					\
 		fprintf(stderr, BLD"%03ld.%03ld %s [%d] abort: "NRM fmt	\
 			" [%s]\n", (long)(_lt0.tv_sec % 1000),		\
-			(long)(_lt0.tv_usec / 1000), __FUNCTION__, 	\
+			(long)(_lt0.tv_usec / 1000), __func__, 	\
 			__LINE__, ##__VA_ARGS__, 			\
 			(_e ? strerror(_e) : ""));			\
 		abort();						\
 	} while (0)
+
+#pragma GCC diagnostic pop
 
 extern void hexdump(const void * const ptr, const unsigned len);
 
