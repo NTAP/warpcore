@@ -49,8 +49,8 @@ main(int argc, char *argv[])
 	struct warpcore *w = w_init(ifname);
 
 	// start the inetd-like "small services"
-	struct w_sock *ech = w_bind(w, IP_P_UDP, htons(7));
-	struct w_sock *dsc = w_bind(w, IP_P_UDP, htons(9));
+	struct w_sock *ech = w_bind(w, IP_P_TCP, htons(7));	// TCP
+	struct w_sock *dsc = w_bind(w, IP_P_TCP, htons(9));	// TCP
 	struct w_sock *dtm = w_bind(w, IP_P_UDP, htons(13));
 	struct w_sock *tme = w_bind(w, IP_P_UDP, htons(37));
 
