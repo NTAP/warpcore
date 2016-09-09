@@ -2,16 +2,18 @@
 
 set -e
 
-loops=100000
+loops=1000
 busywait=-b
-aim=0
+# aim=0
 
-peer=mora2
-iface=ix0
-piface=$iface
+# peer=mora2
+# iface=ix0
+# piface=$iface
+peer=tux
+iface=em0
+piface=eth1
 
 
-iname=$(echo $iface | tr -d 0-9)
 peerip=$(ssh $peer "/sbin/ifconfig $piface" | sed -e s/addr:// -e s/^[[:space:]]*//g | grep 'inet ' | cut -f 2 -d' ')
 
 os=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -47,21 +49,23 @@ fi
 rm kern*.txt warp*.txt ./*.log > /dev/null 2>&1 || true
 
 # kill dhclient during the time the interfaces are in netmap mode
-sudo pkill -f "dhclient.*$iface" || true
-sudo sysctl "hw.$iname.enable_aim=$aim" || true
-sudo cpuset -l 1 -p $(pgrep ^inetd)
+# sudo pkill -f "dhclient.*$iface" || true
+# iname=$(echo $iface | tr -d 0-9)
+# sudo sysctl "hw.$iname.enable_aim=$aim" || true
+# sudo cpuset -l 1 -p $(pgrep ^inetd)
 
-ssh $peer "sudo pkill -f 'dhclient.*$piface'" || true
+# ssh $peer "sudo pkill -f 'dhclient.*$piface'" || true
 ssh $peer "pkill -INT -f warpinetd" || true
-ssh $peer "sudo sysctl hw.$iname.enable_aim=$aim" || true
-ssh $peer 'sudo cpuset -l 1 -p $(pgrep ^inetd)' || true
+# piname=$(ssh $peer echo $piface | tr -d 0-9)
+# ssh $peer "sudo sysctl hw.$piname.enable_aim=$aim" || true
+# ssh $peer 'sudo cpuset -l 1 -p $(pgrep ^inetd)' || true
 
 ssh $peer "cd ~/warpcore; nohup $peeros/warpinetd -i $piface $busywait > warpinetd.log 2>&1 &" || true
 run warp
 ssh $peer "pkill -INT -f warpinetd" || true
 
-ssh $peer "sudo dhclient $piface" || true
+# ssh $peer "sudo dhclient $piface" || true
 sleep 5
 run kern
 
-sudo dhclient $iface
+# sudo dhclient $iface

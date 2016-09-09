@@ -39,6 +39,7 @@ struct w_iov {
 	uint16_t		len;	// length of user data (inside buffer)
 	uint16_t		sport;	// sender port (only valid on rx)
 	uint32_t		src;	// sender IP address (only valid on rx)
+	uint32_t		_unused1;
 	struct timeval		ts;
 } __aligned(4);
 
@@ -55,8 +56,11 @@ struct w_sock {
 	uint16_t		dport;			// dst port
 	SLIST_ENTRY(w_sock) 	next;			// next socket
 	uint8_t			p;			// protocol
-	struct tcp_cb *		cb;			// TCP ctrl block
-							// (unused for UDP)
+
+	uint8_t			_unused1;
+	uint16_t		_unused2;
+	uint32_t		_unused3;
+
 } __aligned(4);
 
 
@@ -64,7 +68,6 @@ struct warpcore {
 	struct netmap_if *	nif;			// netmap interface
 	void *			mem;			// netmap memory
 	struct w_sock **	udp;			// UDP "sockets"
-	struct w_sock **	tcp;			// TCP "sockets"
 	uint32_t		cur_txr;		// our current tx ring
 	uint32_t		cur_rxr;		// our current rx ring
 	STAILQ_HEAD(iovh, w_iov) iov;			// our available bufs
@@ -72,9 +75,11 @@ struct warpcore {
 	uint32_t		bcast;			// our broadcast address
 	uint8_t 		mac[ETH_ADDR_LEN];	// our Ethernet address
 	bool			interrupt;		// termination flag
+	uint8_t			_unused1;
 
 	// mtu could be pushed into the second cacheline
 	uint16_t		mtu;			// our MTU
+	uint16_t		_unused2;
 
 	// --- cacheline 1 boundary (64 bytes) ---
 	uint32_t		mbps;			// our link speed
@@ -82,11 +87,12 @@ struct warpcore {
 	uint32_t		mask;			// our IP netmask
 	int			fd;			// netmap descriptor
 	struct nmreq		req;			// netmap request
+	uint32_t		_unused3;
 } __aligned(4);
 
 
 #define w_get_sock(w, p, port) \
-	((p) == IP_P_UDP ? &(w)->udp[port] : &(w)->tcp[port])
+	((p) == IP_P_UDP ? &(w)->udp[port] : 0)
 
 
 // see warpcore.c for documentation of functions

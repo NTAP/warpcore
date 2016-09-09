@@ -6,7 +6,6 @@
 #include "ip.h"
 #include "icmp.h"
 #include "udp.h"
-#include "tcp.h"
 
 
 #ifndef NDEBUG
@@ -52,7 +51,7 @@ ip_aton(const char * const ip)
 
 
 // Make an IP reply packet out of the IP packet in the current receive buffer.
-// Used by icmp_tx() and tcp_tx_rst().
+// Used by icmp_tx().
 void
 ip_tx_with_rx_buf(struct warpcore * w, const uint8_t p,
 		  char * const buf, const uint16_t len)
@@ -123,8 +122,6 @@ ip_rx(struct warpcore * const w, char * const buf)
 
 	if (likely(ip->p == IP_P_UDP))
 		udp_rx(w, buf, ip->src);
-	else if (ip->p == IP_P_TCP)
-		tcp_rx(w, buf);
 	else if (ip->p == IP_P_ICMP)
 		icmp_rx(w, buf);
 	else {

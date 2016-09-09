@@ -21,7 +21,6 @@
 #include "warpcore.h"
 #include "ip.h"
 #include "udp.h"
-#include "tcp.h"
 #include "icmp.h"
 
 #define NUM_EXTRA_BUFS	256 //16384
@@ -106,11 +105,6 @@ w_rx_done(struct w_sock * const s)
 		STAILQ_INSERT_HEAD(&s->w->iov, i, next);
 		i = n;
 	}
-
-	// if this is a TCP socket and remote end has closed, do FIN exchange
-	if (s->p == IP_P_TCP &&
-	    (s->cb->state == CLOSE_WAIT || s->cb->state == LAST_ACK))
-		tcp_tx(s);
 }
 
 
@@ -165,12 +159,7 @@ w_tx(struct w_sock * const s)
 {
 	if (s->p == IP_P_UDP)
 		udp_tx(s);
-	else if (s->p == IP_P_TCP) {
-		if (s->cb->state >= FIN_WAIT_1)
-			die("w_tx called on closing connection");
-		else
-			tcp_tx(s);
-	} else
+	else
 		die("unhandled IP proto %d", s->p);
 }
 
@@ -180,20 +169,6 @@ void
 w_close(struct w_sock * const s)
 {
 	struct w_sock **ss = w_get_sock(s->w, s->p, s->sport);
-
-	// If this is a TCP socket, perform the FIN handshake
-	if (s->p == IP_P_TCP) {
-		warn(debug, "do FIN handshake");
-		if (s->cb->state == ESTABLISHED) {
-			s->cb->state = FIN_WAIT_1;
-			tcp_tx(s);
-			while (s->cb->state != CLOSED && !s->w->interrupt) {
-				w_poll(s->w, POLLIN, -1);
-				w_rx(s);
-			}
-		}
-
-	}
 
 	// make iovs of the socket available again
 	while (!STAILQ_EMPTY(&s->iv)) {
@@ -214,7 +189,6 @@ w_close(struct w_sock * const s)
 
 	// free the socket
 	free(s->hdr);
-	free(s->cb);
 	free(*ss);
 	*ss = 0;
 }
@@ -257,17 +231,11 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 	struct ip_hdr * const ip = eth_data(s->hdr);
 	ip->dst = dip;
 
-	if (s->p == IP_P_UDP || s->p == IP_P_TCP) {
-		// this abuses the side effect that the port fields are
-		// in the same bit position for UDP and TCP
+	if (s->p == IP_P_UDP) {
 		struct udp_hdr * const udp = ip_data(s->hdr);
 		udp->dport = dport;
 	} else
 		die("unhandled IP proto %d", s->p);
-
-	if (s->p == IP_P_TCP)
-		// was set to LISTEN in w_bind; set it back
-		s->cb->state = CLOSED;
 
 	warn(notice, "IP proto %d socket connected to %s port %d", s->p,
 	     ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
@@ -296,8 +264,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 
 	// initialize the non-zero fields of outgoing template header
 	const uint16_t hl = sizeof(struct eth_hdr) + sizeof(struct ip_hdr) +
-			    MAX(sizeof(struct udp_hdr),
-				sizeof(struct tcp_hdr));
+			    sizeof(struct udp_hdr);
 	if (((*s)->hdr = calloc(1, hl)) == 0)
 		die("cannot allocate w->hdr");
 
@@ -321,21 +288,6 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 		struct udp_hdr * const udp = ip_data((*s)->hdr);
 		udp->sport = (*s)->sport;
 		// dport is set on w_connect()
-
-	// allocate TCP control block and set some additional header fields
-	} else if (p == IP_P_TCP) {
-		(*s)->hdr_len += sizeof(struct tcp_hdr);
-		struct tcp_hdr * const tcp = ip_data((*s)->hdr);
-		tcp->offx = 5 << 4; // XXX TODO: handle options
-		tcp->sport = (*s)->sport;
-		// dport is set on w_connect()
-
-		if (((*s)->cb = calloc(1, sizeof(struct tcp_cb))) == 0)
-			die("cannot allocate TCP control block");
-		(*s)->cb->s = *s;
-
-		// this socket is now listened on
-		(*s)->cb->state = LISTEN;
 
 	} else
 		die("unhandled IP proto %d", (*s)->p);
@@ -420,7 +372,6 @@ w_cleanup(struct warpcore * const w)
 	}
 
 	free(w->udp);
-	free(w->tcp);
 
 	free(w);
 	_w = 0;
@@ -597,8 +548,6 @@ w_init(const char * const ifname)
 	// allocate socket pointers
 	if ((w->udp = calloc(UINT16_MAX, sizeof(struct w_sock *))) == 0)
 		die("cannot allocate UDP sockets");
-	if ((w->tcp = calloc(UINT16_MAX, sizeof(struct w_sock *))) == 0)
-		die("cannot allocate TCP sockets");
 
 	// do the common system setup which is also useful for non-warpcore
 	w_init_common();

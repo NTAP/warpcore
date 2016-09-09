@@ -14,9 +14,9 @@ MAKEFLAGS+="-j -l $(NPROCS)"
 CFLAGS+=-pipe -std=c11 -g
 CFLAGS+=-Ofast -march=native -fno-strict-aliasing
 CFLAGS+=-Wall -Wextra -fdiagnostics-color=auto
-CFLAGS+=-DDLEVEL=debug -DDCOMPONENT="\"warp(core|inetd|ping)|tcp\""
+CFLAGS+=-DDLEVEL=debug
 
-CFLAGS+=-DNDEBUG
+# CFLAGS+=-DNDEBUG
 # CFLAGS+=-pg -ftrapv
 
 # additional CFLAGS that are compiler-specific
@@ -24,7 +24,7 @@ ifeq ($(CC), gcc-5)
 # CFLAGS+=-finline-limit=65535
 # CFLAGS+=-Winline
 else
-CFLAGS+=-Wno-gnu-zero-variadic-macro-arguments -Wno-padded -Wno-packed
+# CFLAGS+=-Wno-gnu-zero-variadic-macro-arguments -Wno-padded -Wno-packed
 CFLAGS+=-Wno-cast-align
 endif
 

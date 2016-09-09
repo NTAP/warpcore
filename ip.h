@@ -3,9 +3,9 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #define IP_P_ICMP 	1	// IP protocol number for ICMP
-#define IP_P_TCP	6	// IP protocol number for TCP
 #define IP_P_UDP	17	// IP protocol number for UDP
 
 #define IP_ECT1		1
@@ -30,7 +30,7 @@ struct ip_hdr {
 	uint8_t		p;		// protocol
 	uint16_t	cksum;		// checksum
 	uint32_t	src, dst;	// source and dest address
-} __packed __aligned(4);
+} __aligned(4);
 
 
 struct warpcore;

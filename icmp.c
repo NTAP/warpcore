@@ -82,8 +82,6 @@ icmp_rx(struct warpcore * w, char * const buf)
 			break;
 		case ICMP_UNREACH_PORT:
 			{
-			// we abuse the fact the UDP and TCP port numbers
-			// are in the same bit position here
 #ifndef NDEBUG
 			struct udp_hdr * const udp = (struct udp_hdr * const)
 				((char *)ip + ip_hl(ip));
