@@ -3,12 +3,12 @@ OS=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 # parallelize the build
 ifeq ($(OS), linux)
 NPROCS:=$(shell grep -c ^processor /proc/cpuinfo)
+CC=gcc-5
 else
 NPROCS:=$(shell sysctl -n hw.ncpu)
+CC=cc
 endif
 MAKEFLAGS+="-j -l $(NPROCS)"
-
-CC=cc
 
 # CFLAGS for all compilers
 CFLAGS+=-pipe -std=c11 -g
@@ -20,9 +20,9 @@ CFLAGS+=-DNDEBUG
 # CFLAGS+=-pg -ftrapv
 
 # additional CFLAGS that are compiler-specific
-ifeq ($(CC), gcc49)
+ifeq ($(CC), gcc-5)
 # CFLAGS+=-finline-limit=65535
-CFLAGS+=-Winline
+# CFLAGS+=-Winline
 else
 CFLAGS+=-Wno-gnu-zero-variadic-macro-arguments -Wno-padded -Wno-packed
 CFLAGS+=-Wno-cast-align
