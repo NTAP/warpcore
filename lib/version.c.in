@@ -1,0 +1,7 @@
+#include "version.h"
+
+/// The name of this library.
+const char @PROJECT_NAME@_name[] = "@PROJECT_NAME@";
+
+/// The version of this library.
+const char @PROJECT_NAME@_version[] = "@PROJECT_VERSION@";

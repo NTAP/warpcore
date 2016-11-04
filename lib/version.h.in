@@ -1,0 +1,11 @@
+#pragma once
+
+#define @PROJECT_NAME_UC@_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define @PROJECT_NAME_UC@_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define @PROJECT_NAME_UC@_VERSION_PATCH @PROJECT_VERSION_PATCH@
+
+/// The name of this library.
+extern const char @PROJECT_NAME@_name[];
+
+/// The version of this library.
+extern const char @PROJECT_NAME@_version[];
