@@ -4,8 +4,11 @@
 #ifdef __linux__
 #include <netinet/ether.h>
 #else
-#include <net/ethernet.h>
+// clang-format off
+// because these includes need to be in-order
 #include <sys/types.h>
+#include <net/ethernet.h>
+// clang-format on
 #endif
 
 #include "arp.h"
@@ -17,7 +20,7 @@
 // buffer from the tx ring to the rx ring) and transmit it.
 // This is currently only used for sending replies to inbound ICMP and ARP
 // requests.
-void eth_tx_rx_cur(struct warpcore * w, char * const buf, const uint16_t len)
+void eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
 {
     struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
     struct netmap_ring * const txr = NETMAP_TXRING(w->nif, w->cur_txr);
@@ -56,7 +59,7 @@ void eth_tx_rx_cur(struct warpcore * w, char * const buf, const uint16_t len)
 
 // Receive an Ethernet packet. This is the lowest level inbound function,
 // called from w_poll.
-void eth_rx(struct warpcore * const w, char * const buf)
+void eth_rx(struct warpcore * const w, void * const buf)
 {
     const struct eth_hdr * const eth = (const struct eth_hdr * const)buf;
 
@@ -129,7 +132,7 @@ bool eth_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
 
 #ifndef NDEBUG
     const struct eth_hdr * const eth =
-        (const struct eth_hdr * const)NETMAP_BUF(txr, txs->buf_idx);
+        (const struct eth_hdr * const)(void *)NETMAP_BUF(txr, txs->buf_idx);
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
     warn(info, "Eth %s -> %s, type %d, len %ld",

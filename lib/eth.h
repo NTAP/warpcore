@@ -1,5 +1,4 @@
-#ifndef _eth_h_
-#define _eth_h_
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -25,16 +24,14 @@ struct eth_hdr {
 struct warpcore;
 struct w_iov;
 
-#define eth_data(x) ((void *)((x) + sizeof(struct eth_hdr)))
+#define eth_data(x) ((void *)((char *)(x) + sizeof(struct eth_hdr)))
 
 
 // see eth.c for documentation of functions
 extern void
-eth_tx_rx_cur(struct warpcore * w, char * const buf, const uint16_t len);
+eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len);
 
-extern void eth_rx(struct warpcore * const w, char * const buf);
+extern void eth_rx(struct warpcore * const w, void * const buf);
 
 extern bool
 eth_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len);
-
-#endif

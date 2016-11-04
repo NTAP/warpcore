@@ -33,6 +33,6 @@ Vagrant.configure("2") do |config|
 
   # apply some fixes to the VM OS, update it, and install some tools
   config.vm.provision "shell", inline: <<-SHELL
-    pkg install -y -q bash htop git gmake cmake
+    pkg install -y -q htop git gmake cmake the_silver_searcher
   SHELL
 end

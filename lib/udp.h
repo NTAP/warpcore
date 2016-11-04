@@ -1,5 +1,4 @@
-#ifndef _udp_h_
-#define _udp_h_
+#pragma once
 
 #include <stdint.h>
 
@@ -19,5 +18,3 @@ extern void
 udp_rx(struct warpcore * const w, char * const buf, const uint32_t src);
 
 extern void udp_tx(struct w_sock * const s);
-
-#endif

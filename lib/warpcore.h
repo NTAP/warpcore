@@ -1,5 +1,4 @@
-#ifndef _warpcore_h_
-#define _warpcore_h_
+#pragma once
 
 #include <net/netmap_user.h>
 #include <poll.h>
@@ -7,19 +6,6 @@
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <xmmintrin.h>
-
-
-#ifndef __aligned
-#define __aligned(x) __attribute__((__aligned__(x)))
-#endif
-
-#ifndef __packed
-#define __packed __attribute__((__packed__))
-#endif
-
-#ifndef __unused
-#define __unused __attribute__((__unused__))
-#endif
 
 #include "arp.h"
 #include "debug.h"
@@ -33,7 +19,7 @@
 
 
 struct w_iov {
-    char * buf;               // start of user data (inside buffer)
+    void * buf;               // start of user data (inside buffer)
     STAILQ_ENTRY(w_iov) next; // next iov
     uint32_t idx;             // index of netmap buffer
     uint16_t len;             // length of user data (inside buffer)
@@ -48,7 +34,7 @@ struct w_sock {
     struct warpcore * w;        // warpcore instance
     STAILQ_HEAD(ivh, w_iov) iv; // iov for read data
     STAILQ_HEAD(ovh, w_iov) ov; // iov for data to write
-    char * hdr;                 // header template
+    void * hdr;                 // header template
     uint16_t hdr_len;           // length of template
     uint8_t dmac[ETH_ADDR_LEN]; // dst Eth address
     uint32_t dip;               // dst IP address
@@ -123,5 +109,3 @@ extern void w_kick_tx(const struct warpcore * const w);
 extern void w_kick_rx(const struct warpcore * const w);
 
 extern void w_tx(struct w_sock * const s);
-
-#endif

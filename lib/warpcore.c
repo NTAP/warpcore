@@ -298,7 +298,7 @@ static const struct w_iov * w_chain_extra_bufs(const struct warpcore * const w,
     const struct w_iov * n;
     do {
         n = STAILQ_NEXT(v, next);
-        uint32_t * const buf = (uint32_t *)IDX2BUF(w, v->idx);
+        uint32_t * const buf = (uint32_t *)(void *)IDX2BUF(w, v->idx);
         if (n) {
             *buf = n->idx;
             v = n;
@@ -432,11 +432,11 @@ struct warpcore * w_init(const char * const ifname)
             case AF_INET:
                 // get IP addr and netmask
                 if (!w->ip)
-                    w->ip =
-                        ((struct sockaddr_in *)i->ifa_addr)->sin_addr.s_addr;
+                    w->ip = ((struct sockaddr_in *)(void *)i->ifa_addr)
+                                ->sin_addr.s_addr;
                 if (!w->mask)
-                    w->mask =
-                        ((struct sockaddr_in *)i->ifa_netmask)->sin_addr.s_addr;
+                    w->mask = ((struct sockaddr_in *)(void *)i->ifa_netmask)
+                                  ->sin_addr.s_addr;
                 break;
             default:
                 warn(notice, "ignoring unknown addr family %d on %s",
@@ -512,7 +512,7 @@ struct warpcore * w_init(const char * const ifname)
         v->buf = IDX2BUF(w, i);
         v->idx = i;
         STAILQ_INSERT_HEAD(&w->iov, v, next);
-        char * const b = v->buf;
+        void * const b = v->buf;
         i = *(uint32_t *)b;
     }
 

@@ -27,12 +27,12 @@ static inline void ip_log(const struct ip_hdr * const ip)
 #endif
 
 // Convert a network byte order IP address into a string.
-const char * ip_ntoa(uint32_t ip, char * const buf, const size_t size)
+const char * ip_ntoa(uint32_t ip, void * const buf, const size_t size)
 {
     const uint32_t i = ntohl(ip);
     snprintf(buf, size, "%d.%d.%d.%d", (i >> 24) & 0xff, (i >> 16) & 0xff,
              (i >> 8) & 0xff, i & 0xff);
-    buf[size - 1] = '\0';
+    ((char *)buf)[size - 1] = '\0';
     return buf;
 }
 
@@ -52,7 +52,7 @@ uint32_t ip_aton(const char * const ip)
 // Used by icmp_tx().
 void ip_tx_with_rx_buf(struct warpcore * w,
                        const uint8_t p,
-                       char * const buf,
+                       void * const buf,
                        const uint16_t len)
 {
     struct ip_hdr * const ip = eth_data(buf);
@@ -85,7 +85,7 @@ void ip_tx_with_rx_buf(struct warpcore * w,
 }
 
 // Receive an IP packet.
-void ip_rx(struct warpcore * const w, char * const buf)
+void ip_rx(struct warpcore * const w, void * const buf)
 {
     const struct ip_hdr * const ip = eth_data(buf);
 

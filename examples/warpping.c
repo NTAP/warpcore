@@ -107,13 +107,14 @@ int main(int argc, char * argv[])
     struct w_sock * ws = 0;
     int ks = 0;
     struct pollfd fds;
-    char * before = 0;
-    char * after = 0;
+    void * before = 0;
+    void * after = 0;
     if (use_warpcore) {
         w = w_init(ifname);
         ws = w_bind(w, proto, (uint16_t)random());
-        w_connect(ws, ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr,
-                  ((struct sockaddr_in *)res->ai_addr)->sin_port);
+        w_connect(ws,
+                  ((struct sockaddr_in *)(void *)res->ai_addr)->sin_addr.s_addr,
+                  ((struct sockaddr_in *)(void *)res->ai_addr)->sin_port);
     } else {
         w_init_common();
         ks = socket(res->ai_family,

@@ -1,11 +1,15 @@
 #include <ifaddrs.h>
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <stdlib.h>
 #include <sys/cpuset.h>
 #include <sys/param.h>
+// clang-format off
+// because these includes need to be in-order
 #include <sys/types.h>
+#include <net/ethernet.h>
+// clang-format on
+
 
 #include "debug.h"
 #include "eth.h"
@@ -46,7 +50,8 @@ void plat_setaffinity(void)
 
 void plat_get_mac(uint8_t * mac, const struct ifaddrs * i)
 {
-    memcpy(mac, LLADDR((struct sockaddr_dl *)i->ifa_addr), ETH_ADDR_LEN);
+    memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr),
+           ETH_ADDR_LEN);
 }
 
 

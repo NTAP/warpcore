@@ -1,5 +1,4 @@
-#ifndef _plat_h_
-#define _plat_h_
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -24,5 +23,3 @@ extern uint16_t plat_get_mtu(const struct ifaddrs * i);
 extern uint32_t plat_get_mbps(const struct ifaddrs * i);
 
 extern bool plat_get_link(const struct ifaddrs * i);
-
-#endif

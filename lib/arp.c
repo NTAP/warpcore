@@ -5,8 +5,11 @@
 #ifdef __linux__
 #include <netinet/ether.h>
 #else
-#include <net/ethernet.h>
+// clang-format off
+// because these includes need to be in-order
 #include <sys/types.h>
+#include <net/ethernet.h>
+// clang-format on
 #endif
 
 #include "arp.h"

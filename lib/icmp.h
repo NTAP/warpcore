@@ -1,5 +1,4 @@
-#ifndef _icmp_h_
-#define _icmp_h_
+#pragma once
 
 #include <stdint.h>
 
@@ -21,8 +20,6 @@ struct warpcore;
 
 // see icmp.c for documentation of functions
 extern void
-icmp_tx_unreach(struct warpcore * w, const uint8_t code, char * const buf);
+icmp_tx_unreach(struct warpcore * w, const uint8_t code, void * const buf);
 
-extern void icmp_rx(struct warpcore * w, char * const buf);
-
-#endif
+extern void icmp_rx(struct warpcore * w, void * const buf);
