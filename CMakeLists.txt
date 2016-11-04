@@ -13,7 +13,9 @@ add_compile_options(-march=native -Ofast -pipe)
 # Debug
 add_compile_options(-g)
 
-add_compile_options(-D _DEFAULT_SOURCE)
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+add_compile_options(-D _GNU_SOURCE)
+endif()
 
 # Set linker options that are valid for all linkers
 # set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")

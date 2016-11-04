@@ -8,7 +8,7 @@
 #include <xmmintrin.h>
 
 #include "arp.h"
-#include "debug.h"
+#include "util.h"
 #include "eth.h"
 #include "icmp.h"
 #include "ip.h"
@@ -27,7 +27,7 @@ struct w_iov {
     uint32_t src;             // sender IP address (only valid on rx)
     uint32_t _unused1;
     struct timeval ts;
-} __aligned(4);
+};
 
 
 struct w_sock {
@@ -47,7 +47,7 @@ struct w_sock {
     uint16_t _unused2;
     uint32_t _unused3;
 
-} __aligned(4);
+};
 
 
 struct warpcore {
@@ -74,7 +74,7 @@ struct warpcore {
     int fd;                      // netmap descriptor
     struct nmreq req;            // netmap request
     uint32_t _unused3;
-} __aligned(4);
+};
 
 
 #define w_get_sock(w, p, port) ((p) == IP_P_UDP ? &(w)->udp[port] : 0)

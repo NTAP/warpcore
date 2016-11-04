@@ -29,7 +29,7 @@ struct ip_hdr {
     uint8_t p;         // protocol
     uint16_t cksum;    // checksum
     uint32_t src, dst; // source and dest address
-} __aligned(4);
+};
 
 
 struct warpcore;

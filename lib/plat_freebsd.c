@@ -11,7 +11,7 @@
 // clang-format on
 
 
-#include "debug.h"
+#include "util.h"
 #include "eth.h"
 #include "plat.h"
 

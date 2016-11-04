@@ -42,8 +42,9 @@ uint32_t ip_aton(const char * const ip)
 {
 
     uint32_t i;
-    const int r = sscanf(ip, "%hhu.%hhu.%hhu.%hhu", (char *)(&i),
-                         (char *)(&i) + 1, (char *)(&i) + 2, (char *)(&i) + 3);
+    const int r = sscanf(ip, "%hhu.%hhu.%hhu.%hhu", (unsigned char *)(&i),
+                         (unsigned char *)(&i) + 1, (unsigned char *)(&i) + 2,
+                         (unsigned char *)(&i) + 3);
     return r == 4 ? i : 0;
 }
 

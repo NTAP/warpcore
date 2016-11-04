@@ -19,11 +19,10 @@ struct arp_hdr {
     // remainder of this struct is
     // only correct for Ethernet/IP:
 
-    uint8_t sha[ETH_ADDR_LEN]
-        __attribute__((packed));          // sender hardware address
-    uint32_t spa __attribute__((packed)); // sender protocol address
-    uint8_t tha[ETH_ADDR_LEN];            // target hardware address
-    uint32_t tpa;                         // target protocol address
+    uint8_t sha[ETH_ADDR_LEN]; // sender hardware address
+    uint32_t spa;              // sender protocol address
+    uint8_t tha[ETH_ADDR_LEN]; // target hardware address
+    uint32_t tpa;              // target protocol address
 };
 
 

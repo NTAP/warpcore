@@ -9,7 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "debug.h"
+#include "util.h"
 #include "eth.h"
 #include "plat.h"
 

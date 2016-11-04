@@ -13,7 +13,7 @@ struct icmp_hdr {
     uint8_t type;   // type of message
     uint8_t code;   // type sub code
     uint16_t cksum; // ones complement checksum of struct
-} __aligned(4);
+};
 
 
 struct warpcore;
