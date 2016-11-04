@@ -37,16 +37,16 @@
  *	@(#)in_cksum.c	8.1 (Berkeley) 6/10/93
  */
 #if 0
-#include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
+#include <sys/cdefs.h> /* RCS ID & Copyright macro defns */
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/mbuf.h>
-#include <sys/systm.h>
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
 #include <machine/in_cksum.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <sys/mbuf.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #else
 #include <stdint.h>
 #define u_int64_t uint64_t
@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #define in_cksum_skip in_cksum
 u_short in_addword(u_short sum, u_short b);
 u_short in_pseudo(u_int sum, u_int b, u_int c);
-u_short in_cksum_skip(void *m, int len);
+u_short in_cksum_skip(void * m, int len);
 #endif
 /*
  * Checksum routine for Internet Protocol family headers
@@ -67,63 +67,62 @@ u_short in_cksum_skip(void *m, int len);
  * code and should be modified for each CPU to be as fast as possible.
  */
 
-#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define REDUCE32							  \
-    {									  \
-	q_util.q = sum;							  \
-	sum = q_util.s[0] + q_util.s[1] + q_util.s[2] + q_util.s[3];	  \
+#define ADDCARRY(x) (x > 65535 ? x -= 65535 : x)
+#define REDUCE32                                                               \
+    {                                                                          \
+        q_util.q = sum;                                                        \
+        sum = q_util.s[0] + q_util.s[1] + q_util.s[2] + q_util.s[3];           \
     }
-#define REDUCE16							  \
-    {									  \
-	q_util.q = sum;							  \
-	l_util.l = q_util.s[0] + q_util.s[1] + q_util.s[2] + q_util.s[3]; \
-	sum = l_util.s[0] + l_util.s[1];				  \
-	ADDCARRY(sum);							  \
+#define REDUCE16                                                               \
+    {                                                                          \
+        q_util.q = sum;                                                        \
+        l_util.l = q_util.s[0] + q_util.s[1] + q_util.s[2] + q_util.s[3];      \
+        sum = l_util.s[0] + l_util.s[1];                                       \
+        ADDCARRY(sum);                                                         \
     }
 
 static const u_int32_t in_masks[] = {
-	/*0 bytes*/ /*1 byte*/	/*2 bytes*/ /*3 bytes*/
-	0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF,	/* offset 0 */
-	0x00000000, 0x0000FF00, 0x00FFFF00, 0xFFFFFF00,	/* offset 1 */
-	0x00000000, 0x00FF0000, 0xFFFF0000, 0xFFFF0000,	/* offset 2 */
-	0x00000000, 0xFF000000, 0xFF000000, 0xFF000000,	/* offset 3 */
+    /*0 bytes*/ /*1 byte*/ /*2 bytes*/              /*3 bytes*/
+    0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF, /* offset 0 */
+    0x00000000, 0x0000FF00, 0x00FFFF00, 0xFFFFFF00, /* offset 1 */
+    0x00000000, 0x00FF0000, 0xFFFF0000, 0xFFFF0000, /* offset 2 */
+    0x00000000, 0xFF000000, 0xFF000000, 0xFF000000, /* offset 3 */
 };
 
 union l_util {
-	u_int16_t s[2];
-	u_int32_t l;
+    u_int16_t s[2];
+    u_int32_t l;
 };
 union q_util {
-	u_int16_t s[4];
-	u_int32_t l[2];
-	u_int64_t q;
+    u_int16_t s[4];
+    u_int32_t l[2];
+    u_int64_t q;
 };
 
-static u_int64_t
-in_cksumdata(const void *buf, int len)
+static u_int64_t in_cksumdata(const void * buf, int len)
 {
-	const u_int32_t *lw = (const u_int32_t *) buf;
-	u_int64_t sum = 0;
-	u_int64_t prefilled;
-	int offset;
-	union q_util q_util;
+    const u_int32_t * lw = (const u_int32_t *)buf;
+    u_int64_t sum = 0;
+    u_int64_t prefilled;
+    int offset;
+    union q_util q_util;
 
-	if ((3 & (long) lw) == 0 && len == 20) {
-	     sum = (u_int64_t) lw[0] + lw[1] + lw[2] + lw[3] + lw[4];
-	     REDUCE32;
-	     return sum;
-	}
+    if ((3 & (long)lw) == 0 && len == 20) {
+        sum = (u_int64_t)lw[0] + lw[1] + lw[2] + lw[3] + lw[4];
+        REDUCE32;
+        return sum;
+    }
 
-	if ((offset = 3 & (long) lw) != 0) {
-		const u_int32_t *masks = in_masks + (offset << 2);
-		lw = (u_int32_t *) (((long) lw) - offset);
-		sum = *lw++ & masks[len >= 3 ? 3 : len];
-		len -= 4 - offset;
-		if (len <= 0) {
-			REDUCE32;
-			return sum;
-		}
-	}
+    if ((offset = 3 & (long)lw) != 0) {
+        const u_int32_t * masks = in_masks + (offset << 2);
+        lw = (u_int32_t *)(((long)lw) - offset);
+        sum = *lw++ & masks[len >= 3 ? 3 : len];
+        len -= 4 - offset;
+        if (len <= 0) {
+            REDUCE32;
+            return sum;
+        }
+    }
 #if 0
 	/*
 	 * Force to cache line boundary.
@@ -145,80 +144,77 @@ in_cksumdata(const void *buf, int len)
 		}
 	}
 #endif
-	/*
-	 * access prefilling to start load of next cache line.
-	 * then add current cache line
-	 * save result of prefilling for loop iteration.
-	 */
-	prefilled = lw[0];
-	while ((len -= 32) >= 4) {
-		u_int64_t prefilling = lw[8];
-		sum += prefilled + lw[1] + lw[2] + lw[3]
-			+ lw[4] + lw[5] + lw[6] + lw[7];
-		lw += 8;
-		prefilled = prefilling;
-	}
-	if (len >= 0) {
-		sum += prefilled + lw[1] + lw[2] + lw[3]
-			+ lw[4] + lw[5] + lw[6] + lw[7];
-		lw += 8;
-	} else {
-		len += 32;
-	}
-	while ((len -= 16) >= 0) {
-		sum += (u_int64_t) lw[0] + lw[1] + lw[2] + lw[3];
-		lw += 4;
-	}
-	len += 16;
-	while ((len -= 4) >= 0) {
-		sum += (u_int64_t) *lw++;
-	}
-	len += 4;
-	if (len > 0)
-		sum += (u_int64_t) (in_masks[len] & *lw);
-	REDUCE32;
-	return sum;
+    /*
+     * access prefilling to start load of next cache line.
+     * then add current cache line
+     * save result of prefilling for loop iteration.
+     */
+    prefilled = lw[0];
+    while ((len -= 32) >= 4) {
+        u_int64_t prefilling = lw[8];
+        sum +=
+            prefilled + lw[1] + lw[2] + lw[3] + lw[4] + lw[5] + lw[6] + lw[7];
+        lw += 8;
+        prefilled = prefilling;
+    }
+    if (len >= 0) {
+        sum +=
+            prefilled + lw[1] + lw[2] + lw[3] + lw[4] + lw[5] + lw[6] + lw[7];
+        lw += 8;
+    } else {
+        len += 32;
+    }
+    while ((len -= 16) >= 0) {
+        sum += (u_int64_t)lw[0] + lw[1] + lw[2] + lw[3];
+        lw += 4;
+    }
+    len += 16;
+    while ((len -= 4) >= 0) {
+        sum += (u_int64_t)*lw++;
+    }
+    len += 4;
+    if (len > 0)
+        sum += (u_int64_t)(in_masks[len] & *lw);
+    REDUCE32;
+    return sum;
 }
 
-u_short
-in_addword(u_short a, u_short b)
+u_short in_addword(u_short a, u_short b)
 {
-	u_int64_t sum = a + b;
+    u_int64_t sum = a + b;
 
-	ADDCARRY(sum);
-	return (u_short)(sum);
+    ADDCARRY(sum);
+    return (u_short)(sum);
 }
 
-u_short
-in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
+u_short in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
 {
-	u_int64_t sum;
-	union q_util q_util;
-	union l_util l_util;
+    u_int64_t sum;
+    union q_util q_util;
+    union l_util l_util;
 
-	sum = (u_int64_t) a + b + c;
-	REDUCE16;
-	return (u_short)(sum);
+    sum = (u_int64_t)a + b + c;
+    REDUCE16;
+    return (u_short)(sum);
 }
 
 #if 0
 u_short
 in_cksum_skip(struct mbuf *m, int len, int skip)
 #else
-u_short
-in_cksum_skip(void *m, int len /*, int skip */)
+u_short in_cksum_skip(void * m, int len /*, int skip */)
 #endif
 {
-	u_int64_t sum = 0;
-	int mlen = 0;
+    u_int64_t sum = 0;
+    int mlen = 0;
 #if 0
 	int clen = 0;
 	caddr_t addr;
 #else
 #define addr m
 #endif
-	union q_util q_util;
-	union l_util l_util;
+    union q_util q_util;
+    union l_util l_util;
 #if 0
         len -= skip;
         for (; skip && m; m = m->m_next) {
@@ -239,20 +235,20 @@ in_cksum_skip(void *m, int len /*, int skip */)
 skip_start:
 		if (len < mlen)
 #endif
-			mlen = len;
+    mlen = len;
 #if 0
 		if ((clen ^ (long) addr) & 1)
 		    sum += in_cksumdata(addr, mlen) << 8;
 		else
 #endif
-		    sum += in_cksumdata(addr, mlen);
+    sum += in_cksumdata(addr, mlen);
 #if 0
 		clen += mlen;
 		len -= mlen;
 	}
 #endif
-	REDUCE16;
-	return (~sum & 0xffff);
+    REDUCE16;
+    return (~sum & 0xffff);
 }
 
 #if 0

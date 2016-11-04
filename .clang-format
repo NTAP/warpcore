@@ -1,0 +1,7 @@
+AllowShortFunctionsOnASingleLine: Empty
+BasedOnStyle: llvm
+BinPackParameters: false
+BreakBeforeBraces: WebKit
+IndentWidth: 4
+MaxEmptyLinesToKeep: 2
+PointerAlignment: Middle
