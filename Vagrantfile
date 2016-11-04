@@ -9,9 +9,7 @@ Vagrant.configure("2") do |config|
   # don't always check for box updates
   config.vm.box_check_update = false
 
-  config.vm.network "private_network", type: "dhcp", nic_type: "Am79C970A"
-  config.vm.network "private_network", type: "dhcp", nic_type: "Am79C973"
-  config.vm.network "private_network", type: "dhcp", nic_type: "virtio"
+  config.vm.network "private_network", type: "dhcp"
 
   # hardware configuration of the VM
   config.vm.provider "virtualbox" do |vb|
@@ -55,6 +53,7 @@ Vagrant.configure("2") do |config|
     make install
     insmod netmap.ko
     echo "netmap" > /etc/modules-load.d/netmap.conf
+    echo "e1000" >> /etc/modules-load.d/netmap.conf
   SHELL
 
 
