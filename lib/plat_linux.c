@@ -27,10 +27,10 @@ void plat_setaffinity(void)
         die("sched_getaffinity");
 
     // Find last available CPU
-    for (i = CPU_SETSIZE - 1; i >= 0; i--)
+    for (i = CPU_SETSIZE - 1; i >= -1; i--)
         if (CPU_ISSET(i, &myset))
             break;
-    if (i == 0)
+    if (i == -1)
         die("not allowed to run on any CPUs!?");
 
     // Set new CPU mask
