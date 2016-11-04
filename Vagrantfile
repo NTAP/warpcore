@@ -12,7 +12,7 @@ Vagrant.configure("2") do |config|
 
   # hardware configuration of the VM
   config.vm.provider "virtualbox" do |vb|
-    vb.gui = true
+    vb.gui = false
     vb.memory = "1024"
     vb.cpus = 1
     vb.linked_clone = true
