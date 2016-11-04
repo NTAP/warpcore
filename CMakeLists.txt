@@ -14,7 +14,7 @@ add_compile_options(-march=native -Ofast -pipe)
 add_compile_options(-g)
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-add_compile_options(-D _GNU_SOURCE)
+  add_compile_options(-D _GNU_SOURCE)
 endif()
 
 # Set linker options that are valid for all linkers
