@@ -9,13 +9,13 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "util.h"
 #include "eth.h"
 #include "plat.h"
+#include "util.h"
 
 void plat_srandom(void)
 {
-    srandom(time(0));
+    srandom((unsigned int)time(0));
 }
 
 
@@ -45,7 +45,8 @@ void plat_setaffinity(void)
 
 void plat_get_mac(uint8_t * mac, const struct ifaddrs * i)
 {
-    memcpy(mac, ((struct sockaddr_ll *)i->ifa_addr)->sll_addr, ETH_ADDR_LEN);
+    memcpy(mac, ((struct sockaddr_ll *)(void *)i->ifa_addr)->sll_addr,
+           ETH_ADDR_LEN);
 }
 
 
@@ -62,7 +63,7 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
     if (ioctl(s, SIOCGIFMTU, &ifr) < 0)
         die("%s ioctl", i->ifa_name);
 
-    const uint16_t mtu = ifr.ifr_ifru.ifru_mtu;
+    const uint16_t mtu = (uint16_t)ifr.ifr_ifru.ifru_mtu;
     close(s);
 
     return mtu;
