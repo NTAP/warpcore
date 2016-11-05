@@ -60,8 +60,8 @@ void ip_tx_with_rx_buf(struct warpcore * w,
 
     // TODO: we should zero out any IP options here,
     // since we're reflecing a received packet
-    if (ip_hl(ip) > sizeof(struct ip_hdr))
-        die("original packet seems to have IP options");
+    assert(ip_hl(ip) <= sizeof(struct ip_hdr),
+           "original packet seems to have IP options");
 
     // make the original IP src address the new dst, and set the src
     ip->dst = ip->src;
@@ -111,12 +111,10 @@ void ip_rx(struct warpcore * const w, void * const buf)
     }
 
     // TODO: handle IP options
-    if (unlikely(ip_hl(ip) != 20))
-        die("no support for IP options");
+    assert(ip_hl(ip) == 20, "no support for IP options");
 
     // TODO: handle IP fragments
-    if (unlikely(ntohs(ip->off) & IP_OFFMASK))
-        die("no support for IP options");
+    assert((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP options");
 
     if (likely(ip->p == IP_P_UDP))
         udp_rx(w, buf, ip->src);

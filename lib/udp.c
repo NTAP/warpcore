@@ -21,7 +21,7 @@ static inline void udp_log(const struct udp_hdr * const udp)
 #endif
 
 // Receive a UDP packet.
-void udp_rx(struct warpcore * const w, char * const buf, const uint32_t src)
+void udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 {
     const struct ip_hdr * const ip = eth_data(buf);
     struct udp_hdr * const udp = ip_data(buf);
@@ -50,8 +50,7 @@ void udp_rx(struct warpcore * const w, char * const buf, const uint32_t src)
 
     // grab an unused iov for the data in this packet
     struct w_iov * const i = STAILQ_FIRST(&w->iov);
-    if (unlikely(i == 0))
-        die("out of spare bufs");
+    assert(i != 0, "out of spare bufs");
     struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
     struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
     STAILQ_REMOVE_HEAD(&w->iov, next);
@@ -94,7 +93,7 @@ void udp_tx(struct w_sock * const s)
         struct w_iov * const v = STAILQ_FIRST(&s->ov);
 
         // copy template header into buffer and fill in remaining fields
-        char * const buf = IDX2BUF(s->w, v->idx);
+        void * const buf = IDX2BUF(s->w, v->idx);
         memcpy(buf, s->hdr, s->hdr_len);
 
         struct udp_hdr * const udp = ip_data(buf);

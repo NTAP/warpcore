@@ -15,6 +15,6 @@ struct w_sock;
 struct w_iov;
 
 extern void
-udp_rx(struct warpcore * const w, char * const buf, const uint32_t src);
+udp_rx(struct warpcore * const w, void * const buf, const uint32_t src);
 
 extern void udp_tx(struct w_sock * const s);

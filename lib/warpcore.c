@@ -45,8 +45,7 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
     while (l > 0) {
         // grab a spare buffer
         v = STAILQ_FIRST(&s->w->iov);
-        if (unlikely(v == 0))
-            die("out of spare bufs after grabbing %d", n);
+        assert(v != 0, "out of spare bufs after grabbing %d", n);
         STAILQ_REMOVE_HEAD(&s->w->iov, next);
         warn(debug, "grabbing spare buf %d for user tx", v->idx);
         v->buf = IDX2BUF(s->w, v->idx) + s->hdr_len;
@@ -134,16 +133,14 @@ struct w_iov * w_rx(struct w_sock * const s)
 // Internal warpcore function. Kick the tx ring.
 void w_kick_tx(const struct warpcore * const w)
 {
-    if (unlikely(ioctl(w->fd, NIOCTXSYNC, 0) == -1))
-        die("cannot kick tx ring");
+    assert(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 }
 
 
 // Internal warpcore function. Kick the rx ring.
 void w_kick_rx(const struct warpcore * const w)
 {
-    if (unlikely(ioctl(w->fd, NIOCRXSYNC, 0) == -1))
-        die("cannot kick rx ring");
+    assert(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
 }
 
 
@@ -245,8 +242,8 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
         return 0;
     }
 
-    if ((*s = calloc(1, sizeof(struct w_sock))) == 0)
-        die("cannot allocate struct w_sock");
+    assert((*s = calloc(1, sizeof(struct w_sock))) != 0,
+           "cannot allocate struct w_sock");
 
     (*s)->p = p;
     (*s)->sport = port;
@@ -257,8 +254,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
     // initialize the non-zero fields of outgoing template header
     const uint16_t hl =
         sizeof(struct eth_hdr) + sizeof(struct ip_hdr) + sizeof(struct udp_hdr);
-    if (((*s)->hdr = calloc(1, hl)) == 0)
-        die("cannot allocate w->hdr");
+    assert(((*s)->hdr = calloc(1, hl)) != 0, "cannot allocate w->hdr");
 
     struct eth_hdr * const eth = (struct eth_hdr *)(*s)->hdr;
     eth->type = ETH_TYPE_IP;
@@ -347,11 +343,10 @@ void w_cleanup(struct warpcore * const w)
     }
     w->nif->ni_bufs_head = STAILQ_FIRST(&w->iov)->idx;
 
-    if (munmap(w->mem, w->req.nr_memsize) == -1)
-        die("cannot munmap netmap memory");
+    assert(munmap(w->mem, w->req.nr_memsize) != -1,
+           "cannot munmap netmap memory");
 
-    if (close(w->fd) == -1)
-        die("cannot close /dev/netmap");
+    assert(close(w->fd) != -1, "cannot close /dev/netmap");
 
     // free extra buffer list
     while (!STAILQ_EMPTY(&w->iov)) {
@@ -384,8 +379,7 @@ void w_init_common(void)
     plat_setaffinity();
 
     // lock memory
-    if (mlockall(MCL_CURRENT | MCL_FUTURE) == -1)
-        die("mlockall");
+    assert(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 }
 
 
@@ -395,12 +389,11 @@ struct warpcore * w_init(const char * const ifname)
     struct warpcore * w;
     bool link_up = false;
 
-    if (_w)
-        die("can only have one warpcore engine active");
+    assert(_w == 0, "can only have one warpcore engine active");
 
     // allocate struct
-    if ((w = calloc(1, sizeof(struct warpcore))) == 0)
-        die("cannot allocate struct warpcore");
+    assert((w = calloc(1, sizeof(struct warpcore))) != 0,
+           "cannot allocate struct warpcore");
 
     // we mostly loop here because the link may be down
     while (link_up == false || IS_ZERO(w->mac) || w->mtu == 0 || w->mbps == 0 ||
@@ -408,8 +401,8 @@ struct warpcore * w_init(const char * const ifname)
 
         // get interface information
         struct ifaddrs * ifap;
-        if (getifaddrs(&ifap) == -1)
-            die("%s: cannot get interface information", ifname);
+        assert(getifaddrs(&ifap) != -1, "%s: cannot get interface information",
+               ifname);
 
         for (const struct ifaddrs * i = ifap; i->ifa_next; i = i->ifa_next) {
             if (strcmp(i->ifa_name, ifname) != 0)
@@ -447,8 +440,8 @@ struct warpcore * w_init(const char * const ifname)
         freeifaddrs(ifap);
         sleep(1);
     }
-    if (w->ip == 0 || w->mask == 0 || w->mtu == 0 || IS_ZERO(w->mac))
-        die("%s: cannot obtain needed interface information", ifname);
+    assert(w->ip != 0 && w->mask != 0 && w->mtu != 0 && !IS_ZERO(w->mac),
+           "%s: cannot obtain needed interface information", ifname);
 
     w->bcast = w->ip | (~w->mask);
 
@@ -464,8 +457,8 @@ struct warpcore * w_init(const char * const ifname)
 #endif
 
     // open /dev/netmap
-    if ((w->fd = open("/dev/netmap", O_RDWR)) == -1)
-        die("cannot open /dev/netmap");
+    assert((w->fd = open("/dev/netmap", O_RDWR)) != -1,
+           "cannot open /dev/netmap");
 
     // switch interface to netmap mode
     strncpy(w->req.nr_name, ifname, sizeof w->req.nr_name);
@@ -476,15 +469,15 @@ struct warpcore * w_init(const char * const ifname)
     w->req.nr_ringid |= NETMAP_NO_TX_POLL;
     w->req.nr_flags = NR_REG_ALL_NIC;
     w->req.nr_arg3 = NUM_EXTRA_BUFS; // request extra buffers
-    if (ioctl(w->fd, NIOCREGIF, &w->req) == -1)
-        die("%s: cannot put interface into netmap mode", ifname);
+    assert(ioctl(w->fd, NIOCREGIF, &w->req) != -1,
+           "%s: cannot put interface into netmap mode", ifname);
 
     // mmap the buffer region
     // TODO: see TODO in nm_open() in netmap_user.h
     const int flags = PLAT_MMFLAGS;
-    if ((w->mem = mmap(0, w->req.nr_memsize, PROT_WRITE | PROT_READ,
-                       MAP_SHARED | flags, w->fd, 0)) == MAP_FAILED)
-        die("cannot mmap netmap memory");
+    assert((w->mem = mmap(0, w->req.nr_memsize, PROT_WRITE | PROT_READ,
+                          MAP_SHARED | flags, w->fd, 0)) != MAP_FAILED,
+           "cannot mmap netmap memory");
 
     // direct pointer to the netmap interface struct for convenience
     w->nif = NETMAP_IF(w->mem, w->req.nr_offset);
@@ -507,8 +500,7 @@ struct warpcore * w_init(const char * const ifname)
     STAILQ_INIT(&w->iov);
     for (uint32_t n = 0, i = w->nif->ni_bufs_head; n < w->req.nr_arg3; n++) {
         struct w_iov * const v = calloc(1, sizeof(struct w_iov));
-        if (v == 0)
-            die("cannot allocate w_iov");
+        assert(v != 0, "cannot allocate w_iov");
         v->buf = IDX2BUF(w, i);
         v->idx = i;
         STAILQ_INSERT_HEAD(&w->iov, v, next);
@@ -527,17 +519,17 @@ struct warpcore * w_init(const char * const ifname)
     SLIST_INIT(&w->sock);
 
     // allocate socket pointers
-    if ((w->udp = calloc(UINT16_MAX, sizeof(struct w_sock *))) == 0)
-        die("cannot allocate UDP sockets");
+    assert((w->udp = calloc(UINT16_MAX, sizeof(struct w_sock *))) == 0,
+           "cannot allocate UDP sockets");
 
     // do the common system setup which is also useful for non-warpcore
     w_init_common();
 
     // block SIGINT and SIGTERM
-    if (signal(SIGINT, w_handler) == SIG_ERR)
-        die("cannot register SIGINT handler");
-    if (signal(SIGTERM, w_handler) == SIG_ERR)
-        die("cannot register SIGTERM handler");
+    assert(signal(SIGINT, w_handler) != SIG_ERR,
+           "cannot register SIGINT handler");
+    assert(signal(SIGTERM, w_handler) != SIG_ERR,
+           "cannot register SIGTERM handler");
 
     _w = w;
     return w;

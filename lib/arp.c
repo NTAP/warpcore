@@ -19,7 +19,7 @@
 
 // This modifies the ARP query in the current receive buffer into an ARP reply
 // and sends it out.
-static void arp_is_at(struct warpcore * w, char * const buf)
+static void arp_is_at(struct warpcore * w, void * const buf)
 {
     struct arp_hdr * const arp = eth_data(buf);
 
@@ -49,8 +49,7 @@ void arp_who_has(struct warpcore * const w, const uint32_t dip)
 {
     // grab a spare buffer
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
-    if (v == 0)
-        die("out of spare bufs");
+    assert(v != 0, "out of spare bufs");
     STAILQ_REMOVE_HEAD(&w->iov, next);
     v->buf = IDX2BUF(w, v->idx);
 
@@ -92,7 +91,7 @@ void arp_who_has(struct warpcore * const w, const uint32_t dip)
 
 
 // Receive an ARP packet, and react
-void arp_rx(struct warpcore * w, char * const buf)
+void arp_rx(struct warpcore * w, void * const buf)
 {
 #ifndef NDEBUG
     char tpa[IP_ADDR_STRLEN];
@@ -102,12 +101,12 @@ void arp_rx(struct warpcore * w, char * const buf)
     const struct arp_hdr * const arp = eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
-    if (hrd != ARP_HRD_ETHER || arp->hln != ETH_ADDR_LEN)
-        die("unhandled ARP hardware format %d with len %d", hrd, arp->hln);
+    assert(hrd == ARP_HRD_ETHER && arp->hln == ETH_ADDR_LEN,
+           "unhandled ARP hardware format %d with len %d", hrd, arp->hln);
 
-    if (arp->pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN)
-        die("unhandled ARP protocol format %d with len %d", ntohs(arp->pro),
-            arp->pln);
+    assert(arp->pro == ETH_TYPE_IP && arp->pln == IP_ADDR_LEN,
+           "unhandled ARP protocol format %d with len %d", ntohs(arp->pro),
+           arp->pln);
 
     const uint16_t op = ntohs(arp->op);
     switch (op) {
