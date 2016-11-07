@@ -438,7 +438,8 @@ struct warpcore * w_init(const char * const ifname)
             }
         }
         freeifaddrs(ifap);
-        sleep(1);
+        // sleep for a bit, so we don't burn the CPU when link is down
+        usleep(50);
     }
     assert(w->ip != 0 && w->mask != 0 && w->mtu != 0 && !IS_ZERO(w->mac),
            "%s: cannot obtain needed interface information", ifname);
@@ -519,7 +520,7 @@ struct warpcore * w_init(const char * const ifname)
     SLIST_INIT(&w->sock);
 
     // allocate socket pointers
-    assert((w->udp = calloc(UINT16_MAX, sizeof(struct w_sock *))) == 0,
+    assert((w->udp = calloc(UINT16_MAX, sizeof(struct w_sock *))) != 0,
            "cannot allocate UDP sockets");
 
     // do the common system setup which is also useful for non-warpcore
