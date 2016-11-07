@@ -61,7 +61,7 @@ void eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
 // called from w_poll.
 void eth_rx(struct warpcore * const w, void * const buf)
 {
-    const struct eth_hdr * const eth = (const struct eth_hdr * const)buf;
+    struct eth_hdr * const eth = buf;
 
 #ifndef NDEBUG
     char src[ETH_ADDR_STRLEN];
