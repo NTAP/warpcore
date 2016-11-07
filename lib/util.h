@@ -47,7 +47,7 @@ extern pthread_t _master;
         gettimeofday(&_now, 0);                                                \
         timeval_subtract(&_elapsed, &_now, &_epoch);                           \
         fprintf(stderr,                                                        \
-                REV "%s " NRM RED BLD REV "% 2ld.%04ld   %s %s:%d ABORT: ",    \
+                REV "%s " NRM RED BLD REV " %ld.%04ld   %s %s:%d ABORT: ",    \
                 (pthread_self() == _master ? BLK : WHT),                       \
                 (long)(_elapsed.tv_sec % 1000),                                \
                 (long)(_elapsed.tv_usec / 1000), __func__, basename(__FILE__), \
@@ -91,7 +91,7 @@ extern regex_t _comp;
             struct timeval _now, _elapsed;                                     \
             gettimeofday(&_now, 0);                                            \
             timeval_subtract(&_elapsed, &_now, &_epoch);                       \
-            fprintf(stderr, REV "%s " NRM "% 2ld.%04ld " REV "%s " NRM MAG     \
+            fprintf(stderr, REV "%s " NRM " %ld.%04ld " REV "%s " NRM MAG     \
                                 " %s" BLK " " BLU "%s:%d " NRM,                \
                     (pthread_self() == _master ? BLK : WHT),                   \
                     (long)(_elapsed.tv_sec % 1000),                            \
