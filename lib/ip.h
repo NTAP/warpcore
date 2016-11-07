@@ -40,8 +40,9 @@ struct w_iov;
 #define ip_dscp(ip) ((((const struct ip_hdr * const)(ip))->tos & 0xfc) >> 2)
 #define ip_ecn(ip) (((const struct ip_hdr * const)(ip))->tos & 0x02)
 
-#define ip_data(buf) (void *)(((char *)eth_data(buf) + sizeof(struct eth_hdr)))
-//+ ip_hl((buf)
+#define ip_data(buf)                                                           \
+    (void *)((char *)eth_data(buf) +                                           \
+             (int)ip_hl((char *)buf + sizeof(struct eth_hdr)))
 
 #define ip_data_len(ip) ((ntohs((ip)->len) - ip_hl(ip)))
 
