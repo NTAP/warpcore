@@ -64,11 +64,14 @@ Vagrant.configure("2") do |config|
         apt-get update
 
         # install some tools that are needed
-        apt-get -y install cmake git dpkg-dev
+        apt-get -y install cmake git dpkg-dev gdb xinetd
 
         # and some that I often use
         apt-get -y install htop silversearcher-ag linux-tools-common \
           linux-tools-generic
+
+        # remove xinetd rate limits
+        sed -i -e 's/{/{\ninstances = UNLIMITED\ncps = 0 0/' /etc/xinetd.conf
 
         # get Linux kernel sources, for building netmap
         apt-get source linux-image-$(uname -r)
