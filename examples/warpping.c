@@ -142,18 +142,31 @@ int main(int argc, char * argv[])
         if (use_warpcore) {
             w_tx(ws);
 
-            if (!busywait)
+            const struct w_iov * i = 0;
+            struct timespec diff, now;
+            if (!busywait) {
                 w_poll(w, POLLIN, 1000);
-
-            struct w_iov * i = 0;
-            do {
                 w_kick_rx(w);
                 i = w_rx(ws);
-                if (unlikely(w->interrupt))
-                    goto done;
-            } while (i == 0);
+            } else {
+                do {
+                    w_kick_rx(w);
+                    i = w_rx(ws);
+                    if (clock_gettime(CLOCK_REALTIME_PRECISE, &now) == -1)
+                        die("clock_gettime");
+                    time_diff(&diff, &now, before);
+                } while (i == 0 && diff.tv_sec == 0);
+            }
 
-            after = i->buf;
+            if (unlikely(w->interrupt))
+                goto done;
+            if (i)
+                after = i->buf;
+            else {
+                warn(err, "packet loss");
+                w_rx_done(ws);
+                continue;
+            }
         } else {
             sendto(ks, before, size, 0, res->ai_addr, res->ai_addrlen);
 
