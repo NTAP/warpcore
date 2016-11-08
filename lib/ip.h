@@ -35,10 +35,16 @@ struct ip_hdr {
 struct warpcore;
 struct w_iov;
 
-#define ip_v(ip) ((((const struct ip_hdr * const)(ip))->vhl & 0xf0) >> 4)
-#define ip_hl(ip) ((((const struct ip_hdr * const)(ip))->vhl & 0x0f) * 4)
-#define ip_dscp(ip) ((((const struct ip_hdr * const)(ip))->tos & 0xfc) >> 2)
-#define ip_ecn(ip) (((const struct ip_hdr * const)(ip))->tos & 0x02)
+#define ip_v(ip)                                                               \
+    (uint8_t)((((const struct ip_hdr * const)(ip))->vhl & 0xf0) >> 4)
+
+#define ip_hl(ip)                                                              \
+    (uint8_t)((((const struct ip_hdr * const)(ip))->vhl & 0x0f) * 4)
+
+#define ip_dscp(ip)                                                            \
+    (uint8_t)((((const struct ip_hdr * const)(ip))->tos & 0xfc) >> 2)
+
+#define ip_ecn(ip) (uint8_t)(((const struct ip_hdr * const)(ip))->tos & 0x02)
 
 #define ip_data(buf)                                                           \
     (void *)((char *)eth_data(buf) +                                           \
