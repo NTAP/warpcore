@@ -3,8 +3,8 @@
 
 Vagrant.configure("2") do |config|
   (1..2).each do |i|
-    config.vm.define "node-#{i}" do |node|
-      node.vm.hostname = "node-#{i}"
+    config.vm.define "node#{i}" do |node|
+      node.vm.hostname = "node#{i}"
 
       # OS to use for the VM
       node.vm.box = "ubuntu/xenial64"
@@ -13,35 +13,62 @@ Vagrant.configure("2") do |config|
       # don't always check for box updates
       node.vm.box_check_update = false
 
-      node.vm.network "private_network", ip: "10.11.11.#{i}/24"
-      # XXX v6 doesn't seem to work?
-      # node.vm.network "private_network", ip: "fddd:deca:fbad::#{i}/64"
+      # since the first interface is a NAT and all VMs have the same
+      # IP and possibly MAC address, create two private networks, one
+      # for control and one for netmap experimentation
+      node.vm.network "private_network", ip: "192.168.101.#{i}/24"
+      node.vm.network "private_network", ip: "192.168.202.#{i}/24"
 
       # hardware configuration of the VM
       node.vm.provider "virtualbox" do |vb|
+        # general settings
         vb.gui = false
         vb.memory = "1024"
-        vb.cpus = 1
+        vb.cpus = 2
         vb.linked_clone = true
+        vb.name = node.vm.hostname
+
+        # use virtio for uplink, in case there is an issue with netmap's e1000
+        vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+
+        # allow promiscuous mode on the private  networks
+        vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
+        vb.customize ["modifyvm", :id, "--nicpromisc3", "allow-all"]
+
+        # per-VM serial log
+        vb.customize ["modifyvm", :id, "--uartmode1", "file",
+          File.join(Dir.pwd, "%s-console.log" % node.vm.hostname)]
+
+        # better clock synchronization (to within 100ms)
+        vb.customize [ "guestproperty", "set", :id,
+          "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 100 ]
       end
 
-      # SSH config
-      node.ssh.forward_agent = true
-      # XXX this configurable causes an error?
-      # node.ssh.forward_x11 - true
+      # use custom, static, password-less SSH keys to authenticate between VMs
+      ssh_pub_key = File.readlines("scripts/id_rsa.pub").join
+      ssh_sec_key = File.readlines("scripts/id_rsa").join
 
       # apply some fixes to the VM OS, update it, and install some tools
       node.vm.provision "shell", inline: <<-SHELL
-        export DEBIAN_FRONTEND=noninteractive
+        # install common SSH keys, allow password-less auth
+        echo "#{ssh_pub_key}" >> /home/ubuntu/.ssh/authorized_keys
+        echo "#{ssh_pub_key}" > /home/ubuntu/.ssh/id_rsa.pub
+        echo "#{ssh_sec_key}" > /home/ubuntu/.ssh/id_rsa
+        echo "StrictHostKeyChecking no" > /home/ubuntu/.ssh/config
+        echo "UserKnownHostsFile=/dev/null" >> /home/ubuntu/.ssh/config
+        chown -R ubuntu:ubuntu .ssh
+        chmod -R go-rwx .ssh/id_rsa
 
         # update apt catalog
+        export DEBIAN_FRONTEND=noninteractive
         apt-get update
 
         # install some tools that are needed
         apt-get -y install cmake git dpkg-dev
 
         # and some that I often use
-        apt-get -y install htop silversearcher-ag
+        apt-get -y install htop silversearcher-ag linux-tools-common \
+          linux-tools-generic
 
         # get Linux kernel sources, for building netmap
         apt-get source linux-image-$(uname -r)
@@ -78,7 +105,8 @@ Vagrant.configure("2") do |config|
         update-initramfs -u
 
         # XXX is there a way to automate this (reboot doesn't mount /vagrant)
-        echo 'You need to "vagrant reload" to reboot with netmap support'
+        echo 'IMPORTANT: You need to "vagrant reload #{node.vm.hostname}"' \
+          'for netmap support!'
       SHELL
 
     end
