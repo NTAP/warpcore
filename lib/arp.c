@@ -134,6 +134,10 @@ void arp_rx(struct warpcore * w, void * const buf)
                  ether_ntoa_r((const struct ether_addr *)arp->sha, sha),
                  ip_ntoa(arp->spa, spa, sizeof spa));
             memcpy(s->dmac, arp->sha, ETH_ADDR_LEN);
+
+            // we also need to update the outbound template header
+            struct eth_hdr * const eth = (struct eth_hdr *)s->hdr;
+            memcpy(eth->dst, arp->sha, ETH_ADDR_LEN);
         }
         break;
     }
