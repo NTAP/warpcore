@@ -7,11 +7,12 @@ add_compile_options(-std=c11)
 # Warn about everything
 add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
-# Optimize
-add_compile_options(-march=native -Ofast -pipe)
-
-# Debug
-add_compile_options(-g)
+# Customize the compile options
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -march=native")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
+# set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL}")
+# set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+# set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
   add_compile_options(-D _GNU_SOURCE)
@@ -35,7 +36,6 @@ if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
   #   "-fprofile-instr-generate -flto ${CMAKE_SHARED_LINKER_FLAGS}")
   # set(CMAKE_EXE_LINKER_FLAGS
   #   "-fprofile-instr-generate -flto ${CMAKE_EXE_LINKER_FLAGS}")
-
 elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 endif()
 
@@ -43,28 +43,7 @@ endif()
 get_property(COMPILE_OPTIONS DIRECTORY PROPERTY COMPILE_OPTIONS)
 string(REPLACE ";" " " COMPILE_OPTIONS "${COMPILE_OPTIONS}")
 
-# # Make sure that a bunch of programs we depend on are installed
-# foreach(PROG daemon pkill tcpdump tshark sed make sleep rm
-#         vagrant cat tail tmux)
-#   string(TOUPPER ${PROG} VARNAME)
-#   find_program(${VARNAME} ${PROG})
-#   if(NOT ${VARNAME})
-#     message(WARNING "${PROG} not found; please install it")
-#   else()
-#     message(STATUS "Found ${PROG}: ${${VARNAME}}")
-#   endif()
-# endforeach()
-
-# # find_program() for sudo is unlikely to work, hence the special case; see
-# # https://cmake.org/pipermail/cmake/2010-September/039520.html
-# find_program(SUDO sudo)
-# if(NOT SUDO)
-#   set(SUDO /usr/bin/sudo)
-# endif()
-
 add_subdirectory(examples)
-# add_subdirectory(doc)
-# add_subdirectory(external)
 add_subdirectory(lib)
 
 # Add a "distclean" target; see http://stackoverflow.com/a/12055610/1437081
