@@ -1,10 +1,9 @@
 #! /usr/bin/env Rscript
 
-if ("data.table" %in% rownames(installed.packages(lib="~/.R")) == FALSE) {
-	install.packages("data.table", lib="~/.R",
-	                 repos="http://cran.r-project.org")
+if ("data.table" %in% rownames(installed.packages()) == FALSE) {
+	install.packages("data.table", repos="http://cran.r-project.org")
 }
-library(data.table, lib="~/.R")
+library(data.table)
 
 printf <- function(...) cat(sprintf(...))
 
@@ -19,8 +18,8 @@ import <- function(file) {
 	return(stats)
 }
 
-kern <- import("kern.txt")
-warp <- import("warp.txt")
+kern <- import("../kern.txt")
+warp <- import("../warp.txt")
 
 kern
 warp
