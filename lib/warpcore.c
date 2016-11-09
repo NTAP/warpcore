@@ -32,6 +32,7 @@ static struct warpcore * _w = 0;
 // Allocates an iov of a given size for tx preparation.
 struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
+    assert(len, "len is zero");
     if (unlikely(!STAILQ_EMPTY(&s->ov))) {
         warn(warn, "output iov already allocated");
         return 0;
@@ -158,6 +159,7 @@ void w_tx(struct w_sock * const s)
 void w_close(struct w_sock * const s)
 {
     struct w_sock ** ss = w_get_sock(s->w, s->hdr.ip.p, s->hdr.udp.sport);
+    assert(ss && *ss, "no socket found");
 
     // make iovs of the socket available again
     while (!STAILQ_EMPTY(&s->iv)) {
