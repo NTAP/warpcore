@@ -17,7 +17,7 @@ if(${CMAKE_C_COMPILER_ID} MATCHES "Clang|GNU")
 endif()
 
 # Additional options that only clang supports
-if(${CMAKE_C_COMPILER_ID} MATCHES "Clang|GNU")
+if(${CMAKE_C_COMPILER_ID} MATCHES "Clang")
   # even more warnings
   set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -Weverything")
 
