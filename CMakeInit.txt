@@ -1,0 +1,26 @@
+# custom flags for clang and gcc (TODO: add others)
+if(${CMAKE_C_COMPILER_ID} MATCHES "Clang|GNU")
+  # our code is in C11
+  set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -std=c11")
+
+  # compile for local CPU
+  set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -march=native")
+
+  # we like all warnings to be fatal
+  set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -Wall -Wextra -Wpedantic -Werror")
+
+  # flags for "Debug" and "None" builds
+  set(CMAKE_C_FLAGS_DEBUG_INIT "-g -O0")
+
+  # flags for "Release" builds
+  set(CMAKE_C_FLAGS_RELEASE_INIT "-Ofast -DNDEBUG")
+endif()
+
+# Additional options that only clang supports
+if(${CMAKE_C_COMPILER_ID} MATCHES "Clang|GNU")
+  # even more warnings
+  set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -Weverything")
+
+  # see https://llvm.org/bugs/show_bug.cgi?id=21689
+  # add_compile_options(-Wno-missing-field-initializers)
+endif()

@@ -1,42 +1,21 @@
 cmake_minimum_required(VERSION 3.0)
+
+# we use some custom compiler flags
+set(CMAKE_USER_MAKE_RULES_OVERRIDE "CMakeInit.txt")
+
 project(warpcore VERSION 0.0.1 LANGUAGES C)
 
-# Force C11
-add_compile_options(-std=c11)
-
-# Warn about everything
-add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-
-# Customize the compile options
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -march=native")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
-# set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL}")
-# set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-# set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-  add_compile_options(-D _GNU_SOURCE)
+# Check if _GNU_SOURCE is available.
+include(CheckSymbolExists)
+CHECK_SYMBOL_EXISTS(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
+if (_GNU_SOURCE)
+  add_definitions(-D_GNU_SOURCE)
 endif()
 
-# Set linker options that are valid for all linkers
-# set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
-# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-
-# Set additional options that are compiler-specific
-if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
-  # see https://llvm.org/bugs/show_bug.cgi?id=21689
-  add_compile_options(-Wno-missing-field-initializers)
-
-  # Even more warnings for clang
-  add_compile_options(-Weverything)
-
-  # Generate profiling output
-  # add_compile_options(-fprofile-instr-generate -flto)
-  # set(CMAKE_SHARED_LINKER_FLAGS
-  #   "-fprofile-instr-generate -flto ${CMAKE_SHARED_LINKER_FLAGS}")
-  # set(CMAKE_EXE_LINKER_FLAGS
-  #   "-fprofile-instr-generate -flto ${CMAKE_EXE_LINKER_FLAGS}")
-elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+# Build "Debug" type by default
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug
+        CACHE STRING "Set build type (default Debug)" FORCE)
 endif()
 
 # Extract compile options into variable, for doxygen's CLANG_ASSISTED_PARSING
