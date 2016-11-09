@@ -17,6 +17,8 @@ else()
 endif()
 
 add_library(warpcore ${SOURCES})
+set_property(TARGET warpcore PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+
 target_include_directories(warpcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 find_package (Threads)
 target_link_libraries(warpcore ${CMAKE_THREAD_LIBS_INIT})
