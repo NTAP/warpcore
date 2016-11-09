@@ -68,7 +68,7 @@ Vagrant.configure("2") do |config|
 
         # and some that I often use
         apt-get -y install htop silversearcher-ag linux-tools-common \
-          linux-tools-generic gdb nmap fish
+          linux-tools-generic gdb nmap fish dwarves
 
         # enable xinetd and remove rate limits
         find /etc/xinetd.d -type f -and -exec \
