@@ -8,7 +8,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "ip.h"
+// example applications MUST only depend on warpcore.h
 #include "warpcore.h"
 
 #ifdef __linux__
