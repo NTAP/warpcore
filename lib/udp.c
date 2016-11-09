@@ -9,11 +9,11 @@
 
 // Log a UDP segment
 #ifndef NDEBUG
-static inline void udp_log(const struct udp_hdr * const udp)
-{
-    warn(info, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport),
-         ntohs(udp->dport), ntohs(udp->cksum), ntohs(udp->len));
-}
+#define udp_log(udp)                                                           \
+    do {                                                                       \
+        warn(info, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport),  \
+             ntohs(udp->dport), ntohs(udp->cksum), ntohs(udp->len));           \
+    } while (0)
 #else
 #define udp_log(udp)                                                           \
     do {                                                                       \

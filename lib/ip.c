@@ -9,18 +9,18 @@
 
 
 #ifndef NDEBUG
-static inline void ip_log(const struct ip_hdr * const ip)
-{
-    char src[IP_ADDR_STRLEN];
-    char dst[IP_ADDR_STRLEN];
-    warn(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "
-                 "flags [%s%s], proto %d, hlen/tot %d/%d",
-         ip_ntoa(ip->src, src, sizeof src), ip_ntoa(ip->dst, dst, sizeof dst),
-         ip_dscp(ip), ip_ecn(ip), ip->ttl, ntohs(ip->id),
-         (ntohs(ip->off) & IP_MF) ? "MF" : "",
-         (ntohs(ip->off) & IP_DF) ? "DF" : "", ip->p, ip_hl(ip),
-         ntohs(ip->len));
-}
+#define ip_log(ip)                                                             \
+    do {                                                                       \
+        char src[IP_ADDR_STRLEN];                                              \
+        char dst[IP_ADDR_STRLEN];                                              \
+        warn(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "          \
+                     "flags [%s%s], proto %d, hlen/tot %d/%d",                 \
+             ip_ntoa(ip->src, src, sizeof src),                                \
+             ip_ntoa(ip->dst, dst, sizeof dst), ip_dscp(ip), ip_ecn(ip),       \
+             ip->ttl, ntohs(ip->id), (ntohs(ip->off) & IP_MF) ? "MF" : "",     \
+             (ntohs(ip->off) & IP_DF) ? "DF" : "", ip->p, ip_hl(ip),           \
+             ntohs(ip->len));                                                  \
+    } while (0)
 #else
 #define ip_log(ip)                                                             \
     do {                                                                       \
