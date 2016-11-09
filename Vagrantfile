@@ -64,16 +64,19 @@ Vagrant.configure("2") do |config|
         apt-get update
 
         # install some tools that are needed
-        apt-get -y install cmake git dpkg-dev xinetd
+        apt-get -y install cmake cmake-curses-gui git dpkg-dev xinetd
 
         # and some that I often use
         apt-get -y install htop silversearcher-ag linux-tools-common \
-          linux-tools-generic gdb nmap
+          linux-tools-generic gdb nmap fish
 
         # enable xinetd and remove rate limits
         find /etc/xinetd.d -type f -and -exec \
           sed -i -e 's/disable.*/disable\t\t= no/g' {} \;
         sed -i -e 's/{/{\ninstances = UNLIMITED\ncps = 0 0/' /etc/xinetd.conf
+
+        # change shell to fish
+        chsh -s /usr/bin/fish ubuntu
 
         # get Linux kernel sources, for building netmap
         apt-get source linux-image-$(uname -r)
