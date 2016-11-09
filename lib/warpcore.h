@@ -8,11 +8,11 @@
 #include <xmmintrin.h>
 
 #include "arp.h"
-#include "util.h"
 #include "eth.h"
 #include "icmp.h"
 #include "ip.h"
 #include "udp.h"
+#include "util.h"
 
 // according to Luigi, any ring can be passed to NETMAP_BUF
 #define IDX2BUF(w, i) NETMAP_BUF(NETMAP_TXRING(w->nif, 0), i)
@@ -25,8 +25,7 @@ struct w_iov {
     uint16_t len;             // length of user data (inside buffer)
     uint16_t sport;           // sender port (only valid on rx)
     uint32_t src;             // sender IP address (only valid on rx)
-    uint32_t _unused1;
-    struct timeval ts;
+    uint8_t _unused[4];
 };
 
 
@@ -34,19 +33,14 @@ struct w_sock {
     struct warpcore * w;        // warpcore instance
     STAILQ_HEAD(ivh, w_iov) iv; // iov for read data
     STAILQ_HEAD(ovh, w_iov) ov; // iov for data to write
-    void * hdr;                 // header template
-    uint16_t hdr_len;           // length of template
-    uint8_t dmac[ETH_ADDR_LEN]; // dst Eth address
-    uint32_t dip;               // dst IP address
-    uint16_t sport;             // src port
-    uint16_t dport;             // dst port
     SLIST_ENTRY(w_sock) next;   // next socket
-    uint8_t p;                  // protocol
 
-    uint8_t _unused1;
-    uint16_t _unused2;
-    uint32_t _unused3;
-
+    struct {
+        struct eth_hdr eth;
+        struct ip_hdr ip __attribute__((packed));
+        struct udp_hdr udp;
+    } hdr;
+    uint8_t _unused[6];
 };
 
 

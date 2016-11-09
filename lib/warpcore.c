@@ -48,8 +48,8 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
         assert(v != 0, "out of spare bufs after grabbing %d", n);
         STAILQ_REMOVE_HEAD(&s->w->iov, next);
         warn(debug, "grabbing spare buf %d for user tx", v->idx);
-        v->buf = IDX2BUF(s->w, v->idx) + s->hdr_len;
-        v->len = s->w->mtu - s->hdr_len;
+        v->buf = IDX2BUF(s->w, v->idx) + sizeof(s->hdr);
+        v->len = s->w->mtu - sizeof(s->hdr);
         l -= v->len;
         n++;
 
@@ -147,17 +147,17 @@ void w_kick_rx(const struct warpcore * const w)
 // Prepends all network headers and places s->ov in the tx ring.
 void w_tx(struct w_sock * const s)
 {
-    if (s->p == IP_P_UDP)
+    if (s->hdr.ip.p == IP_P_UDP)
         udp_tx(s);
     else
-        die("unhandled IP proto %d", s->p);
+        die("unhandled IP proto %d", s->hdr.ip.p);
 }
 
 
 // Close a warpcore socket, making all its iovs available again.
 void w_close(struct w_sock * const s)
 {
-    struct w_sock ** ss = w_get_sock(s->w, s->p, s->sport);
+    struct w_sock ** ss = w_get_sock(s->w, s->hdr.ip.p, s->hdr.udp.sport);
 
     // make iovs of the socket available again
     while (!STAILQ_EMPTY(&s->iv)) {
@@ -177,7 +177,6 @@ void w_close(struct w_sock * const s)
     SLIST_REMOVE(&s->w->sock, s, w_sock, next);
 
     // free the socket
-    free(s->hdr);
     free(*ss);
     *ss = 0;
 }
@@ -188,18 +187,20 @@ void w_connect(struct w_sock * const s,
                const uint32_t dip,
                const uint16_t dport)
 {
+    assert(s->hdr.ip.p == IP_P_UDP, "unhandled IP proto %d", s->hdr.ip.p);
+
 #ifndef NDEBUG
     char str[IP_ADDR_STRLEN];
 #endif
-    if (s->dip == dip && s->dport == dport)
+    if (s->hdr.ip.dst == dip && s->hdr.udp.dport == dport)
         // already connected to that peer
         return;
 
-    s->dip = dip;
-    s->dport = dport;
+    s->hdr.ip.dst = dip;
+    s->hdr.udp.dport = dport;
 
     // find the Ethernet addr of the destination
-    while (IS_ZERO(s->dmac)) {
+    while (IS_ZERO(s->hdr.eth.dst)) {
         warn(notice, "doing ARP lookup for %s",
              ip_ntoa(dip, str, IP_ADDR_STRLEN));
         arp_who_has(s->w, dip);
@@ -208,26 +209,13 @@ void w_connect(struct w_sock * const s,
             return;
         w_kick_rx(s->w);
         w_rx(s);
-        if (!IS_ZERO(s->dmac))
+        if (!IS_ZERO(s->hdr.eth.dst))
             break;
         warn(warn, "no ARP reply for %s, retrying",
              ip_ntoa(dip, str, IP_ADDR_STRLEN));
     }
 
-    // initialize the remaining fields of outgoing template header
-    struct eth_hdr * const eth = (struct eth_hdr *)s->hdr;
-    memcpy(eth->dst, s->dmac, ETH_ADDR_LEN);
-
-    struct ip_hdr * const ip = eth_data(s->hdr);
-    ip->dst = dip;
-
-    if (s->p == IP_P_UDP) {
-        struct udp_hdr * const udp = ip_data(s->hdr);
-        udp->dport = dport;
-    } else
-        die("unhandled IP proto %d", s->p);
-
-    warn(notice, "IP proto %d socket connected to %s port %d", s->p,
+    warn(notice, "IP proto %d socket connected to %s port %d", s->hdr.ip.p,
          ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
 }
 
@@ -236,6 +224,8 @@ void w_connect(struct w_sock * const s,
 struct w_sock *
 w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 {
+    assert(p == IP_P_UDP, "unhandled IP proto %d", p);
+
     struct w_sock ** s = w_get_sock(w, p, port);
     if (*s) {
         warn(warn, "IP proto %d source port %d already in use", p, ntohs(port));
@@ -245,42 +235,26 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
     assert((*s = calloc(1, sizeof(struct w_sock))) != 0,
            "cannot allocate struct w_sock");
 
-    (*s)->p = p;
-    (*s)->sport = port;
+    (*s)->hdr.ip.p = p;
+    (*s)->hdr.udp.sport = port;
     (*s)->w = w;
     STAILQ_INIT(&(*s)->iv);
     SLIST_INSERT_HEAD(&w->sock, *s, next);
 
     // initialize the non-zero fields of outgoing template header
-    const uint16_t hl =
-        sizeof(struct eth_hdr) + sizeof(struct ip_hdr) + sizeof(struct udp_hdr);
-    assert(((*s)->hdr = calloc(1, hl)) != 0, "cannot allocate w->hdr");
+    (*s)->hdr.eth.type = ETH_TYPE_IP;
+    memcpy(&(*s)->hdr.eth.src, (*s)->w->mac, ETH_ADDR_LEN);
+    // (*s)->hdr.eth.dst is set on w_connect()
 
-    struct eth_hdr * const eth = (struct eth_hdr *)(*s)->hdr;
-    eth->type = ETH_TYPE_IP;
-    memcpy(eth->src, (*s)->w->mac, ETH_ADDR_LEN);
-    // eth->dst is set on w_connect()
+    (*s)->hdr.ip.vhl = (4 << 4) + 5;
+    (*s)->hdr.ip.ttl = 1; // XXX TODO: pick something sensible
+    (*s)->hdr.ip.off |= htons(IP_DF);
+    (*s)->hdr.ip.p = p;
+    (*s)->hdr.ip.src = (*s)->w->ip;
+    // (*s)->hdr.ip.dst is set on w_connect()
 
-    struct ip_hdr * const ip = eth_data((*s)->hdr);
-    ip->vhl = (4 << 4) + 5;
-    ip->ttl = 1; // XXX TODO: pick something sensible
-
-    ip->off |= htons(IP_DF);
-    ip->p = p;
-    ip->src = (*s)->w->ip;
-    // ip->dst  is set on w_connect()
-
-    (*s)->hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
-    if (p == IP_P_UDP) {
-        (*s)->hdr_len += sizeof(struct udp_hdr);
-        struct udp_hdr * const udp = ip_data((*s)->hdr);
-        udp->sport = (*s)->sport;
-        // dport is set on w_connect()
-
-    } else
-        die("unhandled IP proto %d", (*s)->p);
-
-    warn(notice, "IP proto %d socket bound to port %d", (*s)->p, ntohs(port));
+    warn(notice, "IP proto %d socket bound to port %d", (*s)->hdr.ip.p,
+         ntohs(port));
 
     return *s;
 }

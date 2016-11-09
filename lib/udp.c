@@ -70,9 +70,6 @@ void udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
     i->src = src;
     i->sport = udp->sport;
 
-    // copy over the rx timestamp
-    memcpy(&i->ts, &rxr->ts, sizeof(struct timeval));
-
     // append the iov to the socket
     STAILQ_INSERT_TAIL(&(*s)->iv, i, next);
 
@@ -94,14 +91,14 @@ void udp_tx(struct w_sock * const s)
 
         // copy template header into buffer and fill in remaining fields
         void * const buf = IDX2BUF(s->w, v->idx);
-        memcpy(buf, s->hdr, s->hdr_len);
+        memcpy(buf, &s->hdr, sizeof(s->hdr));
 
         struct udp_hdr * const udp = ip_data(buf);
         const uint16_t len = v->len + sizeof(struct udp_hdr);
         udp->len = htons(len);
 
         // compute the checksum
-        udp->cksum = in_pseudo(s->w->ip, s->dip, htons(len + IP_P_UDP));
+        udp->cksum = in_pseudo(s->w->ip, s->hdr.ip.dst, htons(len + IP_P_UDP));
         udp->cksum = in_cksum(udp, len);
 
         udp_log(udp);
@@ -121,7 +118,7 @@ void udp_tx(struct w_sock * const s)
             w_poll(s->w, POLLOUT, -1);
         }
     }
-    warn(info, "proto %d tx iov (len %d in %d bufs) done", s->p, l, n);
+    warn(info, "proto %d tx iov (len %d in %d bufs) done", s->hdr.ip.p, l, n);
 
     // kick tx ring
     w_kick_tx(s->w);
