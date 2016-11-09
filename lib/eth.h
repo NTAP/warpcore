@@ -24,7 +24,7 @@ struct eth_hdr {
 struct warpcore;
 struct w_iov;
 
-#define eth_data(buf) ((void *)((char *)(buf) + sizeof(struct eth_hdr)))
+#define eth_data(buf) (void *)((char *)(buf) + sizeof(struct eth_hdr))
 
 
 // see eth.c for documentation of functions

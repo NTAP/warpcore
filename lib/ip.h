@@ -48,7 +48,7 @@ struct w_iov;
 
 #define ip_data(buf)                                                           \
     (void *)((char *)eth_data(buf) +                                           \
-             (int)ip_hl((char *)buf + sizeof(struct eth_hdr)))
+             (int)ip_hl((void *)((char *)buf + sizeof(struct eth_hdr))))
 
 #define ip_data_len(ip) ((ntohs((ip)->len) - ip_hl(ip)))
 
