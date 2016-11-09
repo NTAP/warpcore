@@ -12,5 +12,5 @@ trim_trailing_whitespace = true
 [*.{h,c}]
 indent_size = 4
 
-[CMakeLists.txt]
+[*.txt]
 indent_size = 2
