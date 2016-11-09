@@ -55,7 +55,7 @@ void udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
     struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
     STAILQ_REMOVE_HEAD(&w->iov, next);
 
-    warn(debug, "swapping rx ring %d slot %d (buf %d) and spare buf %d",
+    warn(debug, "swapping rx ring %u slot %d (buf %d) and spare buf %u",
          w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
 
     // remember index of this buffer

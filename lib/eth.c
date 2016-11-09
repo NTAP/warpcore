@@ -32,8 +32,8 @@ void eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
     memcpy(eth->dst, eth->src, sizeof eth->dst);
     memcpy(eth->src, w->mac, sizeof eth->src);
 
-    warn(info, "swapping rx ring %d slot %d (buf %d) and "
-               "tx ring %d slot %d (buf %d)",
+    warn(info, "swapping rx ring %u slot %d (buf %d) and "
+               "tx ring %u slot %d (buf %d)",
          w->cur_rxr, rxr->cur, rxs->buf_idx, w->cur_txr, txr->cur,
          txs->buf_idx);
 
@@ -103,7 +103,7 @@ bool eth_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
         else {
             // current txr is full, try next
             w->cur_txr = (w->cur_txr + 1) % w->nif->ni_tx_rings;
-            warn(warn, "moving to tx ring %d", w->cur_txr);
+            warn(warn, "moving to tx ring %u", w->cur_txr);
         }
     }
 
@@ -121,7 +121,7 @@ bool eth_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
         NETMAP_BUF(txr, txr->slot[nm_ring_next(txr, txr->cur)].buf_idx),
         _MM_HINT_T1);
 
-    warn(debug, "placing iov buf %d in tx ring %d slot %d (current buf %d)",
+    warn(debug, "placing iov buf %u in tx ring %u slot %d (current buf %u)",
          v->idx, w->cur_txr, txr->cur, txs->buf_idx);
 
     // place v in the current tx ring
@@ -135,7 +135,7 @@ bool eth_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
         (const struct eth_hdr * const)(void *)NETMAP_BUF(txr, txs->buf_idx);
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
-    warn(info, "Eth %s -> %s, type %d, len %ld",
+    warn(info, "Eth %s -> %s, type %d, len %lu",
          ether_ntoa_r((const struct ether_addr *)eth->src, src),
          ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
          ntohs(eth->type), len + sizeof(struct eth_hdr));

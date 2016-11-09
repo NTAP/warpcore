@@ -17,8 +17,9 @@ static inline void ip_log(const struct ip_hdr * const ip)
                  "flags [%s%s], proto %d, hlen/tot %d/%d",
          ip_ntoa(ip->src, src, sizeof src), ip_ntoa(ip->dst, dst, sizeof dst),
          ip_dscp(ip), ip_ecn(ip), ip->ttl, ntohs(ip->id),
-         ntohs(ip->off) & IP_MF ? "MF" : "", ntohs(ip->off) & IP_DF ? "DF" : "",
-         ip->p, ip_hl(ip), ntohs(ip->len));
+         (ntohs(ip->off) & IP_MF) ? "MF" : "",
+         (ntohs(ip->off) & IP_DF) ? "DF" : "", ip->p, ip_hl(ip),
+         ntohs(ip->len));
 }
 #else
 #define ip_log(ip)                                                             \
@@ -30,7 +31,7 @@ static inline void ip_log(const struct ip_hdr * const ip)
 const char * ip_ntoa(uint32_t ip, void * const buf, const size_t size)
 {
     const uint32_t i = ntohl(ip);
-    snprintf(buf, size, "%d.%d.%d.%d", (i >> 24) & 0xff, (i >> 16) & 0xff,
+    snprintf(buf, size, "%u.%u.%u.%u", (i >> 24) & 0xff, (i >> 16) & 0xff,
              (i >> 8) & 0xff, i & 0xff);
     ((char *)buf)[size - 1] = '\0';
     return buf;

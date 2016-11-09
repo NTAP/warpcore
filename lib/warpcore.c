@@ -48,7 +48,7 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
         v = STAILQ_FIRST(&s->w->iov);
         assert(v != 0, "out of spare bufs after grabbing %d", n);
         STAILQ_REMOVE_HEAD(&s->w->iov, next);
-        warn(debug, "grabbing spare buf %d for user tx", v->idx);
+        warn(debug, "grabbing spare buf %u for user tx", v->idx);
         v->buf = IDX2BUF(s->w, v->idx) + sizeof(s->hdr);
         v->len = s->w->mtu - sizeof(s->hdr);
         l -= v->len;
@@ -164,13 +164,13 @@ void w_close(struct w_sock * const s)
     // make iovs of the socket available again
     while (!STAILQ_EMPTY(&s->iv)) {
         struct w_iov * const v = STAILQ_FIRST(&s->iv);
-        warn(debug, "free iv buf %d", v->idx);
+        warn(debug, "free iv buf %u", v->idx);
         STAILQ_REMOVE_HEAD(&s->iv, next);
         STAILQ_INSERT_HEAD(&s->w->iov, v, next);
     }
     while (!STAILQ_EMPTY(&s->ov)) {
         struct w_iov * const v = STAILQ_FIRST(&s->ov);
-        warn(debug, "free ov buf %d", v->idx);
+        warn(debug, "free ov buf %u", v->idx);
         STAILQ_REMOVE_HEAD(&s->ov, next);
         STAILQ_INSERT_HEAD(&s->w->iov, v, next);
     }
@@ -229,7 +229,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
     assert(p == IP_P_UDP, "unhandled IP proto %d", p);
 
     struct w_sock ** s = w_get_sock(w, p, port);
-    if (*s) {
+    if (s && *s) {
         warn(warn, "IP proto %d source port %d already in use", p, ntohs(port));
         return 0;
     }
@@ -292,7 +292,7 @@ void w_cleanup(struct warpcore * const w)
     for (uint32_t i = 0; i < w->nif->ni_rx_rings; i++) {
         struct netmap_ring * const txr = NETMAP_TXRING(w->nif, w->cur_txr);
         while (nm_tx_pending(txr)) {
-            warn(info, "tx pending on ring %d", w->cur_txr);
+            warn(info, "tx pending on ring %u", w->cur_txr);
             w_kick_tx(w);
             usleep(1); // wait 1 tick
         }
@@ -392,7 +392,7 @@ struct warpcore * w_init(const char * const ifname)
                 link_up = plat_get_link(i);
 #ifndef NDEBUG
                 char mac[ETH_ADDR_STRLEN];
-                warn(notice, "%s addr %s, MTU %d, speed %dG, link %s",
+                warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
                      i->ifa_name,
                      ether_ntoa_r((struct ether_addr *)w->mac, mac), w->mtu,
                      w->mbps / 1000, link_up ? "up" : "down");

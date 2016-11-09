@@ -179,6 +179,7 @@ static u_int64_t in_cksumdata(const void * buf, int len)
     return sum;
 }
 
+#if 0
 u_short in_addword(u_short a, u_short b)
 {
     u_int64_t sum = a + b;
@@ -186,6 +187,7 @@ u_short in_addword(u_short a, u_short b)
     ADDCARRY(sum);
     return (u_short)(sum);
 }
+#endif
 
 u_short in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
 {
