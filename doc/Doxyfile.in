@@ -1,0 +1,17 @@
+# https://tty1.net/blog/2014/cmake-doxygen_en.html
+
+PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
+PROJECT_NUMBER         = @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
+STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
+                         @PROJECT_BINARY_DIR@
+INPUT                  = @PROJECT_SOURCE_DIR@/lib \
+                         @PROJECT_BINARY_DIR@/lib
+FILE_PATTERNS          = *.h \
+                         *.c
+RECURSIVE              = YES
+EXTRACT_ALL            = YES
+OPTIMIZE_OUTPUT_FOR_C  = YES
+#CLANG_ASSISTED_PARSING = YES
+CLANG_OPTIONS          = @COMPILE_OPTIONS@
+GENERATE_LATEX         = NO
+JAVADOC_AUTOBRIEF      = YES

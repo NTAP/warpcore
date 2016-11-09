@@ -22,6 +22,7 @@ endif()
 get_property(COMPILE_OPTIONS DIRECTORY PROPERTY COMPILE_OPTIONS)
 string(REPLACE ";" " " COMPILE_OPTIONS "${COMPILE_OPTIONS}")
 
+add_subdirectory(doc)
 add_subdirectory(examples)
 add_subdirectory(lib)
 
