@@ -102,7 +102,7 @@ int main(int argc, char * argv[])
             const time_t t = time(0);
             struct w_iov * o = w_tx_alloc(tme, sizeof(uint32_t));
             uint32_t * const b = (uint32_t *)o->buf;
-            *b = htonl(t);
+            *b = htonl((uint32_t)t);
             w_connect(tme, i->src, i->sport);
             w_tx(tme);
             i = STAILQ_NEXT(i, next);
