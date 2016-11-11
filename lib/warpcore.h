@@ -52,7 +52,6 @@ struct warpcore {
     uint32_t cur_rxr;             // our current rx ring
     STAILQ_HEAD(iovh, w_iov) iov; // our available bufs
     uint32_t ip;                  // our IP address
-    uint32_t bcast;               // our broadcast address
     uint8_t mac[ETH_ADDR_LEN];    // our Ethernet address
     bool interrupt;               // termination flag
     uint8_t _unused1;
@@ -62,14 +61,17 @@ struct warpcore {
     uint16_t _unused2;
 
     // --- cacheline 1 boundary (64 bytes) ---
-    uint32_t mbps;               // our link speed
     SLIST_HEAD(sh, w_sock) sock; // our open sockets
     uint32_t mask;               // our IP netmask
     int fd;                      // netmap descriptor
     struct nmreq req;            // netmap request
-    uint32_t _unused3;
+    uint32_t mbps;               // our link speed
+    SLIST_ENTRY(warpcore) next;  // next engine
+    char * restrict ifname;      // interface name of the engine
 };
 
+
+#define w_bcast(ip, mask) (ip | (~mask))
 
 #define w_get_sock(w, p, port) ((p) == IP_P_UDP ? &(w)->udp[port] : 0)
 

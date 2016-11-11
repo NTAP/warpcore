@@ -21,12 +21,14 @@
 #include "ip.h"
 #include "plat.h"
 #include "udp.h"
+#include "version.h"
 #include "warpcore.h"
 
 #define NUM_EXTRA_BUFS 256 // 16384
 
-// global pointer to netmap engine
-static struct warpcore * _w = 0;
+
+// netmap engines for the various interfaces
+static SLIST_HEAD(engines, warpcore) wc = SLIST_HEAD_INITIALIZER(wc);
 
 
 // Allocates an iov of a given size for tx preparation.
@@ -331,17 +333,18 @@ void w_cleanup(struct warpcore * const w)
     }
 
     free(w->udp);
-
+    free(w->ifname);
+    SLIST_REMOVE(&wc, w, warpcore, next);
     free(w);
-    _w = 0;
 }
 
 
 // Interrupt handler.
 static void w_handler(int sig __attribute__((unused)))
 {
-    if (_w)
-        _w->interrupt = true;
+    struct warpcore * w;
+    SLIST_FOREACH (w, &wc, next)
+        w->interrupt = true;
 }
 
 
@@ -364,9 +367,11 @@ struct warpcore * w_init(const char * const ifname)
     struct warpcore * w;
     bool link_up = false;
 
-    assert(_w == 0, "can only have one warpcore engine active");
+    SLIST_FOREACH (w, &wc, next)
+        assert(strcmp(ifname, w->ifname),
+               "can only have one warpcore engine active on %s", ifname);
 
-    // allocate struct
+    // allocate engine struct
     assert((w = calloc(1, sizeof(struct warpcore))) != 0,
            "cannot allocate struct warpcore");
 
@@ -379,9 +384,12 @@ struct warpcore * w_init(const char * const ifname)
         assert(getifaddrs(&ifap) != -1, "%s: cannot get interface information",
                ifname);
 
+        bool found = false;
         for (const struct ifaddrs * i = ifap; i->ifa_next; i = i->ifa_next) {
             if (strcmp(i->ifa_name, ifname) != 0)
                 continue;
+            else
+                found = true;
 
             switch (i->ifa_addr->sa_family) {
             case AF_LINK:
@@ -413,13 +421,19 @@ struct warpcore * w_init(const char * const ifname)
             }
         }
         freeifaddrs(ifap);
+        assert(found, "unknown interface %s", ifname);
+
         // sleep for a bit, so we don't burn the CPU when link is down
         usleep(50);
     }
     assert(w->ip != 0 && w->mask != 0 && w->mtu != 0 && !IS_ZERO(w->mac),
            "%s: cannot obtain needed interface information", ifname);
 
-    w->bcast = w->ip | (~w->mask);
+    // remember interface name
+    const size_t len = strlen(ifname);
+    assert((w->ifname = calloc(1, len + 1)) != 0,
+           "cannot allocate interface name");
+    strncpy(w->ifname, ifname, len);
 
 #ifndef NDEBUG
     char ip[IP_ADDR_STRLEN];
@@ -427,9 +441,6 @@ struct warpcore * w_init(const char * const ifname)
     warn(notice, "%s has IP addr %s/%s", ifname,
          ip_ntoa(w->ip, ip, IP_ADDR_STRLEN),
          ip_ntoa(w->mask, mask, IP_ADDR_STRLEN));
-    char bcast[IP_ADDR_STRLEN];
-    warn(notice, "%s has IP broadcast addr %s", ifname,
-         ip_ntoa(w->bcast, bcast, IP_ADDR_STRLEN));
 #endif
 
     // open /dev/netmap
@@ -507,6 +518,9 @@ struct warpcore * w_init(const char * const ifname)
     assert(signal(SIGTERM, w_handler) != SIG_ERR,
            "cannot register SIGTERM handler");
 
-    _w = w;
+    // store the initialized engine in our global list
+    SLIST_INSERT_HEAD(&wc, w, next);
+
+    warn(info, "%s %s on %s ready", warpcore_name, warpcore_version, ifname);
     return w;
 }

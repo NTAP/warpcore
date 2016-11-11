@@ -94,7 +94,7 @@ void ip_rx(struct warpcore * const w, void * const buf)
     ip_log(ip);
 
     // make sure the packet is for us (or broadcast)
-    if (unlikely(ip->dst != w->ip && ip->dst != w->bcast)) {
+    if (unlikely(ip->dst != w->ip && ip->dst != w_bcast(w->ip, w->mask))) {
 #ifndef NDEBUG
         char src[IP_ADDR_STRLEN];
         char dst[IP_ADDR_STRLEN];
