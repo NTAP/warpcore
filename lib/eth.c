@@ -1,5 +1,5 @@
 #include <arpa/inet.h>
-#include <string.h>
+#include <xmmintrin.h>
 
 #ifdef __linux__
 #include <netinet/ether.h>
@@ -12,8 +12,8 @@
 #endif
 
 #include "arp.h"
-#include "ip.h"
-#include "warpcore.h"
+#include "util.h"
+#include "warpcore_internal.h"
 
 
 // Modify the current receive buffer, swap it into the tx ring (and move a

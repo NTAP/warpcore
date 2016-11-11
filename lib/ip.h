@@ -1,11 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
 
-#define IP_P_ICMP 1 // IP protocol number for ICMP
-#define IP_P_UDP 17 // IP protocol number for UDP
 
 #define IP_ECT1 1
 #define IP_ECT0 2

@@ -1,10 +1,10 @@
 #include <arpa/inet.h>
-#include <string.h>
+#include <poll.h>
 
 #include "icmp.h"
-#include "ip.h"
+#include "util.h"
 #include "udp.h"
-#include "warpcore.h"
+#include "warpcore_internal.h"
 
 
 // Log a UDP segment

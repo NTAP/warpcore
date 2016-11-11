@@ -1,6 +1,4 @@
 #include <arpa/inet.h>
-#include <string.h>
-#include <sys/ioctl.h>
 
 #ifdef __linux__
 #include <netinet/ether.h>
@@ -13,8 +11,8 @@
 #endif
 
 #include "arp.h"
-#include "ip.h"
-#include "warpcore.h"
+#include "util.h"
+#include "warpcore_internal.h"
 
 
 // This modifies the ARP query in the current receive buffer into an ARP reply

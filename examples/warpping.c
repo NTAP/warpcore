@@ -1,14 +1,14 @@
 #include <getopt.h>
 #include <netdb.h>
-#include <netinet/in.h>
-#include <stdio.h>
+#include <stdint.h>
+#include <poll.h>
+#include <stdbool.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <time.h>
-#include <unistd.h>
+#include <netinet/in.h>
 
 // example applications MUST only depend on warpcore.h
+#include "util.h"
 #include "warpcore.h"
 
 #ifdef __linux__
@@ -130,6 +130,7 @@ int main(int argc, char * argv[])
 
     printf("nsec\tsize\n");
     while (likely(loops--)) {
+        bool done = false;
         if (use_warpcore) {
             struct w_iov * const o = w_tx_alloc(ws, size);
             before = o->buf;
@@ -145,12 +146,12 @@ int main(int argc, char * argv[])
             const struct w_iov * i = 0;
             struct timespec diff, now;
             if (!busywait) {
-                w_poll(w, POLLIN, 1000);
+                done = w_poll(w, POLLIN, 1000);
                 w_kick_rx(w);
                 i = w_rx(ws);
             } else {
                 do {
-                    w_kick_rx(w);
+                    done = w_kick_rx(w);
                     i = w_rx(ws);
                     if (clock_gettime(CLOCK_REALTIME_PRECISE, &now) == -1)
                         die("clock_gettime");
@@ -158,8 +159,9 @@ int main(int argc, char * argv[])
                 } while (i == 0 && diff.tv_sec == 0);
             }
 
-            if (unlikely(w->interrupt))
+            if (unlikely(done))
                 goto done;
+
             if (i)
                 after = i->buf;
             else {

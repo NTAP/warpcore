@@ -1,28 +1,26 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
-#include <signal.h>
+#include <poll.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <unistd.h>
+#include <xmmintrin.h>
 
 #ifdef __linux__
-#include <linux/ethtool.h>
-#include <linux/sockios.h>
 #include <netinet/ether.h>
-#include <netpacket/packet.h>
 #else
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <sys/types.h>
 #endif
 
-#include "icmp.h"
-#include "ip.h"
+#include "arp.h"
 #include "plat.h"
-#include "udp.h"
+#include "util.h"
 #include "version.h"
-#include "warpcore.h"
+#include "warpcore_internal.h"
 
 #define NUM_EXTRA_BUFS 256 // 16384
 
@@ -70,25 +68,26 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 
 // Wait until netmap is ready to send or receive more data. Parameters
 // "event" and "timeout" identical to poll system call.
-void w_poll(const struct warpcore * const w, const short ev, const int to)
+bool w_poll(const void * const w, const short ev, const int to)
 {
-    struct pollfd fds = {.fd = w->fd, .events = ev};
+    struct pollfd fds = {.fd = ((const struct warpcore * const)w)->fd,
+                         .events = ev};
     const int n = poll(&fds, 1, to);
 
     if (unlikely(n == -1)) {
         if (errno == EINTR) {
             warn(notice, "poll: interrupt");
-            return;
+            return true;
         } else
             die("poll");
     }
     if (unlikely(n == 0)) {
         warn(notice, "poll: timeout expired");
-        return;
+        return false;
     }
 
     rwarn(debug, 1, "poll: %d descriptors ready", n);
-    return;
+    return false;
 }
 
 
@@ -134,16 +133,20 @@ struct w_iov * w_rx(struct w_sock * const s)
 
 
 // Internal warpcore function. Kick the tx ring.
-void w_kick_tx(const struct warpcore * const w)
+bool w_kick_tx(const void * const w)
 {
-    assert(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
+    assert(ioctl(((const struct warpcore * const)w)->fd, NIOCTXSYNC, 0) != -1,
+           "cannot kick tx ring");
+    return ((const struct warpcore * const)w)->interrupt;
 }
 
 
 // Internal warpcore function. Kick the rx ring.
-void w_kick_rx(const struct warpcore * const w)
+bool w_kick_rx(const void * const w)
 {
-    assert(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
+    assert(ioctl(((const struct warpcore * const)w)->fd, NIOCRXSYNC, 0) != -1,
+           "cannot kick rx ring");
+    return ((const struct warpcore * const)w)->interrupt;
 }
 
 
@@ -225,12 +228,11 @@ void w_connect(struct w_sock * const s,
 
 
 // Bind a socket for the given IP protocol and local port number.
-struct w_sock *
-w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
+struct w_sock * w_bind(void * const w, const uint8_t p, const uint16_t port)
 {
     assert(p == IP_P_UDP, "unhandled IP proto %d", p);
 
-    struct w_sock ** s = w_get_sock(w, p, port);
+    struct w_sock ** s = w_get_sock((struct warpcore * const)w, p, port);
     if (s && *s) {
         warn(warn, "IP proto %d source port %d already in use", p, ntohs(port));
         return 0;
@@ -243,7 +245,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
     (*s)->hdr.udp.sport = port;
     (*s)->w = w;
     STAILQ_INIT(&(*s)->iv);
-    SLIST_INSERT_HEAD(&w->sock, *s, next);
+    SLIST_INSERT_HEAD(&((struct warpcore * const)w)->sock, *s, next);
 
     // initialize the non-zero fields of outgoing template header
     (*s)->hdr.eth.type = ETH_TYPE_IP;
@@ -266,13 +268,14 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 
 // Helper function for w_cleanup that links together extra bufs allocated
 // by netmap in the strange format it requires to free them correctly.
-static const struct w_iov * w_chain_extra_bufs(const struct warpcore * const w,
+static const struct w_iov * w_chain_extra_bufs(const void * const w,
                                                const struct w_iov * v)
 {
     const struct w_iov * n;
     do {
         n = STAILQ_NEXT(v, next);
-        uint32_t * const buf = (uint32_t *)(void *)IDX2BUF(w, v->idx);
+        uint32_t * const buf = (uint32_t *)(void *)IDX2BUF(
+            (const struct warpcore * const)w, v->idx);
         if (n) {
             *buf = n->idx;
             v = n;
@@ -286,24 +289,25 @@ static const struct w_iov * w_chain_extra_bufs(const struct warpcore * const w,
 
 
 // Shut down warpcore cleanly.
-void w_cleanup(struct warpcore * const w)
+void w_cleanup(void * const w)
 {
     warn(notice, "warpcore shutting down");
+    struct warpcore * ww = w;
 
     // clean out all the tx rings
-    for (uint32_t i = 0; i < w->nif->ni_rx_rings; i++) {
-        struct netmap_ring * const txr = NETMAP_TXRING(w->nif, w->cur_txr);
+    for (uint32_t i = 0; i < ww->nif->ni_rx_rings; i++) {
+        struct netmap_ring * const txr = NETMAP_TXRING(ww->nif, ww->cur_txr);
         while (nm_tx_pending(txr)) {
-            warn(info, "tx pending on ring %u", w->cur_txr);
+            warn(info, "tx pending on ring %u", ww->cur_txr);
             w_kick_tx(w);
             usleep(1); // wait 1 tick
         }
     }
 
     // re-construct the extra bufs list, so netmap can free the memory
-    const struct w_iov * last = w_chain_extra_bufs(w, STAILQ_FIRST(&w->iov));
+    const struct w_iov * last = w_chain_extra_bufs(ww, STAILQ_FIRST(&ww->iov));
     struct w_sock * s;
-    SLIST_FOREACH (s, &w->sock, next) {
+    SLIST_FOREACH (s, &ww->sock, next) {
         if (!STAILQ_EMPTY(&s->iv)) {
             const struct w_iov * const l =
                 w_chain_extra_bufs(w, STAILQ_FIRST(&s->iv));
@@ -318,24 +322,24 @@ void w_cleanup(struct warpcore * const w)
         }
         *(uint32_t *)(last->buf) = 0;
     }
-    w->nif->ni_bufs_head = STAILQ_FIRST(&w->iov)->idx;
+    ww->nif->ni_bufs_head = STAILQ_FIRST(&ww->iov)->idx;
 
-    assert(munmap(w->mem, w->req.nr_memsize) != -1,
+    assert(munmap(ww->mem, ww->req.nr_memsize) != -1,
            "cannot munmap netmap memory");
 
-    assert(close(w->fd) != -1, "cannot close /dev/netmap");
+    assert(close(ww->fd) != -1, "cannot close /dev/netmap");
 
     // free extra buffer list
-    while (!STAILQ_EMPTY(&w->iov)) {
-        struct w_iov * const n = STAILQ_FIRST(&w->iov);
-        STAILQ_REMOVE_HEAD(&w->iov, next);
+    while (!STAILQ_EMPTY(&ww->iov)) {
+        struct w_iov * const n = STAILQ_FIRST(&ww->iov);
+        STAILQ_REMOVE_HEAD(&ww->iov, next);
         free(n);
     }
 
-    free(w->udp);
-    free(w->ifname);
-    SLIST_REMOVE(&wc, w, warpcore, next);
-    free(w);
+    free(ww->udp);
+    free(ww->ifname);
+    SLIST_REMOVE(&wc, ww, warpcore, next);
+    free(ww);
 }
 
 
@@ -362,7 +366,7 @@ void w_init_common(void)
 
 
 // Initialize warpcore on the given interface.
-struct warpcore * w_init(const char * const ifname)
+void * w_init(const char * const ifname)
 {
     struct warpcore * w;
     bool link_up = false;

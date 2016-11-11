@@ -1,11 +1,10 @@
 #include <arpa/inet.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "icmp.h"
 #include "ip.h"
 #include "udp.h"
-#include "warpcore.h"
+#include "util.h"
+#include "warpcore_internal.h"
 
 
 #ifndef NDEBUG

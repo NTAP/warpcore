@@ -29,8 +29,14 @@
 // Trim the path from the given file name (to be used with __FILE__)
 #define basename(f) (strrchr((f), '/') ? strrchr((f), '/') + 1 : (f))
 
-
+#ifndef plural
 #define plural(w) ((w) == 1 ? 0 : 's')
+#endif
+
+#ifndef likely
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#endif
 
 
 extern pthread_mutex_t _lock;

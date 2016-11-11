@@ -1,9 +1,8 @@
 #include <arpa/inet.h>
-#include <string.h>
 
 #include "icmp.h"
-#include "ip.h"
-#include "warpcore.h"
+#include "util.h"
+#include "warpcore_internal.h"
 
 
 // Send the modified ICMP packet in the current receive buffer.
