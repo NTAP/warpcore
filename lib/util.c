@@ -9,7 +9,7 @@ pthread_t _master;
 
 #ifndef NDEBUG
 
-const char * const _col[] = {MAG, RED, YEL, CYN, BLU, GRN};
+const char * restrict const _col[] = {MAG, RED, YEL, CYN, BLU, GRN};
 
 regex_t _comp;
 
@@ -46,9 +46,10 @@ static void __attribute__((destructor)) postmain()
 
 struct timeval _epoch;
 
-int __attribute__((nonnull)) timeval_subtract(struct timeval * const result,
-                                              struct timeval * const x,
-                                              struct timeval * const y)
+int __attribute__((nonnull))
+timeval_subtract(struct timeval * restrict const result,
+                 struct timeval * restrict const x,
+                 struct timeval * restrict const y)
 {
     // Perform the carry for the later subtraction by updating y.
     if (x->tv_usec < y->tv_usec) {
@@ -72,9 +73,10 @@ int __attribute__((nonnull)) timeval_subtract(struct timeval * const result,
 
 
 // Print a hexdump of the given block
-void __attribute__((nonnull)) hexdump(const void * const ptr, const size_t len)
+void __attribute__((nonnull))
+hexdump(const void * restrict const ptr, const size_t len)
 {
-    const uint8_t * const buf = ptr;
+    const uint8_t * restrict const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
         fprintf(stderr, "%06lx: ", i);
         for (size_t j = 0; j < 16; j++) {

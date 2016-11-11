@@ -46,12 +46,11 @@ extern pthread_t _master;
         struct timeval _now, _elapsed;                                         \
         gettimeofday(&_now, 0);                                                \
         timeval_subtract(&_elapsed, &_now, &_epoch);                           \
-        fprintf(stderr,                                                        \
-                REV "%s " NRM RED BLD REV " %ld.%04ld   %s %s:%d ABORT: ",    \
-                (pthread_self() == _master ? BLK : WHT),                       \
-                (long)(_elapsed.tv_sec % 1000),                                \
-                (long)(_elapsed.tv_usec / 1000), __func__, basename(__FILE__), \
-                __LINE__);                                                     \
+        fprintf(                                                               \
+            stderr, REV "%s " NRM RED BLD REV " %ld.%04ld   %s %s:%d ABORT: ", \
+            (pthread_self() == _master ? BLK : WHT),                           \
+            (long)(_elapsed.tv_sec % 1000), (long)(_elapsed.tv_usec / 1000),   \
+            __func__, basename(__FILE__), __LINE__);                           \
         fprintf(stderr, __VA_ARGS__);                                          \
         fprintf(stderr, " %c%s%c\n" NRM, (_e ? '[' : 0),                       \
                 (_e ? strerror(_e) : ""), (_e ? ']' : 0));                     \
@@ -78,7 +77,7 @@ enum dlevel { crit = 0, err = 1, warn = 2, notice = 3, info = 4, debug = 5 };
 #define DCOMPONENT ".*"
 #endif
 
-extern const char * const _col[];
+extern const char * restrict const _col[];
 extern regex_t _comp;
 
 
@@ -91,7 +90,7 @@ extern regex_t _comp;
             struct timeval _now, _elapsed;                                     \
             gettimeofday(&_now, 0);                                            \
             timeval_subtract(&_elapsed, &_now, &_epoch);                       \
-            fprintf(stderr, REV "%s " NRM " %ld.%04ld " REV "%s " NRM MAG     \
+            fprintf(stderr, REV "%s " NRM " %ld.%04ld " REV "%s " NRM MAG      \
                                 " %s" BLK " " BLU "%s:%d " NRM,                \
                     (pthread_self() == _master ? BLK : WHT),                   \
                     (long)(_elapsed.tv_sec % 1000),                            \
@@ -146,8 +145,8 @@ extern regex_t _comp;
 
 
 extern struct timeval _epoch;
-extern int timeval_subtract(struct timeval * const result,
-                            struct timeval * const x,
-                            struct timeval * const y);
+extern int timeval_subtract(struct timeval * restrict const result,
+                            struct timeval * restrict const x,
+                            struct timeval * restrict const y);
 
-extern void hexdump(const void * const ptr, const size_t len);
+extern void hexdump(const void * restrict const ptr, const size_t len);
