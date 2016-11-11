@@ -1,12 +1,16 @@
 string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_UC)
 configure_file(version.h.in version.h)
 configure_file(version.c.in version.c)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_INCLUDE_CURRENT_DIR_IN_INTERFACE ON)
 
 include(FindPackageHandleStandardArgs)
 find_path(NETMAP_INCLUDE netmap_user.h PATH_SUFFIXES net)
 find_package_handle_standard_args(netmap DEFAULT_MSG NETMAP_INCLUDE)
 
-set(SOURCES arp.c util.c eth.c icmp.c in_cksum.c ip.c udp.c warpcore.c)
+set(SOURCES
+  arp.c util.c eth.c icmp.c in_cksum.c ip.c udp.c warpcore.c
+  ${CMAKE_CURRENT_BINARY_DIR}/version.c)
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
   set(SOURCES ${SOURCES} plat_linux.c)
