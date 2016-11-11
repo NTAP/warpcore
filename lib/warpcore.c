@@ -301,8 +301,7 @@ void w_cleanup(struct warpcore * const w)
     // re-construct the extra bufs list, so netmap can free the memory
     const struct w_iov * last = w_chain_extra_bufs(w, STAILQ_FIRST(&w->iov));
     struct w_sock * s;
-    SLIST_FOREACH(s, &w->sock, next)
-    {
+    SLIST_FOREACH (s, &w->sock, next) {
         if (!STAILQ_EMPTY(&s->iv)) {
             const struct w_iov * const l =
                 w_chain_extra_bufs(w, STAILQ_FIRST(&s->iv));
