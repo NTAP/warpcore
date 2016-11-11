@@ -8,6 +8,7 @@ loops=1000
 peer=192.168.101.2
 iface=enp0s9
 piface=enp0s9
+build=Debug
 
 ssh="ssh $peer -q"
 
@@ -20,7 +21,7 @@ run () {
         if [ "$1" == "kern" ]; then
                 flag=-k
         fi
-        local cmd="/vagrant/examples/warpping -i $iface -d $peerip \
+        local cmd="/vagrant/$build/examples/warpping -i $iface -d $peerip \
                    -l $loops $busywait"
         # for (( size=16; size <= 1458; size+=103)); do
         for (( size=16; size <= 1458; size+=303)); do
@@ -46,7 +47,7 @@ fi
 rm kern*.txt warp*.txt ./*.log > /dev/null 2>&1 || true
 
 $ssh "pkill -f warpinetd" || true
-$ssh "nohup /vagrant/examples/warpinetd -i $piface $busywait \
+$ssh "nohup /vagrant/$build/examples/warpinetd -i $piface $busywait \
         > /vagrant/warpinetd.log 2>&1 &" || true
 run warp
 $ssh "pkill -f warpinetd" || true
