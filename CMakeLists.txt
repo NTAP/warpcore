@@ -8,7 +8,7 @@ project(warpcore VERSION 0.0.1 LANGUAGES C)
 # Check if _GNU_SOURCE is available.
 include(CheckSymbolExists)
 CHECK_SYMBOL_EXISTS(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
-if (_GNU_SOURCE)
+if(_GNU_SOURCE)
   add_definitions(-D_GNU_SOURCE)
 endif()
 
