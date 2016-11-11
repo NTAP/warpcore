@@ -2,13 +2,21 @@
 # which will install a VM inside which we can build and run warpcore.
 
 Vagrant.configure("2") do |config|
-  (1..2).each do |i|
+  (1..3).each do |i|
     config.vm.define "node#{i}" do |node|
       node.vm.hostname = "node#{i}"
 
       # OS to use for the VM
-      node.vm.box = "ubuntu/xenial64"
-      node.vm.box_version = "20160930.0.0"
+      if i <= 2 then
+        node.vm.box = "ubuntu/xenial64"
+        node.vm.box_version = "20160930.0.0"
+      else
+        node.vm.box = "freebsd/FreeBSD-11.0-STABLE"
+        node.vm.base_mac = "DECAFBAD00"
+        node.ssh.shell = "/bin/sh"
+        node.vm.synced_folder ".", "/vagrant", type: "rsync",
+          rsync__exclude: ".git/"
+      end
 
       # don't always check for box updates
       node.vm.box_check_update = false
@@ -45,79 +53,84 @@ Vagrant.configure("2") do |config|
       end
 
       # use custom, static, password-less SSH keys to authenticate between VMs
-      ssh_pub_key = File.readlines("scripts/id_rsa.pub").join
-      ssh_sec_key = File.readlines("scripts/id_rsa").join
+      ssh_pub_key = File.readlines(File.dirname(__FILE__) + "/scripts/id_rsa.pub").join
+      ssh_sec_key = File.readlines(File.dirname(__FILE__) + "/scripts/id_rsa").join
 
-      # apply some fixes to the VM OS, update it, and install some tools
-      node.vm.provision "shell", inline: <<-SHELL
-        # install common SSH keys, allow password-less auth
-        echo "#{ssh_pub_key}" >> /home/ubuntu/.ssh/authorized_keys
-        echo "#{ssh_pub_key}" > /home/ubuntu/.ssh/id_rsa.pub
-        echo "#{ssh_sec_key}" > /home/ubuntu/.ssh/id_rsa
-        echo "StrictHostKeyChecking no" > /home/ubuntu/.ssh/config
-        echo "UserKnownHostsFile=/dev/null" >> /home/ubuntu/.ssh/config
-        chown -R ubuntu:ubuntu .ssh
-        chmod -R go-rwx .ssh/id_rsa
+      if i <= 2 then
+        # apply some fixes to the VM OS, update it, and install some tools
+        node.vm.provision "shell", inline: <<-SHELL
+          # install common SSH keys, allow password-less auth
+          echo "#{ssh_pub_key}" >> /home/ubuntu/.ssh/authorized_keys
+          echo "#{ssh_pub_key}" > /home/ubuntu/.ssh/id_rsa.pub
+          echo "#{ssh_sec_key}" > /home/ubuntu/.ssh/id_rsa
+          echo "StrictHostKeyChecking no" > /home/ubuntu/.ssh/config
+          echo "UserKnownHostsFile=/dev/null" >> /home/ubuntu/.ssh/config
+          chown -R ubuntu:ubuntu .ssh
+          chmod -R go-rwx .ssh/id_rsa
 
-        # update apt catalog
-        export DEBIAN_FRONTEND=noninteractive
-        apt-get update
+          # update apt catalog
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
 
-        # install some tools that are needed
-        apt-get -y install cmake cmake-curses-gui git dpkg-dev xinetd \
-          doxygen graphviz
+          # install some tools that are needed
+          apt-get -y install cmake cmake-curses-gui git dpkg-dev xinetd \
+            doxygen graphviz
 
-        # and some that I often use
-        apt-get -y install htop silversearcher-ag linux-tools-common \
-          linux-tools-generic gdb nmap fish dwarves
+          # and some that I often use
+          apt-get -y install htop silversearcher-ag linux-tools-common \
+            linux-tools-generic gdb nmap fish dwarves
 
-        # enable xinetd and remove rate limits
-        find /etc/xinetd.d -type f -and -exec \
-          sed -i -e 's/disable.*/disable\t\t= no/g' {} \;
-        sed -i -e 's/{/{\ninstances = UNLIMITED\ncps = 0 0/' /etc/xinetd.conf
+          # enable xinetd and remove rate limits
+          find /etc/xinetd.d -type f -and -exec \
+            sed -i -e 's/disable.*/disable\t\t= no/g' {} \;
+          sed -i -e 's/{/{\ninstances = UNLIMITED\ncps = 0 0/' /etc/xinetd.conf
 
-        # change shell to fish
-        chsh -s /usr/bin/fish ubuntu
+          # change shell to fish
+          chsh -s /usr/bin/fish ubuntu
 
-        # get Linux kernel sources, for building netmap
-        apt-get source linux-image-$(uname -r)
+          # get Linux kernel sources, for building netmap
+          apt-get source linux-image-$(uname -r)
 
-        # do a dist-upgrade and clean up
-        # XXX might update kernel, which makes building netmap difficult
-        # apt-get -y dist-upgrade
-        # apt-get -y autoremove
-        # apt-get -y autoclean
+          # do a dist-upgrade and clean up
+          # XXX might update kernel, which makes building netmap difficult
+          # apt-get -y dist-upgrade
+          # apt-get -y autoremove
+          # apt-get -y autoclean
 
-        # compile and install netmap
-        git clone https://github.com/luigirizzo/netmap ||
-          cd ~/netmap && git pull
-        # now, build and install netmap
-        cd /home/ubuntu/netmap
-        ./configure --driver-suffix=-netmap \
-          --kernel-sources=/home/ubuntu/linux-$(uname -r | cut -d- -f1)
-        make
-        make install
+          # compile and install netmap
+          git clone https://github.com/luigirizzo/netmap ||
+            cd ~/netmap && git pull
+          # now, build and install netmap
+          cd /home/ubuntu/netmap
+          ./configure --driver-suffix=-netmap \
+            --kernel-sources=/home/ubuntu/linux-$(uname -r | cut -d- -f1)
+          make
+          make install
 
-        # enable netmap at boot, and make sure the netmap e1000 driver is used
-        echo 'netmap' > /etc/modules-load.d/netmap.conf
-        echo 'e1000-netmap' >> /etc/modules-load.d/netmap.conf
-        echo 'blacklist e1000' > /etc/modprobe.d/blacklist-netmap.conf
-        echo 'blacklist virtio' >> /etc/modprobe.d/blacklist-netmap.conf
+          # enable netmap at boot, and make sure the netmap e1000 driver is used
+          echo 'netmap' > /etc/modules-load.d/netmap.conf
+          echo 'e1000-netmap' >> /etc/modules-load.d/netmap.conf
+          echo 'blacklist e1000' > /etc/modprobe.d/blacklist-netmap.conf
+          echo 'blacklist virtio' >> /etc/modprobe.d/blacklist-netmap.conf
 
-        # various changes to /etc to let normal users use netmap
-        echo 'KERNEL=="netmap", MODE="0666"' > /etc/udev/rules.d/netmap.rules
-        echo '*   soft  memlock   unlimited' >> /etc/security/limits.conf
-        echo '*   hard  memlock   unlimited' >> /etc/security/limits.conf
+          # various changes to /etc to let normal users use netmap
+          echo 'KERNEL=="netmap", MODE="0666"' > /etc/udev/rules.d/netmap.rules
+          echo '*   soft  memlock   unlimited' >> /etc/security/limits.conf
+          echo '*   hard  memlock   unlimited' >> /etc/security/limits.conf
 
-        # build a new initrd
-        depmod -a
-        update-initramfs -u
+          # build a new initrd
+          depmod -a
+          update-initramfs -u
 
-        # XXX is there a way to automate this (reboot doesn't mount /vagrant)
-        echo 'IMPORTANT: You need to "vagrant reload #{node.vm.hostname}"' \
-          'for netmap support!'
-      SHELL
-
+          # XXX is there a way to automate this (reboot doesn't mount /vagrant)
+          echo 'IMPORTANT: You need to "vagrant reload #{node.vm.hostname}"' \
+            'for netmap support!'
+        SHELL
+      else
+        node.vm.provision "shell", inline: <<-SHELL
+          pkg install sudo cmake nano git
+        SHELL
+      end
     end
   end
 end
