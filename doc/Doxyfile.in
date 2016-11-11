@@ -3,7 +3,9 @@
 PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
 PROJECT_NUMBER         = @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
 STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
-                         @PROJECT_BINARY_DIR@
+                         @PROJECT_BINARY_DIR@ \
+                         @PROJECT_SOURCE_DIR@/lib \
+                         @PROJECT_BINARY_DIR@/lib
 INPUT                  = @PROJECT_SOURCE_DIR@/lib \
                          @PROJECT_BINARY_DIR@/lib
 FILE_PATTERNS          = *.h \
@@ -15,3 +17,11 @@ OPTIMIZE_OUTPUT_FOR_C  = YES
 CLANG_OPTIONS          = @COMPILE_OPTIONS@
 GENERATE_LATEX         = NO
 JAVADOC_AUTOBRIEF      = YES
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = __attribute__(x)=
+
+INPUT                  += @PROJECT_SOURCE_DIR@/README.md
+USE_MDFILE_AS_MAINPAGE = @PROJECT_SOURCE_DIR@/README.md
