@@ -17,9 +17,10 @@
 
 // This modifies the ARP query in the current receive buffer into an ARP reply
 // and sends it out.
-static void arp_is_at(struct warpcore * w, void * const buf)
+static void __attribute__((nonnull))
+arp_is_at(struct warpcore * restrict const w, void * restrict const buf)
 {
-    struct arp_hdr * const arp = eth_data(buf);
+    struct arp_hdr * restrict const arp = eth_data(buf);
 
     // modify ARP header
     arp->op = htons(ARP_OP_REPLY);
@@ -43,17 +44,18 @@ static void arp_is_at(struct warpcore * w, void * const buf)
 
 // Use a spare iov to transmit an ARP query for the given destination
 // IP address.
-void arp_who_has(struct warpcore * const w, const uint32_t dip)
+void __attribute__((nonnull))
+arp_who_has(struct warpcore * restrict const w, const uint32_t dip)
 {
     // grab a spare buffer
-    struct w_iov * const v = STAILQ_FIRST(&w->iov);
+    struct w_iov * restrict const v = STAILQ_FIRST(&w->iov);
     assert(v != 0, "out of spare bufs");
     STAILQ_REMOVE_HEAD(&w->iov, next);
     v->buf = IDX2BUF(w, v->idx);
 
     // pointers to the start of the various headers
-    struct eth_hdr * const eth = (struct eth_hdr *)(v->buf);
-    struct arp_hdr * const arp = eth_data(v->buf);
+    struct eth_hdr * restrict const eth = v->buf;
+    struct arp_hdr * restrict const arp = eth_data(v->buf);
 
     // set Ethernet header fields
     memcpy(eth->dst, ETH_BCAST, ETH_ADDR_LEN);
@@ -89,14 +91,14 @@ void arp_who_has(struct warpcore * const w, const uint32_t dip)
 
 
 // Receive an ARP packet, and react
-void arp_rx(struct warpcore * w, void * const buf)
+void arp_rx(struct warpcore * restrict const w, void * restrict const buf)
 {
 #ifndef NDEBUG
     char tpa[IP_ADDR_STRLEN];
     char spa[IP_ADDR_STRLEN];
     char sha[ETH_ADDR_STRLEN];
 #endif
-    const struct arp_hdr * const arp = eth_data(buf);
+    const struct arp_hdr * restrict const arp = eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
     assert(hrd == ARP_HRD_ETHER && arp->hln == ETH_ADDR_LEN,

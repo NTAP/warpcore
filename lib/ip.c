@@ -27,7 +27,8 @@
 #endif
 
 // Convert a network byte order IP address into a string.
-const char * ip_ntoa(uint32_t ip, void * const buf, const size_t size)
+const __attribute__((nonnull)) char *
+ip_ntoa(uint32_t ip, void * restrict const buf, const size_t size)
 {
     const uint32_t i = ntohl(ip);
     snprintf(buf, size, "%u.%u.%u.%u", (i >> 24) & 0xff, (i >> 16) & 0xff,
@@ -38,9 +39,8 @@ const char * ip_ntoa(uint32_t ip, void * const buf, const size_t size)
 
 
 // Convert a string into a network byte order IP address.
-uint32_t ip_aton(const char * const ip)
+uint32_t __attribute__((nonnull)) ip_aton(const char * restrict const ip)
 {
-
     uint32_t i;
     const int r = sscanf(ip, "%hhu.%hhu.%hhu.%hhu", (unsigned char *)(&i),
                          (unsigned char *)(&i) + 1, (unsigned char *)(&i) + 2,
@@ -51,12 +51,13 @@ uint32_t ip_aton(const char * const ip)
 
 // Make an IP reply packet out of the IP packet in the current receive buffer.
 // Used by icmp_tx().
-void ip_tx_with_rx_buf(struct warpcore * w,
-                       const uint8_t p,
-                       void * const buf,
-                       const uint16_t len)
+void __attribute__((nonnull))
+ip_tx_with_rx_buf(struct warpcore * restrict const w,
+                  const uint8_t p,
+                  void * restrict const buf,
+                  const uint16_t len)
 {
-    struct ip_hdr * const ip = eth_data(buf);
+    struct ip_hdr * restrict const ip = eth_data(buf);
 
     // TODO: we should zero out any IP options here,
     // since we're reflecing a received packet
@@ -86,10 +87,10 @@ void ip_tx_with_rx_buf(struct warpcore * w,
 }
 
 // Receive an IP packet.
-void ip_rx(struct warpcore * const w, void * const buf)
+void __attribute__((nonnull))
+ip_rx(struct warpcore * restrict const w, void * restrict const buf)
 {
-    const struct ip_hdr * const ip = eth_data(buf);
-
+    const struct ip_hdr * restrict const ip = eth_data(buf);
     ip_log(ip);
 
     // make sure the packet is for us (or broadcast)
@@ -131,9 +132,11 @@ void ip_rx(struct warpcore * const w, void * const buf)
 // Fill in the IP header information that isn't set as part of the
 // socket packet template, calculate the header checksum, and hand off
 // to the Ethernet layer.
-bool ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len)
+bool __attribute__((nonnull)) ip_tx(struct warpcore * restrict const w,
+                                    struct w_iov * restrict const v,
+                                    const uint16_t len)
 {
-    struct ip_hdr * const ip = eth_data(IDX2BUF(w, v->idx));
+    struct ip_hdr * restrict const ip = eth_data(IDX2BUF(w, v->idx));
     const uint16_t l = len + sizeof(struct ip_hdr);
 
     // fill in remaining header fields
