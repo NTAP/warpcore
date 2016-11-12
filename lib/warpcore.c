@@ -328,7 +328,6 @@ void w_cleanup(struct warpcore * const w)
     }
 
     free(w->udp);
-    free(w->ifname);
     SLIST_REMOVE(&wc, w, warpcore, next);
     free(w);
 }
@@ -354,7 +353,7 @@ struct warpcore * w_init(const char * const ifname)
     bool link_up = false;
 
     SLIST_FOREACH (w, &wc, next)
-        assert(strcmp(ifname, w->ifname),
+        assert(strcmp(ifname, w->req.nr_name),
                "can only have one warpcore engine active on %s", ifname);
 
     // allocate engine struct
@@ -414,12 +413,6 @@ struct warpcore * w_init(const char * const ifname)
     }
     assert(w->ip != 0 && w->mask != 0 && w->mtu != 0 && !IS_ZERO(w->mac),
            "%s: cannot obtain needed interface information", ifname);
-
-    // remember interface name
-    const size_t len = strlen(ifname);
-    assert((w->ifname = calloc(1, len + 1)) != 0,
-           "cannot allocate interface name");
-    strncpy(w->ifname, ifname, len);
 
 #ifndef NDEBUG
     char ip[IP_ADDR_STRLEN];

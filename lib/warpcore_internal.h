@@ -50,7 +50,6 @@ struct warpcore {
     struct nmreq req;            // netmap request
     uint32_t mbps;               // our link speed
     SLIST_ENTRY(warpcore) next;  // next engine
-    char * restrict ifname;      // interface name of the engine
 };
 
 
