@@ -113,12 +113,12 @@ int main(int argc, char * argv[])
         w_rx_done(tme);
     };
 
-    w_close(ech);
-    w_close(dsc);
-    w_close(dtm);
-    w_close(tme);
+    // w_close(ech);
+    // w_close(dsc);
+    // w_close(dtm);
+    // w_close(tme);
 
-    w_cleanup(w);
+    // w_cleanup(w);
 
-    return 0;
+    // return 0;
 }

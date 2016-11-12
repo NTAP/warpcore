@@ -125,11 +125,7 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * restrict const s)
         }
         s->w->cur_rxr = (s->w->cur_rxr + 1) % s->w->nif->ni_rx_rings;
     }
-
-    // XXX isn't s always true? shouldn't we check which socket received?
-    if (s)
-        return STAILQ_FIRST(&s->iv);
-    return 0;
+    return STAILQ_FIRST(&s->iv);
 }
 
 
@@ -356,7 +352,7 @@ void w_init_common(void)
 
 
 // Initialize warpcore on the given interface.
-struct __attribute__((nonnull)) warpcore *
+struct warpcore * __attribute__((nonnull))
 w_init(const char * restrict const ifname)
 {
     struct warpcore * restrict w;
