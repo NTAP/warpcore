@@ -17,14 +17,14 @@ struct w_iov {
 #define IP_P_UDP 17 // IP protocol number for UDP
 
 
-extern void * w_init(const char * const ifname);
+extern struct warpcore * w_init(const char * const ifname);
 
 extern void w_init_common(void);
 
-extern void w_cleanup(void * const w);
+extern void w_cleanup(struct warpcore * const w);
 
 extern struct w_sock *
-w_bind(void * const w, const uint8_t p, const uint16_t port);
+w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port);
 
 extern void
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
@@ -33,14 +33,15 @@ extern void w_close(struct w_sock * const s);
 
 extern struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len);
 
-extern void w_poll(const void * const w, const short ev, const int to);
+extern void
+w_poll(const struct warpcore * const w, const short ev, const int to);
 
 extern void w_rx_done(struct w_sock * const s);
 
 extern struct w_iov * w_rx(struct w_sock * const s);
 
-extern void w_kick_tx(const void * const w);
+extern void w_kick_tx(const struct warpcore * const w);
 
-extern void w_kick_rx(const void * const w);
+extern void w_kick_rx(const struct warpcore * const w);
 
 extern void w_tx(struct w_sock * const s);
