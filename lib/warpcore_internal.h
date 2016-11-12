@@ -37,15 +37,19 @@ struct warpcore {
     STAILQ_HEAD(iovh, w_iov) iov; // our available bufs
     uint32_t ip;                  // our IP address
     uint32_t mask;                // our IP netmask
+    uint32_t rip;                 // our default router IP address
     uint16_t mtu;                 // our MTU
     uint8_t mac[ETH_ADDR_LEN];    // our Ethernet address
-    void * mem;                   // netmap memory
     int fd;                       // netmap descriptor
+    void * mem;                   // netmap memory
     struct nmreq req;             // netmap request
-    SLIST_ENTRY(warpcore) next;   // next engine
+    uint8_t unused[4];
+    SLIST_ENTRY(warpcore) next; // next engine
 };
 
 
-#define w_bcast(ip, mask) (ip | (~mask))
+#define w_bcast(ip, mask) ((ip) | (~mask))
+
+#define w_net(ip, mask) ((ip) & (mask))
 
 #define w_get_sock(w, p, port) ((p) == IP_P_UDP ? &(w)->udp[port] : 0)

@@ -47,7 +47,7 @@ int main(int argc, char * argv[])
         return 0;
     }
 
-    struct warpcore * w = w_init(ifname);
+    struct warpcore * w = w_init(ifname, 0);
 
     // start the inetd-like "small services"
     struct w_sock * ech = w_bind(w, IP_P_UDP, htons(7));

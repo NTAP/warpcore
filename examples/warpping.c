@@ -1,11 +1,11 @@
 #include <getopt.h>
 #include <netdb.h>
-#include <stdint.h>
+#include <netinet/in.h>
 #include <poll.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 
 // example applications MUST only depend on warpcore.h
 #include "util.h"
@@ -23,6 +23,7 @@ usage(const char * const name, const uint16_t size, const long loops)
     printf("\t[-k]                    use kernel, default is warpcore\n");
     printf("\t -i interface           interface to run over\n");
     printf("\t -d destination IP      peer to connect to\n");
+    printf("\t[-r router IP]          router to use for non-local peers\n");
     printf("\t[-s packet size]        optional, default %d\n", size);
     printf("\t[-l loop interations]   optional, default %ld\n", loops);
     printf("\t[-b]                    busy-wait\n");
@@ -56,19 +57,23 @@ int main(int argc, char * argv[])
 {
     const char * ifname = 0;
     const char * dst = 0;
+    const char * rtr = 0;
     long loops = 1;
     uint16_t size = sizeof(struct timespec);
     bool use_warpcore = true;
     bool busywait = false;
 
     int ch;
-    while ((ch = getopt(argc, argv, "hi:d:l:s:kb")) != -1) {
+    while ((ch = getopt(argc, argv, "hi:d:l:r:s:kb")) != -1) {
         switch (ch) {
         case 'i':
             ifname = optarg;
             break;
         case 'd':
             dst = optarg;
+            break;
+        case 'r':
+            rtr = optarg;
             break;
         case 'l':
             loops = strtol(optarg, 0, 10);
@@ -96,12 +101,12 @@ int main(int argc, char * argv[])
     }
 
     const uint8_t proto = IP_P_UDP;
-    struct addrinfo hints, *res;
+    struct addrinfo hints, *peer;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = PF_INET;
     hints.ai_protocol = proto;
-    if (getaddrinfo(dst, "echo", &hints, &res) != 0)
-        die("getaddrinfo");
+    if (getaddrinfo(dst, "echo", &hints, &peer) != 0)
+        die("getaddrinfo peer");
 
     struct warpcore * w = 0;
     struct w_sock * ws = 0;
@@ -109,17 +114,25 @@ int main(int argc, char * argv[])
     struct pollfd fds;
     void * before = 0;
     void * after = 0;
+    uint32_t rip = 0;
     if (use_warpcore) {
-        w = w_init(ifname);
+        struct addrinfo * router;
+        if (rtr) {
+            assert(getaddrinfo(rtr, "echo", &hints, &router) == 0,
+                   "getaddrinfo router");
+            rip = ((struct sockaddr_in *)(void *)router->ai_addr)
+                      ->sin_addr.s_addr;
+        }
+        w = w_init(ifname, rip);
         ws = w_bind(w, proto, (uint16_t)random());
-        w_connect(ws,
-                  ((struct sockaddr_in *)(void *)res->ai_addr)->sin_addr.s_addr,
-                  ((struct sockaddr_in *)(void *)res->ai_addr)->sin_port);
+        w_connect(
+            ws, ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
+            ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
     } else {
         w_init_common();
-        ks = socket(res->ai_family,
-                    res->ai_socktype | (busywait ? SOCK_NONBLOCK : 0),
-                    res->ai_protocol);
+        ks = socket(peer->ai_family,
+                    peer->ai_socktype | (busywait ? SOCK_NONBLOCK : 0),
+                    peer->ai_protocol);
         if (ks == -1)
             die("socket");
         fds.fd = ks;
@@ -135,8 +148,7 @@ int main(int argc, char * argv[])
             before = o->buf;
         }
 
-        if (clock_gettime(CLOCK_REALTIME_PRECISE, (struct timespec *)before) ==
-            -1)
+        if (clock_gettime(CLOCK_REALTIME_PRECISE, before) == -1)
             die("clock_gettime");
 
         if (use_warpcore) {
@@ -166,7 +178,7 @@ int main(int argc, char * argv[])
                 continue;
             }
         } else {
-            sendto(ks, before, size, 0, res->ai_addr, res->ai_addrlen);
+            sendto(ks, before, size, 0, peer->ai_addr, peer->ai_addrlen);
 
             if (!busywait) {
                 const int p = poll(&fds, 1, 1000);
@@ -177,10 +189,10 @@ int main(int argc, char * argv[])
                 }
             }
 
-            socklen_t fromlen = res->ai_addrlen;
+            socklen_t fromlen = peer->ai_addrlen;
             ssize_t s = 0;
             do {
-                s = recvfrom(ks, after, size, 0, res->ai_addr, &fromlen);
+                s = recvfrom(ks, after, size, 0, peer->ai_addr, &fromlen);
             } while (s == 0 || (s == -1 && errno == EAGAIN));
         }
 
@@ -188,7 +200,7 @@ int main(int argc, char * argv[])
         if (clock_gettime(CLOCK_REALTIME_PRECISE, &now) == -1)
             die("clock_gettime");
 
-        time_diff(&diff, &now, (struct timespec *)after);
+        time_diff(&diff, &now, after);
         if (unlikely(diff.tv_sec != 0))
             die("time difference is more than %ld sec", diff.tv_sec);
 
@@ -204,7 +216,7 @@ int main(int argc, char * argv[])
         free(before);
         free(after);
     }
-    freeaddrinfo(res);
+    freeaddrinfo(peer);
 
     return 0;
 }

@@ -128,13 +128,20 @@ void arp_rx(struct warpcore * const w, void * const buf)
         // check if any socket has an IP address matching this ARP
         // reply, and if so, change its destination MAC
         struct w_sock * s;
-        SLIST_FOREACH (s, &w->sock, next)
-            if (s->hdr.ip.dst == arp->spa) {
+        SLIST_FOREACH (s, &w->sock, next) {
+            if ( // is local-net socket
+                (w_net(s->w->ip, s->w->mask) ==
+                     w_net(s->hdr.ip.dst, s->w->mask) ||
+                 // or non-local socket connected via router
+                 (s->w->rip && (s->w->rip == arp->spa))) &&
+                // and the ARP matches
+                s->hdr.ip.dst == arp->spa) {
                 warn(notice, "updating socket with %s for %s",
                      ether_ntoa_r((const struct ether_addr *)arp->sha, sha),
                      ip_ntoa(arp->spa, spa, sizeof spa));
                 memcpy(&s->hdr.eth.dst, arp->sha, ETH_ADDR_LEN);
             }
+        }
         break;
     }
 

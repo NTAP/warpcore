@@ -197,18 +197,22 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
     s->hdr.ip.dst = dip;
     s->hdr.udp.dport = dport;
 
-    // find the Ethernet addr of the destination
+    // find the Ethernet addr of the destination or the default router
     while (IS_ZERO(s->hdr.eth.dst)) {
+        const uint32_t ip = s->w->rip && (w_net(dip, s->w->mask) !=
+                                          w_net(s->hdr.ip.src, s->w->mask))
+                                ? s->w->rip
+                                : dip;
         warn(notice, "doing ARP lookup for %s",
-             ip_ntoa(dip, str, IP_ADDR_STRLEN));
-        arp_who_has(s->w, dip);
+             ip_ntoa(ip, str, IP_ADDR_STRLEN));
+        arp_who_has(s->w, ip);
         w_poll(s->w, POLLIN, 1000);
         w_kick_rx(s->w);
         w_rx(s);
         if (!IS_ZERO(s->hdr.eth.dst))
             break;
         warn(warn, "no ARP reply for %s, retrying",
-             ip_ntoa(dip, str, IP_ADDR_STRLEN));
+             ip_ntoa(ip, str, IP_ADDR_STRLEN));
     }
 
     warn(notice, "IP proto %d socket connected to %s port %d", s->hdr.ip.p,
@@ -343,8 +347,9 @@ void w_init_common(void)
 }
 
 
-// Initialize warpcore on the given interface.
-struct warpcore * __attribute__((nonnull)) w_init(const char * const ifname)
+// Initialize warpcore on the given interface and optionally with router IP rip.
+struct warpcore * __attribute__((nonnull))
+w_init(const char * const ifname, const uint32_t rip)
 {
     struct warpcore * w;
     bool link_up = false;
@@ -412,12 +417,17 @@ struct warpcore * __attribute__((nonnull)) w_init(const char * const ifname)
     assert(w->ip != 0 && w->mask != 0 && w->mtu != 0 && !IS_ZERO(w->mac),
            "%s: cannot obtain needed interface information", ifname);
 
+    // set the IP address of our default router
+    w->rip = rip;
+
 #ifndef NDEBUG
     char ip[IP_ADDR_STRLEN];
+    char rtr[IP_ADDR_STRLEN];
     char mask[IP_ADDR_STRLEN];
-    warn(notice, "%s has IP addr %s/%s", ifname,
+    warn(notice, "%s has IP addr %s/%s%s%s", ifname,
          ip_ntoa(w->ip, ip, IP_ADDR_STRLEN),
-         ip_ntoa(w->mask, mask, IP_ADDR_STRLEN));
+         ip_ntoa(w->mask, mask, IP_ADDR_STRLEN), rip ? ", router " : "",
+         rip ? ip_ntoa(w->rip, rtr, IP_ADDR_STRLEN) : "");
 #endif
 
     // open /dev/netmap
@@ -476,7 +486,6 @@ struct warpcore * __attribute__((nonnull)) w_init(const char * const ifname)
             NUM_EXTRA_BUFS);
     else
         warn(notice, "allocated %d extra buffers", w->req.nr_arg3);
-
 
     // initialize list of sockets
     SLIST_INIT(&w->sock);

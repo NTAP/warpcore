@@ -17,7 +17,7 @@ struct w_iov {
 #define IP_P_UDP 17 // IP protocol number for UDP
 
 
-extern struct warpcore * w_init(const char * const ifname);
+extern struct warpcore * w_init(const char * const ifname, const uint32_t rip);
 
 extern void w_init_common(void);
 
