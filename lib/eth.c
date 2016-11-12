@@ -20,17 +20,16 @@
 // buffer from the tx ring to the rx ring) and transmit it.
 // This is currently only used for sending replies to inbound ICMP and ARP
 // requests.
-void __attribute__((nonnull)) eth_tx_rx_cur(struct warpcore * w,
-                                            void * restrict const buf,
-                                            const uint16_t len)
+void __attribute__((nonnull))
+eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
 {
-    struct netmap_ring * restrict const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
-    struct netmap_ring * restrict const txr = NETMAP_TXRING(w->nif, w->cur_txr);
-    struct netmap_slot * restrict const rxs = &rxr->slot[rxr->cur];
-    struct netmap_slot * restrict const txs = &txr->slot[txr->cur];
+    struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
+    struct netmap_ring * const txr = NETMAP_TXRING(w->nif, w->cur_txr);
+    struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
+    struct netmap_slot * const txs = &txr->slot[txr->cur];
 
     // make the original src address the new dst, and set the src
-    struct eth_hdr * restrict const eth = buf;
+    struct eth_hdr * const eth = buf;
     memcpy(eth->dst, eth->src, sizeof eth->dst);
     memcpy(eth->src, w->mac, sizeof eth->src);
 
@@ -62,9 +61,9 @@ void __attribute__((nonnull)) eth_tx_rx_cur(struct warpcore * w,
 // Receive an Ethernet packet. This is the lowest level inbound function,
 // called from w_poll.
 void __attribute__((nonnull))
-eth_rx(struct warpcore * restrict const w, void * restrict const buf)
+eth_rx(struct warpcore * const w, void * const buf)
 {
-    struct eth_hdr * restrict const eth = buf;
+    struct eth_hdr * const eth = buf;
 
 #ifndef NDEBUG
     char src[ETH_ADDR_STRLEN];
@@ -93,12 +92,11 @@ eth_rx(struct warpcore * restrict const w, void * restrict const buf)
 
 // Swap the buffer in the iov into the tx ring, placing an empty one
 // into the iov.
-bool __attribute__((nonnull)) eth_tx(struct warpcore * restrict const w,
-                                     struct w_iov * restrict const v,
-                                     const uint16_t len)
+bool __attribute__((nonnull))
+eth_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len)
 {
     // check if there is space in the current txr
-    struct netmap_ring * restrict txr = 0;
+    struct netmap_ring * txr = 0;
     uint32_t i;
     for (i = 0; i < w->nif->ni_tx_rings; i++) {
         txr = NETMAP_TXRING(w->nif, w->cur_txr);
@@ -119,7 +117,7 @@ bool __attribute__((nonnull)) eth_tx(struct warpcore * restrict const w,
         return false;
     }
 
-    struct netmap_slot * restrict const txs = &txr->slot[txr->cur];
+    struct netmap_slot * const txs = &txr->slot[txr->cur];
 
     // prefetch the next slot into the cache, too
     _mm_prefetch(
@@ -136,8 +134,7 @@ bool __attribute__((nonnull)) eth_tx(struct warpcore * restrict const w,
     txs->flags = NS_BUF_CHANGED;
 
 #ifndef NDEBUG
-    const struct eth_hdr * restrict const eth =
-        (void *)NETMAP_BUF(txr, txs->buf_idx);
+    const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, txs->buf_idx);
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
     warn(info, "Eth %s -> %s, type %d, len %lu",

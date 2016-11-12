@@ -83,7 +83,7 @@ enum dlevel { crit = 0, err = 1, warn = 2, notice = 3, info = 4, debug = 5 };
 #define DCOMPONENT ".*"
 #endif
 
-extern const char * restrict const _col[];
+extern const char * const _col[];
 extern regex_t _comp;
 
 
@@ -151,8 +151,8 @@ extern regex_t _comp;
 
 
 extern struct timeval _epoch;
-extern int timeval_subtract(struct timeval * restrict const result,
-                            struct timeval * restrict const x,
-                            struct timeval * restrict const y);
+extern int timeval_subtract(struct timeval * const result,
+                            struct timeval * const x,
+                            struct timeval * const y);
 
-extern void hexdump(const void * restrict const ptr, const size_t len);
+extern void hexdump(const void * const ptr, const size_t len);

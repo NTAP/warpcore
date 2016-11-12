@@ -21,12 +21,11 @@
 #endif
 
 // Receive a UDP packet.
-void __attribute__((nonnull)) udp_rx(struct warpcore * restrict const w,
-                                     void * restrict const buf,
-                                     const uint32_t src)
+void __attribute__((nonnull))
+udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 {
-    const struct ip_hdr * restrict const ip = eth_data(buf);
-    struct udp_hdr * restrict const udp = ip_data(buf);
+    const struct ip_hdr * const ip = eth_data(buf);
+    struct udp_hdr * const udp = ip_data(buf);
     const uint16_t len = ntohs(udp->len);
 
     udp_log(udp);
@@ -42,7 +41,7 @@ void __attribute__((nonnull)) udp_rx(struct warpcore * restrict const w,
         return;
     }
 
-    struct w_sock ** restrict const s = w_get_sock(w, IP_P_UDP, udp->dport);
+    struct w_sock ** const s = w_get_sock(w, IP_P_UDP, udp->dport);
     if (unlikely(*s == 0)) {
         // nobody bound to this port locally
         // send an ICMP unreachable
@@ -51,10 +50,10 @@ void __attribute__((nonnull)) udp_rx(struct warpcore * restrict const w,
     }
 
     // grab an unused iov for the data in this packet
-    struct w_iov * restrict const i = STAILQ_FIRST(&w->iov);
+    struct w_iov * const i = STAILQ_FIRST(&w->iov);
     assert(i != 0, "out of spare bufs");
-    struct netmap_ring * restrict const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
-    struct netmap_slot * restrict const rxs = &rxr->slot[rxr->cur];
+    struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
+    struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
     STAILQ_REMOVE_HEAD(&w->iov, next);
 
     warn(debug, "swapping rx ring %u slot %d (buf %d) and spare buf %u",
@@ -82,20 +81,20 @@ void __attribute__((nonnull)) udp_rx(struct warpcore * restrict const w,
 
 
 // Put the socket template header in front of the data in the iov and send.
-void __attribute__((nonnull)) udp_tx(struct w_sock * restrict const s)
+void __attribute__((nonnull)) udp_tx(struct w_sock * const s)
 {
 #ifndef NDEBUG
     uint32_t n = 0, l = 0;
 #endif
     // packetize bufs and place in tx ring
     while (likely(!STAILQ_EMPTY(&s->ov))) {
-        struct w_iov * restrict const v = STAILQ_FIRST(&s->ov);
+        struct w_iov * const v = STAILQ_FIRST(&s->ov);
 
         // copy template header into buffer and fill in remaining fields
-        void * restrict const buf = IDX2BUF(s->w, v->idx);
+        void * const buf = IDX2BUF(s->w, v->idx);
         memcpy(buf, &s->hdr, sizeof(s->hdr));
 
-        struct udp_hdr * restrict const udp = ip_data(buf);
+        struct udp_hdr * const udp = ip_data(buf);
         const uint16_t len = v->len + sizeof(struct udp_hdr);
         udp->len = htons(len);
 
