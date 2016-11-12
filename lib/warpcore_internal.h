@@ -31,24 +31,18 @@ struct w_sock {
 struct warpcore {
     struct netmap_if * nif;       // netmap interface
     struct w_sock ** udp;         // UDP "sockets"
+    SLIST_HEAD(sh, w_sock) sock;  // our open sockets
     uint32_t cur_txr;             // our current tx ring
     uint32_t cur_rxr;             // our current rx ring
     STAILQ_HEAD(iovh, w_iov) iov; // our available bufs
     uint32_t ip;                  // our IP address
+    uint32_t mask;                // our IP netmask
+    uint16_t mtu;                 // our MTU
     uint8_t mac[ETH_ADDR_LEN];    // our Ethernet address
-    uint8_t _unused1;
-
-    // mtu could be pushed into the second cacheline
-    uint16_t mtu; // our MTU
-    uint16_t _unused2;
-
-    // --- cacheline 1 boundary (64 bytes) ---
-    void * mem;                  // netmap memory
-    SLIST_HEAD(sh, w_sock) sock; // our open sockets
-    uint32_t mask;               // our IP netmask
-    int fd;                      // netmap descriptor
-    struct nmreq req;            // netmap request
-    SLIST_ENTRY(warpcore) next;  // next engine
+    void * mem;                   // netmap memory
+    int fd;                       // netmap descriptor
+    struct nmreq req;             // netmap request
+    SLIST_ENTRY(warpcore) next;   // next engine
 };
 
 
