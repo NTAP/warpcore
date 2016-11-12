@@ -33,14 +33,14 @@ extern void w_close(struct w_sock * const s);
 
 extern struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len);
 
-extern bool w_poll(const void * const w, const short ev, const int to);
+extern void w_poll(const void * const w, const short ev, const int to);
 
 extern void w_rx_done(struct w_sock * const s);
 
 extern struct w_iov * w_rx(struct w_sock * const s);
 
-extern bool w_kick_tx(const void * const w);
+extern void w_kick_tx(const void * const w);
 
-extern bool w_kick_rx(const void * const w);
+extern void w_kick_rx(const void * const w);
 
 extern void w_tx(struct w_sock * const s);

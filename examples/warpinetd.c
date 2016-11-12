@@ -55,12 +55,11 @@ int main(int argc, char * argv[])
     struct w_sock * dtm = w_bind(w, IP_P_UDP, htons(13));
     struct w_sock * tme = w_bind(w, IP_P_UDP, htons(37));
 
-    bool done = false;
-    do {
+    while (1) {
         if (!busywait)
-            done = w_poll(w, POLLIN, -1);
+            w_poll(w, POLLIN, -1);
         else
-            done = w_kick_rx(w);
+            w_kick_rx(w);
 
         // echo service
         struct w_iov * i = w_rx(ech);
@@ -112,7 +111,8 @@ int main(int argc, char * argv[])
             i = STAILQ_NEXT(i, next);
         }
         w_rx_done(tme);
-    } while (done == false);
+    };
+
     w_close(ech);
     w_close(dsc);
     w_close(dtm);

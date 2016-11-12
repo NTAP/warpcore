@@ -36,7 +36,6 @@ struct warpcore {
     STAILQ_HEAD(iovh, w_iov) iov; // our available bufs
     uint32_t ip;                  // our IP address
     uint8_t mac[ETH_ADDR_LEN];    // our Ethernet address
-    bool interrupt;               // termination flag
     uint8_t _unused1;
 
     // mtu could be pushed into the second cacheline

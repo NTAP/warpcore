@@ -68,7 +68,7 @@ struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len)
 
 // Wait until netmap is ready to send or receive more data. Parameters
 // "event" and "timeout" identical to poll system call.
-bool w_poll(const void * const w, const short ev, const int to)
+void w_poll(const void * const w, const short ev, const int to)
 {
     struct pollfd fds = {.fd = ((const struct warpcore * const)w)->fd,
                          .events = ev};
@@ -77,17 +77,16 @@ bool w_poll(const void * const w, const short ev, const int to)
     if (unlikely(n == -1)) {
         if (errno == EINTR) {
             warn(notice, "poll: interrupt");
-            return true;
+            return;
         } else
             die("poll");
     }
     if (unlikely(n == 0)) {
         warn(notice, "poll: timeout expired");
-        return false;
+        return;
     }
 
     rwarn(debug, 1, "poll: %d descriptors ready", n);
-    return false;
 }
 
 
@@ -133,20 +132,18 @@ struct w_iov * w_rx(struct w_sock * const s)
 
 
 // Internal warpcore function. Kick the tx ring.
-bool w_kick_tx(const void * const w)
+void w_kick_tx(const void * const w)
 {
     assert(ioctl(((const struct warpcore * const)w)->fd, NIOCTXSYNC, 0) != -1,
            "cannot kick tx ring");
-    return ((const struct warpcore * const)w)->interrupt;
 }
 
 
 // Internal warpcore function. Kick the rx ring.
-bool w_kick_rx(const void * const w)
+void w_kick_rx(const void * const w)
 {
     assert(ioctl(((const struct warpcore * const)w)->fd, NIOCRXSYNC, 0) != -1,
            "cannot kick rx ring");
-    return ((const struct warpcore * const)w)->interrupt;
 }
 
 
@@ -212,8 +209,6 @@ void w_connect(struct w_sock * const s,
              ip_ntoa(dip, str, IP_ADDR_STRLEN));
         arp_who_has(s->w, dip);
         w_poll(s->w, POLLIN, 1000);
-        if (s->w->interrupt)
-            return;
         w_kick_rx(s->w);
         w_rx(s);
         if (!IS_ZERO(s->hdr.eth.dst))
@@ -340,15 +335,6 @@ void w_cleanup(void * const w)
     free(ww->ifname);
     SLIST_REMOVE(&wc, ww, warpcore, next);
     free(ww);
-}
-
-
-// Interrupt handler.
-static void w_handler(int sig __attribute__((unused)))
-{
-    struct warpcore * w;
-    SLIST_FOREACH (w, &wc, next)
-        w->interrupt = true;
 }
 
 
@@ -515,12 +501,6 @@ void * w_init(const char * const ifname)
 
     // do the common system setup which is also useful for non-warpcore
     w_init_common();
-
-    // block SIGINT and SIGTERM
-    assert(signal(SIGINT, w_handler) != SIG_ERR,
-           "cannot register SIGINT handler");
-    assert(signal(SIGTERM, w_handler) != SIG_ERR,
-           "cannot register SIGTERM handler");
 
     // store the initialized engine in our global list
     SLIST_INSERT_HEAD(&wc, w, next);

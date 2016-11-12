@@ -130,7 +130,6 @@ int main(int argc, char * argv[])
 
     printf("nsec\tsize\n");
     while (likely(loops--)) {
-        bool done = false;
         if (use_warpcore) {
             struct w_iov * const o = w_tx_alloc(ws, size);
             before = o->buf;
@@ -146,21 +145,18 @@ int main(int argc, char * argv[])
             const struct w_iov * i = 0;
             struct timespec diff, now;
             if (!busywait) {
-                done = w_poll(w, POLLIN, 1000);
+                w_poll(w, POLLIN, 1000);
                 w_kick_rx(w);
                 i = w_rx(ws);
             } else {
                 do {
-                    done = w_kick_rx(w);
+                    w_kick_rx(w);
                     i = w_rx(ws);
                     if (clock_gettime(CLOCK_REALTIME_PRECISE, &now) == -1)
                         die("clock_gettime");
                     time_diff(&diff, &now, before);
                 } while (i == 0 && diff.tv_sec == 0);
             }
-
-            if (unlikely(done))
-                goto done;
 
             if (i)
                 after = i->buf;
@@ -200,7 +196,7 @@ int main(int argc, char * argv[])
         if (use_warpcore)
             w_rx_done(ws);
     }
-done:
+
     if (use_warpcore) {
         w_close(ws);
         w_cleanup(w);
