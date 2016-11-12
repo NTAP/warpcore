@@ -48,7 +48,6 @@ struct warpcore {
     uint32_t mask;               // our IP netmask
     int fd;                      // netmap descriptor
     struct nmreq req;            // netmap request
-    uint32_t mbps;               // our link speed
     SLIST_ENTRY(warpcore) next;  // next engine
 };
 

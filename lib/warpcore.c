@@ -361,7 +361,8 @@ struct warpcore * w_init(const char * const ifname)
            "cannot allocate struct warpcore");
 
     // we mostly loop here because the link may be down
-    while (link_up == false || IS_ZERO(w->mac) || w->mtu == 0 || w->mbps == 0 ||
+    uint32_t mbps = 0;
+    while (link_up == false || IS_ZERO(w->mac) || w->mtu == 0 || mbps == 0 ||
            w->ip == 0 || w->mask == 0) {
 
         // get interface information
@@ -380,14 +381,14 @@ struct warpcore * w_init(const char * const ifname)
             case AF_LINK:
                 plat_get_mac(w->mac, i);
                 w->mtu = plat_get_mtu(i);
-                w->mbps = plat_get_mbps(i);
+                mbps = plat_get_mbps(i);
                 link_up = plat_get_link(i);
 #ifndef NDEBUG
                 char mac[ETH_ADDR_STRLEN];
                 warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
                      i->ifa_name,
                      ether_ntoa_r((struct ether_addr *)w->mac, mac), w->mtu,
-                     w->mbps / 1000, link_up ? "up" : "down");
+                     mbps / 1000, link_up ? "up" : "down");
 #endif
                 break;
             case AF_INET:
