@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <getopt.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -11,8 +12,8 @@
 #include "util.h"
 #include "warpcore.h"
 
-#ifdef __linux__
-#define CLOCK_REALTIME_PRECISE CLOCK_REALTIME
+#ifdef __FreeBSD__
+#define CLOCK_REALTIME CLOCK_REALTIME_PRECISE
 #endif
 
 
@@ -130,11 +131,10 @@ int main(int argc, char * argv[])
             ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
     } else {
         w_init_common();
-        ks = socket(peer->ai_family,
-                    peer->ai_socktype | (busywait ? SOCK_NONBLOCK : 0),
-                    peer->ai_protocol);
-        if (ks == -1)
-            die("socket");
+        assert(
+            ks = socket(peer->ai_family, peer->ai_socktype, peer->ai_protocol),
+            "socket");
+        assert(fcntl(ks, F_SETFL | O_NONBLOCK) != -1, "fcntl");
         before = calloc(1, size);
         after = calloc(1, size);
     }
@@ -146,8 +146,7 @@ int main(int argc, char * argv[])
             before = o->buf;
         }
 
-        assert(clock_gettime(CLOCK_REALTIME_PRECISE, before) != -1,
-               "clock_gettime");
+        assert(clock_gettime(CLOCK_REALTIME, before) != -1, "clock_gettime");
 
         // send
         if (use_warpcore)
@@ -172,8 +171,7 @@ int main(int argc, char * argv[])
                 socklen_t fromlen = peer->ai_addrlen;
                 s = recvfrom(ks, after, size, 0, peer->ai_addr, &fromlen);
             }
-            assert(clock_gettime(CLOCK_REALTIME_PRECISE, &now) != -1,
-                   "clock_gettime");
+            assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
             time_diff(&diff, &now, before);
         } while (i == 0 && (s == 0 || (s == -1 && errno == EAGAIN)) &&
                  diff.tv_sec == 0);
@@ -185,8 +183,7 @@ int main(int argc, char * argv[])
             continue;
         }
 
-        assert(clock_gettime(CLOCK_REALTIME_PRECISE, &now) != -1,
-               "clock_gettime");
+        assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
         time_diff(&diff, &now, after);
         if (unlikely(diff.tv_sec != 0))
             die("time difference is more than %ld sec", diff.tv_sec);
