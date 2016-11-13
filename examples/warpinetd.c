@@ -56,9 +56,8 @@ int main(int argc, char * argv[])
                            {.fd = w_fd(tme), .events = POLLIN}};
 
     while (1) {
-        if (busywait)
-            w_kick_rx(w);
-        else
+        w_kick_rx(w);
+        if (busywait == false)
             poll(fds, 4, 1000);
 
         // echo service
