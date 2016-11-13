@@ -8,16 +8,18 @@ include(FindPackageHandleStandardArgs)
 find_path(NETMAP_INCLUDE netmap_user.h PATH_SUFFIXES net)
 find_package_handle_standard_args(netmap DEFAULT_MSG NETMAP_INCLUDE)
 
-set(SOURCES
-  arp.c util.c eth.c icmp.c in_cksum.c ip.c udp.c warpcore.c
-  ${CMAKE_CURRENT_BINARY_DIR}/version.c)
-
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-  set(SOURCES ${SOURCES} plat_linux.c)
-elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "FreeBSD")
-  set(SOURCES ${SOURCES} plat_freebsd.c)
+set(SOURCES ${SOURCES} util.c ${CMAKE_CURRENT_BINARY_DIR}/version.c)
+if (${netmap_FOUND})
+  set(SOURCES ${SOURCES} arp.c eth.c icmp.c in_cksum.c ip.c udp.c warpcore.c)
 else()
-  message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} not supported")
+endif()
+
+string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
+set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_${CMAKE_SYSTEM_NAME_LC}.c)
+if(EXISTS ${PLAT})
+  set(SOURCES ${SOURCES} ${PLAT})
+else()
+  set(SOURCES ${SOURCES} plat_generic.c)
 endif()
 
 add_library(warpcore ${SOURCES})
