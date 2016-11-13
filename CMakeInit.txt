@@ -22,5 +22,6 @@ if(${CMAKE_C_COMPILER_ID} MATCHES "Clang")
   set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -Weverything")
 
   # see https://llvm.org/bugs/show_bug.cgi?id=21689
-  # add_compile_options(-Wno-missing-field-initializers)
+  set(CMAKE_C_FLAGS_INIT
+    "${CMAKE_C_FLAGS_INIT} -Wno-missing-field-initializers")
 endif()
