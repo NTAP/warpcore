@@ -155,7 +155,7 @@ void __attribute__((nonnull)) w_tx(struct w_sock * const s)
 // Close a warpcore socket, making all its iovs available again.
 void __attribute__((nonnull)) w_close(struct w_sock * const s)
 {
-    struct w_sock ** const ss = w_get_sock(s->w, s->hdr.ip.p, s->hdr.udp.sport);
+    struct w_sock ** const ss = get_sock(s->w, s->hdr.ip.p, s->hdr.udp.sport);
     assert(ss && *ss, "no socket found");
 
     // make iovs of the socket available again
@@ -199,8 +199,8 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 
     // find the Ethernet addr of the destination or the default router
     while (IS_ZERO(s->hdr.eth.dst)) {
-        const uint32_t ip = s->w->rip && (w_net(dip, s->w->mask) !=
-                                          w_net(s->hdr.ip.src, s->w->mask))
+        const uint32_t ip = s->w->rip && (mk_net(dip, s->w->mask) !=
+                                          mk_net(s->hdr.ip.src, s->w->mask))
                                 ? s->w->rip
                                 : dip;
         warn(notice, "doing ARP lookup for %s",
@@ -226,7 +226,7 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 {
     assert(p == IP_P_UDP, "unhandled IP proto %d", p);
 
-    struct w_sock ** const s = w_get_sock(w, p, port);
+    struct w_sock ** const s = get_sock(w, p, port);
     if (s && *s) {
         warn(warn, "IP proto %d source port %d already in use", p, ntohs(port));
         return 0;

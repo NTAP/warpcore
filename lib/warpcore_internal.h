@@ -48,8 +48,8 @@ struct warpcore {
 };
 
 
-#define w_bcast(ip, mask) ((ip) | (~mask))
+#define mk_bcast(ip, mask) ((ip) | (~mask))
 
-#define w_net(ip, mask) ((ip) & (mask))
+#define mk_net(ip, mask) ((ip) & (mask))
 
-#define w_get_sock(w, p, port) ((p) == IP_P_UDP ? &(w)->udp[port] : 0)
+#define get_sock(w, p, port) ((p) == IP_P_UDP ? &(w)->udp[port] : 0)

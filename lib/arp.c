@@ -130,8 +130,8 @@ void arp_rx(struct warpcore * const w, void * const buf)
         struct w_sock * s;
         SLIST_FOREACH (s, &w->sock, next) {
             if ( // is local-net socket and ARP src IP matches its dst
-                ((w_net(s->w->ip, s->w->mask) ==
-                      w_net(s->hdr.ip.dst, s->w->mask) &&
+                ((mk_net(s->w->ip, s->w->mask) ==
+                      mk_net(s->hdr.ip.dst, s->w->mask) &&
                   arp->spa == s->hdr.ip.dst)) ||
                 // or non-local socket and ARP src IP matches router
                 (s->w->rip && (s->w->rip == arp->spa))) {
