@@ -82,7 +82,7 @@ Vagrant.configure("2") do |config|
 
           # enable xinetd and remove rate limits
           find /etc/xinetd.d -type f -and -exec \
-            sed -i -e 's/disable.*/disable\t\t= no/g' {} \;
+            sed -i -e 's/disable.*/disable\t\t= no/g' \{\} \;
           sed -i -e 's/{/{\ninstances = UNLIMITED\ncps = 0 0/' /etc/xinetd.conf
 
           # change shell to fish
@@ -117,6 +117,8 @@ Vagrant.configure("2") do |config|
           echo 'KERNEL=="netmap", MODE="0666"' > /etc/udev/rules.d/netmap.rules
           echo '*   soft  memlock   unlimited' >> /etc/security/limits.conf
           echo '*   hard  memlock   unlimited' >> /etc/security/limits.conf
+          echo '*   soft  core      unlimited' >> /etc/security/limits.conf
+          echo '*   hard  core      unlimited' >> /etc/security/limits.conf
 
           # build a new initrd
           depmod -a
