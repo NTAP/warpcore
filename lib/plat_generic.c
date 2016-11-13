@@ -1,19 +1,5 @@
-#include <ifaddrs.h>
-#include <net/if.h>
-#include <net/if_dl.h>
-#include <stdlib.h>
-// #include <sys/cpuset.h>
-#include <sys/param.h>
-// clang-format off
-// because these includes need to be in-order
-#include <sys/types.h>
-#include <net/ethernet.h>
-// clang-format on
-
-
-#include "util.h"
-#include "eth.h"
 #include "plat.h"
+#include "util.h"
 
 void plat_srandom(void)
 {
