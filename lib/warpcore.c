@@ -66,27 +66,10 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 }
 
 
-// Wait until netmap is ready to send or receive more data. Parameters
-// "event" and "timeout" identical to poll system call.
-void __attribute__((nonnull))
-w_poll(const struct warpcore * const w, const short ev, const int to)
+// Return the file descriptor associated with a w_sock (mostly for polling)
+int w_fd(struct w_sock * const s)
 {
-    struct pollfd fds = {.fd = w->fd, .events = ev};
-    const int n = poll(&fds, 1, to);
-
-    if (unlikely(n == -1)) {
-        if (errno == EINTR) {
-            warn(notice, "poll: interrupt");
-            return;
-        } else
-            die("poll");
-    }
-    if (unlikely(n == 0)) {
-        warn(notice, "poll: timeout expired");
-        return;
-    }
-
-    rwarn(debug, 1, "poll: %d descriptors ready", n);
+    return s->w->fd;
 }
 
 
@@ -206,7 +189,8 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
         warn(notice, "doing ARP lookup for %s",
              ip_ntoa(ip, str, IP_ADDR_STRLEN));
         arp_who_has(s->w, ip);
-        w_poll(s->w, POLLIN, 1000);
+        struct pollfd _fds = {.fd = s->w->fd, .events = POLLIN};
+        poll(&_fds, 1, 1000);
         w_kick_rx(s->w);
         w_rx(s);
         if (!IS_ZERO(s->hdr.eth.dst))

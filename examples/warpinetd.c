@@ -1,11 +1,7 @@
 #include <getopt.h>
-// #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <stdbool.h>
-// #include <stdio.h>
-// #include <time.h>
-// #include <unistd.h>
 
 // example applications MUST only depend on warpcore.h
 #include "util.h"
@@ -54,12 +50,16 @@ int main(int argc, char * argv[])
     struct w_sock * dsc = w_bind(w, IP_P_UDP, htons(9));
     struct w_sock * dtm = w_bind(w, IP_P_UDP, htons(13));
     struct w_sock * tme = w_bind(w, IP_P_UDP, htons(37));
+    struct pollfd fds[] = {{.fd = w_fd(ech), .events = POLLIN},
+                           {.fd = w_fd(dsc), .events = POLLIN},
+                           {.fd = w_fd(dtm), .events = POLLIN},
+                           {.fd = w_fd(tme), .events = POLLIN}};
 
     while (1) {
-        if (!busywait)
-            w_poll(w, POLLIN, -1);
-        else
+        if (busywait)
             w_kick_rx(w);
+        else
+            poll(fds, 4, 1000);
 
         // echo service
         struct w_iov * i = w_rx(ech);

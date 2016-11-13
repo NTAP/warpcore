@@ -33,8 +33,10 @@ extern void w_close(struct w_sock * const s);
 
 extern struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len);
 
-extern void
-w_poll(const struct warpcore * const w, const short ev, const int to);
+// extern void
+// w_poll(const struct warpcore * const w, const short ev, const int to);
+
+extern int w_fd(struct w_sock * const s);
 
 extern void w_rx_done(struct w_sock * const s);
 

@@ -111,7 +111,7 @@ int main(int argc, char * argv[])
     struct warpcore * w = 0;
     struct w_sock * ws = 0;
     int ks = 0;
-    struct pollfd fds;
+    struct pollfd fds = {.events = POLLIN};
     void * before = 0;
     void * after = 0;
     uint32_t rip = 0;
@@ -135,8 +135,6 @@ int main(int argc, char * argv[])
                     peer->ai_protocol);
         if (ks == -1)
             die("socket");
-        fds.fd = ks;
-        fds.events = POLLIN;
         before = calloc(1, size);
         after = calloc(1, size);
     }
@@ -148,58 +146,47 @@ int main(int argc, char * argv[])
             before = o->buf;
         }
 
-        if (clock_gettime(CLOCK_REALTIME_PRECISE, before) == -1)
-            die("clock_gettime");
+        assert(clock_gettime(CLOCK_REALTIME_PRECISE, before) != -1,
+               "clock_gettime");
 
-        if (use_warpcore) {
+        // send
+        if (use_warpcore)
             w_tx(ws);
-
-            const struct w_iov * i = 0;
-            struct timespec diff, now;
-            if (!busywait) {
-                w_poll(w, POLLIN, 1000);
-                w_kick_rx(w);
-                i = w_rx(ws);
-            } else {
-                do {
-                    w_kick_rx(w);
-                    i = w_rx(ws);
-                    if (clock_gettime(CLOCK_REALTIME_PRECISE, &now) == -1)
-                        die("clock_gettime");
-                    time_diff(&diff, &now, before);
-                } while (i == 0 && diff.tv_sec == 0);
-            }
-
-            if (i)
-                after = i->buf;
-            else {
-                warn(err, "packet loss");
-                w_rx_done(ws);
-                continue;
-            }
-        } else {
+        else
             sendto(ks, before, size, 0, peer->ai_addr, peer->ai_addrlen);
 
-            if (!busywait) {
-                const int p = poll(&fds, 1, 1000);
-                if (unlikely(p == -1))
-                    die("poll");
-                else if (unlikely(p == 0)) {
-                    continue;
-                }
-            }
-
-            socklen_t fromlen = peer->ai_addrlen;
-            ssize_t s = 0;
-            do {
-                s = recvfrom(ks, after, size, 0, peer->ai_addr, &fromlen);
-            } while (s == 0 || (s == -1 && errno == EAGAIN));
+        // wait for reply
+        if (busywait == false) {
+            fds.fd = use_warpcore ? w_fd(ws) : ks;
+            poll(&fds, 1, 1000);
         }
 
         struct timespec diff, now;
-        if (clock_gettime(CLOCK_REALTIME_PRECISE, &now) == -1)
-            die("clock_gettime");
+        const struct w_iov * i = 0;
+        ssize_t s = 0;
+        do {
+            if (use_warpcore) {
+                w_kick_rx(w);
+                i = w_rx(ws);
+            } else {
+                socklen_t fromlen = peer->ai_addrlen;
+                s = recvfrom(ks, after, size, 0, peer->ai_addr, &fromlen);
+            }
+            assert(clock_gettime(CLOCK_REALTIME_PRECISE, &now) != -1,
+                   "clock_gettime");
+            time_diff(&diff, &now, before);
+        } while (i == 0 && (s == 0 || (s == -1 && errno == EAGAIN)) &&
+                 diff.tv_sec == 0);
 
+        if (i)
+            after = i->buf;
+        else {
+            w_rx_done(ws);
+            continue;
+        }
+
+        assert(clock_gettime(CLOCK_REALTIME_PRECISE, &now) != -1,
+               "clock_gettime");
         time_diff(&diff, &now, after);
         if (unlikely(diff.tv_sec != 0))
             die("time difference is more than %ld sec", diff.tv_sec);
