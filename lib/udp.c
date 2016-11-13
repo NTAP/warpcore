@@ -20,6 +20,7 @@
     } while (0)
 #endif
 
+
 // Receive a UDP packet.
 void __attribute__((nonnull))
 udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
@@ -112,13 +113,11 @@ void __attribute__((nonnull)) udp_tx(struct w_sock * const s)
 #endif
             STAILQ_REMOVE_HEAD(&s->ov, next);
             STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-        } else {
-            // no space in rings
-            w_kick_tx(s->w);
-            warn(warn, "polling for send space");
-            w_poll(s->w, POLLOUT, -1);
-        }
+        } else
+            // no space left in rings
+            goto done;
     }
+done:
     warn(info, "proto %d tx iov (len %d in %d bufs) done", s->hdr.ip.p, l, n);
 
     // kick tx ring

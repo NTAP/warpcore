@@ -112,7 +112,6 @@ eth_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len)
 
     // return false if all rings are full
     if (unlikely(i == w->nif->ni_tx_rings)) {
-        die("all tx rings are full");
         warn(warn, "all tx rings are full");
         return false;
     }
