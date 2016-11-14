@@ -10,6 +10,7 @@ find_package_handle_standard_args(netmap DEFAULT_MSG NETMAP_INCLUDE)
 
 set(SOURCES ${SOURCES} util.c ${CMAKE_CURRENT_BINARY_DIR}/version.c)
 if (${netmap_FOUND})
+  add_definitions(-DWITH_NETMAP)
   set(SOURCES ${SOURCES} arp.c eth.c icmp.c in_cksum.c ip.c udp.c warpcore.c)
 else()
   message(WARNING "netmap not found, building ${PROJECT_NAME} shim")
