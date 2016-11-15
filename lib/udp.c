@@ -63,14 +63,16 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
     // remember index of this buffer
     const uint32_t tmp_idx = i->idx;
 
-    // move the received data into the iov
+    // adjust the buffer offset to the received data into the iov
     i->buf = (char *)ip_data(buf) + sizeof(struct udp_hdr);
     i->len = len - sizeof(struct udp_hdr);
     i->idx = rxs->buf_idx;
 
-    // tag the iov with the sender's information
+    // tag the iov with sender information and metadata
     i->src = src;
     i->sport = udp->sport;
+    i->flags = ip->tos;
+    memcpy(&i->ts, &rxr->ts, sizeof(i->ts));
 
     // append the iov to the socket
     STAILQ_INSERT_TAIL(&(*s)->iv, i, next);

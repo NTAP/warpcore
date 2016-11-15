@@ -10,7 +10,9 @@ struct w_iov {
     uint16_t len;             // length of user data (inside buffer)
     uint16_t sport;           // sender port (only valid on rx)
     uint32_t src;             // sender IP address (only valid on rx)
-    uint8_t _unused[4];
+    uint8_t flags;            // DSCP + ECN
+    uint8_t _unused[3];
+    struct timeval ts;        // receive time of the data (only valid on rx)
 };
 
 #define IP_P_ICMP 1 // IP protocol number for ICMP

@@ -198,6 +198,9 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
         v->len = (uint16_t)n;
         v->src = peer.sin_addr.s_addr;
         v->sport = peer.sin_port;
+        v->flags = 0; // since we can't get TOS and ECN info from the kernel
+        assert(gettimeofday(&v->ts, 0) == 0, "gettimeofday");
+
         // warn(warn, "placed %d byte%c into iov %d", v->len, plural(n),
         // v->idx);
     }

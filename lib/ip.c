@@ -141,6 +141,7 @@ ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len)
     ip->id = (uint16_t)random(); // no need to do htons() for random value
     // IP checksum is over header only
     ip->cksum = in_cksum(ip, sizeof(struct ip_hdr));
+    ip->tos = v->flags; // app-specified DSCP + ECN
 
     ip_log(ip);
 
