@@ -22,14 +22,29 @@
 #include "version.h"
 #include "warpcore_internal.h"
 
-#define NUM_EXTRA_BUFS 256 // 16384
+
+/// The number of extra buffers to allocate from netmap. Extra buffers are
+/// buffers that are not used to support TX or RX rings, but instead are used
+/// for the warpcore w_sock::iv and w_sock::ov socket buffers, as well as for
+/// maintaining packetized data inside an application using warpcore.
+///
+#define NUM_EXTRA_BUFS 256 // 16384 XXX this should become configurable
 
 
-// netmap engines for the various interfaces
+/// A global list of netmap engines that have been initialized for different
+/// interfaces.
+///
 static SLIST_HEAD(engines, warpcore) wc = SLIST_HEAD_INITIALIZER(wc);
 
 
-// Allocates an iov of a given size for tx preparation.
+// XXX API change needed
+/// Allocates a chain of w_iov structs to support transmitting of @p len bytes.
+///
+/// @param      s     { parameter_description }
+/// @param[in]  len   The length
+///
+/// @return     { description_of_the_return_value }
+///
 struct w_iov * __attribute__((nonnull))
 w_tx_alloc(struct w_sock * const s, const uint32_t len)
 {
@@ -66,13 +81,22 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 }
 
 
-// Return the file descriptor associated with a w_sock (mostly for polling)
+/// Return the file descriptor associated with a w_sock. This is either the
+/// per-interface netmap file descriptor, or it is an OS file descriptor for the
+/// warpcore shim. In either case, it can be used for poll() or with event-loop
+/// libraries in the application.
+///
+/// @param      s     w_sock socket for which to get the underlying descriptor.
+///
+/// @return     A file descriptor.
+///
 int w_fd(struct w_sock * const s)
 {
     return s->w->fd;
 }
 
 
+// XXX rethink API
 // User needs to call this once they are done with touching any received data.
 // This makes the iov that holds the received data available to warpcore again.
 void __attribute__((nonnull)) w_rx_done(struct w_sock * const s)
@@ -88,8 +112,25 @@ void __attribute__((nonnull)) w_rx_done(struct w_sock * const s)
 }
 
 
-// Pulls new received data out of the rx ring and places it into socket iovs.
-// Returns an iov of any data received.
+/// Iterates over any new data in the RX rings, appending them to the w_sock::iv
+/// socket buffers of the respective w_sock structures associated with a given
+/// sender IPv4 address and port.
+///
+/// Unlike with the Socket API, w_rx() can append data to w_sock::iv chains
+/// *other* that that of the w_sock passed as @p s. This is, because warpcore
+/// needs to drain the RX rings, in order to allow new data to be received by
+/// the NIC. It would be inconvenient to require the application to constantly
+/// iterate over all w_sock sockets it has opened.
+///
+/// This means that although w_rx() may return zero, because no new data has
+/// been received on @p s, it may enqueue new data into the w_sock::iv chains of
+/// other w_sock socket.
+///
+/// @param      s     w_sock for which the application would like to receive new
+///                   data.
+///
+/// @return     First w_iov in w_sock::iv if there is new data, or zero.
+///
 struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 {
     // loop over all rx rings starting with cur_rxr and wrapping around
@@ -111,21 +152,35 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 }
 
 
-// Internal warpcore function. Kick the tx ring.
+/// Push data placed in the TX rings via udp_tx() and similar methods out onto
+/// the link.{ function_description }
+///
+/// @param[in]  w     Warpcore engine.
+///
 void __attribute__((nonnull)) w_kick_tx(const struct warpcore * const w)
 {
     assert(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 }
 
 
-// Internal warpcore function. Kick the rx ring.
+/// Trigger netmap to make new received data available to w_rx().
+///
+/// @param[in]  w     Warpcore engine.
+///
 void __attribute__((nonnull)) w_kick_rx(const struct warpcore * const w)
 {
     assert(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
 }
 
 
-// Prepends all network headers and places s->ov in the tx ring.
+/// Places payloads that are queued up at @p s w_sock::ov into IPv4 UDP packets,
+/// and attempts to move them onto a TX ring. Not all payloads may be placed if
+/// the TX rings fills up first. Also, the packets are not send yet; w_kick_tx()
+/// needs to be called for that. This is, so that an application has control
+/// over exactly when to schedule packet I/O.
+///
+/// @param      s     w_sock socket whose payload data should be processed.
+///
 void __attribute__((nonnull)) w_tx(struct w_sock * const s)
 {
     if (s->hdr.ip.p == IP_P_UDP)
@@ -135,7 +190,11 @@ void __attribute__((nonnull)) w_tx(struct w_sock * const s)
 }
 
 
-// Close a warpcore socket, making all its iovs available again.
+/// Close a warpcore socket. This dequeues all data from w_sock::iv and
+/// w_sock::ov, i.e., data will *not* be placed in rings and sent.
+///
+/// @param      s     w_sock to close.
+///
 void __attribute__((nonnull)) w_close(struct w_sock * const s)
 {
     struct w_sock ** const ss = get_sock(s->w, s->hdr.ip.p, s->hdr.udp.sport);
@@ -164,7 +223,20 @@ void __attribute__((nonnull)) w_close(struct w_sock * const s)
 }
 
 
-// Connect a bound socket to a remote IP address and port.
+/// Connect a bound socket to a remote IP address and port. If the Ethernet MAC
+/// address of the destination (or the default router towards it) is not known,
+/// w_connect() will block trying to look it up via ARP.
+///
+/// Calling w_connect() will make subsequent w_tx() operations on the w_sock
+/// enqueue payload data towards that destination. Unlike with the Socket API,
+/// w_connect() can be called several times, which will re-bind a connected
+/// w_sock and allows a server application to send data to multiple peers over a
+/// w_sock.
+///
+/// @param      s      w_sock to bind.
+/// @param[in]  dip    Destination IPv4 address to bind to.
+/// @param[in]  dport  Destination UDP port to bind to.
+///
 void __attribute__((nonnull))
 w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 {
@@ -204,7 +276,15 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 }
 
 
-// Bind a socket for the given IP protocol and local port number.
+/// Bind a w_sock to the given IP protocol and local port number. The protocol
+/// @p p at the moment must be #IP_P_UDP.
+///
+/// @param      w     The w_sock to bind.
+/// @param[in]  p     The IP protocol to bind to. Must be #IP_P_UDP.
+/// @param[in]  port  The local port number to bind to, in network byte order.
+///
+/// @return     Pointer to a bound w_sock.
+///
 struct w_sock * __attribute__((nonnull))
 w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 {
@@ -244,8 +324,14 @@ w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port)
 }
 
 
-// Helper function for w_cleanup that links together extra bufs allocated
-// by netmap in the strange format it requires to free them correctly.
+/// Helper function for w_cleanup() that links together extra bufs allocated by
+/// netmap in the strange format it requires to free them correctly.
+///
+/// @param[in]  w     Warpcore engine.
+/// @param[in]  v     w_iov chain to link together for netmap.
+///
+/// @return     Last element of the linked w_iov chain.
+///
 static const struct w_iov * __attribute__((nonnull))
 w_chain_extra_bufs(const struct warpcore * const w, const struct w_iov * v)
 {
@@ -265,7 +351,12 @@ w_chain_extra_bufs(const struct warpcore * const w, const struct w_iov * v)
 }
 
 
-// Shut down warpcore cleanly.
+/// Shut a warpcore engine down cleanly. This function pushes out all buffers
+/// already placed into TX rings out, and returns all w_iov structures
+/// associated with all w_sock structures of the engine to netmap.
+///
+/// @param      w     Warpcore engine.
+///
 void __attribute__((nonnull)) w_cleanup(struct warpcore * const w)
 {
     warn(notice, "warpcore shutting down");
@@ -331,7 +422,18 @@ void w_init_common(void)
 }
 
 
-// Initialize warpcore on the given interface and optionally with router IP rip.
+/// Initialize a warpcore engine on the given interface. Ethernet and IPv4
+/// source addresses and related information, such as the netmask, are taken
+/// from the active OS configuration of the interface. A default router,
+/// however, needs to be specified with @p rip, if communication over a WAN is
+/// desired.
+///
+/// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
+/// @param[in]  rip     The default router to be used for non-local
+///                     destinations. Can be zero.
+///
+/// @return     Initialized warpcore engine.
+///
 struct warpcore * __attribute__((nonnull))
 w_init(const char * const ifname, const uint32_t rip)
 {

@@ -3,20 +3,36 @@
 #include <sys/queue.h>
 
 
+/// The I/O vector structure that warpcore uses at the center of its API. It is
+/// mostly a pointer to the first UDP payload byte contained in a netmap packet
+/// buffer, together with some associated meta data.
+///
+/// The meta data consists of the length of the payload data, the sender IPv4
+/// address and port number, the DSCP and ECN bits associated with the IPv4
+/// packet in which the payload arrived, and the netmap arrival timestamp.
+///
+/// The w_iov structure also contains a pointer to the next I/O vector, which
+/// can be used to chain together longer data items for use with w_rx() and
+/// w_tx().
+///
 struct w_iov {
-    void * buf;               // start of user data (inside buffer)
-    STAILQ_ENTRY(w_iov) next; // next iov
-    uint32_t idx;             // index of netmap buffer
-    uint16_t len;             // length of user data (inside buffer)
-    uint16_t sport;           // sender port (only valid on rx)
-    uint32_t src;             // sender IP address (only valid on rx)
-    uint8_t flags;            // DSCP + ECN
+    void * buf;               ///< Start of payload data.
+    STAILQ_ENTRY(w_iov) next; ///< Next w_iov.
+    uint32_t idx;             ///< Index of netmap buffer. (Internal use.)
+    uint16_t len;             ///< Length of payload data.
+    uint16_t sport;           ///< Sender source port. Only valid on RX.
+    uint32_t src;             ///< Sender IPv4 address. (Only valid on RX.)
+
+    /// DSCP + ECN of the received IPv4 packet on RX, DSCP + ECN to use for the
+    /// to-be-transmitted IPv4 packet on TX.
+    uint8_t flags;
+
     uint8_t _unused[3];
-    struct timeval ts;        // receive time of the data (only valid on rx)
+    struct timeval ts; ///< Receive time of the data. Only valid on RX.
 };
 
-#define IP_P_ICMP 1 // IP protocol number for ICMP
-#define IP_P_UDP 17 // IP protocol number for UDP
+#define IP_P_ICMP 1 ///< IP protocol number for ICMP
+#define IP_P_UDP 17 ///< IP protocol number for UDP
 
 
 extern struct warpcore * w_init(const char * const ifname, const uint32_t rip);
