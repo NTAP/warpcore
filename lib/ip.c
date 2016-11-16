@@ -8,6 +8,10 @@
 
 
 #ifndef NDEBUG
+/// Print a textual representation of ip_hdr @p ip.
+///
+/// @param      ip    The ip_hdr to print.
+///
 #define ip_log(ip)                                                             \
     do {                                                                       \
         char src[IP_ADDR_STRLEN];                                              \
@@ -26,7 +30,15 @@
     } while (0)
 #endif
 
-// Convert a network byte order IP address into a string.
+
+/// Convert a network byte order IPv4 address into a string.
+///
+/// @param[in]     ip    An IPv4 address in network byte order.
+/// @param[in,out] buf   The buffer in which to place the result.
+/// @param[in]     size  The size of @p buf in bytes.
+///
+/// @return        A pointer to @p buf.
+///
 const __attribute__((nonnull)) char *
 ip_ntoa(uint32_t ip, void * const buf, const size_t size)
 {
@@ -38,7 +50,13 @@ ip_ntoa(uint32_t ip, void * const buf, const size_t size)
 }
 
 
-// Convert a string into a network byte order IP address.
+/// Convert a string into a network byte order IP address.
+///
+/// @param[in]  ip    A string containing an IPv4 address in "xxx.xxx.xxx.xxx\0"
+///                   format.
+///
+/// @return     The IPv4 address in @p ip as a 32-bit network byte order value.
+///
 uint32_t __attribute__((nonnull)) ip_aton(const char * const ip)
 {
     uint32_t i;
@@ -49,8 +67,17 @@ uint32_t __attribute__((nonnull)) ip_aton(const char * const ip)
 }
 
 
-// Make an IP reply packet out of the IP packet in the current receive buffer.
-// Used by icmp_tx().
+/// This function prepares the current *receive* buffer for reflection. It swaps
+/// the source and destination IPv4 addresses, adjusts various ip_hdr fields and
+/// passes the buffer to eth_tx_rx_cur().
+///
+/// This function is only used by icmp_tx().
+///
+/// @param      w     Warpcore engine.
+/// @param[in]  p     The IP protocol to use for the reflected packet.
+/// @param      buf   The current receive buffer.
+/// @param[in]  len   The length of the IPv4 payload data in the buffer.
+///
 void __attribute__((nonnull)) ip_tx_with_rx_buf(struct warpcore * const w,
                                                 const uint8_t p,
                                                 void * const buf,
@@ -59,7 +86,7 @@ void __attribute__((nonnull)) ip_tx_with_rx_buf(struct warpcore * const w,
     struct ip_hdr * const ip = eth_data(buf);
 
     // TODO: we should zero out any IP options here,
-    // since we're reflecing a received packet
+    // since we're reflecting a received packet
     assert(ip_hl(ip) <= sizeof(struct ip_hdr),
            "original packet seems to have IP options");
 
@@ -85,7 +112,15 @@ void __attribute__((nonnull)) ip_tx_with_rx_buf(struct warpcore * const w,
     eth_tx_rx_cur(w, buf, l);
 }
 
-// Receive an IP packet.
+
+/// Receive processing for an IPv4 packet. Verifies the checksum and dispatches
+/// the packet to udp_rx() or icmp_rx(), as appropriate.
+///
+/// IPv4 options are currently unsupported; as are IPv4 fragments.
+///
+/// @param      w     Warpcore engine.
+/// @param      buf   Buffer containing an Ethernet frame.
+///
 void __attribute__((nonnull)) ip_rx(struct warpcore * const w, void * const buf)
 {
     const struct ip_hdr * const ip = eth_data(buf);
@@ -130,6 +165,19 @@ void __attribute__((nonnull)) ip_rx(struct warpcore * const w, void * const buf)
 // Fill in the IP header information that isn't set as part of the
 // socket packet template, calculate the header checksum, and hand off
 // to the Ethernet layer.
+
+
+/// IPv4 transmit processing for the w_iov @p v of length @p len. Fills in the
+/// IPv4 header, calculates the checksum, sets the TOS bits and passes the
+/// packet to eth_tx().
+///
+/// @param      w     Warpcore engine.
+/// @param      v     The w_iov containing the data to transmit.
+/// @param[in]  len   The length of the payload data in @p v.
+///
+/// @return     Passes on the return value from eth_tx(), which indicates
+///             whether @p v was successfully placed into a TX ring.
+///
 bool __attribute__((nonnull))
 ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len)
 {

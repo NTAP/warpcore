@@ -2,53 +2,103 @@
 
 #include <stdbool.h>
 
+#define IP_ECT1 1 ///< ECN ECT(1) codepoint.
+#define IP_ECT0 2 ///< ECN ECT(0) codepoint.
+#define IP_CE 3   ///< ECN CE codepoint.
 
-#define IP_ECT1 1
-#define IP_ECT0 2
-#define IP_CE 3
+#define IP_OFFMASK 0x1fff ///< Bit mask for extracting the fragment offset.
+#define IP_RF 0x8000      ///< "Reserved" flag.
+#define IP_DF 0x4000      ///< "Don't fragment" flag.
+#define IP_MF 0x2000      ///< "More fragments" flag.
 
-#define IP_RF 0x8000      // reserved fragment flag
-#define IP_DF 0x4000      // don't fragment flag
-#define IP_MF 0x2000      // more fragments flag
-#define IP_OFFMASK 0x1fff // mask for fragmenting bits
+#define IP_ADDR_LEN 4 ///< Length of an IPv4 address in bytes. Four.
 
-#define IP_ADDR_LEN 4     // IPv4 addresses are four bytes
-#define IP_ADDR_STRLEN 16 // xxx.xxx.xxx.xxx\0
+/// String length of the representation we use for IPv4 strings. The format is
+/// "xxx.xxx.xxx.xxx\0", including a final zero byte.
+///
+#define IP_ADDR_STRLEN 16
 
+/// An IPv4 header representation; see
+/// [RFC791](https://tools.ietf.org/html/rfc791.)
+///
 struct ip_hdr {
-    uint8_t vhl;       // header length + version
-    uint8_t tos;       // DSCP + ECN
-    uint16_t len;      // total length
-    uint16_t id;       // identification
-    uint16_t off;      // flags & fragment offset field
-    uint8_t ttl;       // time to live
-    uint8_t p;         // protocol
-    uint16_t cksum;    // checksum
-    uint32_t src, dst; // source and dest address
+    uint8_t vhl;    ///< Header length/version byte.
+    uint8_t tos;    ///< DSCP/ECN byte.
+    uint16_t len;   ///< Total length of the IP packet.
+    uint16_t id;    ///< IPv4 identification field.
+    uint16_t off;   ///< Flags & fragment offset field.
+    uint8_t ttl;    ///< Time-to-live field.
+    uint8_t p;      ///< IP protocol number of payload.
+    uint16_t cksum; ///< IP checksum.
+    uint32_t src;   ///< Source IPv4 address.
+    uint32_t dst;   ///< Destination IPv4 address.
 };
 
 
 struct warpcore;
 struct w_iov;
 
+/// Extract the IP version out of an ip_hdr::vhl field.
+///
+/// @param      ip    Pointer to an ip_hdr.
+///
+/// @return     IP version number.
+///
 #define ip_v(ip)                                                               \
     (uint8_t)((((const struct ip_hdr * const)(ip))->vhl & 0xf0) >> 4)
 
+
+/// Extract the IP header length out of an ip_hdr::vhl field.
+///
+/// @param      ip    Pointer to an ip_hdr.
+///
+/// @return     IP header length in bytes.
+///
 #define ip_hl(ip)                                                              \
     (uint8_t)((((const struct ip_hdr * const)(ip))->vhl & 0x0f) * 4)
 
+
+/// Extract the DSCP out of an ip_hdr::tos field.
+///
+/// @param      ip    Pointer to an ip_hdr.
+///
+/// @return     DSCP.
+///
 #define ip_dscp(ip)                                                            \
     (uint8_t)((((const struct ip_hdr * const)(ip))->tos & 0xfc) >> 2)
 
+
+/// Extract the ECN bits out of an ip_hdr::tos field.
+///
+/// @param      ip    Pointer to an ip_hdr.
+///
+/// @return     ECN bits.
+///
 #define ip_ecn(ip) (uint8_t)(((const struct ip_hdr * const)(ip))->tos & 0x02)
 
+
+/// Return a pointer to the payload data of the IPv4 packet in a buffer. It is
+/// up to the caller to ensure that the packet buffer does in fact contain an
+/// IPv4 packet.
+///
+/// @param      buf   The buffer.
+///
+/// @return     Pointer to the first payload byte.
+///
 #define ip_data(buf)                                                           \
     (void *)((char *)eth_data(buf) +                                           \
              (int)ip_hl((void *)((char *)buf + sizeof(struct eth_hdr))))
 
+
+/// Calculates the length of the payload data for the given IPv4 header @ip.
+///
+/// @param      ip    An ip_hdr.
+///
+/// @return     { description_of_the_return_value }
+///
 #define ip_data_len(ip) ((ntohs((ip)->len) - ip_hl(ip)))
 
-// see ip.c for documentation of functions
+
 extern void ip_tx_with_rx_buf(struct warpcore * w,
                               const uint8_t p,
                               void * const buf,
@@ -63,7 +113,26 @@ extern void ip_rx(struct warpcore * const w, void * const buf);
 extern bool
 ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len);
 
-// these are defined in in_chksum.c, which is the FreeBSD checksum code
+
+// these are documented here, since in_chksum.c taken from FreeBSD
+
+/// Compute the Internet checksum over buffer @p buf of length @p len. See
+/// [RFC1071](https://tools.ietf.org/html/rfc1071).
+///
+/// @param[in]  buf   The buffer
+/// @param[in]  len   The length
+///
+/// @return     Internet checksum of @p buf.
+///
 extern uint16_t in_cksum(const void * const buf, const uint16_t len);
 
-extern uint16_t in_pseudo(uint32_t sum, uint32_t b, uint32_t c);
+
+/// Compute a pseudo checksum over three 32-bit values.
+///
+/// @param[in]  a     Value one.
+/// @param[in]  b     Value two.
+/// @param[in]  c     Value three.
+///
+/// @return     Peudo checksum.
+///
+extern uint16_t in_pseudo(uint32_t a, uint32_t b, uint32_t c);
