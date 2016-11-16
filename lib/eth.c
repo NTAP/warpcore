@@ -16,10 +16,20 @@
 #include "warpcore_internal.h"
 
 
-// Modify the current receive buffer, swap it into the tx ring (and move a
-// buffer from the tx ring to the rx ring) and transmit it.
-// This is currently only used for sending replies to inbound ICMP and ARP
-// requests.
+/// Special version of eth_tx() that transmits the current receive buffer after
+/// in-place modification. Modifies the current receive buffer in place by
+/// swapping source and destination MAC addresses. Moves the buffer into the TX
+/// ring (swapping a fresh buffer from the TX ring into its place in the RX
+/// ring) and then transmits it.
+///
+/// This special version of eth_tx() is currently only used for sending replies
+/// to inbound ICMP and ARP requests, in icmp_tx() (via ip_tx_with_rx_buf()) and
+/// arp_is_at().
+///
+/// @param      w     Warpcore engine.
+/// @param      buf   Ethernet frame to modify and transmit.
+/// @param[in]  len   Length of the Ethernet frame in @p buf.
+///
 void __attribute__((nonnull))
 eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
 {
@@ -58,8 +68,13 @@ eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
 }
 
 
-// Receive an Ethernet packet. This is the lowest level inbound function,
-// called from w_poll.
+/// Receive an Ethernet frame. This is the lowest-level RX function, called for
+/// each new inbound frame from w_rx(). Dispatches the frame to either ip_rx()
+/// or arp_rx(), based on its EtherType.
+///
+/// @param      w     Warpcore engine.
+/// @param      buf   Buffer containing the inbound Ethernet frame.
+///
 void __attribute__((nonnull))
 eth_rx(struct warpcore * const w, void * const buf)
 {
@@ -90,8 +105,16 @@ eth_rx(struct warpcore * const w, void * const buf)
 }
 
 
-// Swap the buffer in the iov into the tx ring, placing an empty one
-// into the iov.
+/// Places an Ethernet frame into a TX ring. The Ethernet frame is contained in
+/// the w_iov @p v, and will be placed into an available slot in a TX ring or -
+/// if all are full - dropped.
+///
+/// @param      w     Warpcore engine.
+/// @param      v     The w_iov containing the Ethernet frame to transmit.
+/// @param[in]  len   The length of the Ethernet *payload* contained in @p v.
+///
+/// @return     True if the buffer was placed into a TX ring, false otherwise.
+///
 bool __attribute__((nonnull))
 eth_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len)
 {
