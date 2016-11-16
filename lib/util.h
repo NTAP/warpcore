@@ -8,29 +8,39 @@
 #include <sys/time.h>
 
 
-// ANSI escape sequences (color, etc.)
-#define NRM "\x1B[0m"  // reset all to normal
-#define BLD "\x1B[1m"  // bold
-#define DIM "\x1B[2m"  // dim
-#define ULN "\x1B[3m"  // underline
-#define BLN "\x1B[5m"  // blink
-#define REV "\x1B[7m"  // reverse
-#define HID "\x1B[8m"  // hidden
-#define BLK "\x1B[30m" // black
-#define RED "\x1B[31m" // red
-#define GRN "\x1B[32m" // green
-#define YEL "\x1B[33m" // yellow
-#define BLU "\x1B[34m" // blue
-#define MAG "\x1B[35m" // magenta
-#define CYN "\x1B[36m" // cyan
-#define WHT "\x1B[37m" // white
+#define NRM "\x1B[0m"  ///< ANSI escape sequence: reset all to normal
+#define BLD "\x1B[1m"  ///< ANSI escape sequence: bold
+#define DIM "\x1B[2m"  ///< ANSI escape sequence: dim
+#define ULN "\x1B[3m"  ///< ANSI escape sequence: underline
+#define BLN "\x1B[5m"  ///< ANSI escape sequence: blink
+#define REV "\x1B[7m"  ///< ANSI escape sequence: reverse
+#define HID "\x1B[8m"  ///< ANSI escape sequence: hidden
+#define BLK "\x1B[30m" ///< ANSI escape sequence: black
+#define RED "\x1B[31m" ///< ANSI escape sequence: red
+#define GRN "\x1B[32m" ///< ANSI escape sequence: green
+#define YEL "\x1B[33m" ///< ANSI escape sequence: yellow
+#define BLU "\x1B[34m" ///< ANSI escape sequence: blue
+#define MAG "\x1B[35m" ///< ANSI escape sequence: magenta
+#define CYN "\x1B[36m" ///< ANSI escape sequence: cyan
+#define WHT "\x1B[37m" ///< ANSI escape sequence: white
 
 
-// Trim the path from the given file name (to be used with __FILE__)
+/// Trim the path from the given file name. Mostly to be used with __FILE__.
+///
+/// @param      f     An (absolute) file name, to trim.
+///
+/// @return     The standalone file name (no path).
+///
 #define basename(f) (strrchr((f), '/') ? strrchr((f), '/') + 1 : (f))
 
 #ifndef plural
-#define plural(w) ((w) == 1 ? 0 : 's')
+/// Helper to pluralize output words.
+///
+/// @param      n     An integer value.
+///
+/// @return     The character 's' when @p n is 1; an empty character otherwise.
+///
+#define plural(n) ((n) == 1 ? 0 : 's')
 #endif
 
 #ifndef likely
@@ -39,11 +49,21 @@
 #endif
 
 
+/// Lock to prevent multiple threads from corrupting each others output.
+///
 extern pthread_mutex_t _lock;
+
+/// Thread ID of the master thread.
+///
 extern pthread_t _master;
 
 
-// Abort execution with a message
+/// Abort execution with a message.
+///
+/// @param      fmt   A printf()-style format string.
+/// @param      ...   Subsequent arguments to be converted for output according
+///                   to @p fmt.
+///
 #define die(...)                                                               \
     do {                                                                       \
         if (pthread_mutex_lock(&_lock))                                        \
@@ -70,24 +90,55 @@ extern pthread_t _master;
 
 #include <regex.h>
 
-enum dlevel { crit = 0, err = 1, warn = 2, notice = 3, info = 4, debug = 5 };
+/// Debug levels, decreasing severity.
+///
+enum dlevel {
+    crit = 0,   ///< Critical
+    err = 1,    ///< Error
+    warn = 2,   ///< Warning
+    notice = 3, ///< Notice
+    info = 4,   ///< Informational
+    debug = 5   ///< Debug
+};
 
 // Set DLEVEL to the level of debug output you want to see in the Makefile
 #ifndef DLEVEL
+/// Default debug level. Can be overridden by setting the DLEVEL define in
+/// CFLAGS.
 #define DLEVEL debug
 #endif
 
-// Set DCOMPONENT to a regex matching the components (files) you want to see
-// debug output from in the Makefile
 #ifndef DCOMPONENT
+/// Default components to see debug messages from. Can be overridden by setting
+/// the DCOMPONENT define to a regular expression matching the components
+/// (files) you want to see debug output from.
 #define DCOMPONENT ".*"
 #endif
 
+
+/// An array of ANSI color sequences associated with the different #dlevel
+/// severities.
+///
 extern const char * const _col[];
+
+/// Holds the regex compiled from DCOMPONENT.
+///
 extern regex_t _comp;
 
 
 // These macros are based on the "D" ones defined by netmap
+
+/// Print a debug message to stderr, including a black/white indicator whether
+/// the message comes from the master thread (black) or not (white), a timestamp
+/// since start of the program, a colored indicator for the #dlevel severity
+/// level, as well as a printf()-style format string fed by further optional
+/// arguments.
+///
+/// @param      dlevel  The #dlevel severity level of the message
+/// @param      fmt     A printf()-style format string.
+/// @param      ...     Subsequent arguments to be converted for output
+///                     according to @p fmt.
+///
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
         if (DLEVEL >= dlevel && !regexec(&_comp, __FILE__, 0, 0, 0)) {         \
@@ -110,7 +161,17 @@ extern regex_t _comp;
         }                                                                      \
     } while (0)
 
-// Rate limited version of "log", lps indicates how many per second
+
+/// Rate-limited variant of warn(), which repeats the message prints at most @p
+/// lps times.
+///
+/// @param      dlevel  The #dlevel severity level of the message
+/// @param      lps     The maximum rate at which to repeat the message (lines
+///                     per second).
+/// @param      fmt     A printf()-style format string.
+/// @param      ...     Subsequent arguments to be converted for output
+///                     according to @p fmt.
+///
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
         if (DLEVEL >= dlevel && !regexec(&_comp, __FILE__, 0, 0, 0)) {         \
@@ -139,9 +200,15 @@ extern regex_t _comp;
 #endif
 
 
-// A version of the assert() macro that isn't disabled by NDEBUG and that uses
-// our other debug functions
+//
 #undef assert
+/// A version of the C assert() macro that isn't disabled by NDEBUG and that
+/// ties in with warn(), die() and our other debug functions.
+///
+/// @param      e       Expression to check. No action if @p e is true.
+/// @param      fmt     A printf()-style format string.
+/// @param      ...     Subsequent arguments to be converted for output
+///                     according to @p fmt.
 #define assert(e, ...)                                                         \
     do {                                                                       \
         if (__builtin_expect(!(e), 0))                                         \
@@ -150,7 +217,12 @@ extern regex_t _comp;
     } while (0)
 
 
+/// Stores the timeval at the start of the program, used to print relative times
+/// in warn(), die(), etc.
+///
 extern struct timeval _epoch;
+
+
 extern int timeval_subtract(struct timeval * const result,
                             struct timeval * const x,
                             struct timeval * const y);

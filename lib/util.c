@@ -6,14 +6,18 @@
 
 pthread_mutex_t _lock;
 pthread_t _master;
+struct timeval _epoch;
+
 
 #ifndef NDEBUG
 
 const char * const _col[] = {MAG, RED, YEL, CYN, BLU, GRN};
-
 regex_t _comp;
 
 
+/// Constructor function to initialize the debug framework before main()
+/// executes.
+///
 static void __attribute__((constructor)) premain()
 {
     // Initialize the regular expression used for restricting debug output
@@ -32,6 +36,9 @@ static void __attribute__((constructor)) premain()
 }
 
 
+/// Destructor function to clean up after the debug framework, before the
+/// program exits.
+///
 static void __attribute__((destructor)) postmain()
 {
     // Free the regular expression used for restricting debug output
@@ -44,8 +51,15 @@ static void __attribute__((destructor)) postmain()
 #endif
 
 
-struct timeval _epoch;
-
+/// Subtract two timeval structures @p x - @p y, placing the result in @p
+/// result.
+///
+/// @param[out] result  The result timeval.
+/// @param[in]  x       Minuend.
+/// @param[in]  y       Subtrahend.
+///
+/// @return     Difference @p result = @p x - @p y.
+///
 int __attribute__((nonnull)) timeval_subtract(struct timeval * const result,
                                               struct timeval * const x,
                                               struct timeval * const y)
@@ -71,7 +85,12 @@ int __attribute__((nonnull)) timeval_subtract(struct timeval * const result,
 }
 
 
-// Print a hexdump of the given block
+/// Print a hexdump of the memory region given by @p ptr and @p len to stderr.
+/// Also emits an ASCII representation.
+///
+/// @param[in]  ptr   The beginning of the memory region to hexdump.
+/// @param[in]  len   The length of the memory region to hexdump.
+///
 void __attribute__((nonnull)) hexdump(const void * const ptr, const size_t len)
 {
     const uint8_t * const buf = ptr;
