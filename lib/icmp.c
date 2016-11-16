@@ -5,7 +5,13 @@
 #include "warpcore_internal.h"
 
 
-// Send the modified ICMP packet in the current receive buffer.
+/// Transmit the ICMP packet in the current *receive* buffer via
+/// ip_tx_with_rx_buf().
+///
+/// @param      w     Warpcore engine.
+/// @param      buf   Receive buffer.
+/// @param[in]  len   Length of the ICMP packet in @buf.
+///
 static void __attribute__((nonnull))
 icmp_tx(struct warpcore * const w, void * const buf, const uint16_t len)
 {
@@ -24,6 +30,14 @@ icmp_tx(struct warpcore * const w, void * const buf, const uint16_t len)
 
 // Make an ICMP unreachable message with the given code out of the
 // current received packet.
+
+/// Based on the IP packet in the current *receive* buffer, construct an ICMP
+/// unreachable message in-place and pass it to icmp_tx().
+///
+/// @param      w     Warpcore engine.
+/// @param[in]  code  ICMP unreachable code to generate.
+/// @param      buf   Receive buffer.
+///
 void __attribute__((nonnull))
 icmp_tx_unreach(struct warpcore * const w, const uint8_t code, void * const buf)
 {
@@ -49,6 +63,15 @@ icmp_tx_unreach(struct warpcore * const w, const uint8_t code, void * const buf)
 
 
 // Handle an incoming ICMP packet, and optionally respond to it.
+
+/// Analyze an inbound ICMP packet and react to it. Called from ip_rx() for all
+/// inbound ICMP packets.
+///
+/// Currently only responds to ICMP echo packets.
+///
+/// @param      w     Warpcore engine.
+/// @param      buf   Receive buffer.
+///
 void __attribute__((nonnull))
 icmp_rx(struct warpcore * const w, void * const buf)
 {
