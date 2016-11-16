@@ -9,6 +9,10 @@
 
 // Log a UDP segment
 #ifndef NDEBUG
+/// Print a summary of the udp_hdr @p udp.
+///
+/// @param      udp   The udp_hdr to print.
+///
 #define udp_log(udp)                                                           \
     do {                                                                       \
         warn(info, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport),  \
@@ -22,6 +26,15 @@
 
 
 // Receive a UDP packet.
+
+/// Receive a UDP packet. Validates the UDP checksum and appends the payload
+/// data to the corresponding w_sock. Also makes the receive timestamp and IPv4
+/// flags available, via w_iov::ts and w_iov::flags, respectively.
+///
+/// @param      w     Warpcore engine.
+/// @param      buf   Buffer containing the Ethernet frame to receive from.
+/// @param[in]  src   The IPv4 source address of the sender of this packet.
+///
 void __attribute__((nonnull))
 udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 {
@@ -84,6 +97,14 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 
 
 // Put the socket template header in front of the data in the iov and send.
+
+/// Sends w_iov payloads contained in a w_sock::ov via UDP. Prepends the
+/// template header from w_sock::hdr, computes the UDP length and checksum, and
+/// hands the packet off to ip_tx(). Stops processing packets from w_sock::ov if
+/// ip_tx() indicates that the TX rings are full.
+///
+/// @param      s     The w_sock whose packets are to be transmitted.
+///
 void __attribute__((nonnull)) udp_tx(struct w_sock * const s)
 {
 #ifndef NDEBUG
