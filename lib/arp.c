@@ -47,7 +47,7 @@ arp_is_at(struct warpcore * const w, void * const buf)
 }
 
 
-/// Send an ARP request for target IP address @dip.
+/// Send an ARP request for target IP address @p dip.
 ///
 /// @param      w     Warpcore engine
 /// @param[in]  dip   IP address that is the target of the ARP request

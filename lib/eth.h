@@ -31,7 +31,12 @@ struct eth_hdr {
 struct warpcore;
 struct w_iov;
 
-/// Return a pointer to the first data byte inside the Ethernet frame in @buf.
+/// Return a pointer to the first data byte inside the Ethernet frame in @p buf.
+///
+/// @param      buf   The buffer to find data in.
+///
+/// @return     Pointer to the first data byte inside @p buf.
+///
 #define eth_data(buf) (void *)((char *)(buf) + sizeof(struct eth_hdr))
 
 

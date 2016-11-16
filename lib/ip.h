@@ -90,7 +90,7 @@ struct w_iov;
              (int)ip_hl((void *)((char *)buf + sizeof(struct eth_hdr))))
 
 
-/// Calculates the length of the payload data for the given IPv4 header @ip.
+/// Calculates the length of the payload data for the given IPv4 header @p ip.
 ///
 /// @param      ip    An ip_hdr.
 ///

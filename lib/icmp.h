@@ -8,7 +8,7 @@
 #define ICMP_TYPE_ECHO 8      ///< ICMP echo type.
 
 #define ICMP_UNREACH_PROTOCOL 2 ///< For ICMP_TYPE_UNREACH, bad protocol code.
-#define ICMP_UNREACH_PORT 3     //< For ICMP_TYPE_UNREACH, bad port code.
+#define ICMP_UNREACH_PORT 3     ///< For ICMP_TYPE_UNREACH, bad port code.
 
 
 /// An ICMP header representation; see
