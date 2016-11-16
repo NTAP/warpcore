@@ -15,8 +15,13 @@
 #include "warpcore_internal.h"
 
 
-// This modifies the ARP query in the current receive buffer into an ARP reply
-// and sends it out.
+/// Modifies the ARP request in @p buf into a corresponding ARP reply, and sends
+/// it. Helper function called by arp_rx().
+///
+/// @param      w     Warpcore engine
+/// @param      buf   Buffer containing an incoming ARP request inside an
+///                   Ethernet frame
+///
 static void __attribute__((nonnull))
 arp_is_at(struct warpcore * const w, void * const buf)
 {
@@ -42,8 +47,11 @@ arp_is_at(struct warpcore * const w, void * const buf)
 }
 
 
-// Use a spare iov to transmit an ARP query for the given destination
-// IP address.
+/// Send an ARP request for target IP address @dip.
+///
+/// @param      w     Warpcore engine
+/// @param[in]  dip   IP address that is the target of the ARP request
+///
 void __attribute__((nonnull))
 arp_who_has(struct warpcore * const w, const uint32_t dip)
 {
@@ -90,7 +98,16 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
 }
 
 
-// Receive an ARP packet, and react
+/// Receive an ARP packet, and react to it. This function parses an incoming ARP
+/// packet contained in an Ethernet frame. For incoming ARP requests for the
+/// local interface, respond appropriately. For incoming ARP replies, updates
+/// the information in the struct w_sock structures of all open connections, as
+/// needed.
+///
+/// @param      w     Warpcore engine
+/// @param      buf   Buffer containing incoming ARP request inside an Ethernet
+///                   frame
+///
 void arp_rx(struct warpcore * const w, void * const buf)
 {
 #ifndef NDEBUG
