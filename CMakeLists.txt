@@ -22,6 +22,10 @@ endif()
 get_property(COMPILE_OPTIONS DIRECTORY PROPERTY COMPILE_OPTIONS)
 string(REPLACE ";" " " COMPILE_OPTIONS "${COMPILE_OPTIONS}")
 
+include(FindPackageHandleStandardArgs)
+find_path(NETMAP_INCLUDE netmap_user.h PATH_SUFFIXES net)
+find_package_handle_standard_args(netmap DEFAULT_MSG NETMAP_INCLUDE)
+
 add_subdirectory(doc)
 add_subdirectory(examples)
 add_subdirectory(lib)

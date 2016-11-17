@@ -21,7 +21,6 @@ static void
 usage(const char * const name, const uint16_t size, const long loops)
 {
     printf("%s\n", name);
-    printf("\t[-k]                    use kernel, default is warpcore\n");
     printf("\t -i interface           interface to run over\n");
     printf("\t -d destination IP      peer to connect to\n");
     printf("\t[-r router IP]          router to use for non-local peers\n");
@@ -61,11 +60,10 @@ int main(int argc, char * argv[])
     const char * rtr = 0;
     long loops = 1;
     uint16_t size = sizeof(struct timespec);
-    bool use_warpcore = true;
     bool busywait = false;
 
     int ch;
-    while ((ch = getopt(argc, argv, "hi:d:l:r:s:kb")) != -1) {
+    while ((ch = getopt(argc, argv, "hi:d:l:r:s:b")) != -1) {
         switch (ch) {
         case 'i':
             ifname = optarg;
@@ -81,9 +79,6 @@ int main(int argc, char * argv[])
             break;
         case 's':
             size = (uint16_t)MIN(UINT16_MAX, MAX(size, strtol(optarg, 0, 10)));
-            break;
-        case 'k':
-            use_warpcore = false;
             break;
         case 'b':
             busywait = true;
@@ -106,101 +101,80 @@ int main(int argc, char * argv[])
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = PF_INET;
     hints.ai_protocol = proto;
-    if (getaddrinfo(dst, "echo", &hints, &peer) != 0)
-        die("getaddrinfo peer");
+    assert(getaddrinfo(dst, "echo", &hints, &peer) == 0, "getaddrinfo peer");
 
-    struct warpcore * w = 0;
-    struct w_sock * ws = 0;
-    int ks = 0;
-    struct pollfd fds = {.events = POLLIN};
-    void * before = 0;
-    void * after = 0;
     uint32_t rip = 0;
-    if (use_warpcore) {
+    if (rtr) {
         struct addrinfo * router;
-        if (rtr) {
-            assert(getaddrinfo(rtr, "echo", &hints, &router) == 0,
-                   "getaddrinfo router");
-            rip = ((struct sockaddr_in *)(void *)router->ai_addr)
-                      ->sin_addr.s_addr;
-        }
-        w = w_init(ifname, rip);
-        ws = w_bind(w, proto, (uint16_t)random());
-        w_connect(
-            ws, ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
-            ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
-    } else {
-        w_init_common();
-        assert(
-            ks = socket(peer->ai_family, peer->ai_socktype, peer->ai_protocol),
-            "socket");
-        assert(fcntl(ks, F_SETFL | O_NONBLOCK) != -1, "fcntl");
-        before = calloc(1, size);
-        after = calloc(1, size);
+        assert(getaddrinfo(rtr, "echo", &hints, &router) == 0,
+               "getaddrinfo router");
+        rip = ((struct sockaddr_in *)(void *)router->ai_addr)->sin_addr.s_addr;
     }
+
+    struct warpcore * w = w_init(ifname, rip);
+    struct w_sock * s = w_bind(w, proto, (uint16_t)random());
+
+    w_connect(s, ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
+              ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
+    freeaddrinfo(peer);
 
     printf("nsec\tsize\n");
     while (likely(loops--)) {
-        if (use_warpcore) {
-            struct w_iov * const o = w_tx_alloc(ws, size);
-            before = o->buf;
-        }
+        // allocate tx chain
+        struct w_iov * const o = w_tx_alloc(s, size);
 
+        // timestamp the payload
+        void * const before = o->buf;
         assert(clock_gettime(CLOCK_REALTIME, before) != -1, "clock_gettime");
 
-        // send
-        if (use_warpcore)
-            w_tx(ws);
-        else
-            sendto(ks, before, size, 0, peer->ai_addr, peer->ai_addrlen);
+        // send the data
+        w_tx(s);
+        warn(info, "sent %d byte%c", size, plural(size));
 
-        // wait for reply
-        if (busywait == false) {
-            fds.fd = use_warpcore ? w_fd(ws) : ks;
-            poll(&fds, 1, 1000);
-        }
-
+        // wait for a reply
+        struct w_iov * i = 0;
+        uint32_t len = 0;
         struct timespec diff, now;
-        const struct w_iov * i = 0;
-        ssize_t s = 0;
         do {
-            if (use_warpcore) {
-                w_kick_rx(w);
-                i = w_rx(ws);
-            } else {
-                socklen_t fromlen = peer->ai_addrlen;
-                s = recvfrom(ks, after, size, 0, peer->ai_addr, &fromlen);
+
+            if (busywait == false) {
+                struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
+                poll(&fds, 1, 1000);
             }
+
+            w_kick_rx(w);
+            i = w_rx(s);
+
+            for (struct w_iov * v = i; v; v = STAILQ_NEXT(v, next))
+                len += v->len;
+
             assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
             time_diff(&diff, &now, before);
-        } while (i == 0 && (s == 0 || (s == -1 && errno == EAGAIN)) &&
-                 diff.tv_sec == 0);
 
+        } while (len != size && diff.tv_sec == 0);
+
+        void * after = 0;
         if (i)
             after = i->buf;
         else {
-            w_rx_done(ws);
+            // if no packet was received, assume loss and send next packet
+            w_rx_done(s);
+            warn(warn, "no response, packet loss?");
             continue;
         }
 
+        // compute time difference
         assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
         time_diff(&diff, &now, after);
         if (unlikely(diff.tv_sec != 0))
             die("time difference is more than %ld sec", diff.tv_sec);
 
         printf("%ld\t%d\n", diff.tv_nsec, size);
-        if (use_warpcore)
-            w_rx_done(ws);
+        w_rx_done(s);
+        warn(info, "received %d byte%c", size, plural(size));
     }
 
-    if (use_warpcore) {
-        w_close(ws);
-        w_cleanup(w);
-    } else {
-        free(before);
-        free(after);
-    }
-    freeaddrinfo(peer);
-
+    w_close(s);
+    w_cleanup(w);
     return 0;
 }
