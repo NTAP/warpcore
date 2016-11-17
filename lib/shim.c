@@ -224,8 +224,8 @@ void __attribute__((nonnull)) w_tx(struct w_sock * const s)
     while (likely(!STAILQ_EMPTY(&s->ov))) {
         struct w_iov * const v = STAILQ_FIRST(&s->ov);
         const ssize_t n = send(s->fd, v->buf, v->len, 0);
-        warn(debug, "sent %zu byte%c from buf %d", n, plural(n), v->idx);
         assert(n == v->len, "send");
+        warn(debug, "sent %zu byte%c from buf %d", n, plural(n), v->idx);
         STAILQ_REMOVE_HEAD(&s->ov, next);
         STAILQ_INSERT_HEAD(&iov, v, next);
     }
