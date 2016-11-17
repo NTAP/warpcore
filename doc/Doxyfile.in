@@ -10,6 +10,7 @@ INPUT                  = @PROJECT_SOURCE_DIR@/lib \
                          @PROJECT_BINARY_DIR@/lib
 FILE_PATTERNS          = *.h \
                          *.c
+EXCLUDE                = @PROJECT_SOURCE_DIR@/lib/in_cksum.c
 #RECURSIVE              = YES
 EXTRACT_ALL            = YES
 EXTRACT_STATIC         = YES

@@ -38,10 +38,14 @@ struct w_sock {
         struct udp_hdr udp;
     } hdr;
 #ifndef WITH_NETMAP
-    uint8_t _unused[2];
+    /// @cond
+    uint8_t _unused[2]; ///< @internal Padding.
+    /// @endcond
     int fd; ///< Socket descriptor underlying the engine, if the shim is in use.
 #else
-    uint8_t _unused[6];
+    /// @cond
+    uint8_t _unused[6]; ///< @internal Padding.
+    /// @endcond
 #endif
 };
 
@@ -66,7 +70,9 @@ struct warpcore {
     struct nmreq req; ///< Netmap request structure.
     int fd;           ///< Netmap file descriptor.
 #endif
-    uint8_t unused[4];
+    /// @cond
+    uint8_t _unused[4]; ///< @internal Padding.
+    /// @endcond
     SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
 };
 

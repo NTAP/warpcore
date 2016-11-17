@@ -27,7 +27,10 @@ struct w_iov {
     /// to-be-transmitted IPv4 packet on TX.
     uint8_t flags;
 
-    uint8_t _unused[3];
+    /// @cond
+    uint8_t _unused[3]; ///< @internal Padding.
+    /// @endcond
+
     struct timeval ts; ///< Receive time of the data. Only valid on RX.
 };
 
