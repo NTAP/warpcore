@@ -55,7 +55,7 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
         return;
     }
 
-    struct w_sock ** const s = get_sock(w, IP_P_UDP, udp->dport);
+    struct w_sock ** const s = get_sock(w, udp->dport);
     if (unlikely(*s == 0)) {
         // nobody bound to this port locally
         // send an ICMP unreachable

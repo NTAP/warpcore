@@ -31,42 +31,6 @@
 #endif
 
 
-/// Convert a network byte order IPv4 address into a string.
-///
-/// @param[in]     ip    An IPv4 address in network byte order.
-/// @param[in,out] buf   The buffer in which to place the result.
-/// @param[in]     size  The size of @p buf in bytes.
-///
-/// @return        A pointer to @p buf.
-///
-const __attribute__((nonnull)) char *
-ip_ntoa(uint32_t ip, void * const buf, const size_t size)
-{
-    const uint32_t i = ntohl(ip);
-    snprintf(buf, size, "%u.%u.%u.%u", (i >> 24) & 0xff, (i >> 16) & 0xff,
-             (i >> 8) & 0xff, i & 0xff);
-    ((char *)buf)[size - 1] = '\0';
-    return buf;
-}
-
-
-/// Convert a string into a network byte order IP address.
-///
-/// @param[in]  ip    A string containing an IPv4 address in "xxx.xxx.xxx.xxx\0"
-///                   format.
-///
-/// @return     The IPv4 address in @p ip as a 32-bit network byte order value.
-///
-uint32_t __attribute__((nonnull)) ip_aton(const char * const ip)
-{
-    uint32_t i;
-    const int r = sscanf(ip, "%hhu.%hhu.%hhu.%hhu", (unsigned char *)(&i),
-                         (unsigned char *)(&i) + 1, (unsigned char *)(&i) + 2,
-                         (unsigned char *)(&i) + 3);
-    return r == 4 ? i : 0;
-}
-
-
 /// This function prepares the current *receive* buffer for reflection. It swaps
 /// the source and destination IPv4 addresses, adjusts various ip_hdr fields and
 /// passes the buffer to eth_tx_rx_cur().

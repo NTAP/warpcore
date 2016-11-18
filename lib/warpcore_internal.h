@@ -11,14 +11,29 @@
 #include "warpcore.h"
 
 
-/// For a given netmap buffer index, get a pointer to its beginning.
+/// For a given buffer index, get a pointer to its beginning.
+///
+/// Since netmap uses a macro for this, we also need to use a macro for the shim
+/// backend.
 ///
 /// @param      w     Warpcore engine.
 /// @param      i     Buffer index.
 ///
 /// @return     Memory region associated with buffer @p i.
 ///
+#ifdef WITH_NETMAP
 #define IDX2BUF(w, i) NETMAP_BUF(NETMAP_TXRING((w)->nif, 0), (i))
+#else
+#define IDX2BUF(w, i) (&((struct w_iov *)w->mem)[i])
+#endif
+
+
+/// The number of extra buffers to allocate from netmap. Extra buffers are
+/// buffers that are not used to support TX or RX rings, but instead are used
+/// for the warpcore w_sock::iv and w_sock::ov socket buffers, as well as for
+/// maintaining packetized data inside an application using warpcore.
+///
+#define NUM_BUFS 1024 // XXX this should become configurable
 
 
 /// A warpcore socket.
@@ -44,8 +59,9 @@ struct w_sock {
     int fd; ///< Socket descriptor underlying the engine, if the shim is in use.
 #else
     /// @cond
-    uint8_t _unused[6]; ///< @internal Padding.
-    /// @endcond
+    /// @internal Padding.
+    uint8_t _unused[6];
+/// @endcond
 #endif
 };
 
@@ -73,6 +89,7 @@ struct warpcore {
     /// @cond
     uint8_t _unused[4]; ///< @internal Padding.
     /// @endcond
+    const char * backend; ///< Name of the warpcore backend used by the engine.
     SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
 };
 
@@ -101,9 +118,21 @@ struct warpcore {
 /// must be #IP_P_UDP at the moment.
 ///
 /// @param      w     Warpcore engine.
-/// @param      p     IP protocol number. Must be #IP_P_UDP.
 /// @param      port  The local port to look up the w_sock for.
 ///
 /// @return     Pointer to the w_sock, if it exists, or zero.
 ///
-#define get_sock(w, p, port) ((p) == IP_P_UDP ? &(w)->udp[port] : 0)
+#define get_sock(w, port) (&(w)->udp[port])
+
+
+extern void backend_bind(struct w_sock * s);
+
+extern void backend_connect(struct w_sock * const s);
+
+extern void backend_init(struct warpcore * w, const char * const ifname);
+
+extern void backend_cleanup(struct warpcore * const w);
+
+extern const char * ip_ntoa(uint32_t ip, void * const buf, const size_t size);
+
+extern uint32_t ip_aton(const char * const ip);

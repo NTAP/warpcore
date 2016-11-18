@@ -40,12 +40,9 @@ struct w_iov {
 
 extern struct warpcore * w_init(const char * const ifname, const uint32_t rip);
 
-extern void w_init_common(void); // TODO deprecated
-
 extern void w_cleanup(struct warpcore * const w);
 
-extern struct w_sock *
-w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port);
+extern struct w_sock * w_bind(struct warpcore * const w, const uint16_t port);
 
 extern void
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);

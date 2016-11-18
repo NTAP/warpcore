@@ -48,9 +48,8 @@ int main(int argc, char * argv[])
     struct warpcore * w = w_init(ifname, 0);
 
     // start the inetd-like "small services"
-    struct w_sock * const srv[] = {
-        w_bind(w, IP_P_UDP, htons(7)), w_bind(w, IP_P_UDP, htons(9)),
-        w_bind(w, IP_P_UDP, htons(13)), w_bind(w, IP_P_UDP, htons(37))};
+    struct w_sock * const srv[] = {w_bind(w, htons(7)), w_bind(w, htons(9)),
+                                   w_bind(w, htons(13)), w_bind(w, htons(37))};
     const uint16_t n = sizeof(srv) / sizeof(struct w_sock *);
     struct pollfd fds[] = {{.fd = w_fd(srv[0]), .events = POLLIN},
                            {.fd = w_fd(srv[1]), .events = POLLIN},
@@ -93,7 +92,7 @@ int main(int argc, char * argv[])
                 case 3: { // time
                     const time_t t = time(0);
                     struct w_iov * o = w_tx_alloc(srv[s], sizeof(time_t));
-                    *(time_t *)o->buf = htonl(t);
+                    *(uint32_t *)o->buf = htonl((uint32_t)t);
                     w_connect(srv[s], i->src, i->sport);
                     w_tx(srv[s]);
                     break;

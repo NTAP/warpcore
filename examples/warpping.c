@@ -114,7 +114,7 @@ int main(int argc, char * argv[])
 
     plat_setaffinity();
     struct warpcore * w = w_init(ifname, rip);
-    struct w_sock * s = w_bind(w, proto, (uint16_t)random());
+    struct w_sock * s = w_bind(w, (uint16_t)random());
 
     w_connect(s, ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
               ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);

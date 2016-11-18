@@ -10,16 +10,17 @@ if(NOT(EXISTS ${PLAT}))
   set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_generic.c)
 endif()
 
-set(SOURCES ${SOURCES} ${PLAT} util.c ${CMAKE_CURRENT_BINARY_DIR}/version.c)
+set(SOURCES ${SOURCES}
+  ${PLAT} util.c warpcore.c ${CMAKE_CURRENT_BINARY_DIR}/version.c)
 
-set(SHIMSOURCES ${SOURCES} shim.c)
+set(SHIMSOURCES ${SOURCES} backend_shim.c)
 add_library(shimcore ${SHIMSOURCES})
 set_property(TARGET shimcore PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 target_include_directories(shimcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-if (${netmap_FOUND})
+if(${netmap_FOUND})
   set(WARPSOURCES
-    ${SOURCES} arp.c eth.c icmp.c in_cksum.c ip.c udp.c warpcore.c)
+    ${SOURCES} arp.c eth.c icmp.c in_cksum.c ip.c udp.c backend_netmap.c)
   add_library(warpcore ${WARPSOURCES})
   target_compile_definitions(warpcore PRIVATE -DWITH_NETMAP)
   set_property(TARGET warpcore PROPERTY INTERPROCEDURAL_OPTIMIZATION True)

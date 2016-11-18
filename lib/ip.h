@@ -104,10 +104,6 @@ extern void ip_tx_with_rx_buf(struct warpcore * w,
                               void * const buf,
                               const uint16_t len);
 
-extern const char * ip_ntoa(uint32_t ip, void * const buf, const size_t size);
-
-extern uint32_t ip_aton(const char * const ip);
-
 extern void ip_rx(struct warpcore * const w, void * const buf);
 
 extern bool
