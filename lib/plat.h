@@ -10,11 +10,8 @@
 #define PLAT_MMFLAGS MAP_PREFAULT_READ | MAP_NOSYNC | MAP_ALIGNED_SUPER
 #endif
 
+
 struct ifaddrs;
-
-extern void plat_srandom(void);
-
-extern void plat_setaffinity(void);
 
 extern void plat_get_mac(uint8_t * mac, const struct ifaddrs * i);
 

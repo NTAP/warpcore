@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 
 // example applications MUST only depend on warpcore.h
+#include "plat.h"
 #include "util.h"
 #include "warpcore.h"
 
@@ -111,6 +112,7 @@ int main(int argc, char * argv[])
         rip = ((struct sockaddr_in *)(void *)router->ai_addr)->sin_addr.s_addr;
     }
 
+    plat_setaffinity();
     struct warpcore * w = w_init(ifname, rip);
     struct w_sock * s = w_bind(w, proto, (uint16_t)random());
 

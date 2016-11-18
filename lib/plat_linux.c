@@ -13,33 +13,28 @@
 #include "plat.h"
 #include "util.h"
 
-void plat_srandom(void)
-{
-    srandom((unsigned int)time(0));
-}
 
+// void plat_setaffinity(void)
+// {
+//     int i;
+//     cpu_set_t myset;
+//     assert(sched_getaffinity(0, sizeof(cpu_set_t), &myset) != -1,
+//            "sched_getaffinity");
 
-void plat_setaffinity(void)
-{
-    int i;
-    cpu_set_t myset;
-    assert(sched_getaffinity(0, sizeof(cpu_set_t), &myset) != -1,
-           "sched_getaffinity");
+//     // Find last available CPU
+//     for (i = CPU_SETSIZE - 1; i >= -1; i--)
+//         if (CPU_ISSET(i, &myset))
+//             break;
+//     assert(i != -1, "not allowed to run on any CPUs!?");
 
-    // Find last available CPU
-    for (i = CPU_SETSIZE - 1; i >= -1; i--)
-        if (CPU_ISSET(i, &myset))
-            break;
-    assert(i != -1, "not allowed to run on any CPUs!?");
+//     // Set new CPU mask
+//     warn(info, "setting affinity to CPU %d", i);
+//     CPU_ZERO(&myset);
+//     CPU_SET(i, &myset);
 
-    // Set new CPU mask
-    warn(info, "setting affinity to CPU %d", i);
-    CPU_ZERO(&myset);
-    CPU_SET(i, &myset);
-
-    assert(sched_setaffinity(0, sizeof(myset), &myset) != -1,
-           "sched_setaffinity");
-}
+//     assert(sched_setaffinity(0, sizeof(myset), &myset) != -1,
+//            "sched_setaffinity");
+// }
 
 
 void plat_get_mac(uint8_t * mac, const struct ifaddrs * i)

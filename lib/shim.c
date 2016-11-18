@@ -24,15 +24,6 @@ static struct w_sock ** udp;
 struct warpcore * __attribute__((nonnull))
 w_init(const char * const ifname, const uint32_t rip __attribute__((unused)))
 {
-    // initialize random generator
-    plat_srandom();
-
-    // Set CPU affinity to one core
-    plat_setaffinity();
-
-    // lock memory
-    // assert(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
-
     for (uint32_t i = 0; i < IOV_COUNT; i++) {
         iov_v[i] = (struct w_iov){.buf = iov_buf[i], .idx = i, .len = 0};
         STAILQ_INSERT_TAIL(&iov, &iov_v[i], next);

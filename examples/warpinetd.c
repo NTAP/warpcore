@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 // example applications MUST only depend on warpcore.h
+#include "plat.h"
 #include "util.h"
 #include "warpcore.h"
 
@@ -43,6 +44,7 @@ int main(int argc, char * argv[])
         return 0;
     }
 
+    plat_setaffinity();
     struct warpcore * w = w_init(ifname, 0);
 
     // start the inetd-like "small services"

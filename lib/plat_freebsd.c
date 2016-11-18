@@ -10,42 +10,37 @@
 #include <net/ethernet.h>
 // clang-format on
 
-
 #include "util.h"
 #include "eth.h"
 #include "plat.h"
 
-void plat_srandom(void)
-{
-    srandomdev();
-}
 
+// void plat_setaffinity(void)
+// {
+//     int i;
+//     cpuset_t myset;
+//     if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
+//                            &myset) == -1) {
+//         warn(crit, "cpuset_getaffinity failed");
+//         return;
+//     }
 
-void plat_setaffinity(void)
-{
-    int i;
-    cpuset_t myset;
-    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
-                           &myset) == -1) {
-        warn(crit, "cpuset_getaffinity failed");
-        return;
-    }
+//     // Find last available CPU
+//     for (i = CPU_SETSIZE - 1; i >= 0; i--)
+//         if (CPU_ISSET(i, &myset))
+//             break;
+//     assert(i != 0, "not allowed to run on any CPUs!?");
 
-    // Find last available CPU
-    for (i = CPU_SETSIZE - 1; i >= 0; i--)
-        if (CPU_ISSET(i, &myset))
-            break;
-    assert(i != 0, "not allowed to run on any CPUs!?");
+//     // Set new CPU mask
+//     warn(info, "setting affinity to CPU %d", i);
+//     CPU_ZERO(&myset);
+//     CPU_SET(i, &myset);
 
-    // Set new CPU mask
-    warn(info, "setting affinity to CPU %d", i);
-    CPU_ZERO(&myset);
-    CPU_SET(i, &myset);
+//     if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
+//                            &myset) == -1)
+//         warn(crit, "cpuset_setaffinity failed");
+// }
 
-    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
-                           &myset) == -1)
-        warn(crit, "cpuset_setaffinity failed");
-}
 
 void plat_get_mac(uint8_t * mac, const struct ifaddrs * i)
 {

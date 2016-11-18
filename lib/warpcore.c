@@ -409,24 +409,15 @@ void __attribute__((nonnull)) w_cleanup(struct warpcore * const w)
 }
 
 
-void w_init_common(void)
-{
-    // initialize random generator
-    plat_srandom();
-
-    // Set CPU affinity to one core
-    plat_setaffinity();
-
-    // lock memory
-    assert(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
-}
-
-
 /// Initialize a warpcore engine on the given interface. Ethernet and IPv4
 /// source addresses and related information, such as the netmask, are taken
 /// from the active OS configuration of the interface. A default router,
 /// however, needs to be specified with @p rip, if communication over a WAN is
 /// desired.
+///
+/// Since warpcore relies on random() to generate random values, the caller
+/// should also set an initial seed with srandom() or srandomdev(). Warpcore
+/// does not do this, to allow the application control over the seed.
 ///
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
 /// @param[in]  rip     The default router to be used for non-local
@@ -580,8 +571,8 @@ w_init(const char * const ifname, const uint32_t rip)
     assert((w->udp = calloc(UINT16_MAX, sizeof(struct w_sock *))) != 0,
            "cannot allocate UDP sockets");
 
-    // do the common system setup which is also useful for non-warpcore
-    w_init_common();
+    // lock memory
+    assert(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 
     // store the initialized engine in our global list
     SLIST_INSERT_HEAD(&wc, w, next);

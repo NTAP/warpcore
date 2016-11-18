@@ -6,13 +6,11 @@ set(CMAKE_INCLUDE_CURRENT_DIR_IN_INTERFACE ON)
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
 set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_${CMAKE_SYSTEM_NAME_LC}.c)
-if(EXISTS ${PLAT})
-  set(SOURCES ${SOURCES} ${PLAT})
-else()
-  set(SOURCES ${SOURCES} plat_generic.c)
+if(NOT(EXISTS ${PLAT}))
+  set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_generic.c)
 endif()
 
-set(SOURCES ${SOURCES} util.c ${CMAKE_CURRENT_BINARY_DIR}/version.c)
+set(SOURCES ${SOURCES} ${PLAT} util.c ${CMAKE_CURRENT_BINARY_DIR}/version.c)
 
 set(SHIMSOURCES ${SOURCES} shim.c)
 add_library(shimcore ${SHIMSOURCES})
