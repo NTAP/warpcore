@@ -13,7 +13,7 @@
 void plat_get_mac(uint8_t * mac,
                   const struct ifaddrs * i __attribute__((unused)))
 {
-    warn(warn, "not supported");
+    warn(warn, "MAC address queries not supported");
     memcpy(mac, "\xde\xad\xde\xad\xde\xad", ETH_ADDR_LEN);
 }
 
@@ -28,7 +28,7 @@ void plat_get_mac(uint8_t * mac,
 ///
 uint16_t plat_get_mtu(const struct ifaddrs * i __attribute__((unused)))
 {
-    warn(warn, "not supported");
+    warn(warn, "MTU queries not supported");
     return 1500;
 }
 
@@ -43,7 +43,7 @@ uint16_t plat_get_mtu(const struct ifaddrs * i __attribute__((unused)))
 ///
 uint32_t plat_get_mbps(const struct ifaddrs * i __attribute__((unused)))
 {
-    warn(warn, "not supported");
+    warn(warn, "link speed queries not supported");
     return 0;
 }
 
@@ -58,6 +58,6 @@ uint32_t plat_get_mbps(const struct ifaddrs * i __attribute__((unused)))
 ///
 bool plat_get_link(const struct ifaddrs * i __attribute__((unused)))
 {
-    warn(warn, "not supported");
+    warn(warn, "link state queries not supported");
     return true;
 }

@@ -6,5 +6,5 @@
 ///
 void plat_setaffinity(void)
 {
-    warn(warn, "not supported");
+    warn(warn, "setting thread affinity not supported");
 }
