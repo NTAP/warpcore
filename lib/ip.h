@@ -18,6 +18,10 @@
 ///
 #define IP_ADDR_STRLEN 16
 
+#define IP_ANY 0x00000000   ///< IPv4 "any" address.
+#define IP_BCAST 0xffffffff ///< IPv4 broadcast address.
+
+
 /// An IPv4 header representation; see
 /// [RFC791](https://tools.ietf.org/html/rfc791.)
 ///
