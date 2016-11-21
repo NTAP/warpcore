@@ -1,19 +1,12 @@
-// #include <fcntl.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
-// #include <poll.h>
-// #include <sys/ioctl.h>
-// #include <sys/mman.h>
-// #include <sys/param.h>
+#include <sys/socket.h>
 #include <unistd.h>
-// #include <xmmintrin.h>
 
 #ifdef __linux__
 #include <netinet/ether.h>
 #else
 #include <net/ethernet.h>
-#include <net/if_dl.h>
-// #include <sys/types.h>
 #endif
 
 // #include "arp.h"

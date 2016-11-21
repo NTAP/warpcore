@@ -1,4 +1,9 @@
+#include <sys/cdefs.h>
+// clang-format off
+// because these includes need to be in-order
+#include <sys/types.h>
 #include <sys/cpuset.h>
+// clang-format on
 
 #include "plat.h"
 #include "util.h"

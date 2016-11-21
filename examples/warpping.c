@@ -13,9 +13,9 @@
 #include "util.h"
 #include "warpcore.h"
 
-#ifdef __FreeBSD__
-#define CLOCK_REALTIME CLOCK_REALTIME_PRECISE
-#endif
+// #ifdef __FreeBSD__
+// #define CLOCK_REALTIME CLOCK_REALTIME_PRECISE
+// #endif
 
 
 static void
