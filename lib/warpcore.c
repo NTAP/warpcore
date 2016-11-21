@@ -138,14 +138,14 @@ w_bind(struct warpcore * const w, const uint16_t port)
 
     // initialize the non-zero fields of outgoing template header
     (*s)->hdr.eth.type = ETH_TYPE_IP;
-    memcpy(&(*s)->hdr.eth.src, (*s)->w->mac, ETH_ADDR_LEN);
+    memcpy(&(*s)->hdr.eth.src, w->mac, ETH_ADDR_LEN);
     // (*s)->hdr.eth.dst is set on w_connect()
 
     (*s)->hdr.ip.vhl = (4 << 4) + 5;
     (*s)->hdr.ip.ttl = 1; // XXX TODO: pick something sensible
     (*s)->hdr.ip.off |= htons(IP_DF);
     (*s)->hdr.ip.p = IP_P_UDP;
-    (*s)->hdr.ip.src = (*s)->w->ip;
+    (*s)->hdr.ip.src = w->ip;
     (*s)->hdr.udp.sport = port;
     // (*s)->hdr.ip.dst is set on w_connect()
 
@@ -251,7 +251,6 @@ w_init(const char * const ifname, const uint32_t rip)
 
     // we mostly loop here because the link may be down
     // mpbs can be zero on generic platforms
-    uint32_t mbps = 0;
     while (link_up == false || IS_ZERO(w->mac) || w->mtu == 0 || w->ip == 0 ||
            w->mask == 0) {
 
@@ -271,7 +270,9 @@ w_init(const char * const ifname, const uint32_t rip)
             case AF_LINK:
                 plat_get_mac(w->mac, i);
                 w->mtu = plat_get_mtu(i);
-                mbps = plat_get_mbps(i);
+#ifndef NDEBUG
+                uint32_t mbps = plat_get_mbps(i);
+#endif
                 link_up = plat_get_link(i);
                 warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
                      i->ifa_name, ether_ntoa((struct ether_addr *)w->mac),
