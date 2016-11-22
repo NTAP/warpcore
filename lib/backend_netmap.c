@@ -126,24 +126,13 @@ w_chain_extra_bufs(const struct warpcore * const w, const struct w_iov * v)
 }
 
 
-/// Shut a warpcore netmap engine down cleanly. This function pushes out all
-/// buffers already placed into TX rings, and returns all w_iov structures
-/// associated with all w_sock structures of the engine to netmap.
+/// Shut a warpcore netmap engine down cleanly. This function  returns all w_iov
+/// structures associated with all w_sock structures of the engine to netmap.
 ///
 /// @param      w     Warpcore engine.
 ///
 void __attribute__((nonnull)) backend_cleanup(struct warpcore * const w)
 {
-    // clean out all the tx rings
-    for (uint32_t i = 0; i < w->nif->ni_rx_rings; i++) {
-        struct netmap_ring * const txr = NETMAP_TXRING(w->nif, w->cur_txr);
-        while (nm_tx_pending(txr)) {
-            warn(info, "tx pending on ring %u", w->cur_txr);
-            w_kick_tx(w);
-            usleep(1); // wait 1 tick
-        }
-    }
-
     // re-construct the extra bufs list, so netmap can free the memory
     const struct w_iov * last = w_chain_extra_bufs(w, STAILQ_FIRST(&w->iov));
     struct w_sock * s;
