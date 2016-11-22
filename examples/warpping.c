@@ -161,11 +161,7 @@ int main(int argc, char * argv[])
             // read new data
             w_nic_rx(w);
             i = w_rx(s);
-
-            // compute the length of the received data
-            len = 0;
-            for (struct w_iov * v = i; v; v = STAILQ_NEXT(v, next))
-                len += v->len;
+            len = w_iov_len(i);
         }
 
         // stop the timeout

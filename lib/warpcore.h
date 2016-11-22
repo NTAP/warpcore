@@ -51,6 +51,8 @@ extern void w_close(struct w_sock * const s);
 
 extern struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len);
 
+extern uint32_t w_iov_len(const struct w_iov * v);
+
 extern int w_fd(struct w_sock * const s);
 
 extern void w_rx_done(struct w_sock * const s);

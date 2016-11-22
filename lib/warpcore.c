@@ -81,6 +81,21 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 }
 
 
+/// Return the total payload length of w_iov chain @p v.
+///
+/// @param[in]  v     A w_iov chain.
+///
+/// @return     Sum of the payload lengths of the w_iov structs in @p v.
+///
+uint32_t __attribute__((nonnull)) w_iov_len(const struct w_iov * const v)
+{
+    uint32_t l = 0;
+    for (const struct w_iov * i = v; i; i = STAILQ_NEXT(i, next))
+        l += i->len;
+    return l;
+}
+
+
 /// Connect a bound socket to a remote IP address and port. Depending on the
 /// backend, this function may block until a MAC address has been resolved with
 /// ARP.
