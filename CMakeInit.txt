@@ -23,5 +23,5 @@ if(${CMAKE_C_COMPILER_ID} MATCHES "Clang")
 
   # see https://llvm.org/bugs/show_bug.cgi?id=21689
   set(CMAKE_C_FLAGS_INIT
-    "${CMAKE_C_FLAGS_INIT} -Wno-missing-field-initializers")
+    "${CMAKE_C_FLAGS_INIT} -Wno-missing-field-initializers -Wno-missing-braces")
 endif()
