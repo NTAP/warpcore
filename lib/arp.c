@@ -43,7 +43,7 @@ arp_is_at(struct warpcore * const w, void * const buf)
 
     // send the Ethernet packet
     eth_tx_rx_cur(w, buf, sizeof(struct arp_hdr));
-    w_kick_tx(w);
+    w_nic_tx(w);
 }
 
 
@@ -91,7 +91,7 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
 
     // send the Ethernet packet
     eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
-    w_kick_tx(w);
+    w_nic_tx(w);
 
     // make iov available again
     STAILQ_INSERT_HEAD(&w->iov, v, next);

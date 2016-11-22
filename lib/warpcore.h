@@ -57,8 +57,8 @@ extern void w_rx_done(struct w_sock * const s);
 
 extern struct w_iov * w_rx(struct w_sock * const s);
 
-extern void w_kick_tx(const struct warpcore * const w);
+extern void w_nic_tx(const struct warpcore * const w);
 
-extern void w_kick_rx(const struct warpcore * const w);
+extern void w_nic_rx(const struct warpcore * const w);
 
 extern void w_tx(struct w_sock * const s);

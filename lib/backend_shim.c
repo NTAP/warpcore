@@ -165,7 +165,7 @@ void __attribute__((nonnull)) w_tx(struct w_sock * const s)
 /// @param[in]  w     Warpcore engine.
 ///
 void __attribute__((nonnull))
-w_kick_rx(const struct warpcore * const w __attribute__((unused)))
+w_nic_rx(const struct warpcore * const w __attribute__((unused)))
 {
 }
 
@@ -175,6 +175,6 @@ w_kick_rx(const struct warpcore * const w __attribute__((unused)))
 /// @param[in]  w     Warpcore engine.
 ///
 void __attribute__((nonnull))
-w_kick_tx(const struct warpcore * const w __attribute__((unused)))
+w_nic_tx(const struct warpcore * const w __attribute__((unused)))
 {
 }

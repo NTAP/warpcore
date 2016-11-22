@@ -141,7 +141,7 @@ int main(int argc, char * argv[])
 
         // send the data
         w_tx(s);
-        w_kick_tx(w);
+        w_nic_tx(w);
         warn(info, "sent %d byte%c", size, plural(size));
 
         // wait for a reply
@@ -159,7 +159,7 @@ int main(int argc, char * argv[])
             }
 
             // read new data
-            w_kick_rx(w);
+            w_nic_rx(w);
             i = w_rx(s);
 
             // compute the length of the received data

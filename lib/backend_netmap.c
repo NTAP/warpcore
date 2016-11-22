@@ -192,7 +192,7 @@ void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
         arp_who_has(s->w, ip);
         struct pollfd _fds = {.fd = s->w->fd, .events = POLLIN};
         poll(&_fds, 1, 1000);
-        w_kick_rx(s->w);
+        w_nic_rx(s->w);
         w_rx(s);
         if (!IS_ZERO(s->hdr.eth.dst))
             break;
@@ -258,7 +258,7 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 
 /// Places payloads that are queued up at @p s w_sock::ov into IPv4 UDP packets,
 /// and attempts to move them onto a TX ring. Not all payloads may be placed if
-/// the TX rings fills up first. Also, the packets are not send yet; w_kick_tx()
+/// the TX rings fills up first. Also, the packets are not send yet; w_nic_tx()
 /// needs to be called for that. This is, so that an application has control
 /// over exactly when to schedule packet I/O.
 ///
@@ -277,7 +277,7 @@ void __attribute__((nonnull)) w_tx(struct w_sock * const s)
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void __attribute__((nonnull)) w_kick_rx(const struct warpcore * const w)
+void __attribute__((nonnull)) w_nic_rx(const struct warpcore * const w)
 {
     assert(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
 }
@@ -288,7 +288,7 @@ void __attribute__((nonnull)) w_kick_rx(const struct warpcore * const w)
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void __attribute__((nonnull)) w_kick_tx(const struct warpcore * const w)
+void __attribute__((nonnull)) w_nic_tx(const struct warpcore * const w)
 {
     assert(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 }

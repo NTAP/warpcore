@@ -57,7 +57,7 @@ int main(int argc, char * argv[])
                            {.fd = w_fd(srv[3]), .events = POLLIN}};
 
     while (1) {
-        w_kick_rx(w);
+        w_nic_rx(w);
         if (busywait == false)
             poll(fds, n, 1000);
 
@@ -108,9 +108,9 @@ int main(int argc, char * argv[])
 
             w_rx_done(srv[s]);
             if (len)
-                warn(info, "echo %d byte%c", len, plural(len));
+                warn(info, "handled %d byte%c", len, plural(len));
         }
-        w_kick_tx(w);
+        w_nic_tx(w);
     }
 
     // for (uint16_t s = 0; s < n; s++)
