@@ -153,7 +153,7 @@ void __attribute__((nonnull)) w_tx(struct w_sock * const s)
             warn(warn, "could not send all data");
             return;
         }
-        warn(debug, "sent %zu byte%c from buf %d", n, plural(n), v->idx);
+        // warn(debug, "sent %zu byte%c from buf %d", n, plural(n), v->idx);
         STAILQ_REMOVE_HEAD(&s->ov, next);
         STAILQ_INSERT_HEAD(&s->w->iov, v, next);
     }

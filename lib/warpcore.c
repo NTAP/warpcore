@@ -64,7 +64,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
         v = STAILQ_FIRST(&s->w->iov);
         assert(v != 0, "out of spare bufs after grabbing %d", n);
         STAILQ_REMOVE_HEAD(&s->w->iov, next);
-        warn(debug, "grabbing spare buf %u for user tx", v->idx);
+        // warn(debug, "grabbing spare buf %u for user tx", v->idx);
         v->buf = IDX2BUF(s->w, v->idx) + sizeof(s->hdr);
         v->len = s->w->mtu - sizeof(s->hdr);
         l -= v->len;
