@@ -78,7 +78,7 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
     arp->op = htons(ARP_OP_REQUEST);
     memcpy(arp->sha, w->mac, ETH_ADDR_LEN);
     arp->spa = w->ip;
-    bzero(arp->tha, ETH_ADDR_LEN);
+    memset(arp->tha, 0, ETH_ADDR_LEN);
     arp->tpa = dip;
 
 #ifndef NDEBUG

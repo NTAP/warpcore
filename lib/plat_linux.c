@@ -35,8 +35,7 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     assert(s >= 0, "%s socket", i->ifa_name);
 
-    struct ifreq ifr;
-    bzero(&ifr, sizeof(struct ifreq));
+    struct ifreq ifr = {0};
     strcpy(ifr.ifr_name, i->ifa_name);
 
     assert(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
@@ -59,8 +58,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     assert(s >= 0, "%s socket", i->ifa_name);
 
-    struct ifreq ifr;
-    bzero(&ifr, sizeof(struct ifreq));
+    struct ifreq ifr = {0};
     strcpy(ifr.ifr_name, i->ifa_name);
 
     struct ethtool_cmd edata;
@@ -83,8 +81,7 @@ bool plat_get_link(const struct ifaddrs * i)
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     assert(s >= 0, "%s socket", i->ifa_name);
 
-    struct ifreq ifr;
-    bzero(&ifr, sizeof(struct ifreq));
+    struct ifreq ifr = {0};
     strcpy(ifr.ifr_name, i->ifa_name);
 
     assert(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
