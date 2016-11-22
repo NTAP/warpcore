@@ -67,7 +67,7 @@ void __attribute__((nonnull)) backend_bind(struct w_sock * s)
 }
 
 
-/// Bind a warpcore shim socket. Calls the underlying Socket API.
+/// Connect a warpcore shim socket. Calls the underlying Socket API.
 ///
 /// @param      s     The w_sock to connect.
 ///
