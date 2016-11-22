@@ -3,6 +3,7 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/param.h>
@@ -15,7 +16,7 @@
 
 
 static void
-usage(const char * const name, const uint16_t size, const long loops)
+usage(const char * const name, const uint32_t size, const long loops)
 {
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
@@ -50,13 +51,24 @@ static void time_diff(struct timespec * const r,
 }
 
 
+// global timeout flag
+static bool done = false;
+
+
+// set the global timeout flag
+static void timeout(int signum __attribute__((unused)))
+{
+    done = true;
+}
+
+
 int main(int argc, char * argv[])
 {
     const char * ifname = 0;
     const char * dst = 0;
     const char * rtr = 0;
     long loops = 1;
-    uint16_t size = sizeof(struct timespec);
+    uint32_t size = sizeof(struct timespec);
     bool busywait = false;
 
     int ch;
@@ -75,7 +87,7 @@ int main(int argc, char * argv[])
             loops = strtol(optarg, 0, 10);
             break;
         case 's':
-            size = (uint16_t)MIN(UINT16_MAX, MAX(size, strtol(optarg, 0, 10)));
+            size = MIN(UINT32_MAX, MAX(size, (uint32_t)strtol(optarg, 0, 10)));
             break;
         case 'b':
             busywait = true;
@@ -93,11 +105,8 @@ int main(int argc, char * argv[])
         return 0;
     }
 
-    const uint8_t proto = IP_P_UDP;
-    struct addrinfo hints, *peer;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = PF_INET;
-    hints.ai_protocol = proto;
+    struct addrinfo hints = {.ai_family = PF_INET, .ai_protocol = IP_P_UDP};
+    struct addrinfo * peer;
     assert(getaddrinfo(dst, "echo", &hints, &peer) == 0, "getaddrinfo peer");
 
     uint32_t rip = 0;
@@ -116,6 +125,11 @@ int main(int argc, char * argv[])
               ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
     freeaddrinfo(peer);
 
+    // set a timer handler (used with busywait)
+    const struct sigaction sa = {.sa_handler = &timeout};
+    assert(sigaction(SIGALRM, &sa, 0) == 0, "sigaction");
+    const struct itimerval timer = {.it_value.tv_sec = 1};
+
     printf("nsec\tsize\n");
     while (likely(loops--)) {
         // allocate tx chain
@@ -127,49 +141,55 @@ int main(int argc, char * argv[])
 
         // send the data
         w_tx(s);
+        w_kick_tx(w);
         warn(info, "sent %d byte%c", size, plural(size));
 
         // wait for a reply
         struct w_iov * i = 0;
         uint32_t len = 0;
-        struct timespec diff, now;
-        do {
 
+        // set a timeout
+        assert(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
+
+        while (len != size && done == false) {
             if (busywait == false) {
+                // poll for new data
                 struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
-                poll(&fds, 1, 1000);
+                poll(&fds, 1, -1);
             }
 
+            // read new data
             w_kick_rx(w);
             i = w_rx(s);
 
+            // compute the length of the received data
+            len = 0;
             for (struct w_iov * v = i; v; v = STAILQ_NEXT(v, next))
                 len += v->len;
+        }
 
-            assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
-            time_diff(&diff, &now, before);
+        // stop the timeout
+        const struct itimerval stop = {0};
+        assert(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-        } while (len != size && diff.tv_sec == 0);
+        warn(info, "received %d/%d byte%c", len, size, plural(len));
 
-        void * after = 0;
-        if (i)
-            after = i->buf;
-        else {
-            // if no packet was received, assume loss and send next packet
+        if (unlikely(len != size)) {
+            // assume loss and send next packet
             w_rx_done(s);
-            warn(warn, "no response, packet loss?");
+            warn(warn, "incomplete response, packet loss?");
             continue;
         }
 
         // compute time difference
+        struct timespec diff, now;
         assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
-        time_diff(&diff, &now, after);
+        time_diff(&diff, &now, i->buf);
         if (unlikely(diff.tv_sec != 0))
             die("time difference is more than %ld sec", diff.tv_sec);
 
         printf("%ld\t%d\n", diff.tv_nsec, size);
         w_rx_done(s);
-        warn(info, "received %d byte%c", size, plural(size));
     }
 
     w_close(s);
