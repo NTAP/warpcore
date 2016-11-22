@@ -113,7 +113,7 @@ void __attribute__((nonnull)) ip_rx(struct warpcore * const w, void * const buf)
     assert(ip_hl(ip) == 20, "no support for IP options");
 
     // TODO: handle IP fragments
-    assert((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP options");
+    assert((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP fragments");
 
     if (likely(ip->p == IP_P_UDP))
         udp_rx(w, buf, ip->src);
