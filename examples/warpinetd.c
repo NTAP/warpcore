@@ -110,6 +110,7 @@ int main(int argc, char * argv[])
             if (len)
                 warn(info, "echo %d byte%c", len, plural(len));
         }
+        w_kick_tx(w);
     }
 
     // for (uint16_t s = 0; s < n; s++)

@@ -142,7 +142,4 @@ void __attribute__((nonnull)) udp_tx(struct w_sock * const s)
     }
 done:
     warn(info, "proto %d tx iov (len %d in %d bufs) done", s->hdr.ip.p, l, n);
-
-    // kick tx ring
-    w_kick_tx(s->w);
 }
