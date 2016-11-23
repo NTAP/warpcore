@@ -55,10 +55,11 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
     }
 
     struct w_sock * const s = w->udp[udp->dport];
-    if (unlikely(s == 0 && ip->src != 0)) {
+    if (unlikely(s == 0)) {
         // nobody bound to this port locally
-        // send an ICMP unreachable
-        icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf);
+        // send an ICMP unreachable reply, if this was not a broadcast
+        if (ip->src)
+            icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf);
         return;
     }
 
