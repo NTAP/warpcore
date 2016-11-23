@@ -1,10 +1,10 @@
 #include <arpa/inet.h>
 
+#include "backend.h"
 #include "icmp.h"
 #include "ip.h"
 #include "udp.h"
 #include "util.h"
-#include "warpcore_internal.h"
 
 
 #ifndef NDEBUG
@@ -14,13 +14,12 @@
 ///
 #define ip_log(ip)                                                             \
     do {                                                                       \
-        char src[IP_ADDR_STRLEN];                                              \
-        char dst[IP_ADDR_STRLEN];                                              \
         warn(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "          \
                      "flags [%s%s], proto %d, hlen/tot %d/%d",                 \
-             ip_ntoa(ip->src, src, sizeof src),                                \
-             ip_ntoa(ip->dst, dst, sizeof dst), ip_dscp(ip), ip_ecn(ip),       \
-             ip->ttl, ntohs(ip->id), (ntohs(ip->off) & IP_MF) ? "MF" : "",     \
+             inet_ntoa(*(const struct in_addr * const) & ip->src),             \
+             inet_ntoa(*(const struct in_addr * const) & ip->dst),             \
+             ip_dscp(ip), ip_ecn(ip), ip->ttl, ntohs(ip->id),                  \
+             (ntohs(ip->off) & IP_MF) ? "MF" : "",                             \
              (ntohs(ip->off) & IP_DF) ? "DF" : "", ip->p, ip_hl(ip),           \
              ntohs(ip->len));                                                  \
     } while (0)
@@ -93,13 +92,9 @@ void __attribute__((nonnull)) ip_rx(struct warpcore * const w, void * const buf)
     // make sure the packet is for us (or broadcast)
     if (unlikely(ip->dst != w->ip && ip->dst != mk_bcast(w->ip, w->mask) &&
                  ip->dst != IP_BCAST)) {
-#ifndef NDEBUG
-        char src[IP_ADDR_STRLEN];
-        char dst[IP_ADDR_STRLEN];
-#endif
         warn(warn, "IP packet from %s to %s (not us); ignoring",
-             ip_ntoa(ip->src, src, sizeof src),
-             ip_ntoa(ip->dst, dst, sizeof dst));
+             inet_ntoa(*(const struct in_addr * const) & ip->src),
+             inet_ntoa(*(const struct in_addr * const) & ip->dst));
         return;
     }
 

@@ -111,7 +111,7 @@ extern void ip_tx_with_rx_buf(struct warpcore * w,
 extern void ip_rx(struct warpcore * const w, void * const buf);
 
 extern bool
-ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len);
+ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);
 
 
 // these are documented here, since in_chksum.c taken from FreeBSD

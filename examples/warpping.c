@@ -10,9 +10,7 @@
 #include <sys/socket.h>
 
 // example applications MUST only depend on warpcore.h
-#include "plat.h"
-#include "util.h"
-#include "warpcore.h"
+#include <warpcore.h>
 
 
 static void
@@ -126,22 +124,22 @@ int main(int argc, char * argv[])
     freeaddrinfo(peer);
 
     // set a timer handler (used with busywait)
-    const struct sigaction sa = {.sa_handler = &timeout};
-    assert(sigaction(SIGALRM, &sa, 0) == 0, "sigaction");
+    assert(signal(SIGALRM, &timeout) == 0, "signal");
     const struct itimerval timer = {.it_value.tv_sec = 1};
 
     printf("nsec\tsize\n");
     while (likely(loops--)) {
         // allocate tx chain
-        struct w_iov * const o = w_tx_alloc(s, size);
+        struct w_iov * const o = w_tx_alloc(w, size);
 
         // timestamp the payload
         void * const before = o->buf;
         assert(clock_gettime(CLOCK_REALTIME, before) != -1, "clock_gettime");
 
         // send the data
-        w_tx(s);
+        w_tx(s, o);
         w_nic_tx(w);
+        w_tx_done(w, o);
         warn(info, "sent %d byte%c", size, plural(size));
 
         // wait for a reply
@@ -151,7 +149,7 @@ int main(int argc, char * argv[])
         // set a timeout
         assert(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
 
-        while (len != size && done == false) {
+        while (len < size && done == false) {
             if (busywait == false) {
                 // poll for new data
                 struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
@@ -161,7 +159,8 @@ int main(int argc, char * argv[])
             // read new data
             w_nic_rx(w);
             i = w_rx(s);
-            len = w_iov_len(i);
+            if (i)
+                len = w_iov_len(i);
         }
 
         // stop the timeout
@@ -170,7 +169,7 @@ int main(int argc, char * argv[])
 
         warn(info, "received %d/%d byte%c", len, size, plural(len));
 
-        if (unlikely(len != size)) {
+        if (unlikely(len < size)) {
             // assume loss and send next packet
             w_rx_done(s);
             warn(warn, "incomplete response, packet loss?");

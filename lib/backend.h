@@ -36,6 +36,15 @@
 #define NUM_BUFS 1024 // XXX this should become configurable
 
 
+/// A warpcore template packet header structure.
+///
+struct w_hdr {
+    struct eth_hdr eth;                       ///< Ethernet header.
+    struct ip_hdr ip __attribute__((packed)); ///< IPv4 header.
+    struct udp_hdr udp;                       ///< UDP header.
+};
+
+
 /// A warpcore socket.
 ///
 struct w_sock {
@@ -43,15 +52,10 @@ struct w_sock {
     ///
     struct warpcore * w;
     STAILQ_HEAD(ivh, w_iov) iv; ///< w_iov containing incoming unread data.
-    STAILQ_HEAD(ovh, w_iov) ov; ///< w_iov containing outbound unsent data.
     SLIST_ENTRY(w_sock) next;   ///< Next socket associated with this engine.
     /// The template header to be used for outbound packets on this
     /// w_sock.
-    struct {
-        struct eth_hdr eth;
-        struct ip_hdr ip __attribute__((packed));
-        struct udp_hdr udp;
-    } hdr;
+    struct w_hdr hdr;
 #ifndef WITH_NETMAP
     /// @cond
     uint8_t _unused[2]; ///< @internal Padding.
@@ -69,28 +73,29 @@ struct w_sock {
 /// A warpcore engine.
 ///
 struct warpcore {
-    struct netmap_if * nif;       ///< Netmap interface.
     struct w_sock ** udp;         ///< Array 64K pointers to w_sock sockets.
     SLIST_HEAD(sh, w_sock) sock;  ///< List of open (bound) w_sock sockets.
-    uint32_t cur_txr;             ///< Index of the TX ring currently active.
-    uint32_t cur_rxr;             ///< Index of the RX ring currently active.
     STAILQ_HEAD(iovh, w_iov) iov; ///< List of w_iov buffers available.
     uint32_t ip;   ///< Local IPv4 address used on this interface.
     uint32_t mask; ///< IPv4 netmask of this interface.
     uint16_t mtu;  ///< MTU of this interface.
     uint8_t
         mac[ETH_ADDR_LEN]; ///< Local Ethernet MAC address of this interface.
-    void * mem;            ///< Pointer to netmap memory region.
+    void * mem;            ///< Pointer to netmap or shim buffer memory region.
     uint32_t rip;          ///< IPv4 our default router IP address
 #ifdef WITH_NETMAP
-    struct nmreq req; ///< Netmap request structure.
-    int fd;           ///< Netmap file descriptor.
+    int fd;                 ///< Netmap file descriptor.
+    uint32_t cur_txr;       ///< Index of the TX ring currently active.
+    uint32_t cur_rxr;       ///< Index of the RX ring currently active.
+    struct netmap_if * nif; ///< Netmap interface.
+    struct nmreq req;       ///< Netmap request structure.
 #endif
     /// @cond
     uint8_t _unused[4]; ///< @internal Padding.
     /// @endcond
     const char * backend; ///< Name of the warpcore backend used by the engine.
     SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
+    struct w_iov * bufs;
 };
 
 
@@ -114,17 +119,6 @@ struct warpcore {
 #define mk_net(ip, mask) ((ip) & (mask))
 
 
-/// Get the w_sock associated with protocol @p p and local port @p port. @p p
-/// must be #IP_P_UDP at the moment.
-///
-/// @param      w     Warpcore engine.
-/// @param      port  The local port to look up the w_sock for.
-///
-/// @return     Pointer to the w_sock, if it exists, or zero.
-///
-#define get_sock(w, port) (&(w)->udp[port])
-
-
 extern void backend_bind(struct w_sock * s);
 
 extern void backend_connect(struct w_sock * const s);
@@ -132,7 +126,3 @@ extern void backend_connect(struct w_sock * const s);
 extern void backend_init(struct warpcore * w, const char * const ifname);
 
 extern void backend_cleanup(struct warpcore * const w);
-
-extern const char * ip_ntoa(uint32_t ip, void * const buf, const size_t size);
-
-extern uint32_t ip_aton(const char * const ip);

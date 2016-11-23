@@ -21,3 +21,5 @@ extern uint16_t plat_get_mtu(const struct ifaddrs * i);
 extern uint32_t plat_get_mbps(const struct ifaddrs * i);
 
 extern bool plat_get_link(const struct ifaddrs * i);
+
+extern void plat_setaffinity(void);

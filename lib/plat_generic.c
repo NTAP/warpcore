@@ -61,3 +61,11 @@ bool plat_get_link(const struct ifaddrs * i __attribute__((unused)))
     warn(warn, "link state queries not supported");
     return true;
 }
+
+
+/// On a generic platform, we don't know how to set the thread affinity.
+///
+void plat_setaffinity(void)
+{
+    warn(warn, "setting thread affinity not supported");
+}

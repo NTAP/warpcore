@@ -12,8 +12,8 @@
 #endif
 
 #include "arp.h"
+#include "backend.h"
 #include "util.h"
-#include "warpcore_internal.h"
 
 
 /// Special version of eth_tx() that transmits the current receive buffer after
@@ -57,14 +57,10 @@ eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
     // we don't need to advance the rx ring here
     txr->head = txr->cur = nm_ring_next(txr, txr->cur);
 
-#ifndef NDEBUG
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
     warn(notice, "Eth %s -> %s, type %d",
-         ether_ntoa_r((const struct ether_addr *)eth->src, src),
-         ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+         ether_ntoa((const struct ether_addr * const)eth->src),
+         ether_ntoa((const struct ether_addr * const)eth->dst),
          ntohs(eth->type));
-#endif
 }
 
 
@@ -79,15 +75,10 @@ void __attribute__((nonnull))
 eth_rx(struct warpcore * const w, void * const buf)
 {
     struct eth_hdr * const eth = buf;
-
-#ifndef NDEBUG
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
     warn(info, "Eth %s -> %s, type %d",
-         ether_ntoa_r((const struct ether_addr *)eth->src, src),
-         ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+         ether_ntoa((const struct ether_addr * const)eth->src),
+         ether_ntoa((const struct ether_addr * const)eth->dst),
          ntohs(eth->type));
-#endif
 
     // make sure the packet is for us (or broadcast)
     if (unlikely(memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
@@ -157,11 +148,9 @@ eth_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len)
 
 #ifndef NDEBUG
     const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, txs->buf_idx);
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
     warn(info, "Eth %s -> %s, type %d, len %lu",
-         ether_ntoa_r((const struct ether_addr *)eth->src, src),
-         ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
+         ether_ntoa((const struct ether_addr * const)eth->src),
+         ether_ntoa((const struct ether_addr * const)eth->dst),
          ntohs(eth->type), len + sizeof(struct eth_hdr));
 #endif
 

@@ -3,10 +3,10 @@
 #include <stdint.h>
 #include <sys/socket.h>
 
+#include "backend.h"
 #include "plat.h"
 #include "util.h"
 #include "version.h"
-#include "warpcore_internal.h"
 
 
 /// Length of a buffer. Same as netmap uses.
@@ -139,23 +139,22 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 }
 
 
-/// Sends payloads that are queued up at @p s w_sock::ov using the Socket API.
-/// Not all payloads may be sent.
+/// Sends payloads from @p v using the Socket API. Not all payloads may be sent.
 ///
-/// @param      s     w_sock socket whose payload data should be processed.
+/// @param      s     w_sock socket to transmit over..
+/// @param      v     w_iov chain to transmit.
 ///
-void __attribute__((nonnull)) w_tx(struct w_sock * const s)
+void __attribute__((nonnull))
+w_tx(const struct w_sock * const s, struct w_iov * const v)
 {
-    while (likely(!STAILQ_EMPTY(&s->ov))) {
-        struct w_iov * const v = STAILQ_FIRST(&s->ov);
-        const ssize_t n = send(s->fd, v->buf, v->len, 0);
+    for (const struct w_iov * o = v; o; o = STAILQ_NEXT(o, next)) {
+        const ssize_t n = send(s->fd, o->buf, o->len, 0);
         if (n == -1) {
-            warn(warn, "could not send all data");
+            warn(err, "could not send all data");
             return;
         }
-        // warn(debug, "sent %zu byte%c from buf %d", n, plural(n), v->idx);
-        STAILQ_REMOVE_HEAD(&s->ov, next);
-        STAILQ_INSERT_HEAD(&s->w->iov, v, next);
+        warn(debug, "sent %u byte%c from buf %d", o->len, plural(o->len),
+             o->idx);
     }
 }
 

@@ -1,12 +1,11 @@
 #include <getopt.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdbool.h>
 
 // example applications MUST only depend on warpcore.h
-#include "plat.h"
-#include "util.h"
-#include "warpcore.h"
+#include <warpcore.h>
 
 
 static void usage(const char * const name)
@@ -14,6 +13,16 @@ static void usage(const char * const name)
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
     printf("\t[-b]                    busy-wait\n");
+}
+
+// global termination flag
+static bool done = false;
+
+
+// set the global termination flag
+static void terminate(int signum __attribute__((unused)))
+{
+    done = true;
 }
 
 
@@ -46,6 +55,8 @@ int main(int argc, char * argv[])
 
     plat_setaffinity();
     struct warpcore * w = w_init(ifname, 0);
+    assert(signal(SIGTERM, &terminate) == 0, "signal");
+    assert(signal(SIGINT, &terminate) == 0, "signal");
 
     // start the inetd-like "small services"
     struct w_sock * const srv[] = {w_bind(w, htons(7)), w_bind(w, htons(9)),
@@ -56,7 +67,7 @@ int main(int argc, char * argv[])
                            {.fd = w_fd(srv[2]), .events = POLLIN},
                            {.fd = w_fd(srv[3]), .events = POLLIN}};
 
-    while (1) {
+    while (done == false) {
         w_nic_rx(w);
         if (busywait == false)
             poll(fds, n, 1000);
@@ -65,13 +76,20 @@ int main(int argc, char * argv[])
             struct w_iov * i = w_rx(srv[s]);
             uint32_t len = 0;
 
-            while (i) {
+            for (struct w_iov * v = i; v; v = STAILQ_NEXT(v, next)) {
+                if (v->len == 0) {
+                    warn(warn, "len ==0");
+                    continue;
+                }
+
                 switch (s) {
                 case 0: { // echo
-                    struct w_iov * o = w_tx_alloc(srv[s], i->len);
-                    memcpy(o->buf, i->buf, i->len);
-                    w_connect(srv[s], i->src, i->sport);
-                    w_tx(srv[s]);
+                    struct w_iov * o = w_tx_alloc(w, v->len);
+                    memcpy(o->buf, v->buf, v->len);
+                    w_connect(srv[s], v->src, v->sport);
+                    w_tx(srv[s], o);
+                    w_nic_tx(w);
+                    w_tx_done(w, o);
                     break;
                 }
 
@@ -82,19 +100,23 @@ int main(int argc, char * argv[])
                     const time_t t = time(0);
                     const char * c = ctime(&t);
                     const uint32_t l = (uint32_t)strlen(c);
-                    struct w_iov * o = w_tx_alloc(srv[s], l);
+                    struct w_iov * o = w_tx_alloc(w, l);
                     memcpy(o->buf, c, l);
-                    w_connect(srv[s], i->src, i->sport);
-                    w_tx(srv[s]);
+                    w_connect(srv[s], v->src, v->sport);
+                    w_tx(srv[s], o);
+                    w_nic_tx(w);
+                    w_tx_done(w, o);
                     break;
                 }
 
                 case 3: { // time
                     const time_t t = time(0);
-                    struct w_iov * o = w_tx_alloc(srv[s], sizeof(time_t));
+                    struct w_iov * o = w_tx_alloc(w, sizeof(time_t));
                     *(uint32_t *)o->buf = htonl((uint32_t)t);
-                    w_connect(srv[s], i->src, i->sport);
-                    w_tx(srv[s]);
+                    w_connect(srv[s], v->src, v->sport);
+                    w_tx(srv[s], o);
+                    w_nic_tx(w);
+                    w_tx_done(w, o);
                     break;
                 }
 
@@ -102,19 +124,17 @@ int main(int argc, char * argv[])
                     die("unknown service");
                 }
 
-                len += i->len;
-                i = STAILQ_NEXT(i, next);
+                len += v->len;
             }
 
             w_rx_done(srv[s]);
             if (len)
                 warn(info, "handled %d byte%c", len, plural(len));
         }
-        w_nic_tx(w);
     }
 
-    // for (uint16_t s = 0; s < n; s++)
-    //     w_close(srv[s]);
-    // w_cleanup(w);
-    // return 0;
+    for (uint16_t s = 0; s < n; s++)
+        w_close(srv[s]);
+    w_cleanup(w);
+    return 0;
 }

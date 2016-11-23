@@ -1,19 +1,17 @@
-string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
-set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_${CMAKE_SYSTEM_NAME_LC}.c)
-if(NOT(EXISTS ${PLAT}))
-  set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_generic.c)
-endif()
-
 if (${netmap_FOUND})
-  add_executable(warpping warpping.c ${PLAT})
-  target_link_libraries(warpping warpcore)
+  add_executable(warpping warpping.c)
+  target_link_libraries(warpping PUBLIC warpcore)
 
-  add_executable(warpinetd warpinetd.c ${PLAT})
-  target_link_libraries(warpinetd warpcore)
+  add_executable(warpinetd warpinetd.c)
+  target_link_libraries(warpinetd PUBLIC warpcore)
+
+  install(TARGETS warpping warpinetd DESTINATION bin)
 endif()
 
-add_executable(shimping warpping.c ${PLAT})
-target_link_libraries(shimping shimcore)
+add_executable(shimping warpping.c)
+target_link_libraries(shimping PUBLIC shimcore)
 
-add_executable(shiminetd warpinetd.c ${PLAT})
-target_link_libraries(shiminetd shimcore)
+add_executable(shiminetd warpinetd.c)
+target_link_libraries(shiminetd PUBLIC shimcore)
+
+install(TARGETS shimping shiminetd DESTINATION bin)

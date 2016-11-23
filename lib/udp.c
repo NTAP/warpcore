@@ -1,13 +1,12 @@
 #include <arpa/inet.h>
 #include <poll.h>
 
+#include "backend.h"
 #include "icmp.h"
 #include "udp.h"
 #include "util.h"
-#include "warpcore_internal.h"
 
 
-// Log a UDP segment
 #ifndef NDEBUG
 /// Print a summary of the udp_hdr @p udp.
 ///
@@ -55,8 +54,8 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
         return;
     }
 
-    struct w_sock ** const s = get_sock(w, udp->dport);
-    if (unlikely(*s == 0)) {
+    struct w_sock * const s = w->udp[udp->dport];
+    if (unlikely(s == 0 && ip->src != 0)) {
         // nobody bound to this port locally
         // send an ICMP unreachable
         icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf);
@@ -88,7 +87,7 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
     memcpy(&i->ts, &rxr->ts, sizeof(i->ts));
 
     // append the iov to the socket
-    STAILQ_INSERT_TAIL(&(*s)->iv, i, next);
+    STAILQ_INSERT_TAIL(&s->iv, i, next);
 
     // put the original buffer of the iov into the receive ring
     rxs->buf_idx = tmp_idx;
@@ -100,26 +99,25 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 
 /// Sends w_iov payloads contained in a w_sock::ov via UDP. Prepends the
 /// template header from w_sock::hdr, computes the UDP length and checksum, and
-/// hands the packet off to ip_tx(). Stops processing packets from w_sock::ov if
+/// hands the packet off to ip_tx(). Stops processing packets from @p v if
 /// ip_tx() indicates that the TX rings are full.
 ///
-/// @param      s     The w_sock whose packets are to be transmitted.
+/// @param      s     The w_sock to transmit over.
+/// @param      v     w_iov chain to transmit.
 ///
-void __attribute__((nonnull)) udp_tx(struct w_sock * const s)
+void __attribute__((nonnull))
+udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
-#ifndef NDEBUG
     uint32_t n = 0, l = 0;
-#endif
     // packetize bufs and place in tx ring
-    while (likely(!STAILQ_EMPTY(&s->ov))) {
-        struct w_iov * const v = STAILQ_FIRST(&s->ov);
+    for (struct w_iov * o = v; o; o = STAILQ_NEXT(o, next)) {
 
         // copy template header into buffer and fill in remaining fields
-        void * const buf = IDX2BUF(s->w, v->idx);
+        void * const buf = IDX2BUF(s->w, o->idx);
         memcpy(buf, &s->hdr, sizeof(s->hdr));
 
         struct udp_hdr * const udp = ip_data(buf);
-        const uint16_t len = v->len + sizeof(struct udp_hdr);
+        const uint16_t len = o->len + sizeof(struct udp_hdr);
         udp->len = htons(len);
 
         // compute the checksum
@@ -129,17 +127,13 @@ void __attribute__((nonnull)) udp_tx(struct w_sock * const s)
         udp_log(udp);
 
         // do IP transmit preparation
-        if (ip_tx(s->w, v, len)) {
-#ifndef NDEBUG
+        if (ip_tx(s->w, o, len)) {
             n++;
-            l += v->len;
-#endif
-            STAILQ_REMOVE_HEAD(&s->ov, next);
-            STAILQ_INSERT_HEAD(&s->w->iov, v, next);
+            l += o->len;
         } else
             // no space left in rings
-            goto done;
+            break;
     }
-done:
+
     warn(info, "proto %d tx iov (len %d in %d bufs) done", s->hdr.ip.p, l, n);
 }

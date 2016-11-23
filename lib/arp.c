@@ -11,8 +11,8 @@
 #endif
 
 #include "arp.h"
+#include "backend.h"
 #include "util.h"
-#include "warpcore_internal.h"
 
 
 /// Modifies the ARP request in @p buf into a corresponding ARP reply, and sends
@@ -34,12 +34,9 @@ arp_is_at(struct warpcore * const w, void * const buf)
     memcpy(arp->sha, w->mac, sizeof arp->sha);
     arp->spa = w->ip;
 
-#ifndef NDEBUG
-    char sha[ETH_ADDR_STRLEN];
-    char spa[IP_ADDR_STRLEN];
-    warn(notice, "ARP reply %s is at %s", ip_ntoa(arp->spa, spa, sizeof spa),
-         ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
-#endif
+    warn(notice, "ARP reply %s is at %s",
+         inet_ntoa(*(const struct in_addr * const) & arp->spa),
+         ether_ntoa((const struct ether_addr * const)arp->sha));
 
     // send the Ethernet packet
     eth_tx_rx_cur(w, buf, sizeof(struct arp_hdr));
@@ -81,13 +78,9 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
     memset(arp->tha, 0, ETH_ADDR_LEN);
     arp->tpa = dip;
 
-#ifndef NDEBUG
-    char spa[IP_ADDR_STRLEN];
-    char tpa[IP_ADDR_STRLEN];
     warn(notice, "ARP request who has %s tell %s",
-         ip_ntoa(arp->tpa, tpa, IP_ADDR_STRLEN),
-         ip_ntoa(arp->spa, spa, IP_ADDR_STRLEN));
-#endif
+         inet_ntoa(*(const struct in_addr * const) & arp->tpa),
+         inet_ntoa(*(const struct in_addr * const) & arp->spa));
 
     // send the Ethernet packet
     eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
@@ -110,11 +103,6 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
 ///
 void arp_rx(struct warpcore * const w, void * const buf)
 {
-#ifndef NDEBUG
-    char tpa[IP_ADDR_STRLEN];
-    char spa[IP_ADDR_STRLEN];
-    char sha[ETH_ADDR_STRLEN];
-#endif
     const struct arp_hdr * const arp = eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
@@ -129,8 +117,8 @@ void arp_rx(struct warpcore * const w, void * const buf)
     switch (op) {
     case ARP_OP_REQUEST:
         warn(notice, "ARP request who has %s tell %s",
-             ip_ntoa(arp->tpa, tpa, sizeof tpa),
-             ip_ntoa(arp->spa, spa, sizeof spa));
+             inet_ntoa(*(const struct in_addr * const) & arp->tpa),
+             inet_ntoa(*(const struct in_addr * const) & arp->spa));
         if (arp->tpa == w->ip)
             arp_is_at(w, buf);
         else
@@ -139,8 +127,8 @@ void arp_rx(struct warpcore * const w, void * const buf)
 
     case ARP_OP_REPLY: {
         warn(notice, "ARP reply %s is at %s",
-             ip_ntoa(arp->spa, spa, sizeof spa),
-             ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
+             inet_ntoa(*(const struct in_addr * const) & arp->spa),
+             ether_ntoa((const struct ether_addr * const)arp->sha));
 
         // check if any socket has an IP address matching this ARP
         // reply, and if so, change its destination MAC
@@ -153,8 +141,8 @@ void arp_rx(struct warpcore * const w, void * const buf)
                 // or non-local socket and ARP src IP matches router
                 (s->w->rip && (s->w->rip == arp->spa))) {
                 warn(notice, "updating socket with %s for %s",
-                     ether_ntoa_r((const struct ether_addr *)arp->sha, sha),
-                     ip_ntoa(arp->spa, spa, sizeof spa));
+                     ether_ntoa((const struct ether_addr * const)arp->sha),
+                     inet_ntoa(*(const struct in_addr * const) & arp->spa));
                 memcpy(&s->hdr.eth.dst, arp->sha, ETH_ADDR_LEN);
             }
         }

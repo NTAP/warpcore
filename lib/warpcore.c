@@ -1,6 +1,8 @@
+#include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #ifdef __linux__
@@ -10,10 +12,10 @@
 #endif
 
 // #include "arp.h"
+#include "backend.h"
 #include "plat.h"
 #include "util.h"
 #include "version.h"
-#include "warpcore_internal.h"
 
 
 /// A global list of netmap engines that have been initialized for different
@@ -38,46 +40,44 @@ void __attribute__((nonnull)) w_rx_done(struct w_sock * const s)
 }
 
 
-/// Allocates a chain of w_iov structs to support transmitting of @p len bytes.
-///
-/// @param      s     { parameter_description }
-/// @param[in]  len   The length
-///
-/// @return     { description_of_the_return_value }
-///
 struct w_iov * __attribute__((nonnull))
-w_tx_alloc(struct w_sock * const s, const uint32_t len)
+w_tx_alloc(struct warpcore * const w, const uint32_t len)
 {
     assert(len, "len is zero");
-    if (unlikely(!STAILQ_EMPTY(&s->ov))) {
-        warn(warn, "output iov already allocated");
-        return 0;
-    }
-
-    // add enough buffers to the iov so it is > len
-    STAILQ_INIT(&s->ov);
     struct w_iov * v = 0;
     int32_t l = (int32_t)len;
     uint32_t n = 0;
+    STAILQ_HEAD(vh, w_iov) chain = STAILQ_HEAD_INITIALIZER(chain);
     while (l > 0) {
-        // grab a spare buffer
-        v = STAILQ_FIRST(&s->w->iov);
+        v = STAILQ_FIRST(&w->iov);
         assert(v != 0, "out of spare bufs after grabbing %d", n);
-        STAILQ_REMOVE_HEAD(&s->w->iov, next);
-        // warn(debug, "grabbing spare buf %u for user tx", v->idx);
-        v->buf = IDX2BUF(s->w, v->idx) + sizeof(s->hdr);
-        v->len = s->w->mtu - sizeof(s->hdr);
+        STAILQ_REMOVE_HEAD(&w->iov, next);
+        // warn(debug, "allocating spare buf %u to app", v->idx);
+        v->buf = IDX2BUF(w, v->idx) + sizeof(struct w_hdr);
+        v->len = w->mtu - sizeof(struct w_hdr);
         l -= v->len;
         n++;
-
-        // add the iov to the tail of the socket
-        STAILQ_INSERT_TAIL(&s->ov, v, next);
+        STAILQ_INSERT_TAIL(&chain, v, next);
     }
+
     // adjust length of last iov so chain is the exact length requested
     v->len += l; // l is negative
 
     warn(info, "allocating iov (len %d in %d bufs) for user tx", len, n);
-    return STAILQ_FIRST(&s->ov);
+    return STAILQ_FIRST(&chain);
+}
+
+
+void __attribute__((nonnull))
+w_tx_done(struct warpcore * const w, struct w_iov * v)
+{
+    do {
+        // move v from the socket to the available iov list
+        // warn(debug, "returning buf %u to spare list", v->idx);
+        struct w_iov * const n = STAILQ_NEXT(v, next);
+        STAILQ_INSERT_HEAD(&w->iov, v, next);
+        v = n;
+    } while (v);
 }
 
 
@@ -87,7 +87,7 @@ w_tx_alloc(struct w_sock * const s, const uint32_t len)
 ///
 /// @return     Sum of the payload lengths of the w_iov structs in @p v.
 ///
-uint32_t __attribute__((nonnull)) w_iov_len(const struct w_iov * const v)
+uint32_t w_iov_len(const struct w_iov * const v)
 {
     uint32_t l = 0;
     for (const struct w_iov * i = v; i; i = STAILQ_NEXT(i, next))
@@ -115,9 +115,6 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 {
     assert(s->hdr.ip.p == IP_P_UDP, "unhandled IP proto %d", s->hdr.ip.p);
 
-#ifndef NDEBUG
-    char str[IP_ADDR_STRLEN];
-#endif
     if (s->hdr.ip.dst == dip && s->hdr.udp.dport == dport)
         // already connected to that peer
         return;
@@ -128,7 +125,7 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
     backend_connect(s);
 
     warn(notice, "IP proto %d socket connected to %s port %d", s->hdr.ip.p,
-         ip_ntoa(dip, str, IP_ADDR_STRLEN), ntohs(dport));
+         inet_ntoa(*(const struct in_addr * const) & dip), ntohs(dport));
 }
 
 
@@ -142,38 +139,38 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 struct w_sock * __attribute__((nonnull))
 w_bind(struct warpcore * const w, const uint16_t port)
 {
-    struct w_sock ** const s = get_sock(w, port);
-    if (s && *s) {
-        warn(warn, "UDP source port %d already in use", ntohs(port));
-        return 0;
+    struct w_sock * s = w->udp[port];
+    if (s) {
+        warn(warn, "UDP source port %d already in bound", ntohs(port));
+        return s;
     }
 
-    assert((*s = calloc(1, sizeof(struct w_sock))) != 0,
-           "cannot allocate struct w_sock");
+    assert((w->udp[port] = s = calloc(1, sizeof(struct w_sock))) != 0,
+           "cannot allocate w_sock");
 
     // initialize the non-zero fields of outgoing template header
-    (*s)->hdr.eth.type = ETH_TYPE_IP;
-    memcpy(&(*s)->hdr.eth.src, w->mac, ETH_ADDR_LEN);
-    // (*s)->hdr.eth.dst is set on w_connect()
+    s->hdr.eth.type = ETH_TYPE_IP;
+    memcpy(&s->hdr.eth.src, w->mac, ETH_ADDR_LEN);
+    // s->hdr.eth.dst is set on w_connect()
 
-    (*s)->hdr.ip.vhl = (4 << 4) + 5;
-    (*s)->hdr.ip.ttl = 1; // XXX TODO: pick something sensible
-    (*s)->hdr.ip.off |= htons(IP_DF);
-    (*s)->hdr.ip.p = IP_P_UDP;
-    (*s)->hdr.ip.src = w->ip;
-    (*s)->hdr.udp.sport = port;
-    // (*s)->hdr.ip.dst is set on w_connect()
+    s->hdr.ip.vhl = (4 << 4) + 5;
+    s->hdr.ip.ttl = 1; // XXX TODO: pick something sensible
+    s->hdr.ip.off |= htons(IP_DF);
+    s->hdr.ip.p = IP_P_UDP;
+    s->hdr.ip.src = w->ip;
+    s->hdr.udp.sport = port;
+    // s->hdr.ip.dst is set on w_connect()
 
-    (*s)->w = w;
-    STAILQ_INIT(&(*s)->iv);
-    SLIST_INSERT_HEAD(&w->sock, *s, next);
+    s->w = w;
+    STAILQ_INIT(&s->iv);
+    SLIST_INSERT_HEAD(&w->sock, s, next);
 
-    backend_bind(*s);
+    backend_bind(s);
 
-    warn(notice, "IP proto %d socket bound to port %d", (*s)->hdr.ip.p,
+    warn(notice, "IP proto %d socket bound to port %d", s->hdr.ip.p,
          ntohs(port));
 
-    return *s;
+    return s;
 }
 
 
@@ -184,9 +181,6 @@ w_bind(struct warpcore * const w, const uint16_t port)
 ///
 void __attribute__((nonnull)) w_close(struct w_sock * const s)
 {
-    struct w_sock ** const ss = get_sock(s->w, s->hdr.udp.sport);
-    assert(ss && *ss, "no socket found");
-
     // make iovs of the socket available again
     while (!STAILQ_EMPTY(&s->iv)) {
         struct w_iov * const v = STAILQ_FIRST(&s->iv);
@@ -194,19 +188,13 @@ void __attribute__((nonnull)) w_close(struct w_sock * const s)
         STAILQ_REMOVE_HEAD(&s->iv, next);
         STAILQ_INSERT_HEAD(&s->w->iov, v, next);
     }
-    while (!STAILQ_EMPTY(&s->ov)) {
-        struct w_iov * const v = STAILQ_FIRST(&s->ov);
-        warn(debug, "free ov buf %u", v->idx);
-        STAILQ_REMOVE_HEAD(&s->ov, next);
-        STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-    }
 
     // remove the socket from list of sockets
     SLIST_REMOVE(&s->w->sock, s, w_sock, next);
 
     // free the socket
-    free(*ss);
-    *ss = 0;
+    s->w->udp[s->hdr.udp.sport] = 0;
+    free(s);
 }
 
 
@@ -220,14 +208,7 @@ void __attribute__((nonnull)) w_cleanup(struct warpcore * const w)
 {
     warn(notice, "warpcore shutting down");
     backend_cleanup(w);
-
-    // free extra buffer list
-    while (!STAILQ_EMPTY(&w->iov)) {
-        struct w_iov * const n = STAILQ_FIRST(&w->iov);
-        STAILQ_REMOVE_HEAD(&w->iov, next);
-        free(n);
-    }
-
+    free(w->bufs);
     free(w->udp);
     SLIST_REMOVE(&wc, w, warpcore, next);
     free(w);
@@ -290,7 +271,8 @@ w_init(const char * const ifname, const uint32_t rip)
 #endif
                 link_up = plat_get_link(i);
                 warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
-                     i->ifa_name, ether_ntoa((struct ether_addr *)w->mac),
+                     i->ifa_name,
+                     ether_ntoa((const struct ether_addr * const)w->mac),
                      w->mtu, mbps / 1000, link_up ? "up" : "down");
                 break;
             case AF_INET:
@@ -320,15 +302,11 @@ w_init(const char * const ifname, const uint32_t rip)
     // set the IP address of our default router
     w->rip = rip;
 
-#ifndef NDEBUG
-    char ip[IP_ADDR_STRLEN];
-    char rtr[IP_ADDR_STRLEN];
-    char mask[IP_ADDR_STRLEN];
     warn(notice, "%s has IP addr %s/%s%s%s", ifname,
-         ip_ntoa(w->ip, ip, IP_ADDR_STRLEN),
-         ip_ntoa(w->mask, mask, IP_ADDR_STRLEN), rip ? ", router " : "",
-         rip ? ip_ntoa(w->rip, rtr, IP_ADDR_STRLEN) : "");
-#endif
+         inet_ntoa(*(const struct in_addr * const) & w->ip),
+         inet_ntoa(*(const struct in_addr * const) & w->mask),
+         rip ? ", router " : "",
+         rip ? inet_ntoa(*(const struct in_addr * const) & w->rip) : "");
 
     // initialize lists of sockets and iovs
     SLIST_INIT(&w->sock);
@@ -346,40 +324,4 @@ w_init(const char * const ifname, const uint32_t rip)
     warn(info, "%s %s with %s backend on %s ready", warpcore_name,
          warpcore_version, w->backend, ifname);
     return w;
-}
-
-
-/// Convert a network byte order IPv4 address into a string.
-///
-/// @param[in]     ip    An IPv4 address in network byte order.
-/// @param[in,out] buf   The buffer in which to place the result.
-/// @param[in]     size  The size of @p buf in bytes.
-///
-/// @return        A pointer to @p buf.
-///
-const __attribute__((nonnull)) char *
-ip_ntoa(uint32_t ip, void * const buf, const size_t size)
-{
-    const uint32_t i = ntohl(ip);
-    snprintf(buf, size, "%u.%u.%u.%u", (i >> 24) & 0xff, (i >> 16) & 0xff,
-             (i >> 8) & 0xff, i & 0xff);
-    ((char *)buf)[size - 1] = '\0';
-    return buf;
-}
-
-
-/// Convert a string into a network byte order IP address.
-///
-/// @param[in]  ip    A string containing an IPv4 address in "xxx.xxx.xxx.xxx\0"
-///                   format.
-///
-/// @return     The IPv4 address in @p ip as a 32-bit network byte order value.
-///
-uint32_t __attribute__((nonnull)) ip_aton(const char * const ip)
-{
-    uint32_t i;
-    const int r = sscanf(ip, "%hhu.%hhu.%hhu.%hhu", (unsigned char *)(&i),
-                         (unsigned char *)(&i) + 1, (unsigned char *)(&i) + 2,
-                         (unsigned char *)(&i) + 3);
-    return r == 4 ? i : 0;
 }

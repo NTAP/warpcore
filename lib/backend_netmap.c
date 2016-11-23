@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
@@ -5,6 +6,8 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <xmmintrin.h>
 
@@ -17,10 +20,10 @@
 #endif
 
 #include "arp.h"
+#include "backend.h"
 #include "plat.h"
 #include "util.h"
 #include "version.h"
-#include "warpcore_internal.h"
 
 /// The backend name.
 ///
@@ -34,7 +37,8 @@ static char backend_name[] = "netmap";
 /// @param      w       Warpcore engine.
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
 ///
-void backend_init(struct warpcore * w, const char * const ifname)
+void __attribute__((nonnull))
+backend_init(struct warpcore * w, const char * const ifname)
 {
     // open /dev/netmap
     assert((w->fd = open("/dev/netmap", O_RDWR)) != -1,
@@ -78,13 +82,13 @@ void backend_init(struct warpcore * w, const char * const ifname)
 
     // save the indices of the extra buffers in the warpcore structure
     STAILQ_INIT(&w->iov);
+    w->bufs = calloc(w->req.nr_arg3, sizeof(struct w_iov));
+    assert(w->bufs != 0, "cannot allocate w_iov");
     for (uint32_t n = 0, i = w->nif->ni_bufs_head; n < w->req.nr_arg3; n++) {
-        struct w_iov * const v = calloc(1, sizeof(struct w_iov));
-        assert(v != 0, "cannot allocate w_iov");
-        v->buf = IDX2BUF(w, i);
-        v->idx = i;
-        STAILQ_INSERT_HEAD(&w->iov, v, next);
-        i = *(uint32_t *)v->buf;
+        w->bufs[n].buf = IDX2BUF(w, i);
+        w->bufs[n].idx = i;
+        STAILQ_INSERT_HEAD(&w->iov, &w->bufs[n], next);
+        i = *(uint32_t *)w->bufs[n].buf;
     }
 
     if (w->req.nr_arg3 != NUM_BUFS)
@@ -99,59 +103,21 @@ void backend_init(struct warpcore * w, const char * const ifname)
 }
 
 
-/// Helper function for w_cleanup() that links together extra bufs allocated by
-/// netmap in the strange format it requires to free them correctly.
-///
-/// @param[in]  w     Warpcore engine.
-/// @param[in]  v     w_iov chain to link together for netmap.
-///
-/// @return     Last element of the linked w_iov chain.
-///
-static const struct w_iov * __attribute__((nonnull))
-w_chain_extra_bufs(const struct warpcore * const w, const struct w_iov * v)
-{
-    const struct w_iov * n;
-    do {
-        n = STAILQ_NEXT(v, next);
-        uint32_t * const buf = (void *)IDX2BUF(w, v->idx);
-        if (n) {
-            *buf = n->idx;
-            v = n;
-        } else
-            *buf = 0;
-    } while (n);
-
-    // return the last list element
-    return v;
-}
-
-
-/// Shut a warpcore netmap engine down cleanly. This function  returns all w_iov
-/// structures associated with all w_sock structures of the engine to netmap.
+/// Shut a warpcore netmap engine down cleanly. This function returns all w_iov
+/// structures associated the engine to netmap.
 ///
 /// @param      w     Warpcore engine.
 ///
 void __attribute__((nonnull)) backend_cleanup(struct warpcore * const w)
 {
-    // re-construct the extra bufs list, so netmap can free the memory
-    const struct w_iov * last = w_chain_extra_bufs(w, STAILQ_FIRST(&w->iov));
-    struct w_sock * s;
-    SLIST_FOREACH (s, &w->sock, next) {
-        if (!STAILQ_EMPTY(&s->iv)) {
-            const struct w_iov * const l =
-                w_chain_extra_bufs(w, STAILQ_FIRST(&s->iv));
-            *(uint32_t *)(last->buf) = STAILQ_FIRST(&s->iv)->idx;
-            last = l;
-        }
-        if (!STAILQ_EMPTY(&s->ov)) {
-            const struct w_iov * const lov =
-                w_chain_extra_bufs(w, STAILQ_FIRST(&s->ov));
-            *(uint32_t *)(last->buf) = STAILQ_FIRST(&s->ov)->idx;
-            last = lov;
-        }
-        *(uint32_t *)(last->buf) = 0;
+    // // re-construct the extra bufs list, so netmap can free the memory
+    for (uint32_t n = 0; n < w->req.nr_arg3; n++) {
+        uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
+        if (n < w->req.nr_arg3 - 1)
+            *buf = w->bufs[n + 1].idx;
+        else
+            *buf = 0;
     }
-    w->nif->ni_bufs_head = STAILQ_FIRST(&w->iov)->idx;
 
     assert(munmap(w->mem, w->req.nr_memsize) != -1,
            "cannot munmap netmap memory");
@@ -184,11 +150,9 @@ void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
                                           mk_net(s->hdr.ip.src, s->w->mask))
                                 ? s->w->rip
                                 : s->hdr.ip.dst;
-#ifndef NDEBUG
-        char str[IP_ADDR_STRLEN];
-#endif
+
         warn(notice, "doing ARP lookup for %s",
-             ip_ntoa(ip, str, IP_ADDR_STRLEN));
+             inet_ntoa(*(const struct in_addr * const) & ip));
         arp_who_has(s->w, ip);
         struct pollfd _fds = {.fd = s->w->fd, .events = POLLIN};
         poll(&_fds, 1, 1000);
@@ -197,7 +161,7 @@ void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
         if (!IS_ZERO(s->hdr.eth.dst))
             break;
         warn(warn, "no ARP reply for %s, retrying",
-             ip_ntoa(ip, str, IP_ADDR_STRLEN));
+             inet_ntoa(*(const struct in_addr * const) & ip));
     }
 }
 
@@ -210,7 +174,7 @@ void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
 ///
 /// @return     A file descriptor.
 ///
-int w_fd(struct w_sock * const s)
+int __attribute__((nonnull)) w_fd(struct w_sock * const s)
 {
     return s->w->fd;
 }
@@ -256,20 +220,19 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 }
 
 
-/// Places payloads that are queued up at @p s w_sock::ov into IPv4 UDP packets,
-/// and attempts to move them onto a TX ring. Not all payloads may be placed if
-/// the TX rings fills up first. Also, the packets are not send yet; w_nic_tx()
-/// needs to be called for that. This is, so that an application has control
-/// over exactly when to schedule packet I/O.
+/// Places payloads from @p v into IPv4 UDP packets, and attempts to move them
+/// onto a TX ring. Not all payloads may be placed if the TX rings fills up
+/// first. Also, the packets are not send yet; w_nic_tx() needs to be called for
+/// that. This is, so that an application has control over exactly when to
+/// schedule packet I/O.
 ///
-/// @param      s     w_sock socket whose payload data should be processed.
+/// @param      s     w_sock socket to transmit over.
+/// @param      v     w_iov chain to transmit.
 ///
-void __attribute__((nonnull)) w_tx(struct w_sock * const s)
+void __attribute__((nonnull))
+w_tx(const struct w_sock * const s, struct w_iov * const v)
 {
-    if (s->hdr.ip.p == IP_P_UDP)
-        udp_tx(s);
-    else
-        die("unhandled IP proto %d", s->hdr.ip.p);
+    udp_tx(s, v);
 }
 
 
