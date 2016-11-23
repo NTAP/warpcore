@@ -68,30 +68,22 @@ int main(int argc, char * argv[])
                            {.fd = w_fd(srv[3]), .events = POLLIN}};
 
     while (done == false) {
-        w_nic_rx(w);
         if (busywait == false)
-            poll(fds, n, 1000);
+            poll(fds, n, -1);
+        else
+            w_nic_rx(w);
 
         for (uint16_t s = 0; s < n; s++) {
             struct w_iov * i = w_rx(srv[s]);
             uint32_t len = 0;
 
             for (struct w_iov * v = i; v; v = STAILQ_NEXT(v, next)) {
-                if (v->len == 0) {
-                    warn(warn, "len ==0");
-                    continue;
-                }
-
+                struct w_iov * o = 0;
                 switch (s) {
-                case 0: { // echo
-                    struct w_iov * o = w_tx_alloc(w, v->len);
+                case 0: // echo
+                    o = w_tx_alloc(w, v->len);
                     memcpy(o->buf, v->buf, v->len);
-                    w_connect(srv[s], v->src, v->sport);
-                    w_tx(srv[s], o);
-                    w_nic_tx(w);
-                    w_tx_done(w, o);
                     break;
-                }
 
                 case 1: // discard
                     break;
@@ -100,28 +92,27 @@ int main(int argc, char * argv[])
                     const time_t t = time(0);
                     const char * c = ctime(&t);
                     const uint32_t l = (uint32_t)strlen(c);
-                    struct w_iov * o = w_tx_alloc(w, l);
+                    o = w_tx_alloc(w, l);
                     memcpy(o->buf, c, l);
-                    w_connect(srv[s], v->src, v->sport);
-                    w_tx(srv[s], o);
-                    w_nic_tx(w);
-                    w_tx_done(w, o);
                     break;
                 }
 
                 case 3: { // time
                     const time_t t = time(0);
-                    struct w_iov * o = w_tx_alloc(w, sizeof(time_t));
+                    o = w_tx_alloc(w, sizeof(time_t));
                     *(uint32_t *)o->buf = htonl((uint32_t)t);
-                    w_connect(srv[s], v->src, v->sport);
-                    w_tx(srv[s], o);
-                    w_nic_tx(w);
-                    w_tx_done(w, o);
                     break;
                 }
 
                 default:
                     die("unknown service");
+                }
+
+                if (o) {
+                    w_connect(srv[s], v->src, v->sport);
+                    w_tx(srv[s], o);
+                    w_nic_tx(w);
+                    w_tx_done(w, o);
                 }
 
                 len += v->len;

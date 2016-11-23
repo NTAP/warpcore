@@ -117,22 +117,22 @@ int main(int argc, char * argv[])
         return 0;
     }
 
-    struct addrinfo hints = {.ai_family = PF_INET, .ai_protocol = IP_P_UDP};
-    struct addrinfo * peer;
-    assert(getaddrinfo(dst, "echo", &hints, &peer) == 0, "getaddrinfo peer");
-
+    const struct addrinfo hints = {.ai_family = PF_INET,
+                                   .ai_protocol = IPPROTO_UDP};
     uint32_t rip = 0;
     if (rtr) {
         struct addrinfo * router;
-        assert(getaddrinfo(rtr, "echo", &hints, &router) == 0,
-               "getaddrinfo router");
+        assert(getaddrinfo(rtr, 0, &hints, &router) == 0, "getaddrinfo router");
         rip = ((struct sockaddr_in *)(void *)router->ai_addr)->sin_addr.s_addr;
+        freeaddrinfo(router);
     }
 
     plat_setaffinity();
     struct warpcore * w = w_init(ifname, rip);
     struct w_sock * s = w_bind(w, (uint16_t)random());
 
+    struct addrinfo * peer;
+    assert(getaddrinfo(dst, "echo", &hints, &peer) == 0, "getaddrinfo peer");
     w_connect(s, ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
               ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
     freeaddrinfo(peer);
@@ -141,7 +141,7 @@ int main(int argc, char * argv[])
     assert(signal(SIGALRM, &timeout) == 0, "signal");
     const struct itimerval timer = {.it_value.tv_sec = 1};
 
-    printf("nsec\tsize\n");
+    puts("nsec\tsize");
     for (uint32_t size = start; size <= end; size += inc) {
         long iter = loops;
         while (likely(iter--)) {
@@ -164,17 +164,17 @@ int main(int argc, char * argv[])
 
             // set a timeout
             assert(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
-
+            done = false;
             while (likely(len < size && done == false)) {
                 if (busywait == false) {
                     // poll for new data
                     struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
                     if (poll(&fds, 1, -1) == -1)
                         continue;
-                }
+                } else
+                    w_nic_rx(w);
 
                 // read new data
-                w_nic_rx(w);
                 i = w_rx(s);
                 if (i)
                     len = w_iov_len(i);
