@@ -1,8 +1,2 @@
-CMakeFiles/
-.vagrant/
-
-*.cmake
-CMakeCache.txt
-Makefile
+.vagrant
 .DS_Store
-*.log
