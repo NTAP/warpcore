@@ -88,11 +88,12 @@ struct warpcore {
     uint32_t cur_txr;       ///< Index of the TX ring currently active.
     uint32_t cur_rxr;       ///< Index of the RX ring currently active.
     struct netmap_if * nif; ///< Netmap interface.
-    struct nmreq req;       ///< Netmap request structure.
-#endif
+    struct nmreq * req;       ///< Netmap request structure.
+#else
     /// @cond
     uint8_t _unused[4]; ///< @internal Padding.
     /// @endcond
+#endif
     const char * backend; ///< Name of the warpcore backend used by the engine.
     SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
     struct w_iov * bufs;
