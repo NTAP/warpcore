@@ -13,15 +13,20 @@
 #include <warpcore.h>
 
 
-static void
-usage(const char * const name, const uint32_t size, const long loops)
+static void usage(const char * const name,
+                  const uint32_t start,
+                  const uint32_t inc,
+                  const uint32_t end,
+                  const long loops)
 {
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
     printf("\t -d destination IP      peer to connect to\n");
     printf("\t[-r router IP]          router to use for non-local peers\n");
-    printf("\t[-s packet size]        optional, default %d\n", size);
-    printf("\t[-l loop interations]   optional, default %ld\n", loops);
+    printf("\t[-s start packet size]  optional, default %d\n", start);
+    printf("\t[-c increment]          optional, default %d\n", inc);
+    printf("\t[-e end packet size]    optional, default %d\n", end);
+    printf("\t[-l loop iterations]    optional, default %ld\n", loops);
     printf("\t[-b]                    busy-wait\n");
 }
 
@@ -66,11 +71,13 @@ int main(int argc, char * argv[])
     const char * dst = 0;
     const char * rtr = 0;
     long loops = 1;
-    uint32_t size = sizeof(struct timespec);
+    uint32_t start = sizeof(struct timespec);
+    uint32_t inc = 103;
+    uint32_t end = 1458;
     bool busywait = false;
 
     int ch;
-    while ((ch = getopt(argc, argv, "hi:d:l:r:s:b")) != -1) {
+    while ((ch = getopt(argc, argv, "hi:d:l:r:s:c:e:b")) != -1) {
         switch (ch) {
         case 'i':
             ifname = optarg;
@@ -85,7 +92,14 @@ int main(int argc, char * argv[])
             loops = strtol(optarg, 0, 10);
             break;
         case 's':
-            size = MIN(UINT32_MAX, MAX(size, (uint32_t)strtol(optarg, 0, 10)));
+            start =
+                MIN(UINT32_MAX, MAX(start, (uint32_t)strtol(optarg, 0, 10)));
+            break;
+        case 'c':
+            inc = MIN(UINT32_MAX, MAX(inc, (uint32_t)strtol(optarg, 0, 10)));
+            break;
+        case 'e':
+            end = MIN(UINT32_MAX, MAX(end, (uint32_t)strtol(optarg, 0, 10)));
             break;
         case 'b':
             busywait = true;
@@ -93,13 +107,13 @@ int main(int argc, char * argv[])
         case 'h':
         case '?':
         default:
-            usage(argv[0], size, loops);
+            usage(argv[0], start, inc, end, loops);
             return 0;
         }
     }
 
     if (ifname == 0 || dst == 0) {
-        usage(argv[0], size, loops);
+        usage(argv[0], start, inc, end, loops);
         return 0;
     }
 
@@ -128,65 +142,68 @@ int main(int argc, char * argv[])
     const struct itimerval timer = {.it_value.tv_sec = 1};
 
     printf("nsec\tsize\n");
-    while (likely(loops--)) {
-        // allocate tx chain
-        struct w_iov * const o = w_tx_alloc(w, size);
+    for (uint32_t size = start; size <= end; size += inc) {
+        long iter = loops;
+        while (likely(iter--)) {
+            // allocate tx chain
+            struct w_iov * const o = w_tx_alloc(w, size);
 
-        // timestamp the payload
-        void * const before = o->buf;
-        assert(clock_gettime(CLOCK_REALTIME, before) != -1, "clock_gettime");
+            // timestamp the payload
+            void * const before = o->buf;
+            assert(clock_gettime(CLOCK_REALTIME, before) != -1,
+                   "clock_gettime");
 
-        // send the data
-        w_tx(s, o);
-        w_nic_tx(w);
-        w_tx_done(w, o);
-        warn(info, "sent %d byte%c", size, plural(size));
+            // send the data
+            w_tx(s, o);
+            w_nic_tx(w);
+            w_tx_done(w, o);
+            warn(info, "sent %d byte%c", size, plural(size));
 
-        // wait for a reply
-        struct w_iov * i = 0;
-        uint32_t len = 0;
+            // wait for a reply
+            struct w_iov * i = 0;
+            uint32_t len = 0;
 
-        // set a timeout
-        assert(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
+            // set a timeout
+            assert(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
 
-        while (len < size && done == false) {
-            if (busywait == false) {
-                // poll for new data
-                struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
-                poll(&fds, 1, -1);
+            while (len < size && done == false) {
+                if (busywait == false) {
+                    // poll for new data
+                    struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
+                    poll(&fds, 1, -1);
+                }
+
+                // read new data
+                w_nic_rx(w);
+                i = w_rx(s);
+                if (i)
+                    len = w_iov_len(i);
             }
 
-            // read new data
-            w_nic_rx(w);
-            i = w_rx(s);
-            if (i)
-                len = w_iov_len(i);
-        }
+            // stop the timeout
+            const struct itimerval stop = {0};
+            assert(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-        // stop the timeout
-        const struct itimerval stop = {0};
-        assert(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
+            warn(info, "received %d/%d byte%c", len, size, plural(len));
 
-        warn(info, "received %d/%d byte%c", len, size, plural(len));
+            if (unlikely(len < size)) {
+                // assume loss and send next packet
+                w_rx_done(s);
+                warn(warn, "incomplete response, packet loss?");
+                continue;
+            }
 
-        if (unlikely(len < size)) {
-            // assume loss and send next packet
+            // compute time difference
+            struct timespec diff, now;
+            assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
+            time_diff(&diff, &now, i->buf);
+            if (unlikely(diff.tv_sec != 0))
+                die("time difference is more than %ld sec", diff.tv_sec);
+
+            printf("%ld\t%d\n", diff.tv_nsec, size);
             w_rx_done(s);
-            warn(warn, "incomplete response, packet loss?");
-            continue;
         }
-
-        // compute time difference
-        struct timespec diff, now;
-        assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
-        time_diff(&diff, &now, i->buf);
-        if (unlikely(diff.tv_sec != 0))
-            die("time difference is more than %ld sec", diff.tv_sec);
-
-        printf("%ld\t%d\n", diff.tv_nsec, size);
-        w_rx_done(s);
     }
-
     w_close(s);
     w_cleanup(w);
     return 0;
