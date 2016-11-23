@@ -2,8 +2,8 @@
 
 #include <sys/queue.h>
 
-#include <util.h>
 #include <plat.h>
+#include <util.h>
 
 /// The I/O vector structure that warpcore uses at the center of its API. It is
 /// mostly a pointer to the first UDP payload byte contained in a netmap packet
@@ -36,9 +36,6 @@ struct w_iov {
     struct timeval ts; ///< Receive time of the data. Only valid on RX.
 };
 
-#define IP_P_ICMP 1 ///< IP protocol number for ICMP
-#define IP_P_UDP 17 ///< IP protocol number for UDP
-
 
 extern struct warpcore * w_init(const char * const ifname, const uint32_t rip);
 
@@ -50,8 +47,6 @@ extern void
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
 
 extern void w_close(struct w_sock * const s);
-
-// extern struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len);
 
 extern struct w_iov * w_tx_alloc(struct warpcore * const w, const uint32_t len);
 
@@ -70,4 +65,3 @@ extern void w_rx_done(struct w_sock * const s);
 extern void w_nic_tx(const struct warpcore * const w);
 
 extern void w_nic_rx(const struct warpcore * const w);
-

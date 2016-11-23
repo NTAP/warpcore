@@ -38,6 +38,8 @@ struct ip_hdr {
     uint32_t dst;   ///< Destination IPv4 address.
 };
 
+#define IP_P_ICMP 1 ///< IP protocol number for ICMP
+#define IP_P_UDP 17 ///< IP protocol number for UDP
 
 struct warpcore;
 struct w_iov;
