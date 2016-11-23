@@ -14,6 +14,9 @@ if(${CMAKE_C_COMPILER_ID} MATCHES "Clang|GNU")
 
   # flags for "Release" builds
   set(CMAKE_C_FLAGS_RELEASE_INIT "-Ofast -DNDEBUG")
+
+  # flags for "RelWithDebInfo" builds
+  set(CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "-Ofast -DNDEBUG -g")
 endif()
 
 # Additional options that only clang supports
