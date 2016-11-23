@@ -149,8 +149,7 @@ int main(int argc, char * argv[])
             struct w_iov * const o = w_tx_alloc(w, size);
 
             // timestamp the payload
-            void * const before = o->buf;
-            assert(clock_gettime(CLOCK_REALTIME, before) != -1,
+            assert(clock_gettime(CLOCK_REALTIME, o->buf) != -1,
                    "clock_gettime");
 
             // send the data
@@ -166,11 +165,12 @@ int main(int argc, char * argv[])
             // set a timeout
             assert(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
 
-            while (len < size && done == false) {
+            while (likely(len < size && done == false)) {
                 if (busywait == false) {
                     // poll for new data
                     struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
-                    poll(&fds, 1, -1);
+                    if (poll(&fds, 1, -1) == -1)
+                        continue;
                 }
 
                 // read new data
@@ -180,6 +180,9 @@ int main(int argc, char * argv[])
                     len = w_iov_len(i);
             }
 
+            struct timespec diff, now;
+            assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
+
             // stop the timeout
             const struct itimerval stop = {0};
             assert(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
@@ -187,15 +190,13 @@ int main(int argc, char * argv[])
             warn(info, "received %d/%d byte%c", len, size, plural(len));
 
             if (unlikely(len < size)) {
-                // assume loss and send next packet
+                // assume loss
                 w_rx_done(s);
                 warn(warn, "incomplete response, packet loss?");
                 continue;
             }
 
             // compute time difference
-            struct timespec diff, now;
-            assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
             time_diff(&diff, &now, i->buf);
             if (unlikely(diff.tv_sec != 0))
                 die("time difference is more than %ld sec", diff.tv_sec);
