@@ -9,7 +9,6 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 
-// example applications MUST only depend on warpcore.h
 #include <warpcore.h>
 
 
@@ -65,7 +64,7 @@ static void timeout(int signum __attribute__((unused)))
 }
 
 
-int main(int argc, char * argv[])
+int main(const int argc, char * const argv[])
 {
     const char * ifname = 0;
     const char * dst = 0;
@@ -76,6 +75,7 @@ int main(int argc, char * argv[])
     uint32_t end = 1458;
     bool busywait = false;
 
+    // handle arguments
     int ch;
     while ((ch = getopt(argc, argv, "hi:d:l:r:s:c:e:b")) != -1) {
         switch (ch) {
@@ -127,22 +127,34 @@ int main(int argc, char * argv[])
         freeaddrinfo(router);
     }
 
+    // bind this app to a single core
     plat_setaffinity();
+
+    // initialize a warpcore engine on the given network interface
     struct warpcore * w = w_init(ifname, rip);
+
+    // bind a new socket to a random local source port
     struct w_sock * s = w_bind(w, (uint16_t)random());
 
+    // look up the peer IP address and "echo" port
     struct addrinfo * peer;
     assert(getaddrinfo(dst, "echo", &hints, &peer) == 0, "getaddrinfo peer");
+
+    // connect to the peer
     w_connect(s, ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
               ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
+
+    // free the getaddrinfo
     freeaddrinfo(peer);
 
     // set a timer handler (used with busywait)
     assert(signal(SIGALRM, &timeout) == 0, "signal");
     const struct itimerval timer = {.it_value.tv_sec = 1};
 
+    // send packet trains of sizes between "start" and "end"
     puts("nsec\tsize");
     for (uint32_t size = start; size <= end; size += inc) {
+        // send "loops" number of payloads of size "size" and wait for reply
         long iter = loops;
         while (likely(iter--)) {
             // allocate tx chain
@@ -152,7 +164,7 @@ int main(int argc, char * argv[])
             assert(clock_gettime(CLOCK_REALTIME, o->buf) != -1,
                    "clock_gettime");
 
-            // send the data
+            // send the data and free the w_iov
             w_tx(s, o);
             w_nic_tx(w);
             w_tx_done(w, o);
@@ -165,13 +177,17 @@ int main(int argc, char * argv[])
             // set a timeout
             assert(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
             done = false;
+
+            // loop until timeout expires, or we have received all data
             while (likely(len < size && done == false)) {
                 if (busywait == false) {
                     // poll for new data
                     struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
                     if (poll(&fds, 1, -1) == -1)
+                        // if the poll was interrupted, move on
                         continue;
                 } else
+                    // just suck in whatever is in the NIC rings
                     w_nic_rx(w);
 
                 // read new data
@@ -180,6 +196,7 @@ int main(int argc, char * argv[])
                     len = w_iov_len(i);
             }
 
+            // get the current time
             struct timespec diff, now;
             assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
 
@@ -189,6 +206,7 @@ int main(int argc, char * argv[])
 
             warn(info, "received %d/%d byte%c", len, size, plural(len));
 
+            // if we didn't receive all the data we sent
             if (unlikely(len < size)) {
                 // assume loss
                 w_rx_done(s);
@@ -196,12 +214,13 @@ int main(int argc, char * argv[])
                 continue;
             }
 
-            // compute time difference
+            // compute time difference between the packet and the current time
             time_diff(&diff, &now, i->buf);
             if (unlikely(diff.tv_sec != 0))
                 die("time difference is more than %ld sec", diff.tv_sec);
-
             printf("%ld\t%d\n", diff.tv_nsec, size);
+
+            // we are done with the received data
             w_rx_done(s);
         }
     }

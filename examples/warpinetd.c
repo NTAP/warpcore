@@ -4,7 +4,6 @@
 #include <signal.h>
 #include <stdbool.h>
 
-// example applications MUST only depend on warpcore.h
 #include <warpcore.h>
 
 
@@ -26,11 +25,12 @@ static void terminate(int signum __attribute__((unused)))
 }
 
 
-int main(int argc, char * argv[])
+int main(const int argc, char * const argv[])
 {
     const char * ifname = 0;
     bool busywait = false;
 
+    // handle arguments
     int ch;
     while ((ch = getopt(argc, argv, "hi:b")) != -1) {
         switch (ch) {
@@ -53,12 +53,17 @@ int main(int argc, char * argv[])
         return 0;
     }
 
+    // bind this app to a single core
     plat_setaffinity();
+
+    // initialize a warpcore engine on the given network interface
     struct warpcore * w = w_init(ifname, 0);
+
+    // install a signal handler to clean up after interrupt
     assert(signal(SIGTERM, &terminate) == 0, "signal");
     assert(signal(SIGINT, &terminate) == 0, "signal");
 
-    // start the inetd-like "small services"
+    // start four inetd-like "small services"
     struct w_sock * const srv[] = {w_bind(w, htons(7)), w_bind(w, htons(9)),
                                    w_bind(w, htons(13)), w_bind(w, htons(37))};
     const uint16_t n = sizeof(srv) / sizeof(struct w_sock *);
@@ -67,40 +72,46 @@ int main(int argc, char * argv[])
                            {.fd = w_fd(srv[2]), .events = POLLIN},
                            {.fd = w_fd(srv[3]), .events = POLLIN}};
 
+    // serve requests on the four sockets until an interrupt occurs
     while (done == false) {
         if (busywait == false)
+            // if we aren't supposed to busy-wait, poll for new data
             poll(fds, n, -1);
         else
+            // otherwise, just pull in whatever is in the NIC rings
             w_nic_rx(w);
 
+        // for each of the small services...
         for (uint16_t s = 0; s < n; s++) {
+            // ...check if any new data has arrived on the socket
             struct w_iov * i = w_rx(srv[s]);
             uint32_t len = 0;
 
+            // for each new packet, handle it according to the service it is for
             for (struct w_iov * v = i; v; v = STAILQ_NEXT(v, next)) {
-                struct w_iov * o = 0;
+                struct w_iov * o = 0; // w_iov for outbound data
                 switch (s) {
-                case 0: // echo
-                    o = w_tx_alloc(w, v->len);
-                    memcpy(o->buf, v->buf, v->len);
+                case 0: // echo received data back to sender
+                    o = w_tx_alloc(w, v->len);      // allocate outbound w_iov
+                    memcpy(o->buf, v->buf, v->len); // copy data
                     break;
 
-                case 1: // discard
+                case 1: // discard; nothing to do
                     break;
 
                 case 2: { // daytime
                     const time_t t = time(0);
                     const char * c = ctime(&t);
                     const uint32_t l = (uint32_t)strlen(c);
-                    o = w_tx_alloc(w, l);
-                    memcpy(o->buf, c, l);
+                    o = w_tx_alloc(w, l); // allocate outbound w_iov
+                    memcpy(o->buf, c, l); // write a timestamp
                     break;
                 }
 
                 case 3: { // time
                     const time_t t = time(0);
-                    o = w_tx_alloc(w, sizeof(time_t));
-                    *(uint32_t *)o->buf = htonl((uint32_t)t);
+                    o = w_tx_alloc(w, sizeof(time_t));        // allocate w_iov
+                    *(uint32_t *)o->buf = htonl((uint32_t)t); // write timestamp
                     break;
                 }
 
@@ -108,22 +119,32 @@ int main(int argc, char * argv[])
                     die("unknown service");
                 }
 
+                // if the current service requires replying with data, do so
                 if (o) {
+                    // connect the socket to send the reply
                     w_connect(srv[s], v->src, v->sport);
+
+                    // send the reply
                     w_tx(srv[s], o);
                     w_nic_tx(w);
+
+                    // deallocate the outbound w_iov
                     w_tx_done(w, o);
                 }
 
+                // track how much data was served
                 len += v->len;
             }
 
+            // we are done serving the received data
             w_rx_done(srv[s]);
+
             if (len)
                 warn(info, "handled %d byte%c", len, plural(len));
         }
     }
 
+    // we only get here after an interrupt; clean up
     for (uint16_t s = 0; s < n; s++)
         w_close(srv[s]);
     w_cleanup(w);
