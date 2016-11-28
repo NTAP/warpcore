@@ -60,10 +60,11 @@ void __attribute__((nonnull)) backend_bind(struct w_sock * s)
 {
     assert(s->fd = socket(AF_INET, SOCK_DGRAM, 0), "socket");
     assert(fcntl(s->fd, F_SETFL, O_NONBLOCK) != -1, "fcntl");
-    struct sockaddr_in addr = {.sin_family = AF_INET,
-                               .sin_port = s->hdr.udp.sport,
-                               .sin_addr = {.s_addr = s->hdr.ip.src}};
-    assert(bind(s->fd, (struct sockaddr *)&addr, sizeof(addr)) == 0, "bind");
+    const struct sockaddr_in addr = {.sin_family = AF_INET,
+                                     .sin_port = s->hdr.udp.sport,
+                                     .sin_addr = {.s_addr = s->hdr.ip.src}};
+    assert(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
+           "bind");
 }
 
 
@@ -73,10 +74,10 @@ void __attribute__((nonnull)) backend_bind(struct w_sock * s)
 ///
 void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
 {
-    struct sockaddr_in addr = {.sin_family = AF_INET,
-                               .sin_port = s->hdr.udp.dport,
-                               .sin_addr = {s->hdr.ip.dst}};
-    assert(connect(s->fd, (struct sockaddr *)&addr, sizeof(addr)) != -1,
+    const struct sockaddr_in addr = {.sin_family = AF_INET,
+                                     .sin_port = s->hdr.udp.dport,
+                                     .sin_addr = {s->hdr.ip.dst}};
+    assert(connect(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) != -1,
            "socket");
 }
 
@@ -114,16 +115,19 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 {
     while (1) {
         // grab a spare buffer
-        struct w_iov * const v = STAILQ_FIRST(&s->w->iov);
+        struct w_iov * v = STAILQ_FIRST(&s->w->iov);
         assert(v != 0, "out of spare bufs");
         struct sockaddr_in peer;
         socklen_t plen = sizeof(peer);
         const ssize_t n = recvfrom(s->fd, v->buf, IOV_BUF_LEN, 0,
                                    (struct sockaddr *)&peer, &plen);
         assert(n != -1 || errno == EAGAIN, "recv");
-        if (n == -1)
+        if (n == -1) {
             // if there is no (more) data, simply return the current iv
-            return STAILQ_FIRST(&s->iv);
+            v = STAILQ_FIRST(&s->iv);
+            STAILQ_INIT(&s->iv);
+            return v;
+        }
 
         // add the iov to the tail of the result
         STAILQ_REMOVE_HEAD(&s->w->iov, next);
