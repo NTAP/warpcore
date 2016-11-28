@@ -91,26 +91,30 @@ int main(const int argc, char * const argv[])
             for (struct w_iov * v = i; v; v = STAILQ_NEXT(v, next)) {
                 struct w_iov * o = 0; // w_iov for outbound data
                 switch (s) {
-                case 0: // echo received data back to sender
-                    o = w_tx_alloc(w, v->len);      // allocate outbound w_iov
+                // echo received data back to sender
+                case 0:
+                    o = w_alloc(w, v->len);         // allocate outbound w_iov
                     memcpy(o->buf, v->buf, v->len); // copy data
                     break;
 
-                case 1: // discard; nothing to do
+                // discard; nothing to do
+                case 1:
                     break;
 
-                case 2: { // daytime
+                // daytime
+                case 2: {
                     const time_t t = time(0);
                     const char * c = ctime(&t);
                     const uint32_t l = (uint32_t)strlen(c);
-                    o = w_tx_alloc(w, l); // allocate outbound w_iov
+                    o = w_alloc(w, l);    // allocate outbound w_iov
                     memcpy(o->buf, c, l); // write a timestamp
                     break;
                 }
 
-                case 3: { // time
+                // time
+                case 3: {
                     const time_t t = time(0);
-                    o = w_tx_alloc(w, sizeof(time_t));        // allocate w_iov
+                    o = w_alloc(w, sizeof(time_t));           // allocate w_iov
                     *(uint32_t *)o->buf = htonl((uint32_t)t); // write timestamp
                     break;
                 }
@@ -129,7 +133,7 @@ int main(const int argc, char * const argv[])
                     w_nic_tx(w);
 
                     // deallocate the outbound w_iov
-                    w_tx_done(w, o);
+                    w_free(w, o);
                 }
 
                 // track how much data was served
@@ -137,7 +141,7 @@ int main(const int argc, char * const argv[])
             }
 
             // we are done serving the received data
-            w_rx_done(srv[s]);
+            w_free(w, i);
 
             if (len)
                 warn(info, "handled %d byte%c", len, plural(len));

@@ -158,7 +158,7 @@ int main(const int argc, char * const argv[])
         long iter = loops;
         while (likely(iter--)) {
             // allocate tx chain
-            struct w_iov * const o = w_tx_alloc(w, size);
+            struct w_iov * const o = w_alloc(w, size);
 
             // timestamp the payload
             assert(clock_gettime(CLOCK_REALTIME, o->buf) != -1,
@@ -167,7 +167,7 @@ int main(const int argc, char * const argv[])
             // send the data and free the w_iov
             w_tx(s, o);
             w_nic_tx(w);
-            w_tx_done(w, o);
+            w_free(w, o);
             warn(info, "sent %d byte%c", size, plural(size));
 
             // wait for a reply
@@ -209,7 +209,7 @@ int main(const int argc, char * const argv[])
             // if we didn't receive all the data we sent
             if (unlikely(len < size)) {
                 // assume loss
-                w_rx_done(s);
+                w_free(w, i);
                 warn(warn, "incomplete response, packet loss?");
                 continue;
             }
@@ -221,7 +221,7 @@ int main(const int argc, char * const argv[])
             printf("%ld\t%d\n", diff.tv_nsec, size);
 
             // we are done with the received data
-            w_rx_done(s);
+            w_free(w, i);
         }
     }
     w_close(s);

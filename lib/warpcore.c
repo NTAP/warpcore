@@ -24,24 +24,16 @@
 static SLIST_HEAD(engines, warpcore) wc = SLIST_HEAD_INITIALIZER(wc);
 
 
-// XXX rethink API
-// User needs to call this once they are done with touching any received data.
-// This makes the iov that holds the received data available to warpcore again.
-void __attribute__((nonnull)) w_rx_done(struct w_sock * const s)
-{
-    struct w_iov * i = STAILQ_FIRST(&s->iv);
-    while (i) {
-        // move i from the socket to the available iov list
-        struct w_iov * const n = STAILQ_NEXT(i, next);
-        STAILQ_REMOVE_HEAD(&s->iv, next);
-        STAILQ_INSERT_HEAD(&s->w->iov, i, next);
-        i = n;
-    }
-}
-
-
+/// Allocate a w_iov chain for @p payload bytes, for eventual use with w_tx().
+/// Must be later freed with w_free().
+///
+/// @param      w     Warpcore engine.
+/// @param[in]  len   Amount of payload bytes in the returned chain.
+///
+/// @return     Chain of w_iov structs.
+///
 struct w_iov * __attribute__((nonnull))
-w_tx_alloc(struct warpcore * const w, const uint32_t len)
+w_alloc(struct warpcore * const w, const uint32_t len)
 {
     assert(len, "len is zero");
     struct w_iov * v = 0;
@@ -68,11 +60,17 @@ w_tx_alloc(struct warpcore * const w, const uint32_t len)
 }
 
 
+/// Return a w_iov chain obtained via w_alloc() or w_rx() back to warpcore. The
+/// application must not use @p v after this call.
+///
+/// @param      w     Warpcore engine.
+/// @param      v     w_iov to return.
+///
 void __attribute__((nonnull))
-w_tx_done(struct warpcore * const w, struct w_iov * v)
+w_free(struct warpcore * const w, struct w_iov * v)
 {
     do {
-        // move v from the socket to the available iov list
+        // move v to the available iov list
         // warn(debug, "returning buf %u to spare list", v->idx);
         struct w_iov * const n = STAILQ_NEXT(v, next);
         STAILQ_INSERT_HEAD(&w->iov, v, next);

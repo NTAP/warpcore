@@ -220,7 +220,9 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
         }
         s->w->cur_rxr = (s->w->cur_rxr + 1) % s->w->nif->ni_rx_rings;
     }
-    return STAILQ_FIRST(&s->iv);
+    struct w_iov * const v = STAILQ_FIRST(&s->iv);
+    STAILQ_INIT(&s->iv);
+    return v;
 }
 
 
