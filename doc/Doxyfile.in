@@ -1,7 +1,7 @@
 # https://tty1.net/blog/2014/cmake-doxygen_en.html
 
 PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
-PROJECT_NUMBER         = @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
+PROJECT_NUMBER         = @PROJECT_VERSION@
 STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_BINARY_DIR@ \
                          @PROJECT_SOURCE_DIR@/lib \
@@ -11,6 +11,7 @@ INPUT                  = @PROJECT_SOURCE_DIR@/lib \
 FILE_PATTERNS          = *.h \
                          *.c
 EXCLUDE                = @PROJECT_SOURCE_DIR@/lib/in_cksum.c
+EXAMPLE_PATH           = @PROJECT_SOURCE_DIR@/examples
 #RECURSIVE              = YES
 EXTRACT_ALL            = YES
 EXTRACT_STATIC         = YES

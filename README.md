@@ -42,3 +42,7 @@ in any build directory. The starting page of the documentation is then `doc/html
 
 Copyright (C) 2014-2016 NetApp, Inc.
 All rights reserved.
+
+[//]: # (@example warpping.c)
+[//]: # (@example warpinetd.c)
+

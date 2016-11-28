@@ -1,4 +1,6 @@
 #include <arpa/inet.h>
+#include <poll.h>
+#include <sys/queue.h>
 
 #ifdef __linux__
 #include <netinet/ether.h>
@@ -11,11 +13,75 @@
 #endif
 
 #include "arp.h"
+#include "backend.h"
 #include "util.h"
-#include "warpcore_internal.h"
 
 
-/// Modifies the ARP request in @p buf into a corresponding ARP reply, and sends
+/// ARP cache entry.
+///
+struct arp_entry {
+    SLIST_ENTRY(arp_entry) next; ///< Pointer to next cache entry.
+    uint32_t ip;                 ///< IPv4 address.
+    uint8_t mac[ETH_ADDR_LEN];   ///< Ethernet MAC address.
+    /// @cond
+    /// @internal Padding.
+    uint8_t _unused[6];
+    /// @endcond
+};
+
+
+/// Our ARP cache is simply a linked list for now.
+///
+static SLIST_HEAD(arp_cache_head,
+                  arp_entry) arp_cache = SLIST_HEAD_INITIALIZER(arp_cache);
+
+
+/// Find the ARP cache entry associated with IPv4 adddress @p ip.
+///
+/// @param[in]  ip    IPv4 address to look up in ARP cache.
+///
+/// @return     Pointer to arp_entry of @p ip, or zero.
+///
+static struct arp_entry * arp_cache_find(const uint32_t ip)
+{
+    struct arp_entry * a;
+    SLIST_FOREACH (a, &arp_cache, next)
+        if (a->ip == ip)
+            return a;
+    return 0;
+}
+
+
+/// Update the MAC address associated with IPv4 address @p ip in the ARP cache.
+///
+/// @param[in]  ip    IPv4 address to update the ARP cache for.
+/// @param[in]  mac   New Ethernet MAC address of @p ip.
+///
+static void __attribute__((nonnull))
+arp_cache_update(const uint32_t ip, const uint8_t mac[ETH_ADDR_LEN])
+{
+    struct arp_entry * a = arp_cache_find(ip);
+    if (a) {
+        warn(info, "updating ARP cache entry: %s is at %s",
+             inet_ntoa(*(const struct in_addr * const) & ip),
+             ether_ntoa((const struct ether_addr * const)mac));
+        memcpy(a->mac, mac, ETH_ADDR_LEN);
+        return;
+    }
+
+    a = calloc(1, sizeof(*a));
+    assert(a, "cannot allocate arp_entry");
+    a->ip = ip;
+    memcpy(a->mac, mac, ETH_ADDR_LEN);
+    SLIST_INSERT_HEAD(&arp_cache, a, next);
+    warn(info, "new ARP cache entry: %s is at %s",
+         inet_ntoa(*(const struct in_addr * const) & ip),
+         ether_ntoa((const struct ether_addr * const)mac));
+}
+
+
+/// Modifies the ARP request in @p buf into a corresponding ARP reply, and
+/// sends
 /// it. Helper function called by arp_rx().
 ///
 /// @param      w     Warpcore engine
@@ -34,87 +100,105 @@ arp_is_at(struct warpcore * const w, void * const buf)
     memcpy(arp->sha, w->mac, sizeof arp->sha);
     arp->spa = w->ip;
 
-#ifndef NDEBUG
-    char sha[ETH_ADDR_STRLEN];
-    char spa[IP_ADDR_STRLEN];
-    warn(notice, "ARP reply %s is at %s", ip_ntoa(arp->spa, spa, sizeof spa),
-         ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
-#endif
+    warn(notice, "ARP reply %s is at %s",
+         inet_ntoa(*(const struct in_addr * const) & arp->spa),
+         ether_ntoa((const struct ether_addr * const)arp->sha));
 
     // send the Ethernet packet
     eth_tx_rx_cur(w, buf, sizeof(struct arp_hdr));
-    w_kick_tx(w);
+    w_nic_tx(w);
 }
 
 
-/// Send an ARP request for target IP address @p dip.
+/// Return the Ethernet MAC address for target IP address @p dip. If there is no
+/// entry in the ARP cache for the Ethernet MAC address corresponding to IPv4
+/// address @p dip, this function will block while attempting to resolve the
+/// address.
 ///
 /// @param      w     Warpcore engine
 /// @param[in]  dip   IP address that is the target of the ARP request
 ///
-void __attribute__((nonnull))
+/// @return     Pointer to Ethernet MAC address (#ETH_ADDR_LEN bytes long) of @p
+///             dip.
+///
+uint8_t * __attribute__((nonnull))
 arp_who_has(struct warpcore * const w, const uint32_t dip)
 {
-    // grab a spare buffer
-    struct w_iov * const v = STAILQ_FIRST(&w->iov);
-    assert(v != 0, "out of spare bufs");
-    STAILQ_REMOVE_HEAD(&w->iov, next);
-    v->buf = IDX2BUF(w, v->idx);
+    struct arp_entry * a = arp_cache_find(dip);
+    while (a == 0) {
+        warn(warn, "no ARP entry for %s, sending query",
+             inet_ntoa(*(const struct in_addr * const) & dip));
 
-    // pointers to the start of the various headers
-    struct eth_hdr * const eth = v->buf;
-    struct arp_hdr * const arp = eth_data(v->buf);
+        // grab a spare buffer
+        struct w_iov * const v = STAILQ_FIRST(&w->iov);
+        assert(v != 0, "out of spare bufs");
+        STAILQ_REMOVE_HEAD(&w->iov, next);
+        v->buf = IDX2BUF(w, v->idx);
 
-    // set Ethernet header fields
-    memcpy(eth->dst, ETH_BCAST, ETH_ADDR_LEN);
-    memcpy(eth->src, w->mac, ETH_ADDR_LEN);
-    eth->type = ETH_TYPE_ARP;
+        // pointers to the start of the various headers
+        struct eth_hdr * const eth = v->buf;
+        struct arp_hdr * const arp = eth_data(v->buf);
 
-    // set ARP header fields
-    arp->hrd = htons(ARP_HRD_ETHER);
-    arp->pro = ETH_TYPE_IP;
-    arp->hln = ETH_ADDR_LEN;
-    arp->pln = IP_ADDR_LEN;
-    arp->op = htons(ARP_OP_REQUEST);
-    memcpy(arp->sha, w->mac, ETH_ADDR_LEN);
-    arp->spa = w->ip;
-    bzero(arp->tha, ETH_ADDR_LEN);
-    arp->tpa = dip;
+        // set Ethernet header fields
+        memcpy(eth->dst, ETH_BCAST, ETH_ADDR_LEN);
+        memcpy(eth->src, w->mac, ETH_ADDR_LEN);
+        eth->type = ETH_TYPE_ARP;
+
+        // set ARP header fields
+        arp->hrd = htons(ARP_HRD_ETHER);
+        arp->pro = ETH_TYPE_IP;
+        arp->hln = ETH_ADDR_LEN;
+        arp->pln = IP_ADDR_LEN;
+        arp->op = htons(ARP_OP_REQUEST);
+        memcpy(arp->sha, w->mac, ETH_ADDR_LEN);
+        arp->spa = w->ip;
+        memset(arp->tha, 0, ETH_ADDR_LEN);
+        arp->tpa = dip;
 
 #ifndef NDEBUG
-    char spa[IP_ADDR_STRLEN];
-    char tpa[IP_ADDR_STRLEN];
-    warn(notice, "ARP request who has %s tell %s",
-         ip_ntoa(arp->tpa, tpa, IP_ADDR_STRLEN),
-         ip_ntoa(arp->spa, spa, IP_ADDR_STRLEN));
+        char tpa[INET_ADDRSTRLEN];
+        char spa[INET_ADDRSTRLEN];
+        warn(notice, "ARP request who has %s tell %s",
+             inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN),
+             inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
 #endif
 
-    // send the Ethernet packet
-    eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
-    w_kick_tx(w);
+        // send the Ethernet packet
+        eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
+        w_nic_tx(w);
 
-    // make iov available again
-    STAILQ_INSERT_HEAD(&w->iov, v, next);
+        // make iov available again
+        STAILQ_INSERT_HEAD(&w->iov, v, next);
+
+        // wait until packets have been received, then handle them
+        struct pollfd fds = {.fd = w->fd, .events = POLLIN};
+        poll(&fds, 1, 1000);
+        backend_rx(w);
+
+        // check if we can now resolve dip
+        a = arp_cache_find(dip);
+    }
+    return a->mac;
 }
 
 
-/// Receive an ARP packet, and react to it. This function parses an incoming ARP
+/// Receive an ARP packet, and react to it. This function parses an incoming
+/// ARP
 /// packet contained in an Ethernet frame. For incoming ARP requests for the
-/// local interface, respond appropriately. For incoming ARP replies, updates
-/// the information in the struct w_sock structures of all open connections, as
+/// local interface, respond appropriately. For incoming ARP replies,
+/// updates
+/// the information in the struct w_sock structures of all open connections,
+/// as
 /// needed.
 ///
 /// @param      w     Warpcore engine
-/// @param      buf   Buffer containing incoming ARP request inside an Ethernet
+/// @param      buf   Buffer containing incoming ARP request inside an
+/// Ethernet
 ///                   frame
 ///
-void arp_rx(struct warpcore * const w, void * const buf)
+void __attribute__((nonnull))
+arp_rx(struct warpcore * const w, void * const buf)
 {
-#ifndef NDEBUG
-    char tpa[IP_ADDR_STRLEN];
-    char spa[IP_ADDR_STRLEN];
-    char sha[ETH_ADDR_STRLEN];
-#endif
     const struct arp_hdr * const arp = eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
@@ -127,20 +211,27 @@ void arp_rx(struct warpcore * const w, void * const buf)
 
     const uint16_t op = ntohs(arp->op);
     switch (op) {
-    case ARP_OP_REQUEST:
+    case ARP_OP_REQUEST: {
+#ifndef NDEBUG
+        char tpa[INET_ADDRSTRLEN];
+        char spa[INET_ADDRSTRLEN];
         warn(notice, "ARP request who has %s tell %s",
-             ip_ntoa(arp->tpa, tpa, sizeof tpa),
-             ip_ntoa(arp->spa, spa, sizeof spa));
+             inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN),
+             inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
+#endif
         if (arp->tpa == w->ip)
             arp_is_at(w, buf);
         else
             warn(warn, "ignoring ARP request not asking for us");
         break;
+    }
 
     case ARP_OP_REPLY: {
         warn(notice, "ARP reply %s is at %s",
-             ip_ntoa(arp->spa, spa, sizeof spa),
-             ether_ntoa_r((const struct ether_addr *)arp->sha, sha));
+             inet_ntoa(*(const struct in_addr * const) & arp->spa),
+             ether_ntoa((const struct ether_addr * const)arp->sha));
+
+        arp_cache_update(arp->spa, arp->sha);
 
         // check if any socket has an IP address matching this ARP
         // reply, and if so, change its destination MAC
@@ -153,8 +244,8 @@ void arp_rx(struct warpcore * const w, void * const buf)
                 // or non-local socket and ARP src IP matches router
                 (s->w->rip && (s->w->rip == arp->spa))) {
                 warn(notice, "updating socket with %s for %s",
-                     ether_ntoa_r((const struct ether_addr *)arp->sha, sha),
-                     ip_ntoa(arp->spa, spa, sizeof spa));
+                     ether_ntoa((const struct ether_addr * const)arp->sha),
+                     inet_ntoa(*(const struct in_addr * const) & arp->spa));
                 memcpy(&s->hdr.eth.dst, arp->sha, ETH_ADDR_LEN);
             }
         }

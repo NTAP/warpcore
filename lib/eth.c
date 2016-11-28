@@ -12,8 +12,8 @@
 #endif
 
 #include "arp.h"
+#include "backend.h"
 #include "util.h"
-#include "warpcore_internal.h"
 
 
 /// Special version of eth_tx() that transmits the current receive buffer after
@@ -156,9 +156,9 @@ eth_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len)
     txs->flags = NS_BUF_CHANGED;
 
 #ifndef NDEBUG
-    const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, txs->buf_idx);
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
+    const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, txs->buf_idx);
     warn(info, "Eth %s -> %s, type %d, len %lu",
          ether_ntoa_r((const struct ether_addr *)eth->src, src),
          ether_ntoa_r((const struct ether_addr *)eth->dst, dst),

@@ -1,10 +1,10 @@
 #include <arpa/inet.h>
 
+#include "backend.h"
 #include "icmp.h"
 #include "ip.h"
 #include "udp.h"
 #include "util.h"
-#include "warpcore_internal.h"
 
 
 #ifndef NDEBUG
@@ -14,13 +14,14 @@
 ///
 #define ip_log(ip)                                                             \
     do {                                                                       \
-        char src[IP_ADDR_STRLEN];                                              \
-        char dst[IP_ADDR_STRLEN];                                              \
+        char src[INET_ADDRSTRLEN];                                             \
+        char dst[INET_ADDRSTRLEN];                                             \
         warn(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "          \
                      "flags [%s%s], proto %d, hlen/tot %d/%d",                 \
-             ip_ntoa(ip->src, src, sizeof src),                                \
-             ip_ntoa(ip->dst, dst, sizeof dst), ip_dscp(ip), ip_ecn(ip),       \
-             ip->ttl, ntohs(ip->id), (ntohs(ip->off) & IP_MF) ? "MF" : "",     \
+             inet_ntop(AF_INET, &ip->src, src, INET_ADDRSTRLEN),               \
+             inet_ntop(AF_INET, &ip->dst, dst, INET_ADDRSTRLEN), ip_dscp(ip),  \
+             ip_ecn(ip), ip->ttl, ntohs(ip->id),                               \
+             (ntohs(ip->off) & IP_MF) ? "MF" : "",                             \
              (ntohs(ip->off) & IP_DF) ? "DF" : "", ip->p, ip_hl(ip),           \
              ntohs(ip->len));                                                  \
     } while (0)
@@ -29,42 +30,6 @@
     do {                                                                       \
     } while (0)
 #endif
-
-
-/// Convert a network byte order IPv4 address into a string.
-///
-/// @param[in]     ip    An IPv4 address in network byte order.
-/// @param[in,out] buf   The buffer in which to place the result.
-/// @param[in]     size  The size of @p buf in bytes.
-///
-/// @return        A pointer to @p buf.
-///
-const __attribute__((nonnull)) char *
-ip_ntoa(uint32_t ip, void * const buf, const size_t size)
-{
-    const uint32_t i = ntohl(ip);
-    snprintf(buf, size, "%u.%u.%u.%u", (i >> 24) & 0xff, (i >> 16) & 0xff,
-             (i >> 8) & 0xff, i & 0xff);
-    ((char *)buf)[size - 1] = '\0';
-    return buf;
-}
-
-
-/// Convert a string into a network byte order IP address.
-///
-/// @param[in]  ip    A string containing an IPv4 address in "xxx.xxx.xxx.xxx\0"
-///                   format.
-///
-/// @return     The IPv4 address in @p ip as a 32-bit network byte order value.
-///
-uint32_t __attribute__((nonnull)) ip_aton(const char * const ip)
-{
-    uint32_t i;
-    const int r = sscanf(ip, "%hhu.%hhu.%hhu.%hhu", (unsigned char *)(&i),
-                         (unsigned char *)(&i) + 1, (unsigned char *)(&i) + 2,
-                         (unsigned char *)(&i) + 3);
-    return r == 4 ? i : 0;
-}
 
 
 /// This function prepares the current *receive* buffer for reflection. It swaps
@@ -127,14 +92,15 @@ void __attribute__((nonnull)) ip_rx(struct warpcore * const w, void * const buf)
     ip_log(ip);
 
     // make sure the packet is for us (or broadcast)
-    if (unlikely(ip->dst != w->ip && ip->dst != mk_bcast(w->ip, w->mask))) {
+    if (unlikely(ip->dst != w->ip && ip->dst != mk_bcast(w->ip, w->mask) &&
+                 ip->dst != IP_BCAST)) {
 #ifndef NDEBUG
-        char src[IP_ADDR_STRLEN];
-        char dst[IP_ADDR_STRLEN];
-#endif
+        char src[INET_ADDRSTRLEN];
+        char dst[INET_ADDRSTRLEN];
         warn(warn, "IP packet from %s to %s (not us); ignoring",
-             ip_ntoa(ip->src, src, sizeof src),
-             ip_ntoa(ip->dst, dst, sizeof dst));
+             inet_ntop(AF_INET, &ip->src, src, INET_ADDRSTRLEN),
+             inet_ntop(AF_INET, &ip->dst, dst, INET_ADDRSTRLEN));
+#endif
         return;
     }
 
@@ -148,7 +114,7 @@ void __attribute__((nonnull)) ip_rx(struct warpcore * const w, void * const buf)
     assert(ip_hl(ip) == 20, "no support for IP options");
 
     // TODO: handle IP fragments
-    assert((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP options");
+    assert((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP fragments");
 
     if (likely(ip->p == IP_P_UDP))
         udp_rx(w, buf, ip->src);

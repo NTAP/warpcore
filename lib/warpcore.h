@@ -2,6 +2,8 @@
 
 #include <sys/queue.h>
 
+#include <plat.h>
+#include <util.h>
 
 /// The I/O vector structure that warpcore uses at the center of its API. It is
 /// mostly a pointer to the first UDP payload byte contained in a netmap packet
@@ -20,8 +22,14 @@ struct w_iov {
     STAILQ_ENTRY(w_iov) next; ///< Next w_iov.
     uint32_t idx;             ///< Index of netmap buffer. (Internal use.)
     uint16_t len;             ///< Length of payload data.
-    uint16_t sport;           ///< Sender source port. Only valid on RX.
-    uint32_t src;             ///< Sender IPv4 address. (Only valid on RX.)
+
+    /// Sender port on RX. Destination port on TX on a disconnected
+    /// w_sock. Ignored on TX on a connected w_sock.
+    uint16_t port;
+
+    /// Sender IPv4 address on RX. Destination IPv4 address on TX on a
+    /// disconnected w_sock. Ignored on TX on a connected w_sock.
+    uint32_t ip;
 
     /// DSCP + ECN of the received IPv4 packet on RX, DSCP + ECN to use for the
     /// to-be-transmitted IPv4 packet on TX.
@@ -34,34 +42,32 @@ struct w_iov {
     struct timeval ts; ///< Receive time of the data. Only valid on RX.
 };
 
-#define IP_P_ICMP 1 ///< IP protocol number for ICMP
-#define IP_P_UDP 17 ///< IP protocol number for UDP
-
 
 extern struct warpcore * w_init(const char * const ifname, const uint32_t rip);
 
-extern void w_init_common(void); // TODO deprecated
-
 extern void w_cleanup(struct warpcore * const w);
 
-extern struct w_sock *
-w_bind(struct warpcore * const w, const uint8_t p, const uint16_t port);
+extern struct w_sock * w_bind(struct warpcore * const w, const uint16_t port);
 
 extern void
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
 
+extern void w_disconnect(struct w_sock * const s);
+
 extern void w_close(struct w_sock * const s);
 
-extern struct w_iov * w_tx_alloc(struct w_sock * const s, const uint32_t len);
+extern struct w_iov * w_alloc(struct warpcore * const w, const uint32_t len);
+
+extern void w_tx(const struct w_sock * const s, struct w_iov * const v);
+
+extern void w_free(struct warpcore * const w, struct w_iov * v);
+
+extern uint32_t w_iov_len(const struct w_iov * v);
 
 extern int w_fd(struct w_sock * const s);
 
-extern void w_rx_done(struct w_sock * const s);
-
 extern struct w_iov * w_rx(struct w_sock * const s);
 
-extern void w_kick_tx(const struct warpcore * const w);
+extern void w_nic_tx(const struct warpcore * const w);
 
-extern void w_kick_rx(const struct warpcore * const w);
-
-extern void w_tx(struct w_sock * const s);
+extern void w_nic_rx(const struct warpcore * const w);

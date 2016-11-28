@@ -18,6 +18,10 @@
 ///
 #define IP_ADDR_STRLEN 16
 
+#define IP_ANY 0x00000000   ///< IPv4 "any" address.
+#define IP_BCAST 0xffffffff ///< IPv4 broadcast address.
+
+
 /// An IPv4 header representation; see
 /// [RFC791](https://tools.ietf.org/html/rfc791.)
 ///
@@ -34,6 +38,8 @@ struct ip_hdr {
     uint32_t dst;   ///< Destination IPv4 address.
 };
 
+#define IP_P_ICMP 1 ///< IP protocol number for ICMP
+#define IP_P_UDP 17 ///< IP protocol number for UDP
 
 struct warpcore;
 struct w_iov;
@@ -104,14 +110,10 @@ extern void ip_tx_with_rx_buf(struct warpcore * w,
                               void * const buf,
                               const uint16_t len);
 
-extern const char * ip_ntoa(uint32_t ip, void * const buf, const size_t size);
-
-extern uint32_t ip_aton(const char * const ip);
-
 extern void ip_rx(struct warpcore * const w, void * const buf);
 
 extern bool
-ip_tx(struct warpcore * w, struct w_iov * const v, const uint16_t len);
+ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);
 
 
 // these are documented here, since in_chksum.c taken from FreeBSD

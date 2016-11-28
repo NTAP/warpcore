@@ -54,4 +54,4 @@ struct arp_hdr {
 
 extern void arp_rx(struct warpcore * w, void * const buf);
 
-extern void arp_who_has(struct warpcore * const w, const uint32_t dip);
+extern uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip);
