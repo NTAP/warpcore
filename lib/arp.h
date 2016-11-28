@@ -57,3 +57,6 @@ arp_rx(struct warpcore * w, void * const buf);
 
 extern uint8_t * __attribute__((nonnull))
 arp_who_has(struct warpcore * const w, const uint32_t dip);
+
+extern void __attribute__((nonnull))
+free_arp_cache(const struct warpcore * const w);

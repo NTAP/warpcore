@@ -5,6 +5,7 @@
 #endif
 #include <sys/queue.h>
 
+// #include "arp.h"
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
@@ -69,6 +70,7 @@ struct w_sock {
 #endif
 };
 
+struct arp_entry;
 
 /// A warpcore engine.
 ///
@@ -82,13 +84,14 @@ struct warpcore {
     uint8_t
         mac[ETH_ADDR_LEN]; ///< Local Ethernet MAC address of this interface.
     void * mem;            ///< Pointer to netmap or shim buffer memory region.
-    uint32_t rip;          ///< IPv4 our default router IP address
+    uint32_t rip;          ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP
     int fd;                 ///< Netmap file descriptor.
     uint32_t cur_txr;       ///< Index of the TX ring currently active.
     uint32_t cur_rxr;       ///< Index of the RX ring currently active.
     struct netmap_if * nif; ///< Netmap interface.
     struct nmreq * req;     ///< Netmap request structure.
+    SLIST_HEAD(arp_cache_head, arp_entry) arp_cache; ///< The ARP cache.
 #else
     /// @cond
     /// @internal Padding.
@@ -96,7 +99,7 @@ struct warpcore {
 /// @endcond
 #endif
     const char * backend; ///< Name of the warpcore backend used by the engine.
-    SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
+    SLIST_ENTRY(warpcore) next;            ///< Pointer to next engine.
     struct w_iov * bufs;
 };
 

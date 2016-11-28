@@ -102,6 +102,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
     assert(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 
     w->backend = backend_name;
+    SLIST_INIT(&w->arp_cache);
 }
 
 
@@ -112,7 +113,10 @@ void backend_init(struct warpcore * w, const char * const ifname)
 ///
 void backend_cleanup(struct warpcore * const w)
 {
-    // // re-construct the extra bufs list, so netmap can free the memory
+    // free ARP cache
+    free_arp_cache(w);
+
+    // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; n < w->req->nr_arg3; n++) {
         uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
         if (n < w->req->nr_arg3 - 1)
