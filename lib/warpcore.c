@@ -63,23 +63,28 @@ w_alloc(struct warpcore * const w, const uint32_t len)
 /// Return a w_iov chain obtained via w_alloc() or w_rx() back to warpcore. The
 /// application must not use @p v after this call.
 ///
+/// Do not make this __attribute__((nonnull)), so the caller doesn't have to
+/// check v.
+///
 /// @param      w     Warpcore engine.
 /// @param      v     w_iov to return.
 ///
-void __attribute__((nonnull))
-w_free(struct warpcore * const w, struct w_iov * v)
+void w_free(struct warpcore * const w, struct w_iov * v)
 {
-    do {
+    while (v) {
         // move v to the available iov list
         // warn(debug, "returning buf %u to spare list", v->idx);
         struct w_iov * const n = STAILQ_NEXT(v, next);
         STAILQ_INSERT_HEAD(&w->iov, v, next);
         v = n;
-    } while (v);
+    };
 }
 
 
 /// Return the total payload length of w_iov chain @p v.
+///
+/// Do not make this __attribute__((nonnull)), so the caller doesn't have to
+/// check v.
 ///
 /// @param[in]  v     A w_iov chain.
 ///
