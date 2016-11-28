@@ -57,8 +57,7 @@ static struct arp_entry * arp_cache_find(const uint32_t ip)
 /// @param[in]  ip    IPv4 address to update the ARP cache for.
 /// @param[in]  mac   New Ethernet MAC address of @p ip.
 ///
-static void __attribute__((nonnull))
-arp_cache_update(const uint32_t ip, const uint8_t mac[ETH_ADDR_LEN])
+static void arp_cache_update(const uint32_t ip, const uint8_t mac[ETH_ADDR_LEN])
 {
     struct arp_entry * a = arp_cache_find(ip);
     if (a) {
@@ -88,8 +87,7 @@ arp_cache_update(const uint32_t ip, const uint8_t mac[ETH_ADDR_LEN])
 /// @param      buf   Buffer containing an incoming ARP request inside an
 ///                   Ethernet frame
 ///
-static void __attribute__((nonnull))
-arp_is_at(struct warpcore * const w, void * const buf)
+static void arp_is_at(struct warpcore * const w, void * const buf)
 {
     struct arp_hdr * const arp = eth_data(buf);
 
@@ -121,8 +119,7 @@ arp_is_at(struct warpcore * const w, void * const buf)
 /// @return     Pointer to Ethernet MAC address (#ETH_ADDR_LEN bytes long) of @p
 ///             dip.
 ///
-uint8_t * __attribute__((nonnull))
-arp_who_has(struct warpcore * const w, const uint32_t dip)
+uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
 {
     struct arp_entry * a = arp_cache_find(dip);
     while (a == 0) {
@@ -196,8 +193,7 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
 /// Ethernet
 ///                   frame
 ///
-void __attribute__((nonnull))
-arp_rx(struct warpcore * const w, void * const buf)
+void arp_rx(struct warpcore * const w, void * const buf)
 {
     const struct arp_hdr * const arp = eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);

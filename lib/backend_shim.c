@@ -46,8 +46,7 @@ void backend_init(struct warpcore * w,
 ///
 /// @param      w     Warpcore engine.
 ///
-void __attribute__((nonnull))
-backend_cleanup(struct warpcore * const w __attribute__((unused)))
+void backend_cleanup(struct warpcore * const w __attribute__((unused)))
 {
 }
 
@@ -56,7 +55,7 @@ backend_cleanup(struct warpcore * const w __attribute__((unused)))
 ///
 /// @param      s     The w_sock to bind.
 ///
-void __attribute__((nonnull)) backend_bind(struct w_sock * s)
+void backend_bind(struct w_sock * s)
 {
     assert(s->fd = socket(AF_INET, SOCK_DGRAM, 0), "socket");
     assert(fcntl(s->fd, F_SETFL, O_NONBLOCK) != -1, "fcntl");
@@ -72,8 +71,7 @@ void __attribute__((nonnull)) backend_bind(struct w_sock * s)
 ///
 /// @param      s     The w_sock to connect.
 ///
-void __attribute__((nonnull))
-backend_connect(struct w_sock * const s __attribute__((unused)))
+void backend_connect(struct w_sock * const s __attribute__((unused)))
 {
 }
 
@@ -86,7 +84,7 @@ backend_connect(struct w_sock * const s __attribute__((unused)))
 ///
 /// @return     A file descriptor.
 ///
-int __attribute__((nonnull)) w_fd(struct w_sock * const s)
+int w_fd(struct w_sock * const s)
 {
     return s->fd;
 }
@@ -108,7 +106,7 @@ int __attribute__((nonnull)) w_fd(struct w_sock * const s)
 /// @return     First w_iov in w_sock::iv if there is new data, or zero. Needs
 ///             to be freed with w_free() by the caller.
 ///
-struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
+struct w_iov * w_rx(struct w_sock * const s)
 {
     while (1) {
         // grab a spare buffer
@@ -145,8 +143,7 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 /// @param      s     w_sock socket to transmit over..
 /// @param      v     w_iov chain to transmit.
 ///
-void __attribute__((nonnull))
-w_tx(const struct w_sock * const s, struct w_iov * const v)
+void w_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     struct sockaddr_in addr = {.sin_family = AF_INET,
                                .sin_port = s->hdr.udp.dport,
@@ -176,8 +173,7 @@ w_tx(const struct w_sock * const s, struct w_iov * const v)
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void __attribute__((nonnull))
-w_nic_rx(const struct warpcore * const w __attribute__((unused)))
+void w_nic_rx(const struct warpcore * const w __attribute__((unused)))
 {
 }
 
@@ -186,7 +182,6 @@ w_nic_rx(const struct warpcore * const w __attribute__((unused)))
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void __attribute__((nonnull))
-w_nic_tx(const struct warpcore * const w __attribute__((unused)))
+void w_nic_tx(const struct warpcore * const w __attribute__((unused)))
 {
 }

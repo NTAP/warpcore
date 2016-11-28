@@ -45,8 +45,7 @@
 /// @param      buf   Buffer containing the Ethernet frame to receive from.
 /// @param[in]  src   The IPv4 source address of the sender of this packet.
 ///
-void __attribute__((nonnull))
-udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
+void udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 {
     const struct ip_hdr * const ip = eth_data(buf);
     struct udp_hdr * const udp = ip_data(buf);
@@ -117,8 +116,7 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 /// @param      s     The w_sock to transmit over.
 /// @param      v     w_iov chain to transmit.
 ///
-void __attribute__((nonnull))
-udp_tx(const struct w_sock * const s, struct w_iov * const v)
+void udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     uint32_t n = 0, l = 0;
     // packetize bufs and place in tx ring
@@ -143,7 +141,8 @@ udp_tx(const struct w_sock * const s, struct w_iov * const v)
             udp->dport = o->port;
             // warn(debug, "w_sock disconnected, sending to %s:%d at %s",
             //      inet_ntoa(*(const struct in_addr * const) & o->ip),
-            //      ntohs(o->port), ether_ntoa((const struct ether_addr * const)e->dst));
+            //      ntohs(o->port), ether_ntoa((const struct ether_addr *
+            //      const)e->dst));
         }
 
         // compute the checksum

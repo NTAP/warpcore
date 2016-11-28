@@ -37,8 +37,7 @@ static char backend_name[] = "netmap";
 /// @param      w       Warpcore engine.
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
 ///
-void __attribute__((nonnull))
-backend_init(struct warpcore * w, const char * const ifname)
+void backend_init(struct warpcore * w, const char * const ifname)
 {
     // open /dev/netmap
     assert((w->fd = open("/dev/netmap", O_RDWR)) != -1,
@@ -111,7 +110,7 @@ backend_init(struct warpcore * w, const char * const ifname)
 ///
 /// @param      w     Warpcore engine.
 ///
-void __attribute__((nonnull)) backend_cleanup(struct warpcore * const w)
+void backend_cleanup(struct warpcore * const w)
 {
     // // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; n < w->req->nr_arg3; n++) {
@@ -134,8 +133,7 @@ void __attribute__((nonnull)) backend_cleanup(struct warpcore * const w)
 ///
 /// @param      s     The w_sock to bind.
 ///
-void __attribute__((nonnull))
-backend_bind(struct w_sock * s __attribute__((unused)))
+void backend_bind(struct w_sock * s __attribute__((unused)))
 {
 }
 
@@ -146,7 +144,7 @@ backend_bind(struct w_sock * s __attribute__((unused)))
 ///
 /// @param      s     w_sock to connect.
 ///
-void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
+void backend_connect(struct w_sock * const s)
 {
     // find the Ethernet MAC address of the destination or the default router,
     // and update the template header
@@ -167,7 +165,7 @@ void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
 ///
 /// @return     A file descriptor.
 ///
-int __attribute__((nonnull)) w_fd(struct w_sock * const s)
+int w_fd(struct w_sock * const s)
 {
     return s->w->fd;
 }
@@ -180,7 +178,7 @@ int __attribute__((nonnull)) w_fd(struct w_sock * const s)
 ///
 /// @param      w     Warpcore engine.
 ///
-void __attribute__((nonnull)) backend_rx(struct warpcore * const w)
+void backend_rx(struct warpcore * const w)
 {
     // loop over all rx rings starting with cur_rxr and wrapping around
     for (uint32_t i = 0; likely(i < w->nif->ni_rx_rings); i++) {
@@ -220,7 +218,7 @@ void __attribute__((nonnull)) backend_rx(struct warpcore * const w)
 /// @return     First w_iov in w_sock::iv if there is new data, or zero. Needs
 ///             to be freed with w_free() by the caller.
 ///
-struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
+struct w_iov * w_rx(struct w_sock * const s)
 {
     backend_rx(s->w);
     struct w_iov * const v = STAILQ_FIRST(&s->iv);
@@ -238,8 +236,7 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 /// @param      s     w_sock socket to transmit over.
 /// @param      v     w_iov chain to transmit.
 ///
-void __attribute__((nonnull))
-w_tx(const struct w_sock * const s, struct w_iov * const v)
+void w_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     udp_tx(s, v);
 }
@@ -249,7 +246,7 @@ w_tx(const struct w_sock * const s, struct w_iov * const v)
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void __attribute__((nonnull)) w_nic_rx(const struct warpcore * const w)
+void w_nic_rx(const struct warpcore * const w)
 {
     assert(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
 }
@@ -260,7 +257,7 @@ void __attribute__((nonnull)) w_nic_rx(const struct warpcore * const w)
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void __attribute__((nonnull)) w_nic_tx(const struct warpcore * const w)
+void w_nic_tx(const struct warpcore * const w)
 {
     assert(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 }

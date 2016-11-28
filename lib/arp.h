@@ -52,6 +52,8 @@ struct arp_hdr {
 #define ARP_OP_REPLY 2   ///< ARP operation, response to request.
 
 
-extern void arp_rx(struct warpcore * w, void * const buf);
+extern void __attribute__((nonnull))
+arp_rx(struct warpcore * w, void * const buf);
 
-extern uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip);
+extern uint8_t * __attribute__((nonnull))
+arp_who_has(struct warpcore * const w, const uint32_t dip);

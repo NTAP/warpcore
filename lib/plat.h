@@ -14,12 +14,14 @@
 
 struct ifaddrs;
 
-extern void plat_get_mac(uint8_t * mac, const struct ifaddrs * i);
+extern void __attribute__((nonnull))
+plat_get_mac(uint8_t * mac, const struct ifaddrs * i);
 
-extern uint16_t plat_get_mtu(const struct ifaddrs * i);
+extern uint16_t __attribute__((nonnull)) plat_get_mtu(const struct ifaddrs * i);
 
-extern uint32_t plat_get_mbps(const struct ifaddrs * i);
+extern uint32_t __attribute__((nonnull))
+plat_get_mbps(const struct ifaddrs * i);
 
-extern bool plat_get_link(const struct ifaddrs * i);
+extern bool __attribute__((nonnull)) plat_get_link(const struct ifaddrs * i);
 
 extern void plat_setaffinity(void);

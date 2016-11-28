@@ -43,10 +43,10 @@
 /// @param      buf   The current receive buffer.
 /// @param[in]  len   The length of the IPv4 payload data in the buffer.
 ///
-void __attribute__((nonnull)) ip_tx_with_rx_buf(struct warpcore * const w,
-                                                const uint8_t p,
-                                                void * const buf,
-                                                const uint16_t len)
+void ip_tx_with_rx_buf(struct warpcore * const w,
+                       const uint8_t p,
+                       void * const buf,
+                       const uint16_t len)
 {
     struct ip_hdr * const ip = eth_data(buf);
 
@@ -86,7 +86,7 @@ void __attribute__((nonnull)) ip_tx_with_rx_buf(struct warpcore * const w,
 /// @param      w     Warpcore engine.
 /// @param      buf   Buffer containing an Ethernet frame.
 ///
-void __attribute__((nonnull)) ip_rx(struct warpcore * const w, void * const buf)
+void ip_rx(struct warpcore * const w, void * const buf)
 {
     const struct ip_hdr * const ip = eth_data(buf);
     ip_log(ip);
@@ -144,8 +144,9 @@ void __attribute__((nonnull)) ip_rx(struct warpcore * const w, void * const buf)
 /// @return     Passes on the return value from eth_tx(), which indicates
 ///             whether @p v was successfully placed into a TX ring.
 ///
-bool __attribute__((nonnull))
-ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len)
+bool ip_tx(struct warpcore * const w,
+           struct w_iov * const v,
+           const uint16_t len)
 {
     struct ip_hdr * const ip = eth_data(IDX2BUF(w, v->idx));
     const uint16_t l = len + sizeof(struct ip_hdr);

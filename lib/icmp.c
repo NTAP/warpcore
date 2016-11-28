@@ -12,7 +12,7 @@
 /// @param      buf   Receive buffer.
 /// @param[in]  len   Length of the ICMP packet in @p buf.
 ///
-static void __attribute__((nonnull))
+static void
 icmp_tx(struct warpcore * const w, void * const buf, const uint16_t len)
 {
     struct icmp_hdr * const icmp = ip_data(buf);
@@ -38,8 +38,9 @@ icmp_tx(struct warpcore * const w, void * const buf, const uint16_t len)
 /// @param[in]  code  ICMP unreachable code to generate.
 /// @param      buf   Receive buffer.
 ///
-void __attribute__((nonnull))
-icmp_tx_unreach(struct warpcore * const w, const uint8_t code, void * const buf)
+void icmp_tx_unreach(struct warpcore * const w,
+                     const uint8_t code,
+                     void * const buf)
 {
     // copy IP hdr + 64 bytes of the original IP packet as the ICMP payload
     struct ip_hdr * const ip = eth_data(buf);
@@ -72,8 +73,7 @@ icmp_tx_unreach(struct warpcore * const w, const uint8_t code, void * const buf)
 /// @param      w     Warpcore engine.
 /// @param      buf   Receive buffer.
 ///
-void __attribute__((nonnull))
-icmp_rx(struct warpcore * const w, void * const buf)
+void icmp_rx(struct warpcore * const w, void * const buf)
 {
     struct icmp_hdr * const icmp = ip_data(buf);
     warn(notice, "ICMP type %d, code %d", icmp->type, icmp->code);

@@ -60,9 +60,9 @@ static void __attribute__((destructor)) postmain()
 ///
 /// @return     Difference @p result = @p x - @p y.
 ///
-int __attribute__((nonnull)) timeval_subtract(struct timeval * const result,
-                                              struct timeval * const x,
-                                              struct timeval * const y)
+int timeval_subtract(struct timeval * const result,
+                     struct timeval * const x,
+                     struct timeval * const y)
 {
     // Perform the carry for the later subtraction by updating y.
     if (x->tv_usec < y->tv_usec) {
@@ -91,7 +91,7 @@ int __attribute__((nonnull)) timeval_subtract(struct timeval * const result,
 /// @param[in]  ptr   The beginning of the memory region to hexdump.
 /// @param[in]  len   The length of the memory region to hexdump.
 ///
-void __attribute__((nonnull)) hexdump(const void * const ptr, const size_t len)
+void hexdump(const void * const ptr, const size_t len)
 {
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {

@@ -40,10 +40,11 @@ struct w_iov;
 #define eth_data(buf) (void *)((char *)(buf) + sizeof(struct eth_hdr))
 
 
-extern void
+extern void __attribute__((nonnull))
 eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len);
 
-extern void eth_rx(struct warpcore * const w, void * const buf);
+extern void __attribute__((nonnull))
+eth_rx(struct warpcore * const w, void * const buf);
 
-extern bool
+extern bool __attribute__((nonnull))
 eth_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);

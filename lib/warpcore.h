@@ -43,31 +43,35 @@ struct w_iov {
 };
 
 
-extern struct warpcore * w_init(const char * const ifname, const uint32_t rip);
+extern struct warpcore * __attribute__((nonnull))
+w_init(const char * const ifname, const uint32_t rip);
 
-extern void w_cleanup(struct warpcore * const w);
+extern void __attribute__((nonnull)) w_cleanup(struct warpcore * const w);
 
-extern struct w_sock * w_bind(struct warpcore * const w, const uint16_t port);
+extern struct w_sock * __attribute__((nonnull))
+w_bind(struct warpcore * const w, const uint16_t port);
 
-extern void
+extern void __attribute__((nonnull))
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
 
-extern void w_disconnect(struct w_sock * const s);
+extern void __attribute__((nonnull)) w_disconnect(struct w_sock * const s);
 
-extern void w_close(struct w_sock * const s);
+extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
-extern struct w_iov * w_alloc(struct warpcore * const w, const uint32_t len);
+extern struct w_iov * __attribute__((nonnull))
+w_alloc(struct warpcore * const w, const uint32_t len);
 
-extern void w_tx(const struct w_sock * const s, struct w_iov * const v);
+extern void __attribute__((nonnull))
+w_tx(const struct w_sock * const s, struct w_iov * const v);
 
 extern void w_free(struct warpcore * const w, struct w_iov * v);
 
 extern uint32_t w_iov_len(const struct w_iov * v);
 
-extern int w_fd(struct w_sock * const s);
+extern int __attribute__((nonnull)) w_fd(struct w_sock * const s);
 
-extern struct w_iov * w_rx(struct w_sock * const s);
+extern struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s);
 
-extern void w_nic_tx(const struct warpcore * const w);
+extern void __attribute__((nonnull)) w_nic_tx(const struct warpcore * const w);
 
-extern void w_nic_rx(const struct warpcore * const w);
+extern void __attribute__((nonnull)) w_nic_rx(const struct warpcore * const w);

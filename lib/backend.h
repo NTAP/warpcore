@@ -121,12 +121,13 @@ struct warpcore {
 #define mk_net(ip, mask) ((ip) & (mask))
 
 
-extern void backend_bind(struct w_sock * s);
+extern void __attribute__((nonnull)) backend_bind(struct w_sock * s);
 
-extern void backend_connect(struct w_sock * const s);
+extern void __attribute__((nonnull)) backend_connect(struct w_sock * const s);
 
-extern void backend_init(struct warpcore * w, const char * const ifname);
+extern void __attribute__((nonnull))
+backend_init(struct warpcore * w, const char * const ifname);
 
-extern void backend_cleanup(struct warpcore * const w);
+extern void __attribute__((nonnull)) backend_cleanup(struct warpcore * const w);
 
-extern void backend_rx(struct warpcore * const w);
+extern void __attribute__((nonnull)) backend_rx(struct warpcore * const w);

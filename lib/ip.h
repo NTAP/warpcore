@@ -105,14 +105,15 @@ struct w_iov;
 #define ip_data_len(ip) ((ntohs((ip)->len) - ip_hl(ip)))
 
 
-extern void ip_tx_with_rx_buf(struct warpcore * w,
-                              const uint8_t p,
-                              void * const buf,
-                              const uint16_t len);
+extern void __attribute__((nonnull)) ip_tx_with_rx_buf(struct warpcore * w,
+                                                       const uint8_t p,
+                                                       void * const buf,
+                                                       const uint16_t len);
 
-extern void ip_rx(struct warpcore * const w, void * const buf);
+extern void __attribute__((nonnull))
+ip_rx(struct warpcore * const w, void * const buf);
 
-extern bool
+extern bool __attribute__((nonnull))
 ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);
 
 
@@ -126,7 +127,8 @@ ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);
 ///
 /// @return     Internet checksum of @p buf.
 ///
-extern uint16_t in_cksum(const void * const buf, const uint16_t len);
+extern uint16_t __attribute__((nonnull))
+in_cksum(const void * const buf, const uint16_t len);
 
 
 /// Compute a pseudo checksum over three 32-bit values.

@@ -30,8 +30,7 @@
 /// @param      buf   Ethernet frame to modify and transmit.
 /// @param[in]  len   Length of the Ethernet frame in @p buf.
 ///
-void __attribute__((nonnull))
-eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
+void eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
 {
     struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
     struct netmap_ring * const txr = NETMAP_TXRING(w->nif, w->cur_txr);
@@ -75,8 +74,7 @@ eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
 /// @param      w     Warpcore engine.
 /// @param      buf   Buffer containing the inbound Ethernet frame.
 ///
-void __attribute__((nonnull))
-eth_rx(struct warpcore * const w, void * const buf)
+void eth_rx(struct warpcore * const w, void * const buf)
 {
     struct eth_hdr * const eth = buf;
 
@@ -115,8 +113,9 @@ eth_rx(struct warpcore * const w, void * const buf)
 ///
 /// @return     True if the buffer was placed into a TX ring, false otherwise.
 ///
-bool __attribute__((nonnull))
-eth_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len)
+bool eth_tx(struct warpcore * const w,
+            struct w_iov * const v,
+            const uint16_t len)
 {
     // check if there is space in the current txr
     struct netmap_ring * txr = 0;

@@ -32,8 +32,7 @@ static SLIST_HEAD(engines, warpcore) wc = SLIST_HEAD_INITIALIZER(wc);
 ///
 /// @return     Chain of w_iov structs.
 ///
-struct w_iov * __attribute__((nonnull))
-w_alloc(struct warpcore * const w, const uint32_t len)
+struct w_iov * w_alloc(struct warpcore * const w, const uint32_t len)
 {
     assert(len, "len is zero");
     struct w_iov * v = 0;
@@ -63,7 +62,7 @@ w_alloc(struct warpcore * const w, const uint32_t len)
 /// Return a w_iov chain obtained via w_alloc() or w_rx() back to warpcore. The
 /// application must not use @p v after this call.
 ///
-/// Do not make this __attribute__((nonnull)), so the caller doesn't have to
+/// Do not make this , so the caller doesn't have to
 /// check v.
 ///
 /// @param      w     Warpcore engine.
@@ -83,7 +82,7 @@ void w_free(struct warpcore * const w, struct w_iov * v)
 
 /// Return the total payload length of w_iov chain @p v.
 ///
-/// Do not make this __attribute__((nonnull)), so the caller doesn't have to
+/// Do not make this , so the caller doesn't have to
 /// check v.
 ///
 /// @param[in]  v     A w_iov chain.
@@ -113,8 +112,9 @@ uint32_t w_iov_len(const struct w_iov * const v)
 /// @param[in]  dip    Destination IPv4 address to bind to.
 /// @param[in]  dport  Destination UDP port to bind to.
 ///
-void __attribute__((nonnull))
-w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
+void w_connect(struct w_sock * const s,
+               const uint32_t dip,
+               const uint16_t dport)
 {
     s->hdr.ip.dst = dip;
     s->hdr.udp.dport = dport;
@@ -125,7 +125,7 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 }
 
 
-void __attribute__((nonnull)) w_disconnect(struct w_sock * const s)
+void w_disconnect(struct w_sock * const s)
 {
     s->hdr.ip.dst = 0;
     s->hdr.udp.dport = 0;
@@ -141,8 +141,7 @@ void __attribute__((nonnull)) w_disconnect(struct w_sock * const s)
 ///
 /// @return     Pointer to a bound w_sock.
 ///
-struct w_sock * __attribute__((nonnull))
-w_bind(struct warpcore * const w, const uint16_t port)
+struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
 {
     struct w_sock * s = w->udp[port];
     if (s) {
@@ -184,7 +183,7 @@ w_bind(struct warpcore * const w, const uint16_t port)
 ///
 /// @param      s     w_sock to close.
 ///
-void __attribute__((nonnull)) w_close(struct w_sock * const s)
+void w_close(struct w_sock * const s)
 {
     // make iovs of the socket available again
     while (!STAILQ_EMPTY(&s->iv)) {
@@ -209,7 +208,7 @@ void __attribute__((nonnull)) w_close(struct w_sock * const s)
 ///
 /// @param      w     Warpcore engine.
 ///
-void __attribute__((nonnull)) w_cleanup(struct warpcore * const w)
+void w_cleanup(struct warpcore * const w)
 {
     warn(notice, "warpcore shutting down");
     backend_cleanup(w);
@@ -236,8 +235,7 @@ void __attribute__((nonnull)) w_cleanup(struct warpcore * const w)
 ///
 /// @return     Initialized warpcore engine.
 ///
-struct warpcore * __attribute__((nonnull))
-w_init(const char * const ifname, const uint32_t rip)
+struct warpcore * w_init(const char * const ifname, const uint32_t rip)
 {
     struct warpcore * w;
     bool link_up = false;

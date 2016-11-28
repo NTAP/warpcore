@@ -223,8 +223,10 @@ extern regex_t _comp;
 extern struct timeval _epoch;
 
 
-extern int timeval_subtract(struct timeval * const result,
-                            struct timeval * const x,
-                            struct timeval * const y);
+extern int __attribute__((nonnull))
+timeval_subtract(struct timeval * const result,
+                 struct timeval * const x,
+                 struct timeval * const y);
 
-extern void hexdump(const void * const ptr, const size_t len);
+extern void __attribute__((nonnull))
+hexdump(const void * const ptr, const size_t len);

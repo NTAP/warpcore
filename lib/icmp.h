@@ -23,7 +23,8 @@ struct icmp_hdr {
 
 struct warpcore;
 
-extern void
+extern void __attribute__((nonnull))
 icmp_tx_unreach(struct warpcore * w, const uint8_t code, void * const buf);
 
-extern void icmp_rx(struct warpcore * w, void * const buf);
+extern void __attribute__((nonnull))
+icmp_rx(struct warpcore * w, void * const buf);
