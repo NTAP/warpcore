@@ -125,10 +125,9 @@ int main(const int argc, char * const argv[])
 
                 // if the current service requires replying with data, do so
                 if (o) {
-                    // connect the socket to send the reply
-                    w_connect(srv[s], v->src, v->sport);
-
                     // send the reply
+                    o->ip = v->ip;
+                    o->port = v->port;
                     w_tx(srv[s], o);
                     w_nic_tx(w);
 
@@ -143,7 +142,8 @@ int main(const int argc, char * const argv[])
             // we are done serving the received data
             w_free(w, i);
 
-            warn(info, "handled %d byte%c", len, plural(len));
+            if (len)
+                warn(info, "handled %d byte%c", len, plural(len));
         }
     }
 

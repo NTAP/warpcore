@@ -2,7 +2,7 @@
 #include <fcntl.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
-#include <poll.h>
+// #include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/param.h>
@@ -148,25 +148,14 @@ backend_bind(struct w_sock * s __attribute__((unused)))
 ///
 void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
 {
-    // find the Ethernet addr of the destination or the default router
-    while (IS_ZERO(s->hdr.eth.dst)) {
-        const uint32_t ip = s->w->rip && (mk_net(s->hdr.ip.dst, s->w->mask) !=
-                                          mk_net(s->hdr.ip.src, s->w->mask))
-                                ? s->w->rip
-                                : s->hdr.ip.dst;
-
-        // warn(notice, "doing ARP lookup for %s",
-        //      inet_ntoa(*(const struct in_addr * const) & ip));
-        arp_who_has(s->w, ip);
-        struct pollfd _fds = {.fd = s->w->fd, .events = POLLIN};
-        poll(&_fds, 1, 200);
-        w_nic_rx(s->w);
-        w_rx(s);
-        if (!IS_ZERO(s->hdr.eth.dst))
-            break;
-        warn(warn, "no ARP reply for %s, retrying",
-             inet_ntoa(*(const struct in_addr * const) & ip));
-    }
+    // find the Ethernet MAC address of the destination or the default router,
+    // and update the template header
+    const uint32_t ip = s->w->rip && (mk_net(s->hdr.ip.dst, s->w->mask) !=
+                                      mk_net(s->hdr.ip.src, s->w->mask))
+                            ? s->w->rip
+                            : s->hdr.ip.dst;
+    const uint8_t * const mac = arp_who_has(s->w, ip);
+    memcpy(s->hdr.eth.dst, mac, ETH_ADDR_LEN);
 }
 
 
@@ -181,6 +170,33 @@ void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
 int __attribute__((nonnull)) w_fd(struct w_sock * const s)
 {
     return s->w->fd;
+}
+
+
+/// Iterates over any new data in the RX rings, appending them to the w_sock::iv
+/// socket buffers of the respective w_sock structures associated with a given
+/// sender IPv4 address and port. Also handles pending inbound ARP and ICMP
+/// packets.
+///
+/// @param      w     Warpcore engine.
+///
+void __attribute__((nonnull)) backend_rx(struct warpcore * const w)
+{
+    // loop over all rx rings starting with cur_rxr and wrapping around
+    for (uint32_t i = 0; likely(i < w->nif->ni_rx_rings); i++) {
+        struct netmap_ring * const r = NETMAP_RXRING(w->nif, w->cur_rxr);
+        while (!nm_ring_empty(r)) {
+            // prefetch the next slot into the cache
+            _mm_prefetch(
+                NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx),
+                _MM_HINT_T1);
+
+            // process the current slot
+            eth_rx(w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
+            r->head = r->cur = nm_ring_next(r, r->cur);
+        }
+        w->cur_rxr = (w->cur_rxr + 1) % w->nif->ni_rx_rings;
+    }
 }
 
 
@@ -201,25 +217,12 @@ int __attribute__((nonnull)) w_fd(struct w_sock * const s)
 /// @param      s     w_sock for which the application would like to receive new
 ///                   data.
 ///
-/// @return     First w_iov in w_sock::iv if there is new data, or zero.
+/// @return     First w_iov in w_sock::iv if there is new data, or zero. Needs
+///             to be freed with w_free() by the caller.
 ///
 struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 {
-    // loop over all rx rings starting with cur_rxr and wrapping around
-    for (uint32_t i = 0; likely(i < s->w->nif->ni_rx_rings); i++) {
-        struct netmap_ring * const r = NETMAP_RXRING(s->w->nif, s->w->cur_rxr);
-        while (!nm_ring_empty(r)) {
-            // prefetch the next slot into the cache
-            _mm_prefetch(
-                NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx),
-                _MM_HINT_T1);
-
-            // process the current slot
-            eth_rx(s->w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
-            r->head = r->cur = nm_ring_next(r, r->cur);
-        }
-        s->w->cur_rxr = (s->w->cur_rxr + 1) % s->w->nif->ni_rx_rings;
-    }
+    backend_rx(s->w);
     struct w_iov * const v = STAILQ_FIRST(&s->iv);
     STAILQ_INIT(&s->iv);
     return v;

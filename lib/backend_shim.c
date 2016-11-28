@@ -68,17 +68,13 @@ void __attribute__((nonnull)) backend_bind(struct w_sock * s)
 }
 
 
-/// Connect a warpcore shim socket. Calls the underlying Socket API.
+/// The shim backend performs no operation here.
 ///
 /// @param      s     The w_sock to connect.
 ///
-void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
+void __attribute__((nonnull))
+backend_connect(struct w_sock * const s __attribute__((unused)))
 {
-    const struct sockaddr_in addr = {.sin_family = AF_INET,
-                                     .sin_port = s->hdr.udp.dport,
-                                     .sin_addr = {s->hdr.ip.dst}};
-    assert(connect(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) != -1,
-           "socket");
 }
 
 
@@ -109,7 +105,8 @@ int __attribute__((nonnull)) w_fd(struct w_sock * const s)
 /// @param      s     w_sock for which the application would like to receive new
 ///                   data.
 ///
-/// @return     First w_iov in w_sock::iv if there is new data, or zero.
+/// @return     First w_iov in w_sock::iv if there is new data, or zero. Needs
+///             to be freed with w_free() by the caller.
 ///
 struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 {
@@ -135,8 +132,8 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 
         // store the length and other info
         v->len = (uint16_t)n;
-        v->src = peer.sin_addr.s_addr;
-        v->sport = peer.sin_port;
+        v->ip = peer.sin_addr.s_addr;
+        v->port = peer.sin_port;
         v->flags = 0; // since we can't get TOS and ECN info from the kernel
         assert(gettimeofday(&v->ts, 0) == 0, "gettimeofday");
     }
@@ -151,8 +148,20 @@ struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s)
 void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov * const v)
 {
+    struct sockaddr_in addr = {.sin_family = AF_INET,
+                               .sin_port = s->hdr.udp.dport,
+                               .sin_addr = {s->hdr.ip.dst}};
+
     for (const struct w_iov * o = v; o; o = STAILQ_NEXT(o, next)) {
-        const ssize_t n = send(s->fd, o->buf, o->len, 0);
+        // if w_sock is disconnected, use destination IP and port from w_iov
+        // instead of the one in the template header
+        if (s->hdr.ip.dst == 0 && s->hdr.udp.dport == 0) {
+            addr.sin_port = o->port;
+            addr.sin_addr.s_addr = o->ip;
+        }
+
+        const ssize_t n = sendto(s->fd, o->buf, o->len, 0,
+                                 (const struct sockaddr *)&addr, sizeof(addr));
         if (n == -1) {
             warn(err, "could not send all data");
             return;

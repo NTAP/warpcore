@@ -116,13 +116,8 @@ uint32_t w_iov_len(const struct w_iov * const v)
 void __attribute__((nonnull))
 w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 {
-    if (s->hdr.ip.dst == dip && s->hdr.udp.dport == dport)
-        // already connected to that peer
-        return;
-
     s->hdr.ip.dst = dip;
     s->hdr.udp.dport = dport;
-
     backend_connect(s);
 
     warn(notice, "IP proto %d socket connected to %s port %d", s->hdr.ip.p,

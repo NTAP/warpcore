@@ -22,8 +22,14 @@ struct w_iov {
     STAILQ_ENTRY(w_iov) next; ///< Next w_iov.
     uint32_t idx;             ///< Index of netmap buffer. (Internal use.)
     uint16_t len;             ///< Length of payload data.
-    uint16_t sport;           ///< Sender source port. Only valid on RX.
-    uint32_t src;             ///< Sender IPv4 address. (Only valid on RX.)
+
+    /// Sender port on RX. Destination port on TX on a disconnected
+    /// w_sock. Ignored on TX on a connected w_sock.
+    uint16_t port;
+
+    /// Sender IPv4 address on RX. Destination IPv4 address on TX on a
+    /// disconnected w_sock. Ignored on TX on a connected w_sock.
+    uint32_t ip;
 
     /// DSCP + ECN of the received IPv4 packet on RX, DSCP + ECN to use for the
     /// to-be-transmitted IPv4 packet on TX.
@@ -45,6 +51,8 @@ extern struct w_sock * w_bind(struct warpcore * const w, const uint16_t port);
 
 extern void
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
+
+extern void w_disconnect(struct w_sock * const s);
 
 extern void w_close(struct w_sock * const s);
 

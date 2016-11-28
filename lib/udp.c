@@ -1,6 +1,17 @@
 #include <arpa/inet.h>
 #include <poll.h>
 
+#ifdef __linux__
+#include <netinet/ether.h>
+#else
+// clang-format off
+// because these includes need to be in-order
+#include <sys/types.h>
+#include <net/ethernet.h>
+// clang-format on
+#endif
+
+#include "arp.h"
 #include "backend.h"
 #include "icmp.h"
 #include "udp.h"
@@ -82,8 +93,8 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
     i->idx = rxs->buf_idx;
 
     // tag the iov with sender information and metadata
-    i->src = src;
-    i->sport = udp->sport;
+    i->ip = src;
+    i->port = udp->sport;
     i->flags = ip->tos;
     memcpy(&i->ts, &rxr->ts, sizeof(i->ts));
 
@@ -96,12 +107,12 @@ udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 }
 
 
-// Put the socket template header in front of the data in the iov and send.
-
-/// Sends w_iov payloads contained in a w_sock::ov via UDP. Prepends the
-/// template header from w_sock::hdr, computes the UDP length and checksum, and
-/// hands the packet off to ip_tx(). Stops processing packets from @p v if
-/// ip_tx() indicates that the TX rings are full.
+/// Sends w_iov payloads contained in a w_sock::ov via UDP. For a connected
+/// w_sock, prepends the template header from w_sock::hdr, computes the UDP
+/// length and checksum, and hands the packet off to ip_tx(). For a disconnected
+/// w_sock, uses the destination IP and port information in each w_iov for TX.
+/// Stops processing packets from @p v if ip_tx() indicates that the TX rings
+/// are full.
 ///
 /// @param      s     The w_sock to transmit over.
 /// @param      v     w_iov chain to transmit.
@@ -117,12 +128,26 @@ udp_tx(const struct w_sock * const s, struct w_iov * const v)
         void * const buf = IDX2BUF(s->w, o->idx);
         memcpy(buf, &s->hdr, sizeof(s->hdr));
 
+        struct ip_hdr * const ip = eth_data(buf);
         struct udp_hdr * const udp = ip_data(buf);
         const uint16_t len = o->len + sizeof(struct udp_hdr);
         udp->len = htons(len);
 
+        // if w_sock is disconnected, use destination IP and port from w_iov
+        // instead of the one in the template header
+        if (s->hdr.ip.dst == 0 && s->hdr.udp.dport == 0) {
+            assert(o->ip && o->port, "no destination information");
+            struct eth_hdr * const e = buf;
+            memcpy(&e->dst, arp_who_has(s->w, o->ip), ETH_ADDR_LEN);
+            ip->dst = o->ip;
+            udp->dport = o->port;
+            // warn(debug, "w_sock disconnected, sending to %s:%d at %s",
+            //      inet_ntoa(*(const struct in_addr * const) & o->ip),
+            //      ntohs(o->port), ether_ntoa((const struct ether_addr * const)e->dst));
+        }
+
         // compute the checksum
-        udp->cksum = in_pseudo(s->w->ip, s->hdr.ip.dst, htons(len + IP_P_UDP));
+        udp->cksum = in_pseudo(s->w->ip, ip->dst, htons(len + IP_P_UDP));
         udp->cksum = in_cksum(udp, len);
 
         udp_log(udp);
