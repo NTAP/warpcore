@@ -109,15 +109,13 @@ uint32_t w_iov_len(const struct w_iov * const v)
 /// w_sock and allows a server application to send data to multiple peers over a
 /// w_sock.
 ///
-/// @param      s      w_sock to bind.
+/// @param      s      w_sock to connect.
 /// @param[in]  dip    Destination IPv4 address to bind to.
 /// @param[in]  dport  Destination UDP port to bind to.
 ///
 void __attribute__((nonnull))
 w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 {
-    assert(s->hdr.ip.p == IP_P_UDP, "unhandled IP proto %d", s->hdr.ip.p);
-
     if (s->hdr.ip.dst == dip && s->hdr.udp.dport == dport)
         // already connected to that peer
         return;
@@ -129,6 +127,15 @@ w_connect(struct w_sock * const s, const uint32_t dip, const uint16_t dport)
 
     warn(notice, "IP proto %d socket connected to %s port %d", s->hdr.ip.p,
          inet_ntoa(*(const struct in_addr * const) & dip), ntohs(dport));
+}
+
+
+void __attribute__((nonnull)) w_disconnect(struct w_sock * const s)
+{
+    s->hdr.ip.dst = 0;
+    s->hdr.udp.dport = 0;
+
+    warn(notice, "IP proto %d socket disconnected", s->hdr.ip.p);
 }
 
 
@@ -305,11 +312,16 @@ w_init(const char * const ifname, const uint32_t rip)
     // set the IP address of our default router
     w->rip = rip;
 
+#ifndef NDEBUG
+    char ip_str[INET_ADDRSTRLEN];
+    char mask_str[INET_ADDRSTRLEN];
+    char rip_str[INET_ADDRSTRLEN];
     warn(notice, "%s has IP addr %s/%s%s%s", ifname,
-         inet_ntoa(*(const struct in_addr * const) & w->ip),
-         inet_ntoa(*(const struct in_addr * const) & w->mask),
+         inet_ntop(AF_INET, &w->ip, ip_str, INET_ADDRSTRLEN),
+         inet_ntop(AF_INET, &w->mask, mask_str, INET_ADDRSTRLEN),
          rip ? ", router " : "",
-         rip ? inet_ntoa(*(const struct in_addr * const) & w->rip) : "");
+         rip ? inet_ntop(AF_INET, &w->rip, rip_str, INET_ADDRSTRLEN) : "");
+#endif
 
     // initialize lists of sockets and iovs
     SLIST_INIT(&w->sock);
