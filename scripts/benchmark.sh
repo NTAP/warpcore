@@ -11,8 +11,8 @@ build=~/warpcore/freebsd-rel
 ssh="ssh $peer -q"
 
 run () {
-    echo run $1
-    $build/examples/$1ping -i $iface -d $peerip -l $loops $busywait \
+    echo "run $1"
+    "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait \
         >> "$1.txt" 2> "$1ping.log"
 }
 
@@ -31,7 +31,7 @@ $ssh "/sbin/ifconfig $piface" | \
 )
 
 
-if [ -z "$(/sbin/ifconfig $iface | grep 'inet ')" ]; then
+if ! /sbin/ifconfig $iface | grep -q 'inet '; then
     echo local interface has no IP address
     exit
 fi
@@ -48,7 +48,4 @@ $ssh "(cd $build/.. && \
         nohup $build/examples/warpinetd -i $piface $busywait ) \
         > warpinetd.log 2>&1 &"
 run warp
-
 $ssh "pkill -f warpinetd"
-sudo ifconfig $iface -alias 10.11.12.3
-$ssh "sudo ifconfig $piface -alias 10.11.12.4"
