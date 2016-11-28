@@ -155,11 +155,11 @@ void __attribute__((nonnull)) backend_connect(struct w_sock * const s)
                                 ? s->w->rip
                                 : s->hdr.ip.dst;
 
-        warn(notice, "doing ARP lookup for %s",
-             inet_ntoa(*(const struct in_addr * const) & ip));
+        // warn(notice, "doing ARP lookup for %s",
+        //      inet_ntoa(*(const struct in_addr * const) & ip));
         arp_who_has(s->w, ip);
         struct pollfd _fds = {.fd = s->w->fd, .events = POLLIN};
-        poll(&_fds, 1, 1000);
+        poll(&_fds, 1, 200);
         w_nic_rx(s->w);
         w_rx(s);
         if (!IS_ZERO(s->hdr.eth.dst))
