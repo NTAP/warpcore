@@ -192,8 +192,7 @@ int main(const int argc, char * const argv[])
 
                 // read new data
                 i = w_rx(s);
-                if (i)
-                    len = w_iov_len(i);
+                len = w_iov_len(i);
             }
 
             // get the current time

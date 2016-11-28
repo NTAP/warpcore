@@ -143,8 +143,7 @@ int main(const int argc, char * const argv[])
             // we are done serving the received data
             w_free(w, i);
 
-            if (len)
-                warn(info, "handled %d byte%c", len, plural(len));
+            warn(info, "handled %d byte%c", len, plural(len));
         }
     }
 
