@@ -78,9 +78,13 @@ arp_who_has(struct warpcore * const w, const uint32_t dip)
     memset(arp->tha, 0, ETH_ADDR_LEN);
     arp->tpa = dip;
 
+#ifndef NDEBUG
+    char tpa[INET_ADDRSTRLEN];
+    char spa[INET_ADDRSTRLEN];
     warn(notice, "ARP request who has %s tell %s",
-         inet_ntoa(*(const struct in_addr * const) & arp->tpa),
-         inet_ntoa(*(const struct in_addr * const) & arp->spa));
+         inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN),
+         inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
+#endif
 
     // send the Ethernet packet
     eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
@@ -115,15 +119,20 @@ void arp_rx(struct warpcore * const w, void * const buf)
 
     const uint16_t op = ntohs(arp->op);
     switch (op) {
-    case ARP_OP_REQUEST:
+    case ARP_OP_REQUEST: {
+#ifndef NDEBUG
+        char tpa[INET_ADDRSTRLEN];
+        char spa[INET_ADDRSTRLEN];
         warn(notice, "ARP request who has %s tell %s",
-             inet_ntoa(*(const struct in_addr * const) & arp->tpa),
-             inet_ntoa(*(const struct in_addr * const) & arp->spa));
+             inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN),
+             inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
+#endif
         if (arp->tpa == w->ip)
             arp_is_at(w, buf);
         else
             warn(warn, "ignoring ARP request not asking for us");
         break;
+    }
 
     case ARP_OP_REPLY: {
         warn(notice, "ARP reply %s is at %s",

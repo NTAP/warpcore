@@ -14,11 +14,13 @@
 ///
 #define ip_log(ip)                                                             \
     do {                                                                       \
+        char src[INET_ADDRSTRLEN];                                             \
+        char dst[INET_ADDRSTRLEN];                                             \
         warn(notice, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "          \
                      "flags [%s%s], proto %d, hlen/tot %d/%d",                 \
-             inet_ntoa(*(const struct in_addr * const) & ip->src),             \
-             inet_ntoa(*(const struct in_addr * const) & ip->dst),             \
-             ip_dscp(ip), ip_ecn(ip), ip->ttl, ntohs(ip->id),                  \
+             inet_ntop(AF_INET, &ip->src, src, INET_ADDRSTRLEN),               \
+             inet_ntop(AF_INET, &ip->dst, dst, INET_ADDRSTRLEN), ip_dscp(ip),  \
+             ip_ecn(ip), ip->ttl, ntohs(ip->id),                               \
              (ntohs(ip->off) & IP_MF) ? "MF" : "",                             \
              (ntohs(ip->off) & IP_DF) ? "DF" : "", ip->p, ip_hl(ip),           \
              ntohs(ip->len));                                                  \
@@ -92,9 +94,13 @@ void __attribute__((nonnull)) ip_rx(struct warpcore * const w, void * const buf)
     // make sure the packet is for us (or broadcast)
     if (unlikely(ip->dst != w->ip && ip->dst != mk_bcast(w->ip, w->mask) &&
                  ip->dst != IP_BCAST)) {
+#ifndef NDEBUG
+        char src[INET_ADDRSTRLEN];
+        char dst[INET_ADDRSTRLEN];
         warn(warn, "IP packet from %s to %s (not us); ignoring",
-             inet_ntoa(*(const struct in_addr * const) & ip->src),
-             inet_ntoa(*(const struct in_addr * const) & ip->dst));
+             inet_ntop(AF_INET, &ip->src, src, INET_ADDRSTRLEN),
+             inet_ntop(AF_INET, &ip->dst, dst, INET_ADDRSTRLEN));
+#endif
         return;
     }
 
