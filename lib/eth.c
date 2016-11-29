@@ -13,7 +13,6 @@
 
 #include "arp.h"
 #include "backend.h"
-#include "util.h"
 
 
 /// Special version of eth_tx() that transmits the current receive buffer after

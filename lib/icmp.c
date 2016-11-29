@@ -2,7 +2,6 @@
 
 #include "backend.h"
 #include "icmp.h"
-#include "util.h"
 
 
 /// Transmit the ICMP packet in the current *receive* buffer via

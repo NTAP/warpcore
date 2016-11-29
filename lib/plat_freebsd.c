@@ -8,7 +8,6 @@
 #include <sys/cpuset.h>
 // clang-format on
 
-#include "util.h"
 #include "eth.h"
 #include "plat.h"
 

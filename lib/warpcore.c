@@ -11,10 +11,7 @@
 #include <net/ethernet.h>
 #endif
 
-// #include "arp.h"
 #include "backend.h"
-#include "plat.h"
-#include "util.h"
 #include "version.h"
 
 

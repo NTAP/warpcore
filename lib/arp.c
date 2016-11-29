@@ -1,6 +1,5 @@
 #include <arpa/inet.h>
 #include <poll.h>
-#include <sys/queue.h>
 
 #ifdef __linux__
 #include <netinet/ether.h>
@@ -12,9 +11,7 @@
 // clang-format on
 #endif
 
-#include "arp.h"
 #include "backend.h"
-#include "util.h"
 
 
 /// ARP cache entry.

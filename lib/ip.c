@@ -2,9 +2,6 @@
 
 #include "backend.h"
 #include "icmp.h"
-#include "ip.h"
-#include "udp.h"
-#include "util.h"
 
 
 #ifndef NDEBUG

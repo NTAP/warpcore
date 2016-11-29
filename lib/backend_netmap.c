@@ -21,8 +21,6 @@
 
 #include "arp.h"
 #include "backend.h"
-#include "plat.h"
-#include "util.h"
 #include "version.h"
 
 /// The backend name.

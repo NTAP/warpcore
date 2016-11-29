@@ -1,11 +1,8 @@
 #include <fcntl.h>
 #include <netinet/in.h>
-#include <stdint.h>
 #include <sys/socket.h>
 
 #include "backend.h"
-#include "plat.h"
-#include "util.h"
 #include "version.h"
 
 

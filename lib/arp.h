@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdint.h>
-
 #include "eth.h"
 
 /// A representation of an ARP header; see

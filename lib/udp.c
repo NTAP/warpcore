@@ -14,8 +14,6 @@
 #include "arp.h"
 #include "backend.h"
 #include "icmp.h"
-#include "udp.h"
-#include "util.h"
 
 
 #ifndef NDEBUG

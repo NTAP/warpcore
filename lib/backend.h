@@ -3,9 +3,7 @@
 #ifdef WITH_NETMAP
 #include <net/netmap_user.h>
 #endif
-#include <sys/queue.h>
 
-// #include "arp.h"
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
