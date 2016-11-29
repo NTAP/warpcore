@@ -247,6 +247,10 @@ void arp_rx(struct warpcore * const w, void * const buf)
 }
 
 
+/// Free the ARP cache entries associated with engine @p w.
+///
+/// @param[in]  w     Warpcore engine.
+///
 void free_arp_cache(const struct warpcore * const w)
 {
     struct arp_entry *a, *next;
