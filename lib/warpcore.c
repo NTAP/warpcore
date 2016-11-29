@@ -330,3 +330,15 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
          warpcore_version, w->backend, ifname);
     return w;
 }
+
+
+/// Return warpcore engine serving w_sock @p s.
+///
+/// @param[in]  s     A w_sock.
+///
+/// @return     The warpcore engine for w_sock @p s.
+///
+struct warpcore * w_engine(const struct w_sock * const s)
+{
+    return s->w;
+}

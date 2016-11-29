@@ -75,3 +75,6 @@ extern struct w_iov * __attribute__((nonnull)) w_rx(struct w_sock * const s);
 extern void __attribute__((nonnull)) w_nic_tx(const struct warpcore * const w);
 
 extern void __attribute__((nonnull)) w_nic_rx(const struct warpcore * const w);
+
+extern struct warpcore * __attribute__((nonnull))
+w_engine(const struct w_sock * const s);
