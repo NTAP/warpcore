@@ -2,7 +2,6 @@ string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_UC)
 configure_file(version.h.in version.h)
 configure_file(version.c.in version.c)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-# set(CMAKE_INCLUDE_CURRENT_DIR_IN_INTERFACE ON)
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
 set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_${CMAKE_SYSTEM_NAME_LC}.c)
@@ -21,7 +20,7 @@ target_include_directories(shimcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 install(TARGETS shimcore DESTINATION lib)
 install(FILES warpcore.h util.h plat.h DESTINATION include)
 
-if(${netmap_FOUND})
+if(${HAVE_NETMAP_H})
   set(WARPSOURCES
     ${SOURCES} arp.c eth.c icmp.c in_cksum.c ip.c udp.c backend_netmap.c)
   add_library(warpcore ${WARPSOURCES})

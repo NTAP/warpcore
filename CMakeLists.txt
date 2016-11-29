@@ -1,13 +1,30 @@
 cmake_minimum_required(VERSION 3.0)
 
-# we use some custom compiler flags
-set(CMAKE_USER_MAKE_RULES_OVERRIDE "CMakeInit.txt")
-
 project(warpcore VERSION 0.0.1 LANGUAGES C)
+
+# Set general compile flags, if they are supported
+include(CheckCCompilerFlag)
+foreach(FLAG -std=c11 -march=native -Wextra -Wpedantic -Weverything -Werror
+        -Wno-missing-field-initializers -Wno-missing-braces)
+  string(REGEX REPLACE "[-=]" "" F ${FLAG})
+  check_c_compiler_flag(${FLAG} ${F})
+  if(${F})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+  endif()
+endforeach()
+
+# flags for "Debug" and "None" builds
+set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
+
+# flags for "Release" builds
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Ofast")
+
+# flags for "RelWithDebInfo" builds
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-DNDEBUG -Ofast -g")
 
 # Check if _GNU_SOURCE is available.
 include(CheckSymbolExists)
-CHECK_SYMBOL_EXISTS(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
+check_symbol_exists(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
 if(_GNU_SOURCE)
   add_definitions(-D_GNU_SOURCE)
 endif()
@@ -22,9 +39,9 @@ endif()
 get_property(COMPILE_OPTIONS DIRECTORY PROPERTY COMPILE_OPTIONS)
 string(REPLACE ";" " " COMPILE_OPTIONS "${COMPILE_OPTIONS}")
 
-include(FindPackageHandleStandardArgs)
-find_path(NETMAP_INCLUDE netmap_user.h PATH_SUFFIXES net)
-find_package_handle_standard_args(netmap DEFAULT_MSG NETMAP_INCLUDE)
+# Look for netmap
+include(CheckIncludeFiles)
+check_include_files (net/netmap_user.h HAVE_NETMAP_H)
 
 add_subdirectory(doc)
 add_subdirectory(examples)
