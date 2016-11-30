@@ -2,14 +2,14 @@
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
 #include <net/if.h>
-#include <netinet/ether.h>
 #include <netpacket/packet.h>
-#include <sched.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
 #include "eth.h"
 #include "plat.h"
+#include "util.h"
 
 
 /// Return the Ethernet MAC address of network interface @p i.
