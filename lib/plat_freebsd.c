@@ -7,9 +7,11 @@
 #include <sys/types.h>
 #include <sys/cpuset.h>
 // clang-format on
+#include <string.h>
 
 #include "eth.h"
 #include "plat.h"
+#include "util.h"
 
 
 /// Return the Ethernet MAC address of network interface @p i.
