@@ -20,7 +20,7 @@ target_include_directories(shimcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 install(TARGETS shimcore DESTINATION lib)
 install(FILES warpcore.h util.h plat.h DESTINATION include)
 
-if(${HAVE_NETMAP_H})
+if(HAVE_NETMAP_H)
   set(WARPSOURCES
     ${SOURCES} arp.c eth.c icmp.c in_cksum.c ip.c udp.c backend_netmap.c)
   add_library(warpcore ${WARPSOURCES})

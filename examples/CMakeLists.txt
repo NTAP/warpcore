@@ -1,4 +1,4 @@
-if (${netmap_FOUND})
+if(HAVE_NETMAP_H)
   add_executable(warpping warpping.c)
   target_link_libraries(warpping PUBLIC warpcore)
 

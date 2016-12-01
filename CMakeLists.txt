@@ -40,8 +40,12 @@ get_property(COMPILE_OPTIONS DIRECTORY PROPERTY COMPILE_OPTIONS)
 string(REPLACE ";" " " COMPILE_OPTIONS "${COMPILE_OPTIONS}")
 
 # Look for netmap
-include(CheckIncludeFiles)
-check_include_files (net/netmap_user.h HAVE_NETMAP_H)
+find_path(HAVE_NETMAP_H net/netmap.h PATHS /usr/local/include)
+if(HAVE_NETMAP_H)
+  message(STATUS "Found netmap include in ${HAVE_NETMAP_H}")
+else()
+  message(STATUS "netmap.h not found; building shim backend only")
+endif()
 
 add_subdirectory(doc)
 add_subdirectory(examples)
