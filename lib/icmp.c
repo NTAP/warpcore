@@ -11,7 +11,7 @@
 /// @param      buf   Receive buffer.
 /// @param[in]  len   Length of the ICMP packet in @p buf.
 ///
-static void
+static void  __attribute__((nonnull))
 icmp_tx(struct warpcore * const w, void * const buf, const uint16_t len)
 {
     struct icmp_hdr * const icmp = ip_data(buf);

@@ -35,7 +35,8 @@ struct arp_entry {
 ///
 /// @return     Pointer to arp_entry of @p ip, or zero.
 ///
-static struct arp_entry * arp_cache_find(struct warpcore * w, const uint32_t ip)
+static struct arp_entry * __attribute__((nonnull))
+arp_cache_find(struct warpcore * w, const uint32_t ip)
 {
     struct arp_entry * a;
     SLIST_FOREACH (a, &w->arp_cache, next)
@@ -51,9 +52,10 @@ static struct arp_entry * arp_cache_find(struct warpcore * w, const uint32_t ip)
 /// @param[in]  ip    IPv4 address to update the ARP cache for.
 /// @param[in]  mac   New Ethernet MAC address of @p ip.
 ///
-static void arp_cache_update(struct warpcore * w,
-                             const uint32_t ip,
-                             const uint8_t mac[ETH_ADDR_LEN])
+static void __attribute__((nonnull))
+arp_cache_update(struct warpcore * w,
+                 const uint32_t ip,
+                 const uint8_t mac[ETH_ADDR_LEN])
 {
     struct arp_entry * a = arp_cache_find(w, ip);
     if (a) {
@@ -82,7 +84,8 @@ static void arp_cache_update(struct warpcore * w,
 /// @param      buf   Buffer containing an incoming ARP request inside an
 ///                   Ethernet frame
 ///
-static void arp_is_at(struct warpcore * const w, void * const buf)
+static void __attribute__((nonnull))
+arp_is_at(struct warpcore * const w, void * const buf)
 {
     struct arp_hdr * const arp = eth_data(buf);
 

@@ -64,7 +64,8 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off);
 extern void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov * const v);
 
-extern void w_free(struct warpcore * const w, struct w_iov * v);
+extern void w_free(struct warpcore * const w __attribute__((nonnull)),
+                   struct w_iov * v);
 
 extern uint32_t w_iov_len(const struct w_iov * v);
 
