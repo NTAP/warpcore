@@ -11,6 +11,7 @@
 // clang-format on
 #endif
 
+#include "arp.h"
 #include "backend.h"
 
 
@@ -248,9 +249,11 @@ void arp_rx(struct warpcore * const w, void * const buf)
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void free_arp_cache(const struct warpcore * const w)
+void free_arp_cache(struct warpcore * const w)
 {
-    struct arp_entry *a, *next;
-    SLIST_FOREACH_SAFE (a, &w->arp_cache, next, next)
+    while (!SLIST_EMPTY(&w->arp_cache)) {
+        struct arp_entry * a = SLIST_FIRST(&w->arp_cache);
+        SLIST_REMOVE_HEAD(&w->arp_cache, next);
         free(a);
+    }
 }
