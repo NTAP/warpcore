@@ -22,14 +22,18 @@ static SLIST_HEAD(engines, warpcore) wc = SLIST_HEAD_INITIALIZER(wc);
 
 
 /// Allocate a w_iov chain for @p payload bytes, for eventual use with w_tx().
-/// Must be later freed with w_free().
+/// Must be later freed with w_free(). If a @p off offset is specified, leave
+/// this much extra space before @p buf in each w_iov. This is meant for
+/// upper-level protocols that wish to reserve space for their headers.
 ///
 /// @param      w     Warpcore engine.
 /// @param[in]  len   Amount of payload bytes in the returned chain.
+/// @param[in]  off   Additional offset for @p buf.
 ///
 /// @return     Chain of w_iov structs.
 ///
-struct w_iov * w_alloc(struct warpcore * const w, const uint32_t len)
+struct w_iov *
+w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
 {
     assert(len, "len is zero");
     struct w_iov * v = 0;
@@ -41,8 +45,8 @@ struct w_iov * w_alloc(struct warpcore * const w, const uint32_t len)
         assert(v != 0, "out of spare bufs after grabbing %d", n);
         STAILQ_REMOVE_HEAD(&w->iov, next);
         // warn(debug, "allocating spare buf %u to app", v->idx);
-        v->buf = IDX2BUF(w, v->idx) + sizeof(struct w_hdr);
-        v->len = w->mtu - sizeof(struct w_hdr);
+        v->buf = IDX2BUF(w, v->idx) + sizeof(struct w_hdr) + off;
+        v->len = w->mtu - sizeof(struct w_hdr) - off;
         l -= v->len;
         n++;
         STAILQ_INSERT_TAIL(&chain, v, next);
@@ -51,7 +55,8 @@ struct w_iov * w_alloc(struct warpcore * const w, const uint32_t len)
     // adjust length of last iov so chain is the exact length requested
     v->len += l; // l is negative
 
-    warn(info, "allocating iov (len %d in %d bufs) for user tx", len, n);
+    warn(info, "allocated q_iov chain (len %d in %d buf%c, offset %d) for tx",
+         len, n, plural(n), off);
     return STAILQ_FIRST(&chain);
 }
 

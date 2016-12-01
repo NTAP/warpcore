@@ -59,7 +59,7 @@ extern void __attribute__((nonnull)) w_disconnect(struct w_sock * const s);
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
 extern struct w_iov * __attribute__((nonnull))
-w_alloc(struct warpcore * const w, const uint32_t len);
+w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off);
 
 extern void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov * const v);

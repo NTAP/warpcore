@@ -93,7 +93,7 @@ int main(const int argc, char * const argv[])
                 switch (s) {
                 // echo received data back to sender
                 case 0:
-                    o = w_alloc(w, v->len);         // allocate outbound w_iov
+                    o = w_alloc(w, v->len, 0);      // allocate outbound w_iov
                     memcpy(o->buf, v->buf, v->len); // copy data
                     break;
 
@@ -106,7 +106,7 @@ int main(const int argc, char * const argv[])
                     const time_t t = time(0);
                     const char * c = ctime(&t);
                     const uint32_t l = (uint32_t)strlen(c);
-                    o = w_alloc(w, l);    // allocate outbound w_iov
+                    o = w_alloc(w, l, 0); // allocate outbound w_iov
                     memcpy(o->buf, c, l); // write a timestamp
                     break;
                 }
@@ -114,7 +114,7 @@ int main(const int argc, char * const argv[])
                 // time
                 case 3: {
                     const time_t t = time(0);
-                    o = w_alloc(w, sizeof(time_t));           // allocate w_iov
+                    o = w_alloc(w, sizeof(time_t), 0);        // allocate w_iov
                     *(uint32_t *)o->buf = htonl((uint32_t)t); // write timestamp
                     break;
                 }

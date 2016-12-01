@@ -158,7 +158,7 @@ int main(const int argc, char * const argv[])
         long iter = loops;
         while (likely(iter--)) {
             // allocate tx chain
-            struct w_iov * const o = w_alloc(w, size);
+            struct w_iov * const o = w_alloc(w, size, 0);
 
             // timestamp the payload
             assert(clock_gettime(CLOCK_REALTIME, o->buf) != -1,
