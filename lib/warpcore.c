@@ -114,9 +114,11 @@ void w_free(struct warpcore * const w, struct w_chain * c)
 uint32_t w_iov_len(const struct w_chain * const c)
 {
     uint32_t l = 0;
-    const struct w_iov * v;
-    STAILQ_FOREACH (v, c, next)
-        l += v->len;
+    if (c) {
+        const struct w_iov * v;
+        STAILQ_FOREACH (v, c, next)
+            l += v->len;
+    }
     return l;
 }
 
