@@ -82,7 +82,7 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
         // adjust length of last iov so chain is the exact length requested
         v->len += l; // l is negative
 
-    warn(info, "allocated q_iov chain (len %d in %d buf%c, offset %d)", len, n,
+    warn(info, "allocated w_chain (len %d in %d w_iov%c, offset %d)", len, n,
          plural(n), off);
     return chain;
 }
@@ -96,7 +96,7 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
 /// @param      w     Warpcore engine.
 /// @param      c     Chain of w_iov structs to free.
 ///
-void w_free(struct warpcore * const w, struct w_chain * c)
+void w_free(struct warpcore * const w, struct w_chain * const c)
 {
     STAILQ_CONCAT(&w->iov, c);
     free(c);
@@ -114,9 +114,11 @@ void w_free(struct warpcore * const w, struct w_chain * c)
 uint32_t w_iov_len(const struct w_chain * const c)
 {
     uint32_t l = 0;
-    const struct w_iov * v;
-    STAILQ_FOREACH (v, c, next)
-        l += v->len;
+    if (c) {
+        const struct w_iov * v;
+        STAILQ_FOREACH (v, c, next)
+            l += v->len;
+    }
     return l;
 }
 
@@ -190,6 +192,9 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
 
     s->w = w;
     SLIST_INSERT_HEAD(&w->sock, s, next);
+    s->iv = calloc(1, sizeof(*s->iv));
+    assert(s->iv, "could not calloc");
+    STAILQ_INIT(s->iv);
 
     backend_bind(s);
 
@@ -336,6 +341,8 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
                 if (!w->mask)
                     w->mask = ((struct sockaddr_in *)(void *)i->ifa_netmask)
                                   ->sin_addr.s_addr;
+                break;
+            case AF_INET6:
                 break;
             default:
                 warn(notice, "ignoring unknown addr family %d on %s",
