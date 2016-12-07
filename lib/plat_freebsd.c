@@ -84,7 +84,9 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
 ///
 bool plat_get_link(const struct ifaddrs * i)
 {
-    return (((uint8_t)((struct if_data *)(i->ifa_data))->ifi_link_state) ==
+    if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
+        return true;
+    return (((uint8_t)((struct if_data *)(i->ifa_data))->ifi_link_state) &
             LINK_STATE_UP);
 }
 
