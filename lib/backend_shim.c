@@ -52,7 +52,7 @@ void backend_init(struct warpcore * w,
     assert((w->mem = calloc(NUM_BUFS, IOV_BUF_LEN)) != 0, "cannot alloc bufs");
 
     for (uint32_t i = 0; i < NUM_BUFS; i++) {
-        struct w_iov * const v = calloc(1, sizeof(struct w_iov));
+        struct w_iov * const v = calloc(1, sizeof(*v));
         assert(v != 0, "cannot allocate w_iov");
         v->buf = IDX2BUF(w, i);
         v->idx = i;
@@ -67,8 +67,14 @@ void backend_init(struct warpcore * w,
 ///
 /// @param      w     Warpcore engine.
 ///
-void backend_cleanup(struct warpcore * const w __attribute__((unused)))
+void backend_cleanup(struct warpcore * const w)
 {
+    while (!STAILQ_EMPTY(&w->iov)) {
+        struct w_iov * v = STAILQ_FIRST(&w->iov);
+        STAILQ_REMOVE_HEAD(&w->iov, next);
+        free(v);
+    }
+    free(w->mem);
 }
 
 
@@ -148,7 +154,8 @@ void backend_rx(struct warpcore * const w)
 }
 
 
-/// Sends payloads from @p v using the Socket API. Not all payloads may be sent.
+/// Sends payloads from @p v using the Socket API. Not all payloads may be
+/// sent.
 ///
 /// @param      s     w_sock socket to transmit over..
 /// @param      c     w_iov chain to transmit.
