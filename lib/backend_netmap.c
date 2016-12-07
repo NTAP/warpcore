@@ -147,6 +147,7 @@ void backend_cleanup(struct warpcore * const w)
         else
             *buf = 0;
     }
+    w->nif->ni_bufs_head = w->bufs[0].idx;
 
     assert(munmap(w->mem, w->req->nr_memsize) != -1,
            "cannot munmap netmap memory");
