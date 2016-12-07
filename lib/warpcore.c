@@ -300,8 +300,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     //            "can only have one warpcore engine active on %s", ifname);
 
     // allocate engine struct
-    assert((w = calloc(1, sizeof(struct warpcore))) != 0,
-           "cannot allocate struct warpcore");
+    assert((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct warpcore");
 
     // we mostly loop here because the link may be down
     // mpbs can be zero on generic platforms
@@ -378,7 +377,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     STAILQ_INIT(&w->iov);
 
     // allocate socket pointers
-    assert((w->udp = calloc(UINT16_MAX, sizeof(struct w_sock *))) != 0,
+    assert((w->udp = calloc(UINT16_MAX, sizeof(*w->udp)) != 0,
            "cannot allocate UDP sockets");
 
     backend_init(w, ifname);
