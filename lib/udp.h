@@ -40,10 +40,10 @@ struct udp_hdr {
 
 struct warpcore;
 struct w_sock;
-struct w_iov;
+struct w_chain;
 
 extern void __attribute__((nonnull))
 udp_rx(struct warpcore * const w, void * const buf, const uint32_t src);
 
 extern void __attribute__((nonnull))
-udp_tx(const struct w_sock * const s, struct w_iov * const v);
+udp_tx(const struct w_sock * const s, struct w_chain * const c);

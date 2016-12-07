@@ -121,7 +121,7 @@ void udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
     memcpy(&i->ts, &rxr->ts, sizeof(i->ts));
 
     // append the iov to the socket
-    STAILQ_INSERT_TAIL(&s->iv, i, next);
+    STAILQ_INSERT_TAIL(s->iv, i, next);
 
     // put the original buffer of the iov into the receive ring
     rxs->buf_idx = tmp_idx;
@@ -137,14 +137,14 @@ void udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 /// are full.
 ///
 /// @param      s     The w_sock to transmit over.
-/// @param      v     w_iov chain to transmit.
+/// @param      c     w_iov chain to transmit.
 ///
-void udp_tx(const struct w_sock * const s, struct w_iov * const v)
+void udp_tx(const struct w_sock * const s, struct w_chain * const c)
 {
     uint32_t n = 0, l = 0;
     // packetize bufs and place in tx ring
-    for (struct w_iov * o = v; o; o = STAILQ_NEXT(o, next)) {
-
+    struct w_iov * o;
+    STAILQ_FOREACH(o, c, next) {
         // copy template header into buffer and fill in remaining fields
         void * const buf = IDX2BUF(s->w, o->idx);
         memcpy(buf, &s->hdr, sizeof(s->hdr));

@@ -184,10 +184,10 @@ int main(const int argc, char * const argv[])
         long iter = loops;
         while (likely(iter--)) {
             // allocate tx chain
-            struct w_iov * const o = w_alloc(w, size, 0);
+            struct w_chain * const o = w_alloc(w, size, 0);
 
             // timestamp the payload
-            assert(clock_gettime(CLOCK_REALTIME, o->buf) != -1,
+            assert(clock_gettime(CLOCK_REALTIME, STAILQ_FIRST(o)->buf) != -1,
                    "clock_gettime");
 
             // send the data and free the w_iov
@@ -197,7 +197,7 @@ int main(const int argc, char * const argv[])
             warn(info, "sent %d byte%c", size, plural(size));
 
             // wait for a reply
-            struct w_iov * i = 0;
+            struct w_chain * i = 0;
             uint32_t len = 0;
 
             // set a timeout
@@ -240,7 +240,7 @@ int main(const int argc, char * const argv[])
             }
 
             // compute time difference between the packet and the current time
-            time_diff(&diff, &now, i->buf);
+            time_diff(&diff, &now, STAILQ_FIRST(i)->buf);
             if (unlikely(diff.tv_sec != 0))
                 die("time difference is more than %ld sec", diff.tv_sec);
             printf("%ld\t%d\n", diff.tv_nsec, size);

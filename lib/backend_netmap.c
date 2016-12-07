@@ -46,7 +46,7 @@
 
 #include "arp.h"
 #include "backend.h"
-#include "version.h"
+
 
 /// The backend name.
 ///
@@ -225,35 +225,6 @@ void backend_rx(struct warpcore * const w)
 }
 
 
-/// Iterates over any new data in the RX rings, appending them to the w_sock::iv
-/// socket buffers of the respective w_sock structures associated with a given
-/// sender IPv4 address and port.
-///
-/// Unlike with the Socket API, w_rx() can append data to w_sock::iv chains
-/// *other* that that of the w_sock passed as @p s. This is, because warpcore
-/// needs to drain the RX rings, in order to allow new data to be received by
-/// the NIC. It would be inconvenient to require the application to constantly
-/// iterate over all w_sock sockets it has opened.
-///
-/// This means that although w_rx() may return zero, because no new data has
-/// been received on @p s, it may enqueue new data into the w_sock::iv chains of
-/// other w_sock socket.
-///
-/// @param      s     w_sock for which the application would like to receive new
-///                   data.
-///
-/// @return     First w_iov in w_sock::iv if there is new data, or zero. Needs
-///             to be freed with w_free() by the caller.
-///
-struct w_iov * w_rx(struct w_sock * const s)
-{
-    backend_rx(s->w);
-    struct w_iov * const v = STAILQ_FIRST(&s->iv);
-    STAILQ_INIT(&s->iv);
-    return v;
-}
-
-
 /// Places payloads from @p v into IPv4 UDP packets, and attempts to move them
 /// onto a TX ring. Not all payloads may be placed if the TX rings fills up
 /// first. Also, the packets are not send yet; w_nic_tx() needs to be called for
@@ -261,11 +232,11 @@ struct w_iov * w_rx(struct w_sock * const s)
 /// schedule packet I/O.
 ///
 /// @param      s     w_sock socket to transmit over.
-/// @param      v     w_iov chain to transmit.
+/// @param      c     w_iov chain to transmit.
 ///
-void w_tx(const struct w_sock * const s, struct w_iov * const v)
+void w_tx(const struct w_sock * const s, struct w_chain * const c)
 {
-    udp_tx(s, v);
+    udp_tx(s, c);
 }
 
 

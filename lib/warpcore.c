@@ -57,14 +57,15 @@ static SLIST_HEAD(engines, warpcore) wc = SLIST_HEAD_INITIALIZER(wc);
 ///
 /// @return     Chain of w_iov structs.
 ///
-struct w_iov *
+struct w_chain *
 w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
 {
-    assert(len, "len is zero");
     struct w_iov * v = 0;
     int32_t l = (int32_t)len;
     uint32_t n = 0;
-    STAILQ_HEAD(vh, w_iov) chain = STAILQ_HEAD_INITIALIZER(chain);
+    struct w_chain * chain = calloc(1, sizeof(*chain));
+    assert(chain, "could not calloc");
+    STAILQ_INIT(chain);
     while (l > 0) {
         v = STAILQ_FIRST(&w->iov);
         assert(v != 0, "out of spare bufs after grabbing %d", n);
@@ -74,53 +75,48 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
         v->len = w->mtu - sizeof(struct w_hdr) - off;
         l -= v->len;
         n++;
-        STAILQ_INSERT_TAIL(&chain, v, next);
+        STAILQ_INSERT_TAIL(chain, v, next);
     }
 
-    // adjust length of last iov so chain is the exact length requested
-    v->len += l; // l is negative
+    if (v)
+        // adjust length of last iov so chain is the exact length requested
+        v->len += l; // l is negative
 
-    warn(info, "allocated q_iov chain (len %d in %d buf%c, offset %d) for tx",
-         len, n, plural(n), off);
-    return STAILQ_FIRST(&chain);
+    warn(info, "allocated q_iov chain (len %d in %d buf%c, offset %d)", len, n,
+         plural(n), off);
+    return chain;
 }
 
 
 /// Return a w_iov chain obtained via w_alloc() or w_rx() back to warpcore. The
 /// application must not use @p v after this call.
 ///
-/// Do not make this , so the caller doesn't have to
-/// check v.
+/// Do not make this , so the caller doesn't have to check v.
 ///
 /// @param      w     Warpcore engine.
-/// @param      v     w_iov to return.
+/// @param      c     Chain of w_iov structs to free.
 ///
-void w_free(struct warpcore * const w, struct w_iov * v)
+void w_free(struct warpcore * const w, struct w_chain * c)
 {
-    while (v) {
-        // move v to the available iov list
-        // warn(debug, "returning buf %u to spare list", v->idx);
-        struct w_iov * const n = STAILQ_NEXT(v, next);
-        STAILQ_INSERT_HEAD(&w->iov, v, next);
-        v = n;
-    };
+    STAILQ_CONCAT(&w->iov, c);
+    free(c);
 }
 
 
-/// Return the total payload length of w_iov chain @p v.
+/// Return the total payload length of w_iov chain @p c.
 ///
-/// Do not make this , so the caller doesn't have to
-/// check v.
+/// Do not make this , so the caller doesn't have to check v.
 ///
-/// @param[in]  v     A w_iov chain.
+/// @param[in]  c     The w_iov chain to compute the payload length of.
 ///
-/// @return     Sum of the payload lengths of the w_iov structs in @p v.
+/// @return     Sum of the payload lengths of the w_iov structs in @p c.
 ///
-uint32_t w_iov_len(const struct w_iov * const v)
+uint32_t w_iov_len(const struct w_chain * const c)
 {
     uint32_t l = 0;
-    for (const struct w_iov * i = v; i; i = STAILQ_NEXT(i, next))
-        l += i->len;
+    const struct w_iov * v;
+    STAILQ_FOREACH (v, c, next)
+        l += v->len;
     return l;
 }
 
@@ -193,7 +189,6 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
     // s->hdr.ip.dst is set on w_connect()
 
     s->w = w;
-    STAILQ_INIT(&s->iv);
     SLIST_INSERT_HEAD(&w->sock, s, next);
 
     backend_bind(s);
@@ -213,12 +208,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
 void w_close(struct w_sock * const s)
 {
     // make iovs of the socket available again
-    while (!STAILQ_EMPTY(&s->iv)) {
-        struct w_iov * const v = STAILQ_FIRST(&s->iv);
-        warn(debug, "free iv buf %u", v->idx);
-        STAILQ_REMOVE_HEAD(&s->iv, next);
-        STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-    }
+    w_free(s->w, s->iv);
 
     // remove the socket from list of sockets
     SLIST_REMOVE(&s->w->sock, s, w_sock, next);
@@ -226,6 +216,39 @@ void w_close(struct w_sock * const s)
     // free the socket
     s->w->udp[s->hdr.udp.sport] = 0;
     free(s);
+}
+
+
+/// Iterates over any new data in the RX rings, appending them to the w_sock::iv
+/// socket buffers of the respective w_sock structures associated with a given
+/// sender IPv4 address and port.
+///
+/// Unlike with the Socket API, w_rx() can append data to w_sock::iv chains
+/// *other* that that of the w_sock passed as @p s. This is, because warpcore
+/// needs to drain the RX rings, in order to allow new data to be received by
+/// the NIC. It would be inconvenient to require the application to constantly
+/// iterate over all w_sock sockets it has opened.
+///
+/// This means that although w_rx() may return zero, because no new data has
+/// been received on @p s, it may enqueue new data into the w_sock::iv chains of
+/// other w_sock socket.
+///
+/// @param      s     w_sock for which the application would like to receive new
+///                   data.
+///
+/// @return     Chain of received wFirst w_iov in w_sock::iv if there is new
+/// data, or zero. Needs
+///             to be freed with w_free() by the caller.
+///
+struct w_chain * w_rx(struct w_sock * const s)
+{
+    backend_rx(s->w);
+    struct w_chain * const empty = calloc(1, sizeof(*empty));
+    assert(empty, "could not calloc");
+    STAILQ_INIT(empty);
+    struct w_chain * const tmp = s->iv;
+    s->iv = empty;
+    return tmp;
 }
 
 

@@ -109,17 +109,18 @@ int main(const int argc, char * const argv[])
         // for each of the small services...
         for (uint16_t s = 0; s < n; s++) {
             // ...check if any new data has arrived on the socket
-            struct w_iov * i = w_rx(srv[s]);
+            struct w_chain * i = w_rx(srv[s]);
             uint32_t len = 0;
 
             // for each new packet, handle it according to the service it is for
-            for (struct w_iov * v = i; v; v = STAILQ_NEXT(v, next)) {
-                struct w_iov * o = 0; // w_iov for outbound data
+            struct w_iov * v;
+            STAILQ_FOREACH (v, i, next) {
+                struct w_chain * o = 0; // w_iov for outbound data
                 switch (s) {
                 // echo received data back to sender
                 case 0:
-                    o = w_alloc(w, v->len, 0);      // allocate outbound w_iov
-                    memcpy(o->buf, v->buf, v->len); // copy data
+                    o = w_alloc(w, v->len, 0); // allocate outbound w_iov
+                    memcpy(STAILQ_FIRST(o)->buf, v->buf, v->len); // copy data
                     break;
 
                 // discard; nothing to do
@@ -132,15 +133,16 @@ int main(const int argc, char * const argv[])
                     const char * c = ctime(&t);
                     const uint32_t l = (uint32_t)strlen(c);
                     o = w_alloc(w, l, 0); // allocate outbound w_iov
-                    memcpy(o->buf, c, l); // write a timestamp
+                    memcpy(STAILQ_FIRST(o)->buf, c, l); // write a timestamp
                     break;
                 }
 
                 // time
                 case 3: {
                     const time_t t = time(0);
-                    o = w_alloc(w, sizeof(time_t), 0);        // allocate w_iov
-                    *(uint32_t *)o->buf = htonl((uint32_t)t); // write timestamp
+                    o = w_alloc(w, sizeof(time_t), 0); // allocate w_iov
+                    *(uint32_t *)STAILQ_FIRST(o)->buf =
+                        htonl((uint32_t)t); // write timestamp
                     break;
                 }
 
@@ -151,8 +153,8 @@ int main(const int argc, char * const argv[])
                 // if the current service requires replying with data, do so
                 if (o) {
                     // send the reply
-                    o->ip = v->ip;
-                    o->port = v->port;
+                    STAILQ_FIRST(o)->ip = v->ip;
+                    STAILQ_FIRST(o)->port = v->port;
                     w_tx(srv[s], o);
                     w_nic_tx(w);
 

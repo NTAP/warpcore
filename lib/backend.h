@@ -75,8 +75,8 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     ///
     struct warpcore * w;
-    STAILQ_HEAD(ivh, w_iov) iv; ///< w_iov containing incoming unread data.
-    SLIST_ENTRY(w_sock) next;   ///< Next socket associated with this engine.
+    struct w_chain * iv;      ///< w_iov chain containing incoming unread data.
+    SLIST_ENTRY(w_sock) next; ///< Next socket associated with this engine.
     /// The template header to be used for outbound packets on this
     /// w_sock.
     struct w_hdr hdr;
@@ -98,16 +98,15 @@ struct arp_entry;
 /// A warpcore engine.
 ///
 struct warpcore {
-    struct w_sock ** udp;         ///< Array 64K pointers to w_sock sockets.
-    SLIST_HEAD(sh, w_sock) sock;  ///< List of open (bound) w_sock sockets.
-    STAILQ_HEAD(iovh, w_iov) iov; ///< List of w_iov buffers available.
-    uint32_t ip;   ///< Local IPv4 address used on this interface.
-    uint32_t mask; ///< IPv4 netmask of this interface.
-    uint16_t mtu;  ///< MTU of this interface.
-    uint8_t
-        mac[ETH_ADDR_LEN]; ///< Local Ethernet MAC address of this interface.
-    void * mem;            ///< Pointer to netmap or shim buffer memory region.
-    uint32_t rip;          ///< Our default IPv4 router IP address.
+    struct w_sock ** udp;        ///< Array 64K pointers to w_sock sockets.
+    SLIST_HEAD(sh, w_sock) sock; ///< List of open (bound) w_sock sockets.
+    struct w_chain iov;          ///< List of w_iov buffers available.
+    uint32_t ip;                 ///< Local IPv4 address used on this interface.
+    uint32_t mask;               ///< IPv4 netmask of this interface.
+    uint16_t mtu;                ///< MTU of this interface.
+    uint8_t mac[ETH_ADDR_LEN]; ///< Local Ethernet MAC address of the interface.
+    void * mem;   ///< Pointer to netmap or shim buffer memory region.
+    uint32_t rip; ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP
     int fd;                 ///< Netmap file descriptor.
     uint32_t cur_txr;       ///< Index of the TX ring currently active.
@@ -122,7 +121,7 @@ struct warpcore {
 /// @endcond
 #endif
     const char * backend; ///< Name of the warpcore backend used by the engine.
-    SLIST_ENTRY(warpcore) next;            ///< Pointer to next engine.
+    SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
     struct w_iov * bufs;
 };
 
