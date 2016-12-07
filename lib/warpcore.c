@@ -377,7 +377,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     STAILQ_INIT(&w->iov);
 
     // allocate socket pointers
-    assert((w->udp = calloc(UINT16_MAX, sizeof(*w->udp)) != 0,
+    assert((w->udp = calloc(UINT16_MAX, sizeof(*w->udp))) != 0,
            "cannot allocate UDP sockets");
 
     backend_init(w, ifname);

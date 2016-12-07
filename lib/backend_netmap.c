@@ -107,7 +107,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
 
     // save the indices of the extra buffers in the warpcore structure
     STAILQ_INIT(&w->iov);
-    w->bufs = calloc(w->req->nr_arg3, sizeof(*w->bufs);
+    w->bufs = calloc(w->req->nr_arg3, sizeof(*w->bufs));
     assert(w->bufs != 0, "cannot allocate w_iov");
     for (uint32_t n = 0, i = w->nif->ni_bufs_head; n < w->req->nr_arg3; n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
