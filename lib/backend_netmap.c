@@ -66,7 +66,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
     assert((w->fd = open("/dev/netmap", O_RDWR)) != -1,
            "cannot open /dev/netmap");
 
-    w->req = calloc(1, sizeof(struct nmreq));
+    w->req = calloc(1, sizeof(*w->req));
     assert(w->req != 0, "cannot allocate nmreq");
 
     // switch interface to netmap mode
@@ -107,7 +107,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
 
     // save the indices of the extra buffers in the warpcore structure
     STAILQ_INIT(&w->iov);
-    w->bufs = calloc(w->req->nr_arg3, sizeof(struct w_iov));
+    w->bufs = calloc(w->req->nr_arg3, sizeof(*w->bufs));
     assert(w->bufs != 0, "cannot allocate w_iov");
     for (uint32_t n = 0, i = w->nif->ni_bufs_head; n < w->req->nr_arg3; n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
@@ -147,6 +147,7 @@ void backend_cleanup(struct warpcore * const w)
         else
             *buf = 0;
     }
+    w->nif->ni_bufs_head = w->bufs[0].idx;
 
     assert(munmap(w->mem, w->req->nr_memsize) != -1,
            "cannot munmap netmap memory");

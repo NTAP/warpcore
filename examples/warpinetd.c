@@ -112,6 +112,9 @@ int main(const int argc, char * const argv[])
             struct w_chain * i = w_rx(srv[s]);
             uint32_t len = 0;
 
+            if (i == 0)
+                continue;
+
             // for each new packet, handle it according to the service it is for
             struct w_iov * v;
             STAILQ_FOREACH (v, i, next) {

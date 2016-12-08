@@ -82,7 +82,7 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
         // adjust length of last iov so chain is the exact length requested
         v->len += l; // l is negative
 
-    warn(info, "allocated q_iov chain (len %d in %d buf%c, offset %d)", len, n,
+    warn(info, "allocated w_chain (len %d in %d w_iov%c, offset %d)", len, n,
          plural(n), off);
     return chain;
 }
@@ -96,7 +96,7 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
 /// @param      w     Warpcore engine.
 /// @param      c     Chain of w_iov structs to free.
 ///
-void w_free(struct warpcore * const w, struct w_chain * c)
+void w_free(struct warpcore * const w, struct w_chain * const c)
 {
     STAILQ_CONCAT(&w->iov, c);
     free(c);
@@ -192,6 +192,9 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
 
     s->w = w;
     SLIST_INSERT_HEAD(&w->sock, s, next);
+    s->iv = calloc(1, sizeof(*s->iv));
+    assert(s->iv, "could not calloc");
+    STAILQ_INIT(s->iv);
 
     backend_bind(s);
 
@@ -297,8 +300,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     //            "can only have one warpcore engine active on %s", ifname);
 
     // allocate engine struct
-    assert((w = calloc(1, sizeof(struct warpcore))) != 0,
-           "cannot allocate struct warpcore");
+    assert((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct warpcore");
 
     // we mostly loop here because the link may be down
     // mpbs can be zero on generic platforms
@@ -339,6 +341,8 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
                     w->mask = ((struct sockaddr_in *)(void *)i->ifa_netmask)
                                   ->sin_addr.s_addr;
                 break;
+            case AF_INET6:
+                break;
             default:
                 warn(notice, "ignoring unknown addr family %d on %s",
                      i->ifa_addr->sa_family, i->ifa_name);
@@ -373,7 +377,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     STAILQ_INIT(&w->iov);
 
     // allocate socket pointers
-    assert((w->udp = calloc(UINT16_MAX, sizeof(struct w_sock *))) != 0,
+    assert((w->udp = calloc(UINT16_MAX, sizeof(*w->udp))) != 0,
            "cannot allocate UDP sockets");
 
     backend_init(w, ifname);
