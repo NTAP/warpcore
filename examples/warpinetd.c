@@ -68,13 +68,13 @@ int main(const int argc, char * const argv[])
         case 'h':
         case '?':
         default:
-            usage(argv[0]);
+            usage(basename(argv[0]));
             return 0;
         }
     }
 
     if (ifname == 0) {
-        usage(argv[0]);
+        usage(basename(argv[0]));
         return 0;
     }
 
@@ -85,8 +85,8 @@ int main(const int argc, char * const argv[])
     struct warpcore * w = w_init(ifname, 0);
 
     // install a signal handler to clean up after interrupt
-    assert(signal(SIGTERM, &terminate) == 0, "signal");
-    assert(signal(SIGINT, &terminate) == 0, "signal");
+    assert(signal(SIGTERM, &terminate) != SIG_ERR, "signal");
+    assert(signal(SIGINT, &terminate) != SIG_ERR, "signal");
 
     // start four inetd-like "small services"
     struct w_sock * const srv[] = {w_bind(w, htons(7)), w_bind(w, htons(9)),
