@@ -25,7 +25,9 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <stdbool.h>
+
 
 #define IP_ECT1 1 ///< ECN ECT(1) codepoint.
 #define IP_ECT0 2 ///< ECN ECT(0) codepoint.
@@ -164,4 +166,5 @@ in_cksum(const void * const buf, const uint16_t len);
 ///
 /// @return     Peudo checksum.
 ///
-extern uint16_t in_pseudo(uint32_t a, uint32_t b, uint32_t c);
+extern uint16_t __attribute__((const))
+in_pseudo(const uint32_t a, const uint32_t b, const uint32_t c);
