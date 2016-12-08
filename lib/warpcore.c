@@ -248,6 +248,8 @@ void w_close(struct w_sock * const s)
 struct w_chain * w_rx(struct w_sock * const s)
 {
     backend_rx(s->w);
+    if (STAILQ_EMPTY(s->iv))
+        return 0;
     struct w_chain * const empty = calloc(1, sizeof(*empty));
     assert(empty, "could not calloc");
     STAILQ_INIT(empty);
