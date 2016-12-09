@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.3)
 
 project(warpcore VERSION 0.0.1 LANGUAGES C)
 
@@ -45,6 +45,12 @@ if(HAVE_NETMAP_H)
   message(STATUS "Found netmap include in ${HAVE_NETMAP_H}")
 else()
   message(STATUS "netmap.h not found; building shim backend only")
+endif()
+
+# Use include-what-you-use, if it's installed
+find_program(IWYU NAMES include-what-you-use iwyu)
+if(IWYU)
+  set(CMAKE_C_INCLUDE_WHAT_YOU_USE ${IWYU})
 endif()
 
 add_subdirectory(doc)
