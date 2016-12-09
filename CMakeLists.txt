@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.6)
 
 project(warpcore VERSION 0.0.1 LANGUAGES C)
 
@@ -47,10 +47,16 @@ else()
   message(STATUS "netmap.h not found; building shim backend only")
 endif()
 
-# Use include-what-you-use, if it's installed
+# Use include-what-you-use to check #includes, if it's installed
 find_program(IWYU NAMES include-what-you-use iwyu)
 if(IWYU)
   set(CMAKE_C_INCLUDE_WHAT_YOU_USE ${IWYU})
+endif()
+
+# Use clang-tidy for extra warnings, if it's installed
+find_program(CLANGTIDY NAMES clang-tidy)
+if(CLANGTIDY)
+  set(CMAKE_C_CLANG_TIDY ${CLANGTIDY})
 endif()
 
 add_subdirectory(doc)
