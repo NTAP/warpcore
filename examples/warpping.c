@@ -133,13 +133,13 @@ int main(const int argc, char * const argv[])
         case 'h':
         case '?':
         default:
-            usage(argv[0], start, inc, end, loops);
+            usage(basename(argv[0]), start, inc, end, loops);
             return 0;
         }
     }
 
     if (ifname == 0 || dst == 0) {
-        usage(argv[0], start, inc, end, loops);
+        usage(basename(argv[0]), start, inc, end, loops);
         return 0;
     }
 
@@ -174,7 +174,7 @@ int main(const int argc, char * const argv[])
     freeaddrinfo(peer);
 
     // set a timer handler (used with busywait)
-    assert(signal(SIGALRM, &timeout) == 0, "signal");
+    assert(signal(SIGALRM, &timeout) != SIG_ERR, "signal");
     const struct itimerval timer = {.it_value.tv_sec = 1};
 
     // send packet trains of sizes between "start" and "end"
@@ -186,9 +186,12 @@ int main(const int argc, char * const argv[])
             // allocate tx chain
             struct w_chain * const o = w_alloc(w, size, 0);
 
-            // timestamp the payload
-            assert(clock_gettime(CLOCK_REALTIME, STAILQ_FIRST(o)->buf) != -1,
-                   "clock_gettime");
+            // timestamp the payloads
+            struct timespec now;
+            assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
+            const struct w_iov * v;
+            STAILQ_FOREACH (v, o, next)
+                memcpy(v->buf, &now, sizeof(now));
 
             // send the data and free the w_iov
             w_tx(s, o);
@@ -217,12 +220,25 @@ int main(const int argc, char * const argv[])
                     w_nic_rx(w);
 
                 // read new data
-                i = w_rx(s);
-                len = w_iov_len(i);
+                struct w_chain * new = w_rx(s);
+                if (new) {
+                    len += w_iov_len(new);
+                    if (i)
+                        STAILQ_CONCAT(i, new);
+                    else
+                        i = new;
+                }
+            }
+
+            // if we received no data, move to next iteration
+            if (done) {
+                if (i)
+                    w_free(w, i);
+                continue;
             }
 
             // get the current time
-            struct timespec diff, now;
+            struct timespec diff;
             assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
 
             // stop the timeout
@@ -242,8 +258,9 @@ int main(const int argc, char * const argv[])
             // compute time difference between the packet and the current time
             time_diff(&diff, &now, STAILQ_FIRST(i)->buf);
             if (unlikely(diff.tv_sec != 0))
-                die("time difference is more than %ld sec", diff.tv_sec);
-            printf("%ld\t%d\n", diff.tv_nsec, size);
+                warn(warn, "time difference is more than %ld sec", diff.tv_sec);
+            else
+                printf("%ld\t%d\n", diff.tv_nsec, size);
 
             // we are done with the received data
             w_free(w, i);

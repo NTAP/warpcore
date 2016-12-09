@@ -38,7 +38,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include <stdint.h>
+#include "ip.h"
 
 
 // Checksum routine for Internet Protocol family headers (portable Alpha
