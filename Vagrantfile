@@ -74,7 +74,7 @@ Vagrant.configure("2") do |config|
 
           # install some tools that are needed
           apt-get -y install cmake cmake-curses-gui git dpkg-dev xinetd \
-            doxygen graphviz
+            doxygen graphviz iwyu clang-tidy
 
           # and some that I often use
           apt-get -y install htop silversearcher-ag linux-tools-common \

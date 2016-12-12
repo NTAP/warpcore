@@ -3,10 +3,9 @@ configure_file(version.h.in version.h)
 configure_file(version.c.in version.c)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
-set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_${CMAKE_SYSTEM_NAME_LC}.c)
+set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_SYSTEM_NAME_LC}/plat.c)
 if(NOT(EXISTS ${PLAT}))
-  set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_generic.c)
+  set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/generic/plat.c)
 endif()
 
 set(SOURCES ${SOURCES}

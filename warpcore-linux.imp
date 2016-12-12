@@ -1,0 +1,7 @@
+# iwyu mappings for Linux
+[
+        { include: ["<bits/socket_type.h>", "private", "<sys/socket.h>", "public"] },
+
+        { symbol: ["likely", "private", "<warpcore.h>", "public"] },
+        { symbol: ["unlikely", "private", "<warpcore.h>", "public"] },
+]

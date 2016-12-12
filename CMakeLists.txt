@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.0)
 
 project(warpcore VERSION 0.0.1 LANGUAGES C)
 
@@ -48,9 +48,12 @@ else()
 endif()
 
 # Use include-what-you-use to check #includes, if it's installed
+string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
 find_program(IWYU NAMES include-what-you-use iwyu)
 if(IWYU)
-  set(CMAKE_C_INCLUDE_WHAT_YOU_USE ${IWYU})
+  set(CMAKE_C_INCLUDE_WHAT_YOU_USE
+      ${IWYU} -Xiwyu
+      --mapping_file=${PROJECT_SOURCE_DIR}/warpcore-${CMAKE_SYSTEM_NAME_LC}.imp)
 endif()
 
 # Use clang-tidy for extra warnings, if it's installed

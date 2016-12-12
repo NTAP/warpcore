@@ -25,8 +25,10 @@
 
 #pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
+#include <stdbool.h> // for bool
+#include <stdint.h>  // for uint16_t, uint32_t, uint8_t
+
+struct ifaddrs; // lines 40-40
 
 #ifdef __linux__
 #define AF_LINK AF_PACKET
@@ -35,9 +37,6 @@
 /// Platform-dependent flags to pass to mmap().
 #define PLAT_MMFLAGS MAP_PREFAULT_READ | MAP_NOSYNC | MAP_ALIGNED_SUPER
 #endif
-
-
-struct ifaddrs;
 
 extern void __attribute__((nonnull))
 plat_get_mac(uint8_t * mac, const struct ifaddrs * i);

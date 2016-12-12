@@ -23,9 +23,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "eth.h"
 #include "plat.h"
-#include "util.h"
+#include "eth.h"     // for ETH_ADDR_LEN
+#include "util.h"    // for dlevel::warn, warn
+#include <stdbool.h> // for bool, true
+#include <string.h>  // for memcpy
+
+struct ifaddrs;      // lines 35-35
 
 
 /// Return the Ethernet MAC address of network interface @p i.

@@ -23,11 +23,20 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
+#include <errno.h>      // for __error, EAGAIN, errno
+#include <fcntl.h>      // for fcntl, F_SETFL, O_NONBLOCK
+#include <netinet/in.h> // for sockaddr_in, in_addr
+#include <stdint.h>     // for uint16_t, uint32_t
+#include <stdlib.h>     // for calloc, free
+#include <sys/queue.h>  // for w_iov::(anonymous), STAILQ_FIRST, STAILQ_REM...
+#include <sys/socket.h> // for AF_INET, bind, recvfrom, sendto, socket, SOC...
+#include <sys/time.h>   // for gettimeofday
+#include <sys/types.h>  // for ssize_t
 
-#include "backend.h"
+#include "backend.h"  // for w_sock, warpcore, w_hdr, NUM_BUFS, IDX2BUF
+#include "ip.h"       // for ip_hdr
+#include "udp.h"      // for udp_hdr
+#include "warpcore.h" // for w_iov, assert, dlevel::debug, dlevel::err
 
 
 /// Length of a buffer. Same as netmap uses.

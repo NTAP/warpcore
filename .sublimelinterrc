@@ -4,7 +4,8 @@
             "include_dirs": [
                 "/usr/local/include",
                 "lib",
-                "../lib"
+                "../lib",
+                ".."
             ]
         }
     }
