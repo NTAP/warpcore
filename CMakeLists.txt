@@ -47,9 +47,9 @@ else()
   message(STATUS "netmap.h not found; building shim backend only")
 endif()
 
+string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Use include-what-you-use to check #includes, if it's installed
-  string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
   find_program(IWYU NAMES include-what-you-use iwyu)
   if(IWYU)
     message(STATUS "Found include-what-you-use: ${IWYU}")
