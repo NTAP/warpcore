@@ -173,15 +173,12 @@ void w_tx(const struct w_sock * const s, struct w_chain * const c)
             addr.sin_port = o->port;
             addr.sin_addr.s_addr = o->ip;
         }
-
         const ssize_t n = sendto(s->fd, o->buf, o->len, 0,
                                  (const struct sockaddr *)&addr, sizeof(addr));
-        if (n == -1) {
-            warn(err, "could not send all data");
-            return;
-        }
         warn(debug, "sent %u byte%c from buf %d", o->len, plural(o->len),
              o->idx);
+        if (n == -1)
+            return;
     }
 }
 
