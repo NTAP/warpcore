@@ -23,14 +23,32 @@ endforeach()
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-  foreach(FLAG -fsanitize=address -fsanitize=leak -fsanitize=undefined
-          -fno-omit-frame-pointer)
+  # Set some additional flags for Debug builds
+  # XXX -fsanitize=leak does not currently work on FreeBSD
+  foreach(FLAG -fsanitize=address -fsanitize=undefined
+          -fsanitize=memory -fsanitize-memory-track-origins
+          -fsanitize=thread -fno-omit-frame-pointer)
     string(REGEX REPLACE "[-=]" "" F ${FLAG})
     check_c_compiler_flag(${FLAG} ${F})
     if(${F})
       set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
     endif()
   endforeach()
+else()
+  # See if we can use LTO
+  check_c_compiler_flag(-flto LTO)
+  if (${LTO})
+    # Turn LTO on
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
+    # Use the correct toolchain for LTO, if enabled
+    if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+      set(CMAKE_AR llvm-ar)
+      set(CMAKE_RANLIB llvm-ranlib)
+    elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+      set(CMAKE_AR gcc-ar)
+      set(CMAKE_RANLIB gcc-ranlib)
+    endif()
+  endif()
 endif()
 
 # flags for "Release" builds
