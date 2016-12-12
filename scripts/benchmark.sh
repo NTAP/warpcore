@@ -4,11 +4,13 @@ loops=10000
 busywait=-b
 
 peer=phobos2
-iface=enp4s0f0 # 40G
-# iface=enp8s0f0 # 10G
+# iface=enp4s0f0 # 40G
+iface=enp8s0f0 # 10G
 
 piface=$iface
 build=~/warpcore/$(uname -s)-rel
+
+pushd "$build"; make; popd
 
 ssh="ssh $peer -q"
 
@@ -18,24 +20,25 @@ run () {
     $ssh "sh -c '(cd $build/.. && \
             sudo nohup $build/examples/$1inetd -i $piface $busywait ) \
             > $build/../$1inetd.log 2>&1 &'"
-    "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait -e 4096 \
+    sleep 3
+    "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait \
         >> "$1.txt" 2> "$1ping.log"
     $ssh "sudo pkill -f inetd"
 }
 
-sudo rm $build/../shim* $build/../warp*
-# > /dev/null 2>&1
+sudo rm "$build"/../shim* "$build"/../warp* > /dev/null 2>&1
 
-sudo pkill -f "dhclient: $iface"
+sudo pkill -f "dhclient.*$iface"
 sudo ifconfig $iface 10.11.12.3/24 up
+sudo ethtool -A $iface rx off tx off
 
 peerip=10.11.12.4
-$ssh "sudo pkill -f \"dhclient: $piface\""
+$ssh "sudo pkill -f \"dhclient.*$piface\""
 $ssh "sudo ifconfig $piface $peerip/24 up"
+$ssh "sudo ethtool -A $piface rx off tx off"
 
 run shim
-sleep 5
 run warp
 
-sudo ifconfig $iface del 10.11.12.3
-$ssh "sudo ifconfig $piface del $peerip"
+sudo ip addr del 10.11.12.3/24 dev $iface
+$ssh "sudo ip addr del $peerip/24 dev $piface"

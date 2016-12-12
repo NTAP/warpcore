@@ -1,7 +1,5 @@
 #! /usr/bin/env Rscript
 
-library(data.table)
-
 printf <- function(...) cat(sprintf(...))
 
 import <- function(file) {
