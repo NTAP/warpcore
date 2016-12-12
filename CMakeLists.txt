@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.0)
 
 project(warpcore VERSION 0.0.1 LANGUAGES C)
 
+# Build "Debug" type by default
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug
+        CACHE STRING "Set build type (default Debug)" FORCE)
+endif()
+
 # Set general compile flags, if they are supported
 include(CheckCCompilerFlag)
 foreach(FLAG -std=c11 -march=native -Wextra -Wpedantic -Weverything -Werror
@@ -16,6 +22,17 @@ endforeach()
 # flags for "Debug" and "None" builds
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  foreach(FLAG -fsanitize=address -fsanitize=leak -fsanitize=undefined
+          -fno-omit-frame-pointer)
+    string(REGEX REPLACE "[-=]" "" F ${FLAG})
+    check_c_compiler_flag(${FLAG} ${F})
+    if(${F})
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
+    endif()
+  endforeach()
+endif()
+
 # flags for "Release" builds
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Ofast")
 
@@ -27,12 +44,6 @@ include(CheckSymbolExists)
 check_symbol_exists(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
 if(_GNU_SOURCE)
   add_definitions(-D_GNU_SOURCE)
-endif()
-
-# Build "Debug" type by default
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug
-        CACHE STRING "Set build type (default Debug)" FORCE)
 endif()
 
 # Extract compile options into variable, for doxygen's CLANG_ASSISTED_PARSING
