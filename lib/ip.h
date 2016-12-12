@@ -25,8 +25,17 @@
 
 #pragma once
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+
+#ifdef __FreeBSD__
+#include <arpa/inet.h>
+struct w_iov;
+#endif
+
+#include "eth.h"
+
+struct warpcore;
 
 
 #define IP_ECT1 1 ///< ECN ECT(1) codepoint.
@@ -68,8 +77,6 @@ struct ip_hdr {
 #define IP_P_ICMP 1 ///< IP protocol number for ICMP
 #define IP_P_UDP 17 ///< IP protocol number for UDP
 
-struct warpcore;
-struct w_iov;
 
 /// Extract the IP version out of an ip_hdr::vhl field.
 ///

@@ -24,18 +24,23 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
-#include <fcntl.h>
-#include <getopt.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <poll.h>
-#include <signal.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <sys/param.h>
-#include <sys/socket.h>
+#include <getopt.h>     // for optarg, getopt
+#include <netdb.h>      // for addrinfo, freeaddrinfo, getaddrinfo
+#include <netinet/in.h> // for sockaddr_in, in_addr, IPPROTO_UDP
+#include <poll.h>       // for poll, POLLIN, pollfd
+#include <signal.h>     // for signal, SIGALRM, SIG_ERR
+#include <stdbool.h>    // for false, bool, true
+#include <stdint.h>     // for uint32_t, UINT32_MAX, uint16_t
+#include <stdio.h>      // for printf, puts
+#include <stdlib.h>     // for strtol, random
+#include <string.h>     // for memcpy
+#include <sys/param.h>  // for MAX, MIN
+#include <sys/queue.h>  // for STAILQ_CONCAT, STAILQ_FIRST, STAILQ_FOREACH
+#include <sys/socket.h> // for PF_INET
+#include <sys/time.h>   // for setitimer, ITIMER_REAL, itimerval
+#include <time.h>       // for timespec, clock_gettime, ::_CLOCK_REALTIME
 
-#include <warpcore.h>
+#include "warpcore.h" // for w_free, w_fd, w_iov, w_alloc, w_bind, w_cleanup
 
 
 static void usage(const char * const name,

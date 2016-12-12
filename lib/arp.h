@@ -26,6 +26,10 @@
 #pragma once
 
 #include "eth.h"
+#include <stdint.h>
+
+struct warpcore;
+
 
 /// A representation of an ARP header; see
 /// [RFC826](https://tools.ietf.org/html/rfc826).
@@ -81,5 +85,4 @@ arp_rx(struct warpcore * w, void * const buf);
 extern uint8_t * __attribute__((nonnull))
 arp_who_has(struct warpcore * const w, const uint32_t dip);
 
-extern void __attribute__((nonnull))
-free_arp_cache(struct warpcore * const w);
+extern void __attribute__((nonnull)) free_arp_cache(struct warpcore * const w);

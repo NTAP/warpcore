@@ -23,20 +23,34 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
-#include <ifaddrs.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include "warpcore.h"
 
 #ifdef __linux__
-#include <netinet/ether.h>
+#include <netinet/ether.h> // IWYU pragma: keep
 #else
+// clang-format off
+#include <sys/types.h>    // IWYU pragma: keep
 #include <net/ethernet.h>
+// clang-format on
 #endif
 
+#include <unistd.h> // IWYU pragma: keep
+#include <arpa/inet.h>
+#include <ifaddrs.h> // IWYU pragma: keep
+#include <netinet/in.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
+
 #include "backend.h"
+#include "eth.h"
+#include "ip.h"
+#include "plat.h"
+#include "udp.h"
+#include "util.h"
 #include "version.h"
 
 

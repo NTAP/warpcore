@@ -25,10 +25,15 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
-#include <plat.h>
-#include <util.h>
+#include "plat.h" // IWYU pragma: export
+#include "util.h" // IWYU pragma: export
+
+struct w_sock;
+struct warpcore;
 
 
 STAILQ_HEAD(w_chain, w_iov);

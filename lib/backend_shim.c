@@ -23,11 +23,20 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
 #include "backend.h"
+#include "ip.h"
+#include "udp.h"
+#include "warpcore.h"
 
 
 /// Length of a buffer. Same as netmap uses.

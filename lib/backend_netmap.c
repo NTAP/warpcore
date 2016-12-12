@@ -23,29 +23,28 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
+#include "backend.h"
+
 #include <fcntl.h>
-#include <ifaddrs.h>
-#include <netinet/in.h>
-// #include <poll.h>
+#include <net/if.h> // IWYU pragma: keep
+#include <net/netmap.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/types.h>
+#include <sys/queue.h>
 #include <unistd.h>
-#include <xmmintrin.h>
 
-#ifdef __linux__
-#include <netinet/ether.h>
-#else
-#include <net/ethernet.h>
-#include <net/if_dl.h>
+#ifdef __FreeBSD__
 #include <sys/types.h>
 #endif
 
 #include "arp.h"
-#include "backend.h"
+#include "eth.h"
+#include "ip.h"
+#include "udp.h"
+#include "warpcore.h"
 
 
 /// The backend name.
@@ -213,9 +212,8 @@ void backend_rx(struct warpcore * const w)
         struct netmap_ring * const r = NETMAP_RXRING(w->nif, w->cur_rxr);
         while (!nm_ring_empty(r)) {
             // prefetch the next slot into the cache
-            _mm_prefetch(
-                NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx),
-                _MM_HINT_T1);
+            __builtin_prefetch(
+                NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
 
             // process the current slot
             eth_rx(w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));

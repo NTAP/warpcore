@@ -26,7 +26,7 @@
 #pragma once
 
 #ifdef WITH_NETMAP
-#include <net/netmap_user.h>
+#include <net/netmap_user.h> // IWYU pragma: export
 #endif
 
 #include "eth.h"

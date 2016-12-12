@@ -23,21 +23,29 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
-#include <xmmintrin.h>
+
+#include "eth.h"
 
 #ifdef __linux__
 #include <netinet/ether.h>
+#include <sys/types.h>
 #else
 // clang-format off
 // because these includes need to be in-order
-#include <sys/types.h>
+#include <sys/types.h> // IWYU pragma: keep
 #include <net/ethernet.h>
 // clang-format on
 #endif
 
+#include <net/if.h> // IWYU pragma: keep
+#include <net/netmap.h>
+#include <stdbool.h>
+#include <string.h>
+
 #include "arp.h"
 #include "backend.h"
+#include "ip.h"
+#include "warpcore.h"
 
 
 /// Special version of eth_tx() that transmits the current receive buffer after
@@ -165,9 +173,8 @@ bool eth_tx(struct warpcore * const w,
     struct netmap_slot * const txs = &txr->slot[txr->cur];
 
     // prefetch the next slot into the cache, too
-    _mm_prefetch(
-        NETMAP_BUF(txr, txr->slot[nm_ring_next(txr, txr->cur)].buf_idx),
-        _MM_HINT_T1);
+    __builtin_prefetch(
+        NETMAP_BUF(txr, txr->slot[nm_ring_next(txr, txr->cur)].buf_idx));
 
     warn(debug, "placing iov buf %u in tx ring %u slot %d (current buf %u)",
          v->idx, w->cur_txr, txr->cur, txs->buf_idx);

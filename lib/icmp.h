@@ -27,6 +27,8 @@
 
 #include <stdint.h>
 
+struct warpcore;
+
 
 #define ICMP_TYPE_ECHOREPLY 0 ///< ICMP echo reply type.
 #define ICMP_TYPE_UNREACH 3   ///< ICMP unreachable type.
@@ -45,8 +47,6 @@ struct icmp_hdr {
     uint16_t cksum; ///< Ones' complement header checksum.
 };
 
-
-struct warpcore;
 
 extern void __attribute__((nonnull))
 icmp_tx_unreach(struct warpcore * w, const uint8_t code, void * const buf);

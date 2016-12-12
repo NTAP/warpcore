@@ -23,22 +23,26 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
-#include <poll.h>
-
 #ifdef __linux__
-#include <netinet/ether.h>
+#include <netinet/in.h> // for ntohs, htons
+#include <sys/types.h>  // for ssize_t
 #else
-// clang-format off
-// because these includes need to be in-order
-#include <sys/types.h>
-#include <net/ethernet.h>
-// clang-format on
+#include <arpa/inet.h>
 #endif
+
+#include <net/if.h> // IWYU pragma: keep
+#include <net/netmap.h>
+#include <string.h>
+#include <sys/queue.h>
+#include <sys/time.h>
 
 #include "arp.h"
 #include "backend.h"
+#include "eth.h"
 #include "icmp.h"
+#include "ip.h"
+#include "udp.h"
+#include "warpcore.h"
 
 
 #ifndef NDEBUG
@@ -144,7 +148,7 @@ void udp_tx(const struct w_sock * const s, struct w_chain * const c)
     uint32_t n = 0, l = 0;
     // packetize bufs and place in tx ring
     struct w_iov * o;
-    STAILQ_FOREACH(o, c, next) {
+    STAILQ_FOREACH (o, c, next) {
         // copy template header into buffer and fill in remaining fields
         void * const buf = IDX2BUF(s->w, o->idx);
         memcpy(buf, &s->hdr, sizeof(s->hdr));

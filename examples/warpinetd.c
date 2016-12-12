@@ -23,13 +23,25 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <getopt.h>
+#ifdef __linux__
 #include <netinet/in.h>
+#else
+#include <arpa/inet.h>
+#include <string.h>
+#include <time.h>
+#endif
+
+#include <getopt.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <sys/queue.h>
 
-#include <warpcore.h>
+#include "warpcore.h"
+
+struct w_sock;
 
 
 static void usage(const char * const name)

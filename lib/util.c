@@ -24,10 +24,11 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <ctype.h>
-#include <stdint.h>
+#include <stdint.h> // IWYU pragma: keep
 #include <stdio.h>
 
 #include "util.h"
+
 
 pthread_mutex_t _lock;
 pthread_t _master;

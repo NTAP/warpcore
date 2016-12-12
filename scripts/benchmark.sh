@@ -3,10 +3,12 @@
 loops=10000
 busywait=-b
 
-peer=mora2
-iface=ix0
+peer=phobos2
+iface=enp4s0f0 # 40G
+# iface=enp8s0f0 # 10G
+
 piface=$iface
-build=~/warpcore/freebsd-rel
+build=~/warpcore/$(uname -s)-rel
 
 ssh="ssh $peer -q"
 
@@ -25,15 +27,15 @@ sudo rm $build/../shim* $build/../warp*
 # > /dev/null 2>&1
 
 sudo pkill -f "dhclient: $iface"
-sudo ifconfig $iface 10.11.12.3/24
+sudo ifconfig $iface 10.11.12.3/24 up
 
 peerip=10.11.12.4
 $ssh "sudo pkill -f \"dhclient: $piface\""
-$ssh "sudo ifconfig $piface $peerip/24"
+$ssh "sudo ifconfig $piface $peerip/24 up"
 
 run shim
 sleep 5
 run warp
 
-sudo ifconfig $iface -alias 10.11.12.3
-$ssh "sudo ifconfig $piface -alias $peerip"
+sudo ifconfig $iface del 10.11.12.3
+$ssh "sudo ifconfig $piface del $peerip"

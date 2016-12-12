@@ -24,9 +24,24 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+
+#ifdef __linux__
+#include <net/if.h> // IWYU pragma: keep
+#include <net/netmap.h>
+#include <netinet/in.h>
+#include <sys/types.h>
+#endif
 
 #include "backend.h"
+#include "eth.h"
 #include "icmp.h"
+#include "ip.h"
+#include "udp.h"
+#include "warpcore.h"
 
 
 #ifndef NDEBUG

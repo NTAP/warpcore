@@ -1,4 +1,3 @@
-
 // Copyright (c) 1988, 1992, 1993
 // The Regents of the University of California.  All rights reserved.
 //
@@ -38,7 +37,14 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include "ip.h"
+#include "ip.h" // IWYU pragma: keep
+
+#include <stdint.h>
+
+#ifndef __linux__
+union l_util;
+union q_util;
+#endif
 
 
 // Checksum routine for Internet Protocol family headers (portable Alpha
