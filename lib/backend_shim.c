@@ -184,7 +184,7 @@ void w_tx(const struct w_sock * const s, struct w_chain * const c)
         }
         const ssize_t n = sendto(s->fd, o->buf, o->len, 0,
                                  (const struct sockaddr *)&addr, sizeof(addr));
-        warn(debug, "sent %u byte%c from buf %d", o->len, plural(o->len),
+        warn(debug, "sent %u byte%s from buf %d", o->len, plural(o->len),
              o->idx);
         if (n == -1)
             return;

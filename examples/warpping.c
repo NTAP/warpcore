@@ -202,7 +202,7 @@ int main(const int argc, char * const argv[])
             w_tx(s, o);
             w_nic_tx(w);
             w_free(w, o);
-            warn(info, "sent %d byte%c", size, plural(size));
+            warn(info, "sent %d byte%s", size, plural(size));
 
             // wait for a reply
             struct w_chain * i = 0;
@@ -250,7 +250,7 @@ int main(const int argc, char * const argv[])
             const struct itimerval stop = {0};
             assert(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            warn(info, "received %d/%d byte%c", len, size, plural(len));
+            warn(info, "received %d/%d byte%s", len, size, plural(len));
 
             // if we didn't receive all the data we sent
             if (unlikely(len < size)) {

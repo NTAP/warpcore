@@ -65,7 +65,7 @@
 ///
 /// @return     The character 's' when @p n is 1; an empty character otherwise.
 ///
-#define plural(n) ((n) == 1 ? 0 : 's')
+#define plural(n) ((n) == 1 ? "" : "s")
 #endif
 
 #ifndef likely

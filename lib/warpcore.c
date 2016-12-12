@@ -96,7 +96,7 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
         // adjust length of last iov so chain is the exact length requested
         v->len += l; // l is negative
 
-    warn(info, "allocated w_chain (len %d in %d w_iov%c, offset %d)", len, n,
+    warn(info, "allocated w_chain (len %d in %d w_iov%s, offset %d)", len, n,
          plural(n), off);
     return chain;
 }

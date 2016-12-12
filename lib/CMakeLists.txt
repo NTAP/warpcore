@@ -5,6 +5,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_SYSTEM_NAME_LC}/plat.c)
 if(NOT(EXISTS ${PLAT}))
+  message(STATUS "Cannot find platform-specific code, using generic code")
   set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/generic/plat.c)
 endif()
 
