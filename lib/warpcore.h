@@ -25,9 +25,9 @@
 
 #pragma once
 
-#include <stdint.h>    // for uint32_t, uint16_t, uint8_t
-#include <sys/queue.h> // for STAILQ_ENTRY, STAILQ_HEAD, w_iov::(anonymous)
-#include <sys/time.h>  // for timeval
+#include <stdint.h>
+#include <sys/queue.h>
+#include <sys/time.h>
 
 #include "plat.h" // IWYU pragma: export
 #include "util.h" // IWYU pragma: export

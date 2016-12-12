@@ -23,18 +23,23 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h> // for htons, htonl
-#include <getopt.h>    // for getopt, optarg
-#include <poll.h>      // for POLLIN, poll, pollfd
-#include <signal.h>    // for signal, SIG_ERR, SIGINT, SIGTERM
-#include <stdbool.h>   // for false, bool, true
-#include <stdint.h>    // for uint32_t, uint16_t
-#include <stdio.h>     // for printf
-#include <string.h>    // for memcpy, strlen
-#include <sys/queue.h> // for STAILQ_FIRST, STAILQ_FOREACH, w_iov::(anonymous)
-#include <time.h>      // for time, time_t, ctime
+#ifdef __linux__
+#include <netinet/in.h>
+#else
+#include <arpa/inet.h>
+#include <string.h>
+#include <time.h>
+#endif
 
-#include "warpcore.h" // for assert, basename, dlevel::info, plat_setaffinity
+#include <getopt.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <sys/queue.h>
+
+#include "warpcore.h"
 
 struct w_sock;
 

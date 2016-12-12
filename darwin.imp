@@ -4,13 +4,14 @@
         { include: ["<secure/_string.h>", "private", "<string.h>", "public"] },
         { include: ["<sys/_endian.h>", "private", "<arpa/inet.h>", "public"] },
         { include: ["<sys/_types/_time_t.h>", "private", "<time.h>", "public"] },
-        { include: ["<sys/_types/_timeval.h>", "private", "<sys/time.h>", "public"] },
         { include: ["<sys/_types/_timespec.h>", "private", "<time.h>", "public"] },
+        { include: ["<sys/_types/_timeval.h>", "private", "<sys/time.h>", "public"] },
         { include: ["<sys/errno.h>", "private", "<errno.h>", "public"] },
         { include: ["<sys/fcntl.h>", "private", "<fcntl.h>", "public"] },
         { include: ["<sys/signal.h>", "private", "<signal.h>", "public"] },
         { include: ["@<_types/_uint.*>", "private", "<stdint.h>", "public"] },
         { include: ["@<sys/_pthread/.*>", "private", "<pthread.h>", "public"] },
         { include: ["@<sys/_types/_int.*>", "private", "<stdint.h>", "public"] },
+
         { symbol: ["_OSSwapInt16", "private", "<arpa/inet.h>", "public"] },
 ]

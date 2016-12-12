@@ -27,6 +27,11 @@
 
 #include <stdint.h>
 
+struct w_chain;
+struct w_sock;
+struct warpcore;
+
+
 /// A representation of a UDP header; see
 /// [RFC768](https://tools.ietf.org/html/rfc768).
 ///
@@ -37,10 +42,6 @@ struct udp_hdr {
     uint16_t cksum; ///< UDP checksum.
 };
 
-
-struct warpcore;
-struct w_sock;
-struct w_chain;
 
 extern void __attribute__((nonnull))
 udp_rx(struct warpcore * const w, void * const buf, const uint32_t src);

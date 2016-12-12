@@ -24,12 +24,14 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "plat.h"
-#include "eth.h"     // for ETH_ADDR_LEN
-#include "util.h"    // for dlevel::warn, warn
-#include <stdbool.h> // for bool, true
-#include <string.h>  // for memcpy
 
-struct ifaddrs;      // lines 35-35
+#include <stdbool.h>
+#include <string.h>
+
+#include "eth.h"
+#include "util.h"
+
+struct ifaddrs;
 
 
 /// Return the Ethernet MAC address of network interface @p i.

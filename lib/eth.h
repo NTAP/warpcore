@@ -25,8 +25,18 @@
 
 #pragma once
 
+
 #include <stdbool.h>
 #include <stdint.h>
+
+#ifdef __linux__
+#include <netinet/in.h>
+#else
+#include <arpa/inet.h>
+#endif
+
+struct w_iov; // IWYU pragma: keep
+struct warpcore;
 
 
 #define ETH_ADDR_LEN 6 ///< MAC address length in bytes. Six.
@@ -52,9 +62,6 @@ struct eth_hdr {
     uint16_t type;             ///< EtherType of the payload data.
 };
 
-
-struct warpcore;
-struct w_iov;
 
 /// Return a pointer to the first data byte inside the Ethernet frame in @p buf.
 ///

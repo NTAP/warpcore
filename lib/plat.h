@@ -25,10 +25,11 @@
 
 #pragma once
 
-#include <stdbool.h> // for bool
-#include <stdint.h>  // for uint16_t, uint32_t, uint8_t
+#include <stdbool.h>
+#include <stdint.h>
 
-struct ifaddrs; // lines 40-40
+struct ifaddrs;
+
 
 #ifdef __linux__
 #define AF_LINK AF_PACKET

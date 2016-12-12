@@ -23,19 +23,17 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include "plat.h"
+
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <net/if_dl.h>
-#include <sys/cdefs.h>
-// clang-format off
-// because these includes need to be in-order
-#include <sys/types.h>
-#include <sys/cpuset.h>
-// clang-format on
+#include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
+#include <sys/cpuset.h>
 
 #include "eth.h"
-#include "plat.h"
 #include "util.h"
 
 

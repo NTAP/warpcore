@@ -23,21 +23,24 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "eth.h"  // for ETH_ADDR_LEN
-#include "util.h" // for assert, warn
+#include "plat.h"
 
-#include <ifaddrs.h>          // for ifaddrs
-#include <linux/ethtool.h>    // for ethtool_cmd, ethtool_cmd_speed, ETHTOO...
-#include <linux/sockios.h>    // for SIOCETHTOOL
-#include <net/if.h>           // for ifreq, ifr_name, ifr_flags, IFF_RUNNING
-#include <netpacket/packet.h> // for sockaddr_ll
-#include <sched.h>            // for CPU_ISSET, CPU_SET, CPU_SETSIZE, CPU_ZERO
-#include <stdint.h>           // for uint16_t, uint32_t, uint8_t
-#include <string.h>           // for strcpy, memcpy
-#include <sys/ioctl.h>        // for ioctl, SIOCGIFFLAGS, SIOCGIFMTU
-#include <sys/socket.h>       // for socket, AF_INET
-#include <sys/types.h>        // for __caddr_t
-#include <unistd.h>           // for close
+#include <ifaddrs.h>
+#include <linux/ethtool.h>
+#include <linux/sockios.h>
+#include <net/if.h>
+#include <netpacket/packet.h>
+#include <sched.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "eth.h"
+#include "util.h"
 
 
 /// Return the Ethernet MAC address of network interface @p i.

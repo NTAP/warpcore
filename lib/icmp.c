@@ -23,10 +23,15 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
-
-#include "backend.h"
 #include "icmp.h"
+
+#include <netinet/in.h>
+#include <string.h>
+
+#include "eth.h"
+#include "ip.h"
+#include "udp.h"
+#include "warpcore.h"
 
 
 /// Transmit the ICMP packet in the current *receive* buffer via
@@ -36,7 +41,7 @@
 /// @param      buf   Receive buffer.
 /// @param[in]  len   Length of the ICMP packet in @p buf.
 ///
-static void  __attribute__((nonnull))
+static void __attribute__((nonnull))
 icmp_tx(struct warpcore * const w, void * const buf, const uint16_t len)
 {
     struct icmp_hdr * const icmp = ip_data(buf);

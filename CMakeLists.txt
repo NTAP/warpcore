@@ -47,19 +47,23 @@ else()
   message(STATUS "netmap.h not found; building shim backend only")
 endif()
 
-# Use include-what-you-use to check #includes, if it's installed
-string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
-find_program(IWYU NAMES include-what-you-use iwyu)
-if(IWYU)
-  set(CMAKE_C_INCLUDE_WHAT_YOU_USE
-      ${IWYU} -Xiwyu
-      --mapping_file=${PROJECT_SOURCE_DIR}/warpcore-${CMAKE_SYSTEM_NAME_LC}.imp)
-endif()
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  # Use include-what-you-use to check #includes, if it's installed
+  string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
+  find_program(IWYU NAMES include-what-you-use iwyu)
+  if(IWYU)
+    message(STATUS "Found include-what-you-use: ${IWYU}")
+    set(CMAKE_C_INCLUDE_WHAT_YOU_USE
+        ${IWYU} -Xiwyu
+        --mapping_file=${PROJECT_SOURCE_DIR}/${CMAKE_SYSTEM_NAME_LC}.imp)
+  endif()
 
-# Use clang-tidy for extra warnings, if it's installed
-find_program(CLANGTIDY NAMES clang-tidy)
-if(CLANGTIDY)
-  set(CMAKE_C_CLANG_TIDY ${CLANGTIDY})
+  # Use clang-tidy for extra warnings, if it's installed
+  find_program(CLANGTIDY NAMES clang-tidy)
+  if(CLANGTIDY)
+    message(STATUS "Found clang-tidy: ${CLANGTIDY}")
+    set(CMAKE_C_CLANG_TIDY ${CLANGTIDY})
+  endif()
 endif()
 
 add_subdirectory(doc)

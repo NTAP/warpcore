@@ -23,33 +23,35 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include "warpcore.h"
+
 #ifdef __linux__
-#include <netinet/ether.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <netinet/ether.h> // IWYU pragma: keep
 #else
-#include <net/ethernet.h> // for ether_ntoa
-#include <unistd.h>       // for usleep
+// clang-format off
+#include <sys/types.h>    // IWYU pragma: keep
+#include <net/ethernet.h>
+// clang-format on
 #endif
 
-#include <arpa/inet.h>  // IWYU pragma: keep
-#include <ifaddrs.h>    // IWYU pragma: keep
-#include <netinet/in.h> // for INET_ADDRSTRLEN, in_addr, sockaddr_in
-#include <stdbool.h>    // for false, bool, true
-#include <stdint.h>     // for __uint16_t, uint8_t, uint32_t, uint16_t
-#include <stdlib.h>     // for calloc, free
-#include <string.h>     // for strcmp, memcpy
-#include <sys/queue.h>  // for curelm, w_sock::(anonymous), warpcore::(an...
-#include <sys/socket.h> // for AF_INET, sockaddr, AF_INET6, AF_LINK
+#include <unistd.h> // IWYU pragma: keep
+#include <arpa/inet.h>
+#include <ifaddrs.h> // IWYU pragma: keep
+#include <netinet/in.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
 
-#include "backend.h"  // for warpcore, w_sock, w_hdr, backend_bind, bac...
-#include "eth.h"      // for eth_hdr, IS_ZERO, ETH_ADDR_LEN, ETH_TYPE_IP
-#include "ip.h"       // for ip_hdr, IP_DF, IP_P_UDP
-#include "plat.h"     // for plat_get_link, plat_get_mac, plat_get_mbps
-#include "udp.h"      // for udp_hdr
-#include "util.h"     // for dlevel::notice, assert, warn, dlevel::info
-#include "version.h"  // for warpcore_name, warpcore_version
-#include "warpcore.h" // for w_iov, w_chain
+#include "backend.h"
+#include "eth.h"
+#include "ip.h"
+#include "plat.h"
+#include "udp.h"
+#include "util.h"
+#include "version.h"
 
 
 /// A global list of netmap engines that have been initialized for different

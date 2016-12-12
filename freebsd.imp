@@ -1,0 +1,16 @@
+# iwyu mappings for FreeBSD
+[
+        { include: ["<sys/_cpuset.h>", "private", "<sys/cpuset.h>", "public"] },
+        { include: ["<sys/_pthreadtypes.h>", "private", "<pthread.h>", "public"] },
+        { include: ["<sys/_stdint.h>", "private", "<stdint.h>", "public"] },
+        { include: ["<sys/_timespec.h>", "private", "<time.h>", "public"] },
+        { include: ["<sys/_timeval.h>", "private", "<sys/time.h>", "public"] },
+        { include: ["<sys/ioccom.h>", "private", "<sys/ioctl.h>", "public"] },
+        { include: ["<sys/signal.h>", "private", "<signal.h>", "public"] },
+        { include: ["<x86/_stdint.h>", "private", "<stdint.h>", "public"] },
+
+        { symbol: ["uint16_t", "private", "<stdint.h>", "public"] },
+        { symbol: ["uint32_t", "private", "<stdint.h>", "public"] },
+        { symbol: ["uint64_t", "private", "<stdint.h>", "public"] },
+        { symbol: ["uint8_t", "private", "<stdint.h>", "public"] },
+]
