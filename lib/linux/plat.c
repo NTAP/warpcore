@@ -72,8 +72,8 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
     assert(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
 
     const uint16_t mtu = (uint16_t)ifr.ifr_ifru.ifru_mtu;
-    close(s);
 
+    close(s);
     return mtu;
 }
 
@@ -97,7 +97,9 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     edata.cmd = ETHTOOL_GSET;
     assert(ioctl(s, SIOCETHTOOL, &ifr) >= 0, "%s ioctl", i->ifa_name);
 
-    return ethtool_cmd_speed(&edata);
+    close(s);
+    const uint32_t speed = ethtool_cmd_speed(&edata);
+    return speed != (uint32_t)SPEED_UNKNOWN ? speed : 0;
 }
 
 
@@ -118,8 +120,8 @@ bool plat_get_link(const struct ifaddrs * i)
     assert(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
 
     const bool link = (ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING);
-    close(s);
 
+    close(s);
     return link;
 }
 

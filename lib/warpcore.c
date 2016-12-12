@@ -369,10 +369,9 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
         assert(found, "unknown interface %s", ifname);
 
         // sleep for a bit, so we don't burn the CPU when link is down
-        usleep(10000);
+        warn(warn, "%s: cannot obtain required interface information", ifname);
+        sleep(1);
     }
-    assert(w->ip != 0 && w->mask != 0 && w->mtu != 0 && !IS_ZERO(w->mac),
-           "%s: cannot obtain needed interface information", ifname);
 
     // set the IP address of our default router
     w->rip = rip;
