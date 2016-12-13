@@ -25,7 +25,7 @@ set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Set some additional flags for Debug builds
   # XXX -fsanitize=leak does not currently work on FreeBSD
-  foreach(FLAG -fsanitize=address -fsanitize=undefined
+  foreach(FLAG -fsanitize=address -fsanitize=undefined -fno-sanitize=alignment
           -fsanitize=memory -fsanitize-memory-track-origins
           -fsanitize=thread -fno-omit-frame-pointer)
     string(REGEX REPLACE "[-=]" "" F ${FLAG})
