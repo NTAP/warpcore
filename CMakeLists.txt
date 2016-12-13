@@ -24,10 +24,16 @@ set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Set some additional flags for Debug builds
-  # XXX -fsanitize=leak does not currently work on FreeBSD
-  foreach(FLAG -fsanitize=address -fsanitize=undefined -fno-sanitize=alignment
-          -fsanitize=memory -fsanitize-memory-track-origins
+  set(FLAGS -fsanitize=address -fsanitize=memory -fsanitize-memory-track-origins
           -fsanitize=thread -fno-omit-frame-pointer)
+  if(NOT CMAKE_SYSTEM_NAME MATCHES FreeBSD)
+    # -fsanitize=leak does not work on FreeBSD
+    set(FLAGS ${FLAGS} -fsanitize=leak)
+  elseif(NOT CMAKE_SYSTEM_NAME MATCHES Darwin)
+    # -fsanitize=undefined -fno-sanitize=alignment does not work on Darwin
+    set(FLAGS ${FLAGS} -fsanitize=undefined -fno-sanitize=alignment)
+  endif()
+  foreach(FLAG ${FLAGS})
     string(REGEX REPLACE "[-=]" "" F ${FLAG})
     check_c_compiler_flag(${FLAG} ${F})
     if(${F})
@@ -37,14 +43,14 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 else()
   # See if we can use LTO
   check_c_compiler_flag(-flto LTO)
-  if (${LTO})
+  if(${LTO})
     # Turn LTO on
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
     # Use the correct toolchain for LTO, if enabled
-    if (CMAKE_C_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       set(CMAKE_AR llvm-ar)
       set(CMAKE_RANLIB llvm-ranlib)
-    elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+    elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
       set(CMAKE_AR gcc-ar)
       set(CMAKE_RANLIB gcc-ranlib)
     endif()
