@@ -339,14 +339,14 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
             case AF_LINK:
                 plat_get_mac(w->mac, i);
                 w->mtu = plat_get_mtu(i);
-#ifndef NDEBUG
-                uint32_t mbps = plat_get_mbps(i);
-#endif
                 link_up = plat_get_link(i);
+#ifndef NDEBUG
+                const uint32_t mbps = plat_get_mbps(i);
                 warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
                      i->ifa_name,
                      ether_ntoa((const struct ether_addr * const)w->mac),
                      w->mtu, mbps / 1000, link_up ? "up" : "down");
+#endif
                 break;
             case AF_INET:
                 // get IP addr and netmask
@@ -365,11 +365,11 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
                 break;
             }
         }
-        freeifaddrs(ifap);
         assert(found, "unknown interface %s", ifname);
 
         // sleep for a bit, so we don't burn the CPU when link is down
         warn(warn, "%s: cannot obtain required interface information", ifname);
+        freeifaddrs(ifap);
         sleep(1);
     }
 
