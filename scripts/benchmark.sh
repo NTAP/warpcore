@@ -1,16 +1,19 @@
 #! /usr/bin/env bash
 
-loops=10000
+loops=10
 busywait=-b
 
-peer=phobos2
+# peer=phobos2
 # iface=enp4s0f0 # 40G
-iface=enp8s0f0 # 10G
+# iface=enp8s0f0 # 10G
+
+peer=three
+iface=ix0
 
 piface=$iface
-build=~/warpcore/$(uname -s)-rel
+build=~/warpcore/$(uname -s)
 
-pushd "$build"; make; popd
+pushd "$build"; make || exit; popd
 
 ssh="ssh $peer -q"
 
@@ -20,7 +23,7 @@ run () {
     $ssh "sh -c '(cd $build/.. && \
             sudo nohup $build/examples/$1inetd -i $piface $busywait ) \
             > $build/../$1inetd.log 2>&1 &'"
-    sleep 3
+    # sleep 3
     "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait \
         >> "$1.txt" 2> "$1ping.log"
     $ssh "sudo pkill -f inetd"
@@ -41,4 +44,6 @@ run shim
 run warp
 
 sudo ip addr del 10.11.12.3/24 dev $iface
+sudo ifconfig $iface -alias 10.11.12.3
 $ssh "sudo ip addr del $peerip/24 dev $piface"
+$ssh "sudo ifconfig $piface -alias $peerip"
