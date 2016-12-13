@@ -77,40 +77,6 @@ static void __attribute__((destructor)) postmain()
 #endif
 
 
-/// Subtract two timeval structures @p x - @p y, placing the result in @p
-/// result.
-///
-/// @param[out] result  The result timeval.
-/// @param[in]  x       Minuend.
-/// @param[in]  y       Subtrahend.
-///
-/// @return     Difference @p result = @p x - @p y.
-///
-int timeval_subtract(struct timeval * const result,
-                     struct timeval * const x,
-                     struct timeval * const y)
-{
-    // Perform the carry for the later subtraction by updating y.
-    if (x->tv_usec < y->tv_usec) {
-        long nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
-        y->tv_usec -= 1000000 * nsec;
-        y->tv_sec += nsec;
-    }
-    if (x->tv_usec - y->tv_usec > 1000000) {
-        long nsec = (x->tv_usec - y->tv_usec) / 1000000;
-        y->tv_usec += 1000000 * nsec;
-        y->tv_sec -= nsec;
-    }
-
-    // Compute the time remaining to wait. tv_usec is certainly positive.
-    result->tv_sec = x->tv_sec - y->tv_sec;
-    result->tv_usec = x->tv_usec - y->tv_usec;
-
-    // /* Return 1 if result is negative.
-    return x->tv_sec < y->tv_sec;
-}
-
-
 /// Print a hexdump of the memory region given by @p ptr and @p len to stderr.
 /// Also emits an ASCII representation.
 ///

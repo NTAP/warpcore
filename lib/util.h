@@ -96,7 +96,7 @@ extern pthread_t _master;
         const int _e = errno;                                                  \
         struct timeval _now, _elapsed;                                         \
         gettimeofday(&_now, 0);                                                \
-        timeval_subtract(&_elapsed, &_now, &_epoch);                           \
+        timersub(&_now, &_epoch, &_elapsed);                                   \
         fprintf(                                                               \
             stderr, REV "%s " NRM RED BLD REV " %ld.%04ld   %s %s:%d ABORT: ", \
             (pthread_self() == _master ? BLK : WHT),                           \
@@ -171,7 +171,7 @@ extern regex_t _comp;
                 abort();                                                       \
             struct timeval _now, _elapsed;                                     \
             gettimeofday(&_now, 0);                                            \
-            timeval_subtract(&_elapsed, &_now, &_epoch);                       \
+            timersub(&_now, &_epoch, &_elapsed);                               \
             fprintf(stderr, REV "%s " NRM " %ld.%04ld " REV "%s " NRM MAG      \
                                 " %s" BLK " " BLU "%s:%d " NRM,                \
                     (pthread_self() == _master ? BLK : WHT),                   \
@@ -247,11 +247,6 @@ extern regex_t _comp;
 ///
 extern struct timeval _epoch;
 
-
-extern int __attribute__((nonnull))
-timeval_subtract(struct timeval * const result,
-                 struct timeval * const x,
-                 struct timeval * const y);
 
 extern void __attribute__((nonnull))
 hexdump(const void * const ptr, const size_t len);
