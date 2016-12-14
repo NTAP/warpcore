@@ -37,7 +37,7 @@ struct warpcore;
 /// which is sufficient for warpcore.
 ///
 struct arp_hdr {
-    /// Format of the hardware address. Will always be ARP_HDR_ETHER for
+    /// Format of the hardware address. Will always be ARP_HRD_ETHER for
     /// Ethernet.
     uint16_t hrd;
 
@@ -80,7 +80,7 @@ struct arp_hdr {
 
 
 extern void __attribute__((nonnull))
-arp_rx(struct warpcore * w, void * const buf);
+arp_rx(struct warpcore * w, void * const buf, const uint16_t len);
 
 extern uint8_t * __attribute__((nonnull))
 arp_who_has(struct warpcore * const w, const uint32_t dip);

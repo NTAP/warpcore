@@ -101,6 +101,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   endif()
 endif()
 
+# add_definitions(-DDLEVEL=info)
+# add_definitions(-DDCOMPONENT="warp")
+
 add_subdirectory(doc)
 add_subdirectory(examples)
 add_subdirectory(lib)

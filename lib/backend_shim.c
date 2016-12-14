@@ -79,8 +79,7 @@ void backend_init(struct warpcore * w,
 void backend_cleanup(struct warpcore * const w)
 {
     while (!STAILQ_EMPTY(&w->iov)) {
-        struct w_iov * v = STAILQ_FIRST(&w->iov);
-        STAILQ_REMOVE_HEAD(&w->iov, next);
+        struct w_iov * const v = alloc_iov(w);
         free(v);
     }
     free(w->mem);
@@ -139,8 +138,7 @@ void backend_rx(struct warpcore * const w)
         ssize_t n = 0;
         do {
             // grab a spare buffer
-            struct w_iov * v = STAILQ_FIRST(&s->w->iov);
-            assert(v != 0, "out of spare bufs");
+            struct w_iov * const v = alloc_iov(w);
             struct sockaddr_in peer;
             socklen_t plen = sizeof(peer);
             n = recvfrom(s->fd, v->buf, IOV_BUF_LEN, 0,
@@ -148,7 +146,6 @@ void backend_rx(struct warpcore * const w)
             assert(n != -1 || errno == EAGAIN, "recv");
             if (n > 0) {
                 // add the iov to the tail of the result
-                STAILQ_REMOVE_HEAD(&s->w->iov, next);
                 STAILQ_INSERT_TAIL(s->iv, v, next);
 
                 // store the length and other info
@@ -157,13 +154,16 @@ void backend_rx(struct warpcore * const w)
                 v->port = peer.sin_port;
                 v->flags = 0; // can't get TOS and ECN info from the kernel
                 assert(gettimeofday(&v->ts, 0) == 0, "gettimeofday");
-            }
+            } else
+                // we didn't need this iov after all
+                STAILQ_INSERT_HEAD(&s->w->iov, v, next);
+
         } while (n > 0);
     }
 }
 
 
-/// Sends payloads from @p v using the Socket API. Not all payloads may be
+/// Sends payloads from @p c using the Socket API. Not all payloads may be
 /// sent.
 ///
 /// @param      s     w_sock socket to transmit over..
@@ -171,17 +171,14 @@ void backend_rx(struct warpcore * const w)
 ///
 void w_tx(const struct w_sock * const s, struct w_chain * const c)
 {
-    struct sockaddr_in addr = {.sin_family = AF_INET,
-                               .sin_port = s->hdr.udp.dport,
-                               .sin_addr = {s->hdr.ip.dst}};
     const struct w_iov * o;
     STAILQ_FOREACH (o, c, next) {
         // if w_sock is disconnected, use destination IP and port from w_iov
         // instead of the one in the template header
-        if (s->hdr.ip.dst == 0 && s->hdr.udp.dport == 0) {
-            addr.sin_port = o->port;
-            addr.sin_addr.s_addr = o->ip;
-        }
+        const struct sockaddr_in addr = {
+            .sin_family = AF_INET,
+            .sin_port = s->hdr.ip.dst ? s->hdr.udp.dport : o->port,
+            .sin_addr = {s->hdr.ip.dst ? s->hdr.ip.dst : o->ip}};
         const ssize_t n = sendto(s->fd, o->buf, o->len, 0,
                                  (const struct sockaddr *)&addr, sizeof(addr));
         warn(debug, "sent %u byte%s from buf %d", o->len, plural(o->len),
@@ -205,6 +202,6 @@ void w_nic_rx(const struct warpcore * const w __attribute__((unused)))
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void w_nic_tx(const struct warpcore * const w __attribute__((unused)))
+void w_nic_tx(struct warpcore * const w __attribute__((unused)))
 {
 }

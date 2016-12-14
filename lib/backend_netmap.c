@@ -52,6 +52,20 @@
 static char backend_name[] = "netmap";
 
 
+///
+///
+struct tx_pending_entry {
+    SLIST_ENTRY(tx_pending_entry) next; ///< Pointer to next TX pending entry.
+    struct w_iov * v;                   ///< Pointer to w_iov.
+    uint32_t slot; ///< During TX, slot number of original buffer.
+    uint16_t ring; ///< During TX, ring number of original buffer.
+    /// @cond
+    /// @internal Padding.
+    uint8_t _unused[2];
+    /// @endcond
+};
+
+
 /// Initialize the warpcore netmap backend for engine @p w. This switches the
 /// interface to netmap mode, maps the underlying buffers into memory and locks
 /// it there, and sets up the extra buffers.
@@ -81,7 +95,6 @@ void backend_init(struct warpcore * w, const char * const ifname)
            "%s: cannot put interface into netmap mode", ifname);
 
     // mmap the buffer region
-    // TODO: see TODO in nm_open() in netmap_user.h
     const int flags = PLAT_MMFLAGS;
     assert((w->mem = mmap(0, w->req->nr_memsize, PROT_WRITE | PROT_READ,
                           MAP_SHARED | flags, w->fd, 0)) != MAP_FAILED,
@@ -125,6 +138,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
 
     w->backend = backend_name;
     SLIST_INIT(&w->arp_cache);
+    SLIST_INIT(&w->tx_pending);
 }
 
 
@@ -216,7 +230,8 @@ void backend_rx(struct warpcore * const w)
                 NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
 
             // process the current slot
-            eth_rx(w, NETMAP_BUF(r, r->slot[r->cur].buf_idx));
+            eth_rx(w, NETMAP_BUF(r, r->slot[r->cur].buf_idx),
+                   r->slot[r->cur].len);
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
         w->cur_rxr = (w->cur_rxr + 1) % w->nif->ni_rx_rings;
@@ -224,7 +239,7 @@ void backend_rx(struct warpcore * const w)
 }
 
 
-/// Places payloads from @p v into IPv4 UDP packets, and attempts to move them
+/// Places payloads from @p c into IPv4 UDP packets, and attempts to move them
 /// onto a TX ring. Not all payloads may be placed if the TX rings fills up
 /// first. Also, the packets are not send yet; w_nic_tx() needs to be called for
 /// that. This is, so that an application has control over exactly when to
@@ -250,11 +265,32 @@ void w_nic_rx(const struct warpcore * const w)
 
 
 /// Push data placed in the TX rings via udp_tx() and similar methods out onto
-/// the link.{ function_description }
+/// the link.
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void w_nic_tx(const struct warpcore * const w)
+void w_nic_tx(struct warpcore * const w)
 {
     assert(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
+
+    // grab the transmitted data out of the NIC rings and place it back into the
+    // original w_chains, so it's not lost to the app
+    while (!SLIST_EMPTY(&w->tx_pending)) {
+        struct w_iov * const v = SLIST_FIRST(&w->tx_pending);
+        SLIST_REMOVE_HEAD(&w->tx_pending, next_tx);
+
+        struct netmap_ring * const txr = NETMAP_TXRING(w->nif, v->ring);
+        struct netmap_slot * const txs = &txr->slot[v->slot];
+
+        warn(debug,
+             "moving buf %d from ring %d slot %d back into w_iov after tx",
+             txs->buf_idx, v->ring, v->slot);
+
+        // place the ring buf back into the w_iov
+        const uint32_t tmp_idx = txs->buf_idx;
+        txs->buf_idx = v->idx;
+        txs->flags = NS_BUF_CHANGED;
+        v->idx = tmp_idx;
+        // v->buf and v->len are unchanged after NIC TX, no need to update
+    }
 }

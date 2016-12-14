@@ -52,7 +52,7 @@ STAILQ_HEAD(w_chain, w_iov);
 ///
 struct w_iov {
     void * buf;               ///< Start of payload data.
-    STAILQ_ENTRY(w_iov) next; ///< Next w_iov.
+    STAILQ_ENTRY(w_iov) next; ///< Next w_iov in a w_chain.
     uint32_t idx;             ///< Index of netmap buffer. (Internal use.)
     uint16_t len;             ///< Length of payload data.
 
@@ -64,6 +64,9 @@ struct w_iov {
     /// disconnected w_sock. Ignored on TX on a connected w_sock.
     uint32_t ip;
 
+    uint32_t ring; ///< During TX, ring number of original buffer.
+    uint32_t slot; ///< During TX, slot number of original buffer.
+
     /// DSCP + ECN of the received IPv4 packet on RX, DSCP + ECN to use for the
     /// to-be-transmitted IPv4 packet on TX.
     uint8_t flags;
@@ -71,6 +74,8 @@ struct w_iov {
     /// @cond
     uint8_t _unused[3]; ///< @internal Padding.
     /// @endcond
+
+    SLIST_ENTRY(w_iov) next_tx; ///< Next w_iov during TX pending.
 
     struct timeval ts; ///< Receive time of the data. Only valid on RX.
 };
@@ -106,7 +111,7 @@ extern int __attribute__((nonnull)) w_fd(struct w_sock * const s);
 
 extern struct w_chain * __attribute__((nonnull)) w_rx(struct w_sock * const s);
 
-extern void __attribute__((nonnull)) w_nic_tx(const struct warpcore * const w);
+extern void __attribute__((nonnull)) w_nic_tx(struct warpcore * const w);
 
 extern void __attribute__((nonnull)) w_nic_rx(const struct warpcore * const w);
 

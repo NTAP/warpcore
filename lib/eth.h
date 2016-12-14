@@ -76,7 +76,7 @@ extern void __attribute__((nonnull))
 eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len);
 
 extern void __attribute__((nonnull))
-eth_rx(struct warpcore * const w, void * const buf);
+eth_rx(struct warpcore * const w, void * const buf, const uint16_t len);
 
 extern bool __attribute__((nonnull))
 eth_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);

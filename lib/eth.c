@@ -41,62 +41,12 @@
 #include <net/netmap.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/queue.h>
 
 #include "arp.h"
 #include "backend.h"
 #include "ip.h"
 #include "warpcore.h"
-
-
-/// Special version of eth_tx() that transmits the current receive buffer after
-/// in-place modification. Modifies the current receive buffer in place by
-/// swapping source and destination MAC addresses. Moves the buffer into the TX
-/// ring (swapping a fresh buffer from the TX ring into its place in the RX
-/// ring) and then transmits it.
-///
-/// This special version of eth_tx() is currently only used for sending replies
-/// to inbound ICMP and ARP requests, in icmp_tx() (via ip_tx_with_rx_buf()) and
-/// arp_is_at().
-///
-/// @param      w     Warpcore engine.
-/// @param      buf   Ethernet frame to modify and transmit.
-/// @param[in]  len   Length of the Ethernet frame in @p buf.
-///
-void eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
-{
-    struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
-    struct netmap_ring * const txr = NETMAP_TXRING(w->nif, w->cur_txr);
-    struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
-    struct netmap_slot * const txs = &txr->slot[txr->cur];
-
-    // make the original src address the new dst, and set the src
-    struct eth_hdr * const eth = buf;
-    memcpy(eth->dst, eth->src, sizeof eth->dst);
-    memcpy(eth->src, w->mac, sizeof eth->src);
-
-    warn(info, "swapping rx ring %u slot %d (buf %d) and "
-               "tx ring %u slot %d (buf %d)",
-         w->cur_rxr, rxr->cur, rxs->buf_idx, w->cur_txr, txr->cur,
-         txs->buf_idx);
-
-    // move modified rx slot to tx ring, and move an unused tx slot back
-    const uint32_t tmp_idx = txs->buf_idx;
-    txs->buf_idx = rxs->buf_idx;
-    rxs->buf_idx = tmp_idx;
-    txs->len = len + sizeof(struct eth_hdr);
-    txs->flags = rxs->flags = NS_BUF_CHANGED;
-    // we don't need to advance the rx ring here
-    txr->head = txr->cur = nm_ring_next(txr, txr->cur);
-
-#ifndef NDEBUG
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
-    warn(notice, "Eth %s -> %s, type %d",
-         ether_ntoa_r((const struct ether_addr *)eth->src, src),
-         ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
-         ntohs(eth->type));
-#endif
-}
 
 
 /// Receive an Ethernet frame. This is the lowest-level RX function, called for
@@ -105,31 +55,32 @@ void eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len)
 ///
 /// @param      w     Warpcore engine.
 /// @param      buf   Buffer containing the inbound Ethernet frame.
+/// @param[in]  len   The length of the buffer.
 ///
-void eth_rx(struct warpcore * const w, void * const buf)
+void eth_rx(struct warpcore * const w, void * const buf, const uint16_t len)
 {
     struct eth_hdr * const eth = buf;
 
 #ifndef NDEBUG
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
-    warn(info, "Eth %s -> %s, type %d",
+    warn(debug, "Eth %s -> %s, type %d, len %d",
          ether_ntoa_r((const struct ether_addr *)eth->src, src),
          ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
-         ntohs(eth->type));
+         ntohs(eth->type), len);
 #endif
 
     // make sure the packet is for us (or broadcast)
     if (unlikely(memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
                  memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN))) {
-        warn(warn, "Ethernet packet not destined to us; ignoring");
+        warn(info, "Ethernet packet not destined to us; ignoring");
         return;
     }
 
     if (likely(eth->type == ETH_TYPE_IP))
-        ip_rx(w, buf);
+        ip_rx(w, buf, len);
     else if (eth->type == ETH_TYPE_ARP)
-        arp_rx(w, buf);
+        arp_rx(w, buf, len);
     else
         die("unhandled ethertype 0x%04x", ntohs(eth->type));
 }
@@ -149,27 +100,29 @@ bool eth_tx(struct warpcore * const w,
             struct w_iov * const v,
             const uint16_t len)
 {
-    // check if there is space in the current txr
+    // find a tx ring with space
     struct netmap_ring * txr = 0;
-    uint32_t i;
-    for (i = 0; i < w->nif->ni_tx_rings; i++) {
+    for (uint32_t r = 0; r < w->nif->ni_tx_rings; r++) {
         txr = NETMAP_TXRING(w->nif, w->cur_txr);
         if (likely(nm_ring_space(txr)))
             // we have space in this ring
             break;
-        else {
-            // current txr is full, try next
-            w->cur_txr = (w->cur_txr + 1) % w->nif->ni_tx_rings;
-            warn(warn, "moving to tx ring %u", w->cur_txr);
-        }
+
+        w->cur_txr = (w->cur_txr + 1) % w->nif->ni_tx_rings;
+        txr = 0;
+        warn(info, "current tx ring full; moving to tx ring %u", w->cur_txr);
     }
 
     // return false if all rings are full
-    if (unlikely(i == w->nif->ni_tx_rings)) {
+    if (unlikely(txr == 0)) {
         warn(warn, "all tx rings are full");
         return false;
     }
 
+    // remember the slot we're placing this buffer into
+    v->ring = w->cur_txr;
+    v->slot = txr->cur;
+    SLIST_INSERT_HEAD(&w->tx_pending, v, next_tx);
     struct netmap_slot * const txs = &txr->slot[txr->cur];
 
     // prefetch the next slot into the cache, too
@@ -177,7 +130,7 @@ bool eth_tx(struct warpcore * const w,
         NETMAP_BUF(txr, txr->slot[nm_ring_next(txr, txr->cur)].buf_idx));
 
     warn(debug, "placing iov buf %u in tx ring %u slot %d (current buf %u)",
-         v->idx, w->cur_txr, txr->cur, txs->buf_idx);
+         v->idx, v->ring, txr->cur, txs->buf_idx);
 
     // place v in the current tx ring
     const uint32_t tmp_idx = txs->buf_idx;
@@ -189,10 +142,10 @@ bool eth_tx(struct warpcore * const w,
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
     const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, txs->buf_idx);
-    warn(info, "Eth %s -> %s, type %d, len %lu",
+    warn(debug, "Eth %s -> %s, type %d, len %lu",
          ether_ntoa_r((const struct ether_addr *)eth->src, src),
          ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
-         ntohs(eth->type), len + sizeof(struct eth_hdr));
+         ntohs(eth->type), len + sizeof(*eth));
 #endif
 
     // place the original tx buffer in v
@@ -201,6 +154,5 @@ bool eth_tx(struct warpcore * const w,
     // advance tx ring
     txr->head = txr->cur = nm_ring_next(txr, txr->cur);
 
-    // caller needs to make iovs available again and optionally kick tx
     return true;
 }

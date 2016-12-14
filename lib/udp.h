@@ -43,8 +43,10 @@ struct udp_hdr {
 };
 
 
-extern void __attribute__((nonnull))
-udp_rx(struct warpcore * const w, void * const buf, const uint32_t src);
+extern void __attribute__((nonnull)) udp_rx(struct warpcore * const w,
+                                            void * const buf,
+                                            const uint16_t len,
+                                            const uint32_t src);
 
 extern void __attribute__((nonnull))
 udp_tx(const struct w_sock * const s, struct w_chain * const c);

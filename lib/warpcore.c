@@ -54,6 +54,9 @@
 #include "version.h"
 
 
+extern struct w_iov * alloc_iov(struct warpcore * const w);
+
+
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
 ///
@@ -76,20 +79,21 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
 {
     struct w_iov * v = 0;
     int32_t l = (int32_t)len;
-    uint32_t n = 0;
     struct w_chain * chain = calloc(1, sizeof(*chain));
     assert(chain, "could not calloc");
     STAILQ_INIT(chain);
+#ifndef NDEBUG
+    uint32_t n = 0;
+#endif
     while (l > 0) {
-        v = STAILQ_FIRST(&w->iov);
-        assert(v != 0, "out of spare bufs after grabbing %d", n);
-        STAILQ_REMOVE_HEAD(&w->iov, next);
-        // warn(debug, "allocating spare buf %u to app", v->idx);
-        v->buf = IDX2BUF(w, v->idx) + sizeof(struct w_hdr) + off;
-        v->len = w->mtu - sizeof(struct w_hdr) - off;
+        v = alloc_iov(w);
+        v->buf = (uint8_t *)v->buf + sizeof(struct w_hdr) + off;
+        v->len -= (sizeof(struct w_hdr) + off);
         l -= v->len;
-        n++;
         STAILQ_INSERT_TAIL(chain, v, next);
+#ifndef NDEBUG
+        n++;
+#endif
     }
 
     if (v)
@@ -188,7 +192,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
         return s;
     }
 
-    assert((w->udp[port] = s = calloc(1, sizeof(struct w_sock))) != 0,
+    assert((w->udp[port] = s = calloc(1, sizeof(*s))) != 0,
            "cannot allocate w_sock");
 
     // initialize the non-zero fields of outgoing template header
@@ -196,10 +200,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
     memcpy(&s->hdr.eth.src, w->mac, ETH_ADDR_LEN);
     // s->hdr.eth.dst is set on w_connect()
 
-    s->hdr.ip.vhl = (4 << 4) + 5;
-    s->hdr.ip.ttl = 1; // XXX TODO: pick something sensible
-    s->hdr.ip.off |= htons(IP_DF);
-    s->hdr.ip.p = IP_P_UDP;
+    ip_hdr_init(&s->hdr.ip);
     s->hdr.ip.src = w->ip;
     s->hdr.udp.sport = port;
     // s->hdr.ip.dst is set on w_connect()
