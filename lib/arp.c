@@ -23,21 +23,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "arp.h"
-
-#ifdef __linux__
-#include <net/if.h> // IWYU pragma: keep
-#include <net/netmap.h>
-#include <netinet/ether.h>
-#include <netinet/in.h>
-#include <sys/types.h>
-#else
-// clang-format off
-// because these includes need to be in-order
-#include <sys/types.h> // IWYU pragma: keep
-#include <net/ethernet.h>
-// clang-format on
-#endif
 
 #include <arpa/inet.h>
 #include <poll.h>
@@ -46,6 +31,18 @@
 #include <sys/queue.h>
 #include <sys/socket.h>
 
+#ifdef __linux__
+#include <netinet/ether.h>
+#include <netinet/in.h>
+#else
+// clang-format off
+// because these includes need to be in-order
+#include <sys/types.h> // IWYU pragma: keep
+#include <net/ethernet.h>
+// clang-format on
+#endif
+
+#include "arp.h"
 #include "backend.h"
 #include "ip.h"
 #include "warpcore.h"

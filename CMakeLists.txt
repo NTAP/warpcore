@@ -90,7 +90,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Found include-what-you-use: ${IWYU}")
     set(CMAKE_C_INCLUDE_WHAT_YOU_USE
         ${IWYU} -Xiwyu
-        --mapping_file=${PROJECT_SOURCE_DIR}/${CMAKE_SYSTEM_NAME_LC}.imp)
+        --mapping_file=${PROJECT_SOURCE_DIR}/misc/${CMAKE_SYSTEM_NAME_LC}.imp)
   endif()
 
   # Use clang-tidy for extra warnings, if it's installed

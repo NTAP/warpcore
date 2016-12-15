@@ -3,10 +3,11 @@ configure_file(version.h.in version.h)
 configure_file(version.c.in version.c)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/${CMAKE_SYSTEM_NAME_LC}/plat.c)
+set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_${CMAKE_SYSTEM_NAME_LC}.c)
 if(NOT(EXISTS ${PLAT}))
-  message(STATUS "Cannot find platform-specific code, using generic code")
-  set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/generic/plat.c)
+  message(STATUS "Cannot find " ${CMAKE_SYSTEM_NAME} "-specific platform "
+          "support, using generic methods")
+  set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_generic.c)
 endif()
 
 set(SOURCES ${SOURCES}

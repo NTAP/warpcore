@@ -23,12 +23,12 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "plat.h"
-
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "eth.h"
+#include "plat.h" // IWYU pragma: keep
 #include "util.h"
 
 struct ifaddrs;

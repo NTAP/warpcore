@@ -23,14 +23,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "icmp.h"
-
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/queue.h>
 
 #include "backend.h"
 #include "eth.h"
+#include "icmp.h"
 #include "ip.h"
 #include "udp.h"
 #include "warpcore.h"

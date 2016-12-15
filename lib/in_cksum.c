@@ -37,14 +37,12 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include "ip.h" // IWYU pragma: keep
-
 #include <stdint.h>
 
-#ifndef __linux__
+#include "ip.h" // IWYU pragma: keep
+
 union l_util;
 union q_util;
-#endif
 
 
 // Checksum routine for Internet Protocol family headers (portable Alpha

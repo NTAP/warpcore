@@ -109,9 +109,9 @@ struct warpcore {
     void * mem;   ///< Pointer to netmap or shim buffer memory region.
     uint32_t rip; ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP
-    int fd;           ///< Netmap file descriptor.
-    uint32_t cur_txr; ///< Index of the TX ring currently active.
-    uint32_t cur_rxr; ///< Index of the RX ring currently active.
+    int fd;                 ///< Netmap file descriptor.
+    uint32_t cur_txr;       ///< Index of the TX ring currently active.
+    uint32_t cur_rxr;       ///< Index of the RX ring currently active.
     struct netmap_if * nif; ///< Netmap interface.
     struct nmreq * req;     ///< Netmap request structure.
     SLIST_HEAD(arp_cache_head, arp_entry) arp_cache; ///< The ARP cache.

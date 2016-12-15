@@ -23,11 +23,14 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "backend.h"
 
 #include <fcntl.h>
+// clang-format off
+// because these includes need to be in-order
 #include <net/if.h> // IWYU pragma: keep
+#include <stdint.h> // IWYU pragma: keep
 #include <net/netmap.h>
+// clang-format on
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,6 +44,7 @@
 #endif
 
 #include "arp.h"
+#include "backend.h"
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
@@ -50,20 +54,6 @@
 /// The backend name.
 ///
 static char backend_name[] = "netmap";
-
-
-///
-///
-struct tx_pending_entry {
-    SLIST_ENTRY(tx_pending_entry) next; ///< Pointer to next TX pending entry.
-    struct w_iov * v;                   ///< Pointer to w_iov.
-    uint32_t slot; ///< During TX, slot number of original buffer.
-    uint16_t ring; ///< During TX, ring number of original buffer.
-    /// @cond
-    /// @internal Padding.
-    uint8_t _unused[2];
-    /// @endcond
-};
 
 
 /// Initialize the warpcore netmap backend for engine @p w. This switches the

@@ -25,7 +25,6 @@
 
 #pragma once
 
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -35,7 +34,7 @@
 #include <arpa/inet.h>
 #endif
 
-struct w_iov; // IWYU pragma: keep
+struct w_iov;
 struct warpcore;
 
 

@@ -53,8 +53,8 @@ Vagrant.configure("2") do |config|
       end
 
       # use custom, static, password-less SSH keys to authenticate between VMs
-      ssh_pub_key = File.readlines(File.dirname(__FILE__) + "/scripts/id_rsa.pub").join
-      ssh_sec_key = File.readlines(File.dirname(__FILE__) + "/scripts/id_rsa").join
+      ssh_pub_key = File.readlines(File.dirname(__FILE__) + "/misc/id_rsa.pub").join
+      ssh_sec_key = File.readlines(File.dirname(__FILE__) + "/misc/id_rsa").join
 
       if i <= 2 then
         # apply some fixes to the VM OS, update it, and install some tools
@@ -74,7 +74,7 @@ Vagrant.configure("2") do |config|
 
           # install some tools that are needed
           apt-get -y install cmake cmake-curses-gui git dpkg-dev xinetd \
-            doxygen graphviz iwyu clang-tidy
+            doxygen graphviz iwyu clang-tidy clang-3.7
 
           # and some that I often use
           apt-get -y install htop silversearcher-ag linux-tools-common \
@@ -130,7 +130,7 @@ Vagrant.configure("2") do |config|
         SHELL
       else
         node.vm.provision "shell", inline: <<-SHELL
-          pkg install sudo cmake nano git
+          pkg install sudo cmake nano git include-what-you-use
         SHELL
       end
     end

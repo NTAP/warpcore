@@ -25,8 +25,9 @@
 
 #pragma once
 
-#include "eth.h"
 #include <stdint.h>
+
+#include "eth.h"
 
 struct warpcore;
 

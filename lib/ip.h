@@ -30,11 +30,11 @@
 
 #ifdef __FreeBSD__
 #include <arpa/inet.h>
-struct w_iov;
 #endif
 
 #include "eth.h"
 
+struct w_iov;
 struct warpcore;
 
 

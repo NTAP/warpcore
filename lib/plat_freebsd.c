@@ -23,23 +23,16 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "plat.h"
-
 #include <ifaddrs.h>
-#include <linux/ethtool.h>
-#include <linux/sockios.h>
 #include <net/if.h>
-#include <netpacket/packet.h>
-#include <sched.h>
+#include <net/if_dl.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <sys/cpuset.h>
 
 #include "eth.h"
+#include "plat.h" // IWYU pragma: keep
 #include "util.h"
 
 
@@ -50,7 +43,7 @@
 ///
 void plat_get_mac(uint8_t * mac, const struct ifaddrs * i)
 {
-    memcpy(mac, ((struct sockaddr_ll *)(void *)i->ifa_addr)->sll_addr,
+    memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr),
            ETH_ADDR_LEN);
 }
 
@@ -63,18 +56,7 @@ void plat_get_mac(uint8_t * mac, const struct ifaddrs * i)
 ///
 uint16_t plat_get_mtu(const struct ifaddrs * i)
 {
-    const int s = socket(AF_INET, SOCK_DGRAM, 0);
-    assert(s >= 0, "%s socket", i->ifa_name);
-
-    struct ifreq ifr = {0};
-    strcpy(ifr.ifr_name, i->ifa_name);
-
-    assert(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
-
-    const uint16_t mtu = (uint16_t)ifr.ifr_ifru.ifru_mtu;
-
-    close(s);
-    return mtu;
+    return (uint16_t)((struct if_data *)(i->ifa_data))->ifi_mtu;
 }
 
 
@@ -86,20 +68,8 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 ///
 uint32_t plat_get_mbps(const struct ifaddrs * i)
 {
-    const int s = socket(AF_INET, SOCK_DGRAM, 0);
-    assert(s >= 0, "%s socket", i->ifa_name);
-
-    struct ifreq ifr = {0};
-    strcpy(ifr.ifr_name, i->ifa_name);
-
-    struct ethtool_cmd edata;
-    ifr.ifr_data = (__caddr_t)&edata;
-    edata.cmd = ETHTOOL_GSET;
-    assert(ioctl(s, SIOCETHTOOL, &ifr) >= 0, "%s ioctl", i->ifa_name);
-
-    close(s);
-    const uint32_t speed = ethtool_cmd_speed(&edata);
-    return speed != (uint32_t)SPEED_UNKNOWN ? speed : 0;
+    return (uint32_t)(((struct if_data *)(i->ifa_data))->ifi_baudrate /
+                      1000000);
 }
 
 
@@ -111,18 +81,10 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
 ///
 bool plat_get_link(const struct ifaddrs * i)
 {
-    const int s = socket(AF_INET, SOCK_DGRAM, 0);
-    assert(s >= 0, "%s socket", i->ifa_name);
-
-    struct ifreq ifr = {0};
-    strcpy(ifr.ifr_name, i->ifa_name);
-
-    assert(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
-
-    const bool link = (ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING);
-
-    close(s);
-    return link;
+    if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
+        return true;
+    return (((uint8_t)((struct if_data *)(i->ifa_data))->ifi_link_state) &
+            LINK_STATE_UP);
 }
 
 
@@ -131,9 +93,12 @@ bool plat_get_link(const struct ifaddrs * i)
 void plat_setaffinity(void)
 {
     int i;
-    cpu_set_t myset;
-    assert(sched_getaffinity(0, sizeof(cpu_set_t), &myset) != -1,
-           "sched_getaffinity");
+    cpuset_t myset;
+    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
+                           &myset) == -1) {
+        warn(crit, "cpuset_getaffinity failed");
+        return;
+    }
 
     // Find last available CPU
     for (i = CPU_SETSIZE - 1; i >= -1; i--)
@@ -146,6 +111,7 @@ void plat_setaffinity(void)
     CPU_ZERO(&myset);
     CPU_SET(i, &myset);
 
-    assert(sched_setaffinity(0, sizeof(myset), &myset) != -1,
-           "sched_setaffinity");
+    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
+                           &myset) == -1)
+        warn(crit, "cpuset_setaffinity failed");
 }

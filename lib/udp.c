@@ -23,18 +23,21 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef __linux__
-#include <netinet/in.h> // for ntohs, htons
-#include <sys/types.h>  // for ssize_t
-#else
-#include <arpa/inet.h>
-#endif
-
+// clang-format off
+// because these includes need to be in-order
 #include <net/if.h> // IWYU pragma: keep
+#include <stdint.h>
 #include <net/netmap.h>
+// clang-format on
 #include <string.h>
 #include <sys/queue.h>
 #include <sys/time.h>
+
+#ifdef __linux__
+#include <netinet/in.h>
+#else
+#include <arpa/inet.h>
+#endif
 
 #include "arp.h"
 #include "backend.h"

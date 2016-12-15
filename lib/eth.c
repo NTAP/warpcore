@@ -23,12 +23,18 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-
-#include "eth.h"
+// clang-format off
+// because these includes need to be in-order
+#include <net/if.h> // IWYU pragma: keep
+#include <stdint.h>
+#include <net/netmap.h>
+// clang-format on
+#include <stdbool.h>
+#include <string.h>
+#include <sys/queue.h>
 
 #ifdef __linux__
 #include <netinet/ether.h>
-#include <sys/types.h>
 #else
 // clang-format off
 // because these includes need to be in-order
@@ -37,14 +43,9 @@
 // clang-format on
 #endif
 
-#include <net/if.h> // IWYU pragma: keep
-#include <net/netmap.h>
-#include <stdbool.h>
-#include <string.h>
-#include <sys/queue.h>
-
 #include "arp.h"
 #include "backend.h"
+#include "eth.h"
 #include "ip.h"
 #include "warpcore.h"
 

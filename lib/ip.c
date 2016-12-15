@@ -30,10 +30,7 @@
 #include <sys/socket.h>
 
 #ifdef __linux__
-#include <net/if.h> // IWYU pragma: keep
-#include <net/netmap.h>
 #include <netinet/in.h>
-#include <sys/types.h>
 #endif
 
 #include "backend.h"

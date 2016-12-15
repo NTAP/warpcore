@@ -23,21 +23,21 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef __linux__
-#include <netinet/in.h>
-#else
-#include <arpa/inet.h>
-#include <string.h>
-#include <time.h>
-#endif
-
 #include <getopt.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/queue.h>
+#include <time.h>
+
+#ifdef __linux__
+#include <netinet/in.h>
+#else
+#include <arpa/inet.h>
+#endif
 
 #include "warpcore.h"
 

@@ -24,7 +24,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <ctype.h>
-#include <stdint.h> // IWYU pragma: keep
+#include <stdint.h>
 #include <stdio.h>
 
 #include "util.h"

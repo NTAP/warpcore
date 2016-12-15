@@ -23,20 +23,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "warpcore.h"
-
-#ifdef __linux__
-#include <netinet/ether.h> // IWYU pragma: keep
-#else
-// clang-format off
-#include <sys/types.h>    // IWYU pragma: keep
-#include <net/ethernet.h>
-// clang-format on
-#endif
-
-#include <unistd.h> // IWYU pragma: keep
 #include <arpa/inet.h>
-#include <ifaddrs.h> // IWYU pragma: keep
+#include <ifaddrs.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -44,6 +32,13 @@
 #include <string.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <unistd.h>
+
+#ifdef __linux__
+#include <netinet/ether.h>
+#else
+#include <net/ethernet.h>
+#endif
 
 #include "backend.h"
 #include "eth.h"
@@ -52,6 +47,7 @@
 #include "udp.h"
 #include "util.h"
 #include "version.h"
+#include "warpcore.h"
 
 
 extern struct w_iov * alloc_iov(struct warpcore * const w);
