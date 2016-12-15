@@ -163,29 +163,26 @@ void backend_rx(struct warpcore * const w)
 }
 
 
-/// Sends payloads from @p c using the Socket API. Not all payloads may be
-/// sent.
+/// Attempts to send the payload from @p v using the Socket API.
 ///
 /// @param      s     w_sock socket to transmit over..
-/// @param      c     w_iov chain to transmit.
+/// @param      v     w_iov to transmit.
 ///
-void w_tx(const struct w_sock * const s, struct w_chain * const c)
+void backend_tx(const struct w_sock * const s, struct w_iov * const v)
 {
-    const struct w_iov * o;
-    STAILQ_FOREACH (o, c, next) {
-        // if w_sock is disconnected, use destination IP and port from w_iov
-        // instead of the one in the template header
-        const struct sockaddr_in addr = {
-            .sin_family = AF_INET,
-            .sin_port = s->hdr.ip.dst ? s->hdr.udp.dport : o->port,
-            .sin_addr = {s->hdr.ip.dst ? s->hdr.ip.dst : o->ip}};
-        const ssize_t n = sendto(s->fd, o->buf, o->len, 0,
-                                 (const struct sockaddr *)&addr, sizeof(addr));
-        warn(debug, "sent %u byte%s from buf %d", o->len, plural(o->len),
-             o->idx);
-        if (n == -1)
-            return;
-    }
+    // if w_sock is disconnected, use destination IP and port from w_iov
+    // instead of the one in the template header
+    const struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = s->hdr.ip.dst ? s->hdr.udp.dport : v->port,
+        .sin_addr = {s->hdr.ip.dst ? s->hdr.ip.dst : v->ip}};
+    ssize_t n = 0;
+    do {
+        n = sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&addr,
+                   sizeof(addr)) == v->len;
+        if (n != v->len)
+            warn(notice, "sendto apparently failed, retrying");
+    } while (n != v->len);
 }
 
 

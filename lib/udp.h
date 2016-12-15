@@ -25,9 +25,10 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
-struct w_chain;
+struct w_iov;
 struct w_sock;
 struct warpcore;
 
@@ -48,5 +49,5 @@ extern void __attribute__((nonnull)) udp_rx(struct warpcore * const w,
                                             const uint16_t len,
                                             const uint32_t src);
 
-extern void __attribute__((nonnull))
-udp_tx(const struct w_sock * const s, struct w_chain * const c);
+extern bool __attribute__((nonnull))
+udp_tx(const struct w_sock * const s, struct w_iov * const v);

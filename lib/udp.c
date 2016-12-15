@@ -73,6 +73,7 @@
 ///
 /// @param      w     Warpcore engine.
 /// @param      buf   Buffer containing the Ethernet frame to receive from.
+/// @param[in]  len   The length of the buffer.
 /// @param[in]  src   The IPv4 source address of the sender of this packet.
 ///
 void udp_rx(struct warpcore * const w,
@@ -140,59 +141,40 @@ void udp_rx(struct warpcore * const w,
 }
 
 
-/// Sends w_iov payloads contained in a w_sock::ov via UDP. For a connected
-/// w_sock, prepends the template header from w_sock::hdr, computes the UDP
-/// length and checksum, and hands the packet off to ip_tx(). For a disconnected
-/// w_sock, uses the destination IP and port information in each w_iov for TX.
-/// Stops processing packets from @p v if ip_tx() indicates that the TX rings
-/// are full.
+/// Sends a payload contained in a w_sock::ov via UDP. For a connected w_sock,
+/// prepends the template header from w_sock::hdr, computes the UDP length and
+/// checksum, and hands the packet off to ip_tx(). For a disconnected w_sock,
+/// uses the destination IP and port information in the w_iov for TX.
 ///
 /// @param      s     The w_sock to transmit over.
-/// @param      c     w_iov chain to transmit.
+/// @param      v     The w_iov to transmit.
 ///
-void udp_tx(const struct w_sock * const s, struct w_chain * const c)
+/// @return     True if the payloads was sent, false otherwise.
+///
+bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
-#ifndef NDEBUG
-    uint32_t n = 0, l = 0;
-#endif
-    // packetize bufs and place in tx ring
-    struct w_iov * v;
-    STAILQ_FOREACH (v, c, next) {
-        // copy template header into buffer and fill in remaining fields
-        void * const buf = IDX2BUF(s->w, v->idx);
-        memcpy(buf, &s->hdr, sizeof(s->hdr));
+    // copy template header into buffer and fill in remaining fields
+    void * const buf = IDX2BUF(s->w, v->idx);
+    memcpy(buf, &s->hdr, sizeof(s->hdr));
 
-        struct ip_hdr * const ip = eth_data(buf);
-        struct udp_hdr * const udp = ip_data(buf);
-        const uint16_t len = v->len + sizeof(*udp);
-        udp->len = htons(len);
+    struct ip_hdr * const ip = eth_data(buf);
+    struct udp_hdr * const udp = ip_data(buf);
+    const uint16_t len = v->len + sizeof(*udp);
+    udp->len = htons(len);
 
-        // if w_sock is disconnected, use destination IP and port from w_iov
-        // instead of the one in the template header
-        if (s->hdr.ip.dst == 0) {
-            assert(v->ip && v->port, "no destination information");
-            struct eth_hdr * const e = buf;
-            memcpy(&e->dst, arp_who_has(s->w, v->ip), ETH_ADDR_LEN);
-            ip->dst = v->ip;
-            udp->dport = v->port;
-        }
-
-        // compute the checksum
-        udp->cksum = in_pseudo(s->w->ip, ip->dst, htons(len + IP_P_UDP));
-        udp->cksum = in_cksum(udp, len);
-
-        udp_log(udp);
-
-        // do IP transmit preparation
-        if (ip_tx(s->w, v, len)) {
-#ifndef NDEBUG
-            n++;
-            l += v->len;
-#endif
-        } else
-            // no space left in rings
-            break;
+    // if w_sock is disconnected, use destination IP and port from w_iov
+    // instead of the one in the template header
+    if (s->hdr.ip.dst == 0) {
+        struct eth_hdr * const e = buf;
+        memcpy(&e->dst, arp_who_has(s->w, v->ip), ETH_ADDR_LEN);
+        ip->dst = v->ip;
+        udp->dport = v->port;
     }
 
-    warn(info, "proto %d tx iov (len %d in %d bufs) done", s->hdr.ip.p, l, n);
+    // compute the checksum
+    udp->cksum = in_pseudo(s->w->ip, ip->dst, htons(len + IP_P_UDP));
+    udp->cksum = in_cksum(udp, len);
+    udp_log(udp);
+
+    return ip_tx(s->w, v, len);
 }

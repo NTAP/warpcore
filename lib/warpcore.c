@@ -270,6 +270,23 @@ struct w_chain * w_rx(struct w_sock * const s)
 }
 
 
+/// Loops over the w_iov structures in the chain @p c, attemoting to send them
+/// all.
+///
+/// @param[in]  s     { parameter_description }
+/// @param      c     { parameter_description }
+///
+void w_tx(const struct w_sock * const s, struct w_chain * const c)
+{
+    struct w_iov * v;
+    STAILQ_FOREACH (v, c, next) {
+        assert(s->hdr.ip.dst && s->hdr.udp.dport || v->ip && v->port,
+               "no destination information");
+        backend_tx(s, v);
+    }
+}
+
+
 /// Shut a warpcore engine down cleanly. In addition to calling into the
 /// backend-specific cleanup function, it frees up the extra buffers and other
 /// memory structures.

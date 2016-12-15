@@ -31,6 +31,7 @@
 #include <stdint.h> // IWYU pragma: keep
 #include <net/netmap.h>
 // clang-format on
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -229,18 +230,21 @@ void backend_rx(struct warpcore * const w)
 }
 
 
-/// Places payloads from @p c into IPv4 UDP packets, and attempts to move them
-/// onto a TX ring. Not all payloads may be placed if the TX rings fills up
-/// first. Also, the packets are not send yet; w_nic_tx() needs to be called for
-/// that. This is, so that an application has control over exactly when to
-/// schedule packet I/O.
+/// Places the payload of @p v into an IPv4 UDP packet, and attempts to move it
+/// onto a TX ring. Will force a NIC TX if all rings are full, retry the failed
+/// w_iov and continue with the chain. The (last batch of) packets are not send
+/// yet; w_nic_tx() needs to be called (again) for that. This is, so that an
+/// application has control over exactly when to schedule packet I/O.
 ///
 /// @param      s     w_sock socket to transmit over.
-/// @param      c     w_iov chain to transmit.
+/// @param      v     w_iov to transmit.
 ///
-void w_tx(const struct w_sock * const s, struct w_chain * const c)
+void backend_tx(const struct w_sock * const s, struct w_iov * const v)
 {
-    udp_tx(s, c);
+    while (udp_tx(s, v) == false) {
+        warn(notice, "all rings seem full, forcing TX");
+        w_nic_tx(s->w);
+    }
 }
 
 
