@@ -26,6 +26,7 @@
 
 #include <arpa/inet.h>
 #include <poll.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
@@ -44,6 +45,7 @@
 
 #include "arp.h"
 #include "backend.h"
+#include "eth.h"
 #include "ip.h"
 #include "warpcore.h"
 

@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <net/netmap.h>
 // clang-format on
+#include <stdbool.h>
 #include <string.h>
 #include <sys/queue.h>
 #include <sys/time.h>

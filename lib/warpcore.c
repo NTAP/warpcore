@@ -43,9 +43,7 @@
 #include "backend.h"
 #include "eth.h"
 #include "ip.h"
-#include "plat.h"
 #include "udp.h"
-#include "util.h"
 #include "version.h"
 #include "warpcore.h"
 

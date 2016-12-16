@@ -89,7 +89,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   if(IWYU)
     message(STATUS "Found include-what-you-use: ${IWYU}")
     set(CMAKE_C_INCLUDE_WHAT_YOU_USE
-        ${IWYU} -Xiwyu
+        ${IWYU} -Xiwyu --no_comments -Xiwyu
         --mapping_file=${PROJECT_SOURCE_DIR}/misc/${CMAKE_SYSTEM_NAME_LC}.imp)
   endif()
 

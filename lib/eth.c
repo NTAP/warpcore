@@ -36,6 +36,7 @@
 #ifdef __linux__
 #include <netinet/ether.h>
 #else
+#include <arpa/inet.h>
 // clang-format off
 // because these includes need to be in-order
 #include <sys/types.h> // IWYU pragma: keep

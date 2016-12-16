@@ -24,6 +24,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <netinet/in.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/queue.h>
 

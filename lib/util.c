@@ -24,11 +24,13 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <ctype.h>
+#include <pthread.h>
+#include <regex.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "util.h"
-
 
 pthread_mutex_t _lock;
 pthread_t _master;
@@ -59,7 +61,6 @@ static void __attribute__((constructor)) premain()
     assert(regcomp(&_comp, DCOMPONENT, REG_EXTENDED | REG_ICASE | REG_NOSUB) ==
                0,
            "may not be a valid regexp: %s", DCOMPONENT);
-
 }
 
 
