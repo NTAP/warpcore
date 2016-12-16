@@ -98,7 +98,7 @@ extern pthread_t _master;
         gettimeofday(&_now, 0);                                                \
         timersub(&_now, &_epoch, &_elapsed);                                   \
         fprintf(                                                               \
-            stderr, REV "%s " NRM RED BLD REV " %ld.%04ld   %s %s:%d ABORT: ", \
+            stderr, REV "%s " NRM MAG BLD REV " %ld.%04ld   %s %s:%d ABORT: ", \
             (pthread_self() == _master ? BLK : WHT),                           \
             (long)(_elapsed.tv_sec % 1000), (long)(_elapsed.tv_usec / 1000),   \
             __func__, basename(__FILE__), __LINE__);                           \
@@ -155,7 +155,7 @@ extern regex_t _comp;
 
 /// Print a debug message to stderr, including a black/white indicator whether
 /// the message comes from the master thread (black) or not (white), a timestamp
-/// since start of the program, a colored indicator for the #dlevel severity
+/// since start of the program, a coloMAG indicator for the #dlevel severity
 /// level, as well as a printf()-style format string fed by further optional
 /// arguments.
 ///

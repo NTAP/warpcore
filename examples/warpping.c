@@ -23,24 +23,23 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <getopt.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <time.h>
 
-#include <getopt.h>     // for optarg, getopt
-#include <netdb.h>      // for addrinfo, freeaddrinfo, getaddrinfo
-#include <netinet/in.h> // for sockaddr_in, in_addr, IPPROTO_UDP
-#include <poll.h>       // for poll, POLLIN, pollfd
-#include <signal.h>     // for signal, SIGALRM, SIG_ERR
-#include <stdbool.h>    // for false, bool, true
-#include <stdint.h>     // for uint32_t, UINT32_MAX, uint16_t
-#include <stdio.h>      // for printf, puts
-#include <stdlib.h>     // for strtol, random
-#include <string.h>     // for memcpy
-#include <sys/param.h>  // for MAX, MIN
-#include <sys/queue.h>  // for STAILQ_CONCAT, STAILQ_FIRST, STAILQ_FOREACH
-#include <sys/socket.h> // for PF_INET
-#include <sys/time.h>   // for setitimer, ITIMER_REAL, itimerval
-#include <time.h>       // for timespec, clock_gettime, ::_CLOCK_REALTIME
-
-#include "warpcore.h" // for w_free, w_fd, w_iov, w_alloc, w_bind, w_cleanup
+#include "warpcore.h"
 
 
 static void usage(const char * const name,
@@ -148,6 +147,9 @@ int main(const int argc, char * const argv[])
         return 0;
     }
 
+    if (end < start)
+        end = start;
+
     const struct addrinfo hints = {.ai_family = PF_INET,
                                    .ai_protocol = IPPROTO_UDP};
     uint32_t rip = 0;
@@ -185,12 +187,12 @@ int main(const int argc, char * const argv[])
     // send packet trains of sizes between "start" and "end"
     puts("nsec\tsize");
     for (uint32_t size = start; size <= end; size += inc) {
+        // allocate tx chain
+        struct w_iov_chain * const o = w_alloc(w, size, 0);
+
         // send "loops" number of payloads of size "size" and wait for reply
         long iter = loops;
         while (likely(iter--)) {
-            // allocate tx chain
-            struct w_chain * const o = w_alloc(w, size, 0);
-
             // timestamp the payloads
             struct timespec now;
             assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
@@ -201,11 +203,12 @@ int main(const int argc, char * const argv[])
             // send the data and free the w_iov
             w_tx(s, o);
             w_nic_tx(w);
-            w_free(w, o);
+            STAILQ_FOREACH (v, o, next)
+                assert(memcmp(v->buf, &now, sizeof(now)) == 0, "data changed");
             warn(info, "sent %d byte%s", size, plural(size));
 
             // wait for a reply
-            struct w_chain * i = 0;
+            struct w_iov_chain * i = 0;
             uint32_t len = 0;
 
             // set a timeout
@@ -225,9 +228,9 @@ int main(const int argc, char * const argv[])
                     w_nic_rx(w);
 
                 // read new data
-                struct w_chain * new = w_rx(s);
+                struct w_iov_chain * new = w_rx(s);
                 if (new) {
-                    len += w_iov_len(new);
+                    len += w_iov_chain_len(new);
                     if (i)
                         STAILQ_CONCAT(i, new);
                     else
@@ -270,6 +273,8 @@ int main(const int argc, char * const argv[])
             // we are done with the received data
             w_free(w, i);
         }
+
+        w_free(w, o);
     }
     w_close(s);
     w_cleanup(w);

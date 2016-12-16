@@ -23,14 +23,18 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "arp.h"
+
+#include <arpa/inet.h>
+#include <poll.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
 
 #ifdef __linux__
-#include <net/if.h> // IWYU pragma: keep
-#include <net/netmap.h>
 #include <netinet/ether.h>
 #include <netinet/in.h>
-#include <sys/types.h>
 #else
 // clang-format off
 // because these includes need to be in-order
@@ -39,14 +43,9 @@
 // clang-format on
 #endif
 
-#include <arpa/inet.h>
-#include <poll.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/queue.h>
-#include <sys/socket.h>
-
+#include "arp.h"
 #include "backend.h"
+#include "eth.h"
 #include "ip.h"
 #include "warpcore.h"
 
@@ -121,24 +120,38 @@ arp_cache_update(struct warpcore * w,
 ///                   Ethernet frame
 ///
 static void __attribute__((nonnull))
-arp_is_at(struct warpcore * const w, void * const buf)
+arp_is_at(struct warpcore * const w,
+          void * const buf)
 {
-    struct arp_hdr * const arp = eth_data(buf);
+    // grab iov for reply
+    struct w_iov * v = alloc_iov(w);
+    struct arp_hdr * const reply = eth_data(v->buf);
 
-    // modify ARP header
-    arp->op = htons(ARP_OP_REPLY);
-    memcpy(arp->tha, arp->sha, sizeof arp->tha);
-    arp->tpa = arp->spa;
-    memcpy(arp->sha, w->mac, sizeof arp->sha);
-    arp->spa = w->ip;
+    // construct ARP header
+    const struct arp_hdr * const req = eth_data(buf);
+
+    reply->hrd = htons(ARP_HRD_ETHER);
+    reply->pro = ETH_TYPE_IP;
+    reply->hln = ETH_ADDR_LEN;
+    reply->pln = IP_ADDR_LEN;
+    reply->op = htons(ARP_OP_REPLY);
+    memcpy(reply->sha, w->mac, ETH_ADDR_LEN);
+    reply->spa = w->ip;
+    memcpy(reply->tha, req->sha, ETH_ADDR_LEN);
+    reply->tpa = req->spa;
 
     warn(notice, "ARP reply %s is at %s",
-         inet_ntoa(*(const struct in_addr * const) & arp->spa),
-         ether_ntoa((const struct ether_addr * const)arp->sha));
+         inet_ntoa(*(const struct in_addr * const) & reply->spa),
+         ether_ntoa((const struct ether_addr * const)reply->sha));
 
     // send the Ethernet packet
-    eth_tx_rx_cur(w, buf, sizeof(struct arp_hdr));
+    struct eth_hdr * const eth = v->buf;
+    memcpy(eth->dst, req->sha, ETH_ADDR_LEN);
+    memcpy(eth->src, w->mac, ETH_ADDR_LEN);
+    eth->type = ETH_TYPE_ARP;
+    eth_tx(w, v, sizeof(*reply));
     w_nic_tx(w);
+    STAILQ_INSERT_HEAD(&w->iov, v, next);
 }
 
 
@@ -161,10 +174,7 @@ uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
              inet_ntoa(*(const struct in_addr * const) & dip));
 
         // grab a spare buffer
-        struct w_iov * const v = STAILQ_FIRST(&w->iov);
-        assert(v != 0, "out of spare bufs");
-        STAILQ_REMOVE_HEAD(&w->iov, next);
-        v->buf = IDX2BUF(w, v->idx);
+        struct w_iov * const v = alloc_iov(w);
 
         // pointers to the start of the various headers
         struct eth_hdr * const eth = v->buf;
@@ -195,7 +205,7 @@ uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
 #endif
 
         // send the Ethernet packet
-        eth_tx(w, v, sizeof(struct eth_hdr) + sizeof(struct arp_hdr));
+        eth_tx(w, v, sizeof(*eth) + sizeof(*arp));
         w_nic_tx(w);
 
         // make iov available again
@@ -218,12 +228,15 @@ uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
 /// local interface, respond appropriately. For incoming ARP replies, updates
 /// the information in the w_sock structures of all open connections, as needed.
 ///
-/// @param      w     Warpcore engine
-/// @param      buf   Buffer containing incoming ARP request inside an Ethernet
-///                   frame
+/// The Ethernet frame to operate on is in the current netmap lot of the
+/// indicated RX ring.
 ///
-void arp_rx(struct warpcore * const w, void * const buf)
+/// @param      w     Warpcore engine
+/// @param      r     Currently active netmap RX ring.
+///
+void arp_rx(struct warpcore * const w, struct netmap_ring * const r)
 {
+    void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct arp_hdr * const arp = eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 

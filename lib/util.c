@@ -24,11 +24,13 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <ctype.h>
-#include <stdint.h> // IWYU pragma: keep
+#include <pthread.h>
+#include <regex.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "util.h"
-
 
 pthread_mutex_t _lock;
 pthread_t _master;
@@ -46,11 +48,6 @@ regex_t _comp;
 ///
 static void __attribute__((constructor)) premain()
 {
-    // Initialize the regular expression used for restricting debug output
-    assert(regcomp(&_comp, DCOMPONENT, REG_EXTENDED | REG_ICASE | REG_NOSUB) ==
-               0,
-           "may not be a valid regexp: %s", DCOMPONENT);
-
     // Get the current time
     gettimeofday(&_epoch, 0);
 
@@ -59,6 +56,11 @@ static void __attribute__((constructor)) premain()
 
     // Remember the ID of the main thread
     _master = pthread_self();
+
+    // Initialize the regular expression used for restricting debug output
+    assert(regcomp(&_comp, DCOMPONENT, REG_EXTENDED | REG_ICASE | REG_NOSUB) ==
+               0,
+           "may not be a valid regexp: %s", DCOMPONENT);
 }
 
 

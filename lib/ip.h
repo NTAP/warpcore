@@ -30,11 +30,11 @@
 
 #ifdef __FreeBSD__
 #include <arpa/inet.h>
-struct w_iov;
 #endif
 
 #include "eth.h"
 
+struct w_iov;
 struct warpcore;
 
 
@@ -139,13 +139,28 @@ struct ip_hdr {
 #define ip_data_len(ip) ((ntohs((ip)->len) - ip_hl(ip)))
 
 
+/// Initialize the static fields in an IPv4 ip_hdr header. TTL is currently set
+/// to 1.
+///
+/// @param      ip    Pointer to the ip_hdr to initialize.
+///
+#define ip_hdr_init(ip)                                                        \
+    do {                                                                       \
+        (ip)->vhl = (4 << 4) + 5;                                              \
+        (ip)->off = htons(IP_DF);                                              \
+        (ip)->ttl = 1;                                                         \
+        (ip)->p = IP_P_UDP;                                                    \
+        (ip)->cksum = 0;                                                       \
+    } while (0)
+
+
 extern void __attribute__((nonnull)) ip_tx_with_rx_buf(struct warpcore * w,
                                                        const uint8_t p,
                                                        void * const buf,
                                                        const uint16_t len);
 
 extern void __attribute__((nonnull))
-ip_rx(struct warpcore * const w, void * const buf);
+ip_rx(struct warpcore * const w, struct netmap_ring * const r);
 
 extern bool __attribute__((nonnull))
 ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);

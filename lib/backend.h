@@ -57,7 +57,7 @@
 /// for the warpcore w_sock::iv and w_sock::ov socket buffers, as well as for
 /// maintaining packetized data inside an application using warpcore.
 ///
-#define NUM_BUFS 1024 // XXX this should become configurable
+#define NUM_BUFS 65535 // XXX this should become configurable
 
 
 /// A warpcore template packet header structure.
@@ -75,7 +75,7 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     ///
     struct warpcore * w;
-    struct w_chain * iv;      ///< w_iov chain containing incoming unread data.
+    struct w_iov_chain * iv;  ///< w_iov chain containing incoming unread data.
     SLIST_ENTRY(w_sock) next; ///< Next socket associated with this engine.
     /// The template header to be used for outbound packets on this
     /// w_sock.
@@ -94,13 +94,14 @@ struct w_sock {
 };
 
 struct arp_entry;
+struct tx_pending_entry;
 
 /// A warpcore engine.
 ///
 struct warpcore {
     struct w_sock ** udp;        ///< Array 64K pointers to w_sock sockets.
     SLIST_HEAD(sh, w_sock) sock; ///< List of open (bound) w_sock sockets.
-    struct w_chain iov;          ///< List of w_iov buffers available.
+    struct w_iov_chain iov;      ///< List of w_iov buffers available.
     uint32_t ip;                 ///< Local IPv4 address used on this interface.
     uint32_t mask;               ///< IPv4 netmask of this interface.
     uint16_t mtu;                ///< MTU of this interface.
@@ -109,17 +110,17 @@ struct warpcore {
     uint32_t rip; ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP
     int fd;                 ///< Netmap file descriptor.
-    uint32_t cur_txr;       ///< Index of the TX ring currently active.
-    uint32_t cur_rxr;       ///< Index of the RX ring currently active.
     struct netmap_if * nif; ///< Netmap interface.
     struct nmreq * req;     ///< Netmap request structure.
     SLIST_HEAD(arp_cache_head, arp_entry) arp_cache; ///< The ARP cache.
-#else
+    /// List of w_iovs that are currently in TX rings.
+    SLIST_HEAD(tx_pending_head, w_iov) tx_pending;
+    uint32_t cur_txr; ///< Index of the TX ring currently active.
+#endif
     /// @cond
     /// @internal Padding.
     uint8_t _unused[4];
-/// @endcond
-#endif
+    /// @endcond
     const char * backend; ///< Name of the warpcore backend used by the engine.
     SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
     struct w_iov * bufs;
@@ -146,6 +147,25 @@ struct warpcore {
 #define mk_net(ip, mask) ((ip) & (mask))
 
 
+/// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
+/// returned via STAILQ_INSERT_HEAD(&w->iov, v, next).
+///
+/// @param      w     Warpcore engine.
+///
+/// @return     Spare w_iov.
+///
+inline struct w_iov * alloc_iov(struct warpcore * const w)
+{
+    struct w_iov * const v = STAILQ_FIRST(&w->iov);
+    assert(v != 0, "out of spare iovs");
+    STAILQ_REMOVE_HEAD(&w->iov, next);
+    // warn(debug, "allocating spare iov %u", v->idx);
+    v->buf = IDX2BUF(w, v->idx);
+    v->len = w->mtu;
+    return v;
+}
+
+
 extern void __attribute__((nonnull)) backend_bind(struct w_sock * s);
 
 extern void __attribute__((nonnull)) backend_connect(struct w_sock * const s);
@@ -156,3 +176,6 @@ backend_init(struct warpcore * w, const char * const ifname);
 extern void __attribute__((nonnull)) backend_cleanup(struct warpcore * const w);
 
 extern void __attribute__((nonnull)) backend_rx(struct warpcore * const w);
+
+extern void __attribute__((nonnull))
+backend_tx(const struct w_sock * const s, struct w_iov * const v);

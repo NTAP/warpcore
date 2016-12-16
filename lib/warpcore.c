@@ -23,20 +23,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include "warpcore.h"
-
-#ifdef __linux__
-#include <netinet/ether.h> // IWYU pragma: keep
-#else
-// clang-format off
-#include <sys/types.h>    // IWYU pragma: keep
-#include <net/ethernet.h>
-// clang-format on
-#endif
-
-#include <unistd.h> // IWYU pragma: keep
 #include <arpa/inet.h>
-#include <ifaddrs.h> // IWYU pragma: keep
+#include <ifaddrs.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -44,14 +32,23 @@
 #include <string.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <unistd.h>
+
+#ifdef __linux__
+#include <netinet/ether.h>
+#else
+#include <net/ethernet.h>
+#endif
 
 #include "backend.h"
 #include "eth.h"
 #include "ip.h"
-#include "plat.h"
 #include "udp.h"
-#include "util.h"
 #include "version.h"
+#include "warpcore.h"
+
+
+extern struct w_iov * alloc_iov(struct warpcore * const w);
 
 
 /// A global list of netmap engines that have been initialized for different
@@ -71,33 +68,34 @@ static SLIST_HEAD(engines, warpcore) wc = SLIST_HEAD_INITIALIZER(wc);
 ///
 /// @return     Chain of w_iov structs.
 ///
-struct w_chain *
+struct w_iov_chain *
 w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
 {
     struct w_iov * v = 0;
     int32_t l = (int32_t)len;
-    uint32_t n = 0;
-    struct w_chain * chain = calloc(1, sizeof(*chain));
+    struct w_iov_chain * chain = calloc(1, sizeof(*chain));
     assert(chain, "could not calloc");
     STAILQ_INIT(chain);
+#ifndef NDEBUG
+    uint32_t n = 0;
+#endif
     while (l > 0) {
-        v = STAILQ_FIRST(&w->iov);
-        assert(v != 0, "out of spare bufs after grabbing %d", n);
-        STAILQ_REMOVE_HEAD(&w->iov, next);
-        // warn(debug, "allocating spare buf %u to app", v->idx);
-        v->buf = IDX2BUF(w, v->idx) + sizeof(struct w_hdr) + off;
-        v->len = w->mtu - sizeof(struct w_hdr) - off;
+        v = alloc_iov(w);
+        v->buf = (uint8_t *)v->buf + sizeof(struct w_hdr) + off;
+        v->len -= (sizeof(struct w_hdr) + off);
         l -= v->len;
-        n++;
         STAILQ_INSERT_TAIL(chain, v, next);
+#ifndef NDEBUG
+        n++;
+#endif
     }
 
     if (v)
         // adjust length of last iov so chain is the exact length requested
         v->len += l; // l is negative
 
-    warn(info, "allocated w_chain (len %d in %d w_iov%s, offset %d)", len, n,
-         plural(n), off);
+    warn(info, "allocated w_iov_chain (len %d in %d w_iov%s, offset %d)", len,
+         n, plural(n), off);
     return chain;
 }
 
@@ -110,7 +108,7 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
 /// @param      w     Warpcore engine.
 /// @param      c     Chain of w_iov structs to free.
 ///
-void w_free(struct warpcore * const w, struct w_chain * const c)
+void w_free(struct warpcore * const w, struct w_iov_chain * const c)
 {
     STAILQ_CONCAT(&w->iov, c);
     free(c);
@@ -119,19 +117,35 @@ void w_free(struct warpcore * const w, struct w_chain * const c)
 
 /// Return the total payload length of w_iov chain @p c.
 ///
-/// Do not make this , so the caller doesn't have to check v.
-///
 /// @param[in]  c     The w_iov chain to compute the payload length of.
 ///
 /// @return     Sum of the payload lengths of the w_iov structs in @p c.
 ///
-uint32_t w_iov_len(const struct w_chain * const c)
+uint32_t w_iov_chain_len(const struct w_iov_chain * const c)
 {
     uint32_t l = 0;
     if (c) {
         const struct w_iov * v;
         STAILQ_FOREACH (v, c, next)
             l += v->len;
+    }
+    return l;
+}
+
+
+/// Return the number of w_iov structures in the w_iov chain @p c.
+///
+/// @param[in]  c     The w_iov chain to compute the payload length of.
+///
+/// @return     Number of w_iov structs in @p c.
+///
+uint32_t w_iov_chain_cnt(const struct w_iov_chain * const c)
+{
+    uint32_t l = 0;
+    if (c) {
+        const struct w_iov * v;
+        STAILQ_FOREACH (v, c, next)
+            l++;
     }
     return l;
 }
@@ -188,7 +202,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
         return s;
     }
 
-    assert((w->udp[port] = s = calloc(1, sizeof(struct w_sock))) != 0,
+    assert((w->udp[port] = s = calloc(1, sizeof(*s))) != 0,
            "cannot allocate w_sock");
 
     // initialize the non-zero fields of outgoing template header
@@ -196,10 +210,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
     memcpy(&s->hdr.eth.src, w->mac, ETH_ADDR_LEN);
     // s->hdr.eth.dst is set on w_connect()
 
-    s->hdr.ip.vhl = (4 << 4) + 5;
-    s->hdr.ip.ttl = 1; // XXX TODO: pick something sensible
-    s->hdr.ip.off |= htons(IP_DF);
-    s->hdr.ip.p = IP_P_UDP;
+    ip_hdr_init(&s->hdr.ip);
     s->hdr.ip.src = w->ip;
     s->hdr.udp.sport = port;
     // s->hdr.ip.dst is set on w_connect()
@@ -259,17 +270,34 @@ void w_close(struct w_sock * const s)
 /// data, or zero. Needs
 ///             to be freed with w_free() by the caller.
 ///
-struct w_chain * w_rx(struct w_sock * const s)
+struct w_iov_chain * w_rx(struct w_sock * const s)
 {
     backend_rx(s->w);
     if (STAILQ_EMPTY(s->iv))
         return 0;
-    struct w_chain * const empty = calloc(1, sizeof(*empty));
+    struct w_iov_chain * const empty = calloc(1, sizeof(*empty));
     assert(empty, "could not calloc");
     STAILQ_INIT(empty);
-    struct w_chain * const tmp = s->iv;
+    struct w_iov_chain * const tmp = s->iv;
     s->iv = empty;
     return tmp;
+}
+
+
+/// Loops over the w_iov structures in the chain @p c, attemoting to send them
+/// all.
+///
+/// @param[in]  s     { parameter_description }
+/// @param      c     { parameter_description }
+///
+void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
+{
+    struct w_iov * v;
+    STAILQ_FOREACH (v, c, next) {
+        assert(s->hdr.ip.dst && s->hdr.udp.dport || v->ip && v->port,
+               "no destination information");
+        backend_tx(s, v);
+    }
 }
 
 
@@ -319,17 +347,14 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     assert((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct warpcore");
 
     // we mostly loop here because the link may be down
-    // mpbs can be zero on generic platforms
-    while (link_up == false || IS_ZERO(w->mac) || w->mtu == 0 || w->ip == 0 ||
-           w->mask == 0) {
-
+    do {
         // get interface information
         struct ifaddrs * ifap;
         assert(getifaddrs(&ifap) != -1, "%s: cannot get interface information",
                ifname);
 
         bool found = false;
-        for (const struct ifaddrs * i = ifap; i->ifa_next; i = i->ifa_next) {
+        for (const struct ifaddrs * i = ifap; i; i = i->ifa_next) {
             if (strcmp(i->ifa_name, ifname) != 0)
                 continue;
             else
@@ -341,6 +366,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
                 w->mtu = plat_get_mtu(i);
                 link_up = plat_get_link(i);
 #ifndef NDEBUG
+                // mpbs can be zero on generic platforms and loopback interfaces
                 const uint32_t mbps = plat_get_mbps(i);
                 warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
                      i->ifa_name,
@@ -350,12 +376,12 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
                 break;
             case AF_INET:
                 // get IP addr and netmask
-                if (!w->ip)
+                if (w->ip == 0) {
                     w->ip = ((struct sockaddr_in *)(void *)i->ifa_addr)
                                 ->sin_addr.s_addr;
-                if (!w->mask)
                     w->mask = ((struct sockaddr_in *)(void *)i->ifa_netmask)
                                   ->sin_addr.s_addr;
+                }
                 break;
             case AF_INET6:
                 break;
@@ -367,11 +393,16 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
         }
         assert(found, "unknown interface %s", ifname);
 
-        // sleep for a bit, so we don't burn the CPU when link is down
-        warn(warn, "%s: cannot obtain required interface information", ifname);
         freeifaddrs(ifap);
-        sleep(1);
-    }
+        if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0) {
+            // sleep for a bit, so we don't burn the CPU when link is down
+            warn(warn, "%s: could not obtain required interface "
+                       "information, retrying",
+                 ifname);
+            sleep(1);
+        }
+
+    } while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0);
 
     // set the IP address of our default router
     w->rip = rip;

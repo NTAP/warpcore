@@ -23,18 +23,22 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef __linux__
-#include <netinet/in.h> // for ntohs, htons
-#include <sys/types.h>  // for ssize_t
-#else
-#include <arpa/inet.h>
-#endif
-
+// clang-format off
+// because these includes need to be in-order
 #include <net/if.h> // IWYU pragma: keep
+#include <stdint.h>
 #include <net/netmap.h>
+// clang-format on
+#include <stdbool.h>
 #include <string.h>
 #include <sys/queue.h>
 #include <sys/time.h>
+
+#ifdef __linux__
+#include <netinet/in.h>
+#else
+#include <arpa/inet.h>
+#endif
 
 #include "arp.h"
 #include "backend.h"
@@ -52,7 +56,7 @@
 ///
 #define udp_log(udp)                                                           \
     do {                                                                       \
-        warn(info, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport),  \
+        warn(debug, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport), \
              ntohs(udp->dport), ntohs(udp->cksum), ntohs(udp->len));           \
     } while (0)
 #else
@@ -68,22 +72,26 @@
 /// data to the corresponding w_sock. Also makes the receive timestamp and IPv4
 /// flags available, via w_iov::ts and w_iov::flags, respectively.
 ///
-/// @param      w     Warpcore engine.
-/// @param      buf   Buffer containing the Ethernet frame to receive from.
-/// @param[in]  src   The IPv4 source address of the sender of this packet.
+/// The Ethernet frame to operate on is in the current netmap lot of the
+/// indicated RX ring.
 ///
-void udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
+/// @param      w     Warpcore engine
+/// @param      r     Currently active netmap RX ring.
+///
+void udp_rx(struct warpcore * const w,
+            struct netmap_ring * const r)
 {
+    void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct ip_hdr * const ip = eth_data(buf);
     struct udp_hdr * const udp = ip_data(buf);
-    const uint16_t len = ntohs(udp->len);
+    const uint16_t udp_len = ntohs(udp->len);
 
     udp_log(udp);
 
     // validate the checksum
     const uint16_t orig = udp->cksum;
-    udp->cksum = in_pseudo(ip->src, ip->dst, htons(len + ip->p));
-    const uint16_t cksum = in_cksum(udp, len);
+    udp->cksum = in_pseudo(ip->src, ip->dst, htons(udp_len + ip->p));
+    const uint16_t cksum = in_cksum(udp, udp_len);
     udp->cksum = orig;
     if (unlikely(orig != cksum)) {
         warn(warn, "invalid UDP checksum, received 0x%04x != 0x%04x",
@@ -96,33 +104,33 @@ void udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
         // nobody bound to this port locally
         // send an ICMP unreachable reply, if this was not a broadcast
         if (ip->src)
-            icmp_tx_unreach(w, ICMP_UNREACH_PORT, buf);
+            icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
         return;
     }
 
     // grab an unused iov for the data in this packet
     struct w_iov * const i = STAILQ_FIRST(&w->iov);
     assert(i != 0, "out of spare bufs");
-    struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
-    struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
     STAILQ_REMOVE_HEAD(&w->iov, next);
 
+    struct netmap_slot * const rxs = &r->slot[r->cur];
+
     warn(debug, "swapping rx ring %u slot %d (buf %d) and spare buf %u",
-         w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
+         r->ringid, r->cur, rxs->buf_idx, i->idx);
 
     // remember index of this buffer
     const uint32_t tmp_idx = i->idx;
 
     // adjust the buffer offset to the received data into the iov
-    i->buf = (char *)ip_data(buf) + sizeof(struct udp_hdr);
-    i->len = len - sizeof(struct udp_hdr);
+    i->buf = (char *)ip_data(buf) + sizeof(*udp);
+    i->len = udp_len - sizeof(*udp);
     i->idx = rxs->buf_idx;
 
     // tag the iov with sender information and metadata
-    i->ip = src;
+    i->ip = ip->src;
     i->port = udp->sport;
     i->flags = ip->tos;
-    memcpy(&i->ts, &rxr->ts, sizeof(i->ts));
+    memcpy(&i->ts, &r->ts, sizeof(i->ts));
 
     // append the iov to the socket
     STAILQ_INSERT_TAIL(s->iv, i, next);
@@ -133,59 +141,40 @@ void udp_rx(struct warpcore * const w, void * const buf, const uint32_t src)
 }
 
 
-/// Sends w_iov payloads contained in a w_sock::ov via UDP. For a connected
-/// w_sock, prepends the template header from w_sock::hdr, computes the UDP
-/// length and checksum, and hands the packet off to ip_tx(). For a disconnected
-/// w_sock, uses the destination IP and port information in each w_iov for TX.
-/// Stops processing packets from @p v if ip_tx() indicates that the TX rings
-/// are full.
+/// Sends a payload contained in a w_sock::ov via UDP. For a connected w_sock,
+/// prepends the template header from w_sock::hdr, computes the UDP length and
+/// checksum, and hands the packet off to ip_tx(). For a disconnected w_sock,
+/// uses the destination IP and port information in the w_iov for TX.
 ///
 /// @param      s     The w_sock to transmit over.
-/// @param      c     w_iov chain to transmit.
+/// @param      v     The w_iov to transmit.
 ///
-void udp_tx(const struct w_sock * const s, struct w_chain * const c)
+/// @return     True if the payloads was sent, false otherwise.
+///
+bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
-    uint32_t n = 0, l = 0;
-    // packetize bufs and place in tx ring
-    struct w_iov * o;
-    STAILQ_FOREACH (o, c, next) {
-        // copy template header into buffer and fill in remaining fields
-        void * const buf = IDX2BUF(s->w, o->idx);
-        memcpy(buf, &s->hdr, sizeof(s->hdr));
+    // copy template header into buffer and fill in remaining fields
+    void * const buf = IDX2BUF(s->w, v->idx);
+    memcpy(buf, &s->hdr, sizeof(s->hdr));
 
-        struct ip_hdr * const ip = eth_data(buf);
-        struct udp_hdr * const udp = ip_data(buf);
-        const uint16_t len = o->len + sizeof(struct udp_hdr);
-        udp->len = htons(len);
+    struct ip_hdr * const ip = eth_data(buf);
+    struct udp_hdr * const udp = ip_data(buf);
+    const uint16_t len = v->len + sizeof(*udp);
+    udp->len = htons(len);
 
-        // if w_sock is disconnected, use destination IP and port from w_iov
-        // instead of the one in the template header
-        if (s->hdr.ip.dst == 0 && s->hdr.udp.dport == 0) {
-            assert(o->ip && o->port, "no destination information");
-            struct eth_hdr * const e = buf;
-            memcpy(&e->dst, arp_who_has(s->w, o->ip), ETH_ADDR_LEN);
-            ip->dst = o->ip;
-            udp->dport = o->port;
-            // warn(debug, "w_sock disconnected, sending to %s:%d at %s",
-            //      inet_ntoa(*(const struct in_addr * const) & o->ip),
-            //      ntohs(o->port), ether_ntoa((const struct ether_addr *
-            //      const)e->dst));
-        }
-
-        // compute the checksum
-        udp->cksum = in_pseudo(s->w->ip, ip->dst, htons(len + IP_P_UDP));
-        udp->cksum = in_cksum(udp, len);
-
-        udp_log(udp);
-
-        // do IP transmit preparation
-        if (ip_tx(s->w, o, len)) {
-            n++;
-            l += o->len;
-        } else
-            // no space left in rings
-            break;
+    // if w_sock is disconnected, use destination IP and port from w_iov
+    // instead of the one in the template header
+    if (s->hdr.ip.dst == 0) {
+        struct eth_hdr * const e = buf;
+        memcpy(&e->dst, arp_who_has(s->w, v->ip), ETH_ADDR_LEN);
+        ip->dst = v->ip;
+        udp->dport = v->port;
     }
 
-    warn(info, "proto %d tx iov (len %d in %d bufs) done", s->hdr.ip.p, l, n);
+    // compute the checksum
+    udp->cksum = in_pseudo(s->w->ip, ip->dst, htons(len + IP_P_UDP));
+    udp->cksum = in_cksum(udp, len);
+    udp_log(udp);
+
+    return ip_tx(s->w, v, len);
 }

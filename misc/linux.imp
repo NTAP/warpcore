@@ -1,0 +1,4 @@
+# iwyu mappings for Linux
+[
+        { include: ["<bits/socket_type.h>", "private", "<sys/socket.h>", "public"] },
+]
