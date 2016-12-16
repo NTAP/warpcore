@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -70,7 +71,9 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 
     assert(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
 
-    const uint16_t mtu = (uint16_t)ifr.ifr_ifru.ifru_mtu;
+    // loopback MTU is 65536 on Linux, which is larger than what an IP header
+    // can encode - sigh
+    const uint16_t mtu = MIN(UINT16_MAX, ifr.ifr_ifru.ifru_mtu);
 
     close(s);
     return mtu;
@@ -90,6 +93,14 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
 
     struct ifreq ifr = {0};
     strcpy(ifr.ifr_name, i->ifa_name);
+
+    // if this is loopback interface, SIOCETHTOOL will fail, so just return a
+    // placeholder value
+    assert(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
+    if (ifr.ifr_flags & IFF_LOOPBACK) {
+        close(s);
+        return 0;
+    }
 
     struct ethtool_cmd edata;
     ifr.ifr_data = (__caddr_t)&edata;

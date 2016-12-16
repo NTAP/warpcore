@@ -333,17 +333,14 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     assert((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct warpcore");
 
     // we mostly loop here because the link may be down
-    // mpbs can be zero on generic platforms
-    while (link_up == false || IS_ZERO(w->mac) || w->mtu == 0 || w->ip == 0 ||
-           w->mask == 0) {
-
+    do {
         // get interface information
         struct ifaddrs * ifap;
         assert(getifaddrs(&ifap) != -1, "%s: cannot get interface information",
                ifname);
 
         bool found = false;
-        for (const struct ifaddrs * i = ifap; i->ifa_next; i = i->ifa_next) {
+        for (const struct ifaddrs * i = ifap; i; i = i->ifa_next) {
             if (strcmp(i->ifa_name, ifname) != 0)
                 continue;
             else
@@ -355,6 +352,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
                 w->mtu = plat_get_mtu(i);
                 link_up = plat_get_link(i);
 #ifndef NDEBUG
+                // mpbs can be zero on generic platforms and loopback interfaces
                 const uint32_t mbps = plat_get_mbps(i);
                 warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
                      i->ifa_name,
@@ -364,12 +362,12 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
                 break;
             case AF_INET:
                 // get IP addr and netmask
-                if (!w->ip)
+                if (w->ip == 0) {
                     w->ip = ((struct sockaddr_in *)(void *)i->ifa_addr)
                                 ->sin_addr.s_addr;
-                if (!w->mask)
                     w->mask = ((struct sockaddr_in *)(void *)i->ifa_netmask)
                                   ->sin_addr.s_addr;
+                }
                 break;
             case AF_INET6:
                 break;
@@ -381,11 +379,16 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
         }
         assert(found, "unknown interface %s", ifname);
 
-        // sleep for a bit, so we don't burn the CPU when link is down
-        warn(warn, "%s: cannot obtain required interface information", ifname);
         freeifaddrs(ifap);
-        sleep(1);
-    }
+        if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0) {
+            // sleep for a bit, so we don't burn the CPU when link is down
+            warn(warn, "%s: could not obtain required interface "
+                       "information, retrying",
+                 ifname);
+            sleep(1);
+        }
+
+    } while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0);
 
     // set the IP address of our default router
     w->rip = rip;
