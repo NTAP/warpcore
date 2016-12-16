@@ -230,7 +230,7 @@ int main(const int argc, char * const argv[])
                 // read new data
                 struct w_iov_chain * new = w_rx(s);
                 if (new) {
-                    len += w_iov_len(new);
+                    len += w_iov_chain_len(new);
                     if (i)
                         STAILQ_CONCAT(i, new);
                     else

@@ -117,19 +117,35 @@ void w_free(struct warpcore * const w, struct w_iov_chain * const c)
 
 /// Return the total payload length of w_iov chain @p c.
 ///
-/// Do not make this , so the caller doesn't have to check v.
-///
 /// @param[in]  c     The w_iov chain to compute the payload length of.
 ///
 /// @return     Sum of the payload lengths of the w_iov structs in @p c.
 ///
-uint32_t w_iov_len(const struct w_iov_chain * const c)
+uint32_t w_iov_chain_len(const struct w_iov_chain * const c)
 {
     uint32_t l = 0;
     if (c) {
         const struct w_iov * v;
         STAILQ_FOREACH (v, c, next)
             l += v->len;
+    }
+    return l;
+}
+
+
+/// Return the number of w_iov structures in the w_iov chain @p c.
+///
+/// @param[in]  c     The w_iov chain to compute the payload length of.
+///
+/// @return     Number of w_iov structs in @p c.
+///
+uint32_t w_iov_chain_cnt(const struct w_iov_chain * const c)
+{
+    uint32_t l = 0;
+    if (c) {
+        const struct w_iov * v;
+        STAILQ_FOREACH (v, c, next)
+            l++;
     }
     return l;
 }

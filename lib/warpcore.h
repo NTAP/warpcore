@@ -106,7 +106,9 @@ w_tx(const struct w_sock * const s, struct w_iov_chain * const c);
 extern void __attribute__((nonnull))
 w_free(struct warpcore * const w, struct w_iov_chain * const c);
 
-extern uint32_t w_iov_len(const struct w_iov_chain * const c);
+extern uint32_t w_iov_chain_len(const struct w_iov_chain * const c);
+
+extern uint32_t w_iov_chain_cnt(const struct w_iov_chain * const c);
 
 extern int __attribute__((nonnull)) w_fd(struct w_sock * const s);
 
