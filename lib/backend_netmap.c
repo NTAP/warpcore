@@ -222,8 +222,6 @@ void backend_rx(struct warpcore * const w)
 
             // process the current slot
             eth_rx(w, r);
-            // eth_rx(w, NETMAP_BUF(r, r->slot[r->cur].buf_idx),
-                   // r->slot[r->cur].len);
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
     }
@@ -273,17 +271,12 @@ void w_nic_tx(struct warpcore * const w)
         struct w_iov * const v = SLIST_FIRST(&w->tx_pending);
         SLIST_REMOVE_HEAD(&w->tx_pending, next_tx);
 
-        struct netmap_ring * const txr = NETMAP_TXRING(w->nif, v->ring);
-        struct netmap_slot * const txs = &txr->slot[v->slot];
-
-        warn(debug,
-             "moving buf %d from ring %d slot %d back into w_iov after tx",
-             txs->buf_idx, v->ring, v->slot);
-
         // place the ring buf back into the w_iov
-        const uint32_t tmp_idx = txs->buf_idx;
-        txs->buf_idx = v->idx;
-        txs->flags = NS_BUF_CHANGED;
+        warn(debug, "moving idx %d from ring %d back into w_iov after tx",
+             v->slot->buf_idx, w->cur_txr);
+        const uint32_t tmp_idx = v->slot->buf_idx;
+        v->slot->buf_idx = v->idx;
+        v->slot->flags = NS_BUF_CHANGED;
         v->idx = tmp_idx;
         // v->buf and v->len are unchanged after NIC TX, no need to update
     }

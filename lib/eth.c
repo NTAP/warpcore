@@ -112,9 +112,9 @@ bool eth_tx(struct warpcore * const w,
             // we have space in this ring
             break;
 
+        warn(info, "tx ring %u full; moving to next", w->cur_txr);
         w->cur_txr = (w->cur_txr + 1) % w->nif->ni_tx_rings;
         txr = 0;
-        warn(info, "current tx ring full; moving to tx ring %u", w->cur_txr);
     }
 
     // return false if all rings are full
@@ -124,28 +124,23 @@ bool eth_tx(struct warpcore * const w,
     }
 
     // remember the slot we're placing this buffer into
-    v->ring = w->cur_txr;
-    v->slot = txr->cur;
+    v->slot = &txr->slot[txr->cur];
     SLIST_INSERT_HEAD(&w->tx_pending, v, next_tx);
-    struct netmap_slot * const txs = &txr->slot[txr->cur];
 
-    // prefetch the next slot into the cache, too
-    __builtin_prefetch(
-        NETMAP_BUF(txr, txr->slot[nm_ring_next(txr, txr->cur)].buf_idx));
-
-    warn(debug, "placing iov buf %u in tx ring %u slot %d (current buf %u)",
-         v->idx, v->ring, txr->cur, txs->buf_idx);
+    warn(debug, "placing iov idx %u in tx ring %u slot %d (current buf %u)",
+         v->idx, w->cur_txr, txr->cur, v->slot->buf_idx);
 
     // place v in the current tx ring
-    const uint32_t tmp_idx = txs->buf_idx;
-    txs->buf_idx = v->idx;
-    txs->len = len + sizeof(struct eth_hdr);
-    txs->flags = NS_BUF_CHANGED;
+    const uint32_t tmp_idx = v->slot->buf_idx;
+    v->slot->buf_idx = v->idx;
+    v->slot->len = len + sizeof(struct eth_hdr);
+    v->slot->flags = NS_BUF_CHANGED;
 
 #ifndef NDEBUG
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
-    const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, txs->buf_idx);
+    const struct eth_hdr * const eth =
+        (void *)NETMAP_BUF(txr, v->slot->buf_idx);
     warn(debug, "Eth %s -> %s, type %d, len %lu",
          ether_ntoa_r((const struct ether_addr *)eth->src, src),
          ether_ntoa_r((const struct ether_addr *)eth->dst, dst),

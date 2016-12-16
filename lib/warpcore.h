@@ -32,6 +32,7 @@
 #include "plat.h" // IWYU pragma: export
 #include "util.h" // IWYU pragma: export
 
+struct netmap_slot;
 struct w_sock;
 struct warpcore;
 
@@ -65,16 +66,17 @@ struct w_iov {
     /// disconnected w_sock. Ignored on TX on a connected w_sock.
     uint32_t ip;
 
-    uint32_t ring; ///< During TX, ring number of original buffer.
-    uint32_t slot; ///< During TX, slot number of original buffer.
-
     /// DSCP + ECN of the received IPv4 packet on RX, DSCP + ECN to use for the
     /// to-be-transmitted IPv4 packet on TX.
     uint8_t flags;
 
     /// @cond
     uint8_t _unused[3]; ///< @internal Padding.
-    /// @endcond
+/// @endcond
+
+#ifdef WITH_NETMAP
+    struct netmap_slot * slot; ///< During TX, pointer to TX slot.
+#endif
 
     SLIST_ENTRY(w_iov) next_tx; ///< Next w_iov during TX pending.
 
