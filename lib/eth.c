@@ -55,13 +55,15 @@
 /// each new inbound frame from w_rx(). Dispatches the frame to either ip_rx()
 /// or arp_rx(), based on its EtherType.
 ///
-/// @param      w     Warpcore engine.
-/// @param      buf   Buffer containing the inbound Ethernet frame.
-/// @param[in]  len   The length of the buffer.
+/// The Ethernet frame to operate on is in the current netmap lot of the
+/// indicated RX ring.
 ///
-void eth_rx(struct warpcore * const w, void * const buf, const uint16_t len)
+/// @param      w     Warpcore engine.
+/// @param      r     Currently active netmap RX ring.
+///
+void eth_rx(struct warpcore * const w, struct netmap_ring * const r)
 {
-    struct eth_hdr * const eth = buf;
+    struct eth_hdr * const eth = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
 
 #ifndef NDEBUG
     char src[ETH_ADDR_STRLEN];
@@ -69,7 +71,7 @@ void eth_rx(struct warpcore * const w, void * const buf, const uint16_t len)
     warn(debug, "Eth %s -> %s, type %d, len %d",
          ether_ntoa_r((const struct ether_addr *)eth->src, src),
          ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
-         ntohs(eth->type), len);
+         ntohs(eth->type), r->slot[r->cur].len);
 #endif
 
     // make sure the packet is for us (or broadcast)
@@ -80,9 +82,9 @@ void eth_rx(struct warpcore * const w, void * const buf, const uint16_t len)
     }
 
     if (likely(eth->type == ETH_TYPE_IP))
-        ip_rx(w, buf, len);
+        ip_rx(w, r);
     else if (eth->type == ETH_TYPE_ARP)
-        arp_rx(w, buf, len);
+        arp_rx(w, r);
     else
         die("unhandled ethertype 0x%04x", ntohs(eth->type));
 }

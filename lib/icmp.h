@@ -27,8 +27,8 @@
 
 #include <stdint.h>
 
+struct netmap_ring;
 struct warpcore;
-
 
 #define ICMP_TYPE_ECHOREPLY 0 ///< ICMP echo reply type.
 #define ICMP_TYPE_UNREACH 3   ///< ICMP unreachable type.
@@ -53,8 +53,7 @@ struct icmp_hdr {
 extern void __attribute__((nonnull)) icmp_tx(struct warpcore * w,
                                              const uint8_t type,
                                              const uint8_t code,
-                                             void * const buf,
-                                             const uint16_t len);
+                                             void * const buf);
 
 extern void __attribute__((nonnull))
-icmp_rx(struct warpcore * w, void * const buf, const uint16_t len);
+icmp_rx(struct warpcore * w, struct netmap_ring * const r);

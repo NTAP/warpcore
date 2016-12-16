@@ -160,7 +160,7 @@ extern void __attribute__((nonnull)) ip_tx_with_rx_buf(struct warpcore * w,
                                                        const uint16_t len);
 
 extern void __attribute__((nonnull))
-ip_rx(struct warpcore * const w, void * const buf, const uint16_t len);
+ip_rx(struct warpcore * const w, struct netmap_ring * const r);
 
 extern bool __attribute__((nonnull))
 ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);

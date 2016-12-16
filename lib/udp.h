@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+struct netmap_ring;
 struct w_iov;
 struct w_sock;
 struct warpcore;
@@ -44,10 +45,8 @@ struct udp_hdr {
 };
 
 
-extern void __attribute__((nonnull)) udp_rx(struct warpcore * const w,
-                                            void * const buf,
-                                            const uint16_t len,
-                                            const uint32_t src);
+extern void __attribute__((nonnull))
+udp_rx(struct warpcore * const w, struct netmap_ring * const r);
 
 extern bool __attribute__((nonnull))
 udp_tx(const struct w_sock * const s, struct w_iov * const v);

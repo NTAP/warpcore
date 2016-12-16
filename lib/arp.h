@@ -81,7 +81,7 @@ struct arp_hdr {
 
 
 extern void __attribute__((nonnull))
-arp_rx(struct warpcore * w, void * const buf, const uint16_t len);
+arp_rx(struct warpcore * w, struct netmap_ring * const r);
 
 extern uint8_t * __attribute__((nonnull))
 arp_who_has(struct warpcore * const w, const uint32_t dip);

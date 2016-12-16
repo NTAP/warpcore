@@ -118,12 +118,10 @@ arp_cache_update(struct warpcore * w,
 /// @param      w     Warpcore engine
 /// @param      buf   Buffer containing an incoming ARP request inside an
 ///                   Ethernet frame
-/// @param[in]  len   The length of the buffer.
 ///
 static void __attribute__((nonnull))
 arp_is_at(struct warpcore * const w,
-          void * const buf,
-          const uint16_t len __attribute__((unused)))
+          void * const buf)
 {
     // grab iov for reply
     struct w_iov * v = alloc_iov(w);
@@ -230,13 +228,15 @@ uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
 /// local interface, respond appropriately. For incoming ARP replies, updates
 /// the information in the w_sock structures of all open connections, as needed.
 ///
-/// @param      w     Warpcore engine
-/// @param      buf   Buffer containing incoming ARP request inside an Ethernet
-///                   frame
-/// @param[in]  len   The length of the buffer.
+/// The Ethernet frame to operate on is in the current netmap lot of the
+/// indicated RX ring.
 ///
-void arp_rx(struct warpcore * const w, void * const buf, const uint16_t len)
+/// @param      w     Warpcore engine
+/// @param      r     Currently active netmap RX ring.
+///
+void arp_rx(struct warpcore * const w, struct netmap_ring * const r)
 {
+    void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct arp_hdr * const arp = eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
@@ -258,7 +258,7 @@ void arp_rx(struct warpcore * const w, void * const buf, const uint16_t len)
              inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
 #endif
         if (arp->tpa == w->ip)
-            arp_is_at(w, buf, len);
+            arp_is_at(w, buf);
         else
             warn(warn, "ignoring ARP request not asking for us");
         break;

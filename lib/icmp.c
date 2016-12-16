@@ -43,13 +43,11 @@
 /// @param[in]  type  The ICMP type to send.
 /// @param[in]  code  The ICMP code to send.
 /// @param[in]  buf   The received packet to send the ICMP message for.
-/// @param[in]  len   The length of @p buf.
 ///
 void icmp_tx(struct warpcore * const w,
              const uint8_t type,
              const uint8_t code,
-             void * const buf,
-             const uint16_t len __attribute__((unused)))
+             void * const buf)
 {
     struct w_iov * const v = alloc_iov(w);
 
@@ -116,19 +114,20 @@ void icmp_tx(struct warpcore * const w,
 }
 
 
-// Handle an incoming ICMP packet, and optionally respond to it.
-
 /// Analyze an inbound ICMP packet and react to it. Called from ip_rx() for all
 /// inbound ICMP packets.
 ///
 /// Currently only responds to ICMP echo packets.
 ///
-/// @param      w     Warpcore engine.
-/// @param      buf   Receive buffer.
-/// @param[in]  len   The length of the buffer.
+/// The Ethernet frame to operate on is in the current netmap lot of the
+/// indicated RX ring.
 ///
-void icmp_rx(struct warpcore * const w, void * const buf, const uint16_t len)
+/// @param      w     Warpcore engine
+/// @param      r     Currently active netmap RX ring.
+///
+void icmp_rx(struct warpcore * const w, struct netmap_ring * const r)
 {
+    void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     struct icmp_hdr * const icmp = ip_data(buf);
     warn(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
 
@@ -143,7 +142,7 @@ void icmp_rx(struct warpcore * const w, void * const buf, const uint16_t len)
     switch (icmp->type) {
     case ICMP_TYPE_ECHO:
         // send an echo reply
-        icmp_tx(w, ICMP_TYPE_ECHOREPLY, 0, buf, len);
+        icmp_tx(w, ICMP_TYPE_ECHOREPLY, 0, buf);
         break;
     case ICMP_TYPE_UNREACH: {
 #ifndef NDEBUG

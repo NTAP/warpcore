@@ -214,18 +214,18 @@ void backend_rx(struct warpcore * const w)
 {
     // loop over all rx rings starting with cur_rxr and wrapping around
     for (uint32_t i = 0; likely(i < w->nif->ni_rx_rings); i++) {
-        struct netmap_ring * const r = NETMAP_RXRING(w->nif, w->cur_rxr);
+        struct netmap_ring * const r = NETMAP_RXRING(w->nif, i);
         while (!nm_ring_empty(r)) {
             // prefetch the next slot into the cache
             __builtin_prefetch(
                 NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
 
             // process the current slot
-            eth_rx(w, NETMAP_BUF(r, r->slot[r->cur].buf_idx),
-                   r->slot[r->cur].len);
+            eth_rx(w, r);
+            // eth_rx(w, NETMAP_BUF(r, r->slot[r->cur].buf_idx),
+                   // r->slot[r->cur].len);
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
-        w->cur_rxr = (w->cur_rxr + 1) % w->nif->ni_rx_rings;
     }
 }
 

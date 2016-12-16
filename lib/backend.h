@@ -110,19 +110,17 @@ struct warpcore {
     uint32_t rip; ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP
     int fd;                 ///< Netmap file descriptor.
-    uint32_t cur_txr;       ///< Index of the TX ring currently active.
-    uint32_t cur_rxr;       ///< Index of the RX ring currently active.
     struct netmap_if * nif; ///< Netmap interface.
     struct nmreq * req;     ///< Netmap request structure.
     SLIST_HEAD(arp_cache_head, arp_entry) arp_cache; ///< The ARP cache.
     /// List of w_iovs that are currently in TX rings.
     SLIST_HEAD(tx_pending_head, w_iov) tx_pending;
-#else
+    uint32_t cur_txr; ///< Index of the TX ring currently active.
+#endif
     /// @cond
     /// @internal Padding.
     uint8_t _unused[4];
-/// @endcond
-#endif
+    /// @endcond
     const char * backend; ///< Name of the warpcore backend used by the engine.
     SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
     struct w_iov * bufs;

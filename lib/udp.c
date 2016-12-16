@@ -72,16 +72,16 @@
 /// data to the corresponding w_sock. Also makes the receive timestamp and IPv4
 /// flags available, via w_iov::ts and w_iov::flags, respectively.
 ///
-/// @param      w     Warpcore engine.
-/// @param      buf   Buffer containing the Ethernet frame to receive from.
-/// @param[in]  len   The length of the buffer.
-/// @param[in]  src   The IPv4 source address of the sender of this packet.
+/// The Ethernet frame to operate on is in the current netmap lot of the
+/// indicated RX ring.
+///
+/// @param      w     Warpcore engine
+/// @param      r     Currently active netmap RX ring.
 ///
 void udp_rx(struct warpcore * const w,
-            void * const buf,
-            const uint16_t len,
-            const uint32_t src)
+            struct netmap_ring * const r)
 {
+    void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct ip_hdr * const ip = eth_data(buf);
     struct udp_hdr * const udp = ip_data(buf);
     const uint16_t udp_len = ntohs(udp->len);
@@ -104,7 +104,7 @@ void udp_rx(struct warpcore * const w,
         // nobody bound to this port locally
         // send an ICMP unreachable reply, if this was not a broadcast
         if (ip->src)
-            icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf, len);
+            icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
         return;
     }
 
@@ -113,11 +113,10 @@ void udp_rx(struct warpcore * const w,
     assert(i != 0, "out of spare bufs");
     STAILQ_REMOVE_HEAD(&w->iov, next);
 
-    struct netmap_ring * const rxr = NETMAP_RXRING(w->nif, w->cur_rxr);
-    struct netmap_slot * const rxs = &rxr->slot[rxr->cur];
+    struct netmap_slot * const rxs = &r->slot[r->cur];
 
     warn(debug, "swapping rx ring %u slot %d (buf %d) and spare buf %u",
-         w->cur_rxr, rxr->cur, rxs->buf_idx, i->idx);
+         r->ringid, r->cur, rxs->buf_idx, i->idx);
 
     // remember index of this buffer
     const uint32_t tmp_idx = i->idx;
@@ -128,10 +127,10 @@ void udp_rx(struct warpcore * const w,
     i->idx = rxs->buf_idx;
 
     // tag the iov with sender information and metadata
-    i->ip = src;
+    i->ip = ip->src;
     i->port = udp->sport;
     i->flags = ip->tos;
-    memcpy(&i->ts, &rxr->ts, sizeof(i->ts));
+    memcpy(&i->ts, &r->ts, sizeof(i->ts));
 
     // append the iov to the socket
     STAILQ_INSERT_TAIL(s->iv, i, next);

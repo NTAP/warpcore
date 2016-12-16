@@ -69,14 +69,17 @@
 /// Receive processing for an IPv4 packet. Verifies the checksum and dispatches
 /// the packet to udp_rx() or icmp_rx(), as appropriate.
 ///
+/// The Ethernet frame to operate on is in the current netmap lot of the
+/// indicated RX ring.
+///
 /// IPv4 options are currently unsupported; as are IPv4 fragments.
 ///
 /// @param      w     Warpcore engine.
-/// @param      buf   Buffer containing an Ethernet frame.
-/// @param[in]  len   The length of the buffer.
+/// @param      r     Currently active netmap RX ring.
 ///
-void ip_rx(struct warpcore * const w, void * const buf, const uint16_t len)
+void ip_rx(struct warpcore * const w, struct netmap_ring * const r)
 {
+    void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct ip_hdr * const ip = eth_data(buf);
     ip_log(ip);
 
@@ -106,13 +109,13 @@ void ip_rx(struct warpcore * const w, void * const buf, const uint16_t len)
     assert((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP fragments");
 
     if (likely(ip->p == IP_P_UDP))
-        udp_rx(w, buf, len, ip->src);
+        udp_rx(w, r);
     else if (ip->p == IP_P_ICMP)
-        icmp_rx(w, buf, len);
+        icmp_rx(w, r);
     else {
         warn(info, "unhandled IP protocol %d", ip->p);
         // be standards compliant and send an ICMP unreachable
-        icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PROTOCOL, buf, len);
+        icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PROTOCOL, buf);
     }
 }
 
