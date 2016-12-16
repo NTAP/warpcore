@@ -36,7 +36,8 @@ struct w_sock;
 struct warpcore;
 
 
-STAILQ_HEAD(w_chain, w_iov);
+STAILQ_HEAD(w_iov_chain, w_iov);
+SLIST_HEAD(w_sock_chain, w_sock);
 
 /// The I/O vector structure that warpcore uses at the center of its API. It is
 /// mostly a pointer to the first UDP payload byte contained in a netmap packet
@@ -52,7 +53,7 @@ STAILQ_HEAD(w_chain, w_iov);
 ///
 struct w_iov {
     void * buf;               ///< Start of payload data.
-    STAILQ_ENTRY(w_iov) next; ///< Next w_iov in a w_chain.
+    STAILQ_ENTRY(w_iov) next; ///< Next w_iov in a w_iov_chain.
     uint32_t idx;             ///< Index of netmap buffer. (Internal use.)
     uint16_t len;             ///< Length of payload data.
 
@@ -96,20 +97,21 @@ extern void __attribute__((nonnull)) w_disconnect(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
-extern struct w_chain * __attribute__((nonnull))
+extern struct w_iov_chain * __attribute__((nonnull))
 w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off);
 
 extern void __attribute__((nonnull))
-w_tx(const struct w_sock * const s, struct w_chain * const c);
+w_tx(const struct w_sock * const s, struct w_iov_chain * const c);
 
 extern void __attribute__((nonnull))
-w_free(struct warpcore * const w, struct w_chain * const c);
+w_free(struct warpcore * const w, struct w_iov_chain * const c);
 
-extern uint32_t w_iov_len(const struct w_chain * const c);
+extern uint32_t w_iov_len(const struct w_iov_chain * const c);
 
 extern int __attribute__((nonnull)) w_fd(struct w_sock * const s);
 
-extern struct w_chain * __attribute__((nonnull)) w_rx(struct w_sock * const s);
+extern struct w_iov_chain * __attribute__((nonnull))
+w_rx(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_nic_tx(struct warpcore * const w);
 

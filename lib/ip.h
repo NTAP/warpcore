@@ -144,7 +144,7 @@ struct ip_hdr {
 ///
 /// @param      ip    Pointer to the ip_hdr to initialize.
 ///
-#define ip_hdr_init(ip)                                                            \
+#define ip_hdr_init(ip)                                                        \
     do {                                                                       \
         (ip)->vhl = (4 << 4) + 5;                                              \
         (ip)->off = htons(IP_DF);                                              \

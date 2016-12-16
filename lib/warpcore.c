@@ -68,12 +68,12 @@ static SLIST_HEAD(engines, warpcore) wc = SLIST_HEAD_INITIALIZER(wc);
 ///
 /// @return     Chain of w_iov structs.
 ///
-struct w_chain *
+struct w_iov_chain *
 w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
 {
     struct w_iov * v = 0;
     int32_t l = (int32_t)len;
-    struct w_chain * chain = calloc(1, sizeof(*chain));
+    struct w_iov_chain * chain = calloc(1, sizeof(*chain));
     assert(chain, "could not calloc");
     STAILQ_INIT(chain);
 #ifndef NDEBUG
@@ -94,8 +94,8 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
         // adjust length of last iov so chain is the exact length requested
         v->len += l; // l is negative
 
-    warn(info, "allocated w_chain (len %d in %d w_iov%s, offset %d)", len, n,
-         plural(n), off);
+    warn(info, "allocated w_iov_chain (len %d in %d w_iov%s, offset %d)", len,
+         n, plural(n), off);
     return chain;
 }
 
@@ -108,7 +108,7 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
 /// @param      w     Warpcore engine.
 /// @param      c     Chain of w_iov structs to free.
 ///
-void w_free(struct warpcore * const w, struct w_chain * const c)
+void w_free(struct warpcore * const w, struct w_iov_chain * const c)
 {
     STAILQ_CONCAT(&w->iov, c);
     free(c);
@@ -123,7 +123,7 @@ void w_free(struct warpcore * const w, struct w_chain * const c)
 ///
 /// @return     Sum of the payload lengths of the w_iov structs in @p c.
 ///
-uint32_t w_iov_len(const struct w_chain * const c)
+uint32_t w_iov_len(const struct w_iov_chain * const c)
 {
     uint32_t l = 0;
     if (c) {
@@ -254,15 +254,15 @@ void w_close(struct w_sock * const s)
 /// data, or zero. Needs
 ///             to be freed with w_free() by the caller.
 ///
-struct w_chain * w_rx(struct w_sock * const s)
+struct w_iov_chain * w_rx(struct w_sock * const s)
 {
     backend_rx(s->w);
     if (STAILQ_EMPTY(s->iv))
         return 0;
-    struct w_chain * const empty = calloc(1, sizeof(*empty));
+    struct w_iov_chain * const empty = calloc(1, sizeof(*empty));
     assert(empty, "could not calloc");
     STAILQ_INIT(empty);
-    struct w_chain * const tmp = s->iv;
+    struct w_iov_chain * const tmp = s->iv;
     s->iv = empty;
     return tmp;
 }
@@ -274,7 +274,7 @@ struct w_chain * w_rx(struct w_sock * const s)
 /// @param[in]  s     { parameter_description }
 /// @param      c     { parameter_description }
 ///
-void w_tx(const struct w_sock * const s, struct w_chain * const c)
+void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 {
     struct w_iov * v;
     STAILQ_FOREACH (v, c, next) {

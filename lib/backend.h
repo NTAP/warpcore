@@ -75,7 +75,7 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     ///
     struct warpcore * w;
-    struct w_chain * iv;      ///< w_iov chain containing incoming unread data.
+    struct w_iov_chain * iv;  ///< w_iov chain containing incoming unread data.
     SLIST_ENTRY(w_sock) next; ///< Next socket associated with this engine.
     /// The template header to be used for outbound packets on this
     /// w_sock.
@@ -101,7 +101,7 @@ struct tx_pending_entry;
 struct warpcore {
     struct w_sock ** udp;        ///< Array 64K pointers to w_sock sockets.
     SLIST_HEAD(sh, w_sock) sock; ///< List of open (bound) w_sock sockets.
-    struct w_chain iov;          ///< List of w_iov buffers available.
+    struct w_iov_chain iov;      ///< List of w_iov buffers available.
     uint32_t ip;                 ///< Local IPv4 address used on this interface.
     uint32_t mask;               ///< IPv4 netmask of this interface.
     uint16_t mtu;                ///< MTU of this interface.

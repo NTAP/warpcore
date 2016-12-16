@@ -268,7 +268,7 @@ void w_nic_tx(struct warpcore * const w)
     assert(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 
     // grab the transmitted data out of the NIC rings and place it back into the
-    // original w_chains, so it's not lost to the app
+    // original w_iov_chains, so it's not lost to the app
     while (!SLIST_EMPTY(&w->tx_pending)) {
         struct w_iov * const v = SLIST_FIRST(&w->tx_pending);
         SLIST_REMOVE_HEAD(&w->tx_pending, next_tx);

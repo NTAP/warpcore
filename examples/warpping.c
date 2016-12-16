@@ -188,7 +188,7 @@ int main(const int argc, char * const argv[])
     puts("nsec\tsize");
     for (uint32_t size = start; size <= end; size += inc) {
         // allocate tx chain
-        struct w_chain * const o = w_alloc(w, size, 0);
+        struct w_iov_chain * const o = w_alloc(w, size, 0);
 
         // send "loops" number of payloads of size "size" and wait for reply
         long iter = loops;
@@ -208,7 +208,7 @@ int main(const int argc, char * const argv[])
             warn(info, "sent %d byte%s", size, plural(size));
 
             // wait for a reply
-            struct w_chain * i = 0;
+            struct w_iov_chain * i = 0;
             uint32_t len = 0;
 
             // set a timeout
@@ -228,7 +228,7 @@ int main(const int argc, char * const argv[])
                     w_nic_rx(w);
 
                 // read new data
-                struct w_chain * new = w_rx(s);
+                struct w_iov_chain * new = w_rx(s);
                 if (new) {
                     len += w_iov_len(new);
                     if (i)

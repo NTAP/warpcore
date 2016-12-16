@@ -121,7 +121,7 @@ int main(const int argc, char * const argv[])
         // for each of the small services...
         for (uint16_t s = 0; s < n; s++) {
             // ...check if any new data has arrived on the socket
-            struct w_chain * i = w_rx(srv[s]);
+            struct w_iov_chain * i = w_rx(srv[s]);
             uint32_t len = 0;
 
             if (i == 0)
@@ -130,7 +130,7 @@ int main(const int argc, char * const argv[])
             // for each new packet, handle it according to the service it is for
             struct w_iov * v;
             STAILQ_FOREACH (v, i, next) {
-                struct w_chain * o = 0; // w_iov for outbound data
+                struct w_iov_chain * o = 0; // w_iov for outbound data
                 switch (s) {
                 // echo received data back to sender
                 case 0:
