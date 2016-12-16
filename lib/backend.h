@@ -161,7 +161,7 @@ inline struct w_iov * alloc_iov(struct warpcore * const w)
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
     assert(v != 0, "out of spare iovs");
     STAILQ_REMOVE_HEAD(&w->iov, next);
-    warn(debug, "allocating spare iov %u", v->idx);
+    // warn(debug, "allocating spare iov %u", v->idx);
     v->buf = IDX2BUF(w, v->idx);
     v->len = w->mtu;
     return v;
