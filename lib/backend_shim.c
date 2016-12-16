@@ -79,7 +79,8 @@ void backend_init(struct warpcore * w,
 void backend_cleanup(struct warpcore * const w)
 {
     while (!STAILQ_EMPTY(&w->iov)) {
-        struct w_iov * const v = alloc_iov(w);
+        struct w_iov * const v = STAILQ_FIRST(&w->iov);
+        STAILQ_REMOVE_HEAD(&w->iov, next);
         free(v);
     }
     free(w->mem);
@@ -176,13 +177,15 @@ void backend_tx(const struct w_sock * const s, struct w_iov * const v)
         .sin_family = AF_INET,
         .sin_port = s->hdr.ip.dst ? s->hdr.udp.dport : v->port,
         .sin_addr = {s->hdr.ip.dst ? s->hdr.ip.dst : v->ip}};
-    ssize_t n = 0;
-    do {
-        n = sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&addr,
-                   sizeof(addr)) == v->len;
-        if (n != v->len)
-            warn(notice, "sendto apparently failed, retrying");
-    } while (n != v->len);
+
+    for (int tries = 10; tries; tries--) {
+        const ssize_t n = sendto(s->fd, v->buf, v->len, 0,
+                                 (const struct sockaddr *)&addr, sizeof(addr));
+        if (likely(n == v->len))
+            break;
+        else
+            warn(notice, "sendto failed, retrying %d more times", tries);
+    }
 }
 
 
