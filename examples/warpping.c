@@ -147,6 +147,9 @@ int main(const int argc, char * const argv[])
         return 0;
     }
 
+    if (end < start)
+        end = start;
+
     const struct addrinfo hints = {.ai_family = PF_INET,
                                    .ai_protocol = IPPROTO_UDP};
     uint32_t rip = 0;
