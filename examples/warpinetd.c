@@ -101,8 +101,10 @@ int main(const int argc, char * const argv[])
     assert(signal(SIGINT, &terminate) != SIG_ERR, "signal");
 
     // start four inetd-like "small services"
-    struct w_sock * const srv[] = {w_bind(w, htons(7)), w_bind(w, htons(9)),
-                                   w_bind(w, htons(13)), w_bind(w, htons(37))};
+    const uint16_t port[] = {7, 9, 13, 37};
+    struct w_sock * const srv[] = {
+        w_bind(w, htons(port[0])), w_bind(w, htons(port[1])),
+        w_bind(w, htons(port[2])), w_bind(w, htons(port[3]))};
     const uint16_t n = sizeof(srv) / sizeof(struct w_sock *);
     struct pollfd fds[] = {{.fd = w_fd(srv[0]), .events = POLLIN},
                            {.fd = w_fd(srv[1]), .events = POLLIN},
@@ -122,70 +124,66 @@ int main(const int argc, char * const argv[])
         for (uint16_t s = 0; s < n; s++) {
             // ...check if any new data has arrived on the socket
             struct w_iov_chain * i = w_rx(srv[s]);
-            uint32_t len = 0;
-
             if (i == 0)
                 continue;
 
-            // for each new packet, handle it according to the service it is for
-            struct w_iov * v;
-            STAILQ_FOREACH (v, i, next) {
-                struct w_iov_chain * o = 0; // w_iov for outbound data
-                switch (s) {
-                // echo received data back to sender
-                case 0:
-                    o = w_alloc(w, v->len, 0); // allocate outbound w_iov
-                    memcpy(STAILQ_FIRST(o)->buf, v->buf, v->len); // copy data
-                    break;
+            const uint32_t i_len = w_iov_chain_len(i);
+            struct w_iov_chain * o = 0; // w_iov for outbound data
+            switch (s) {
+            // echo received data back to sender (zero-copy)
+            case 0:
+                o = i;
+                break;
 
-                // discard; nothing to do
-                case 1:
-                    break;
+            // discard; nothing to do
+            case 1:
+                break;
 
-                // daytime
-                case 2: {
-                    const time_t t = time(0);
-                    const char * c = ctime(&t);
-                    const uint32_t l = (uint32_t)strlen(c);
-                    o = w_alloc(w, l, 0); // allocate outbound w_iov
-                    memcpy(STAILQ_FIRST(o)->buf, c, l); // write a timestamp
-                    break;
+            // daytime
+            case 2: {
+                const time_t t = time(0);
+                const char * c = ctime(&t);
+                const uint16_t l = (uint16_t)strlen(c);
+                struct w_iov * v;
+                STAILQ_FOREACH (v, i, next) {
+                    memcpy(v->buf, c, l); // write a timestamp
+                    v->len = l;
                 }
-
-                // time
-                case 3: {
-                    const time_t t = time(0);
-                    o = w_alloc(w, sizeof(time_t), 0); // allocate w_iov
-                    *(uint32_t *)STAILQ_FIRST(o)->buf =
-                        htonl((uint32_t)t); // write timestamp
-                    break;
-                }
-
-                default:
-                    die("unknown service");
-                }
-
-                // if the current service requires replying with data, do so
-                if (o) {
-                    // send the reply
-                    STAILQ_FIRST(o)->ip = v->ip;
-                    STAILQ_FIRST(o)->port = v->port;
-                    w_tx(srv[s], o);
-                    w_nic_tx(w);
-
-                    // deallocate the outbound w_iov
-                    w_free(w, o);
-                }
-
-                // track how much data was served
-                len += v->len;
+                o = i;
+                break;
             }
+
+            // time
+            case 3: {
+                const time_t t = time(0);
+                struct w_iov * v;
+                STAILQ_FOREACH (v, i, next) {
+                    memcpy(v->buf, &t, sizeof(t)); // write a timestamp
+                    v->len = sizeof(t);
+                }
+                o = i;
+                break;
+            }
+
+            default:
+                die("unknown service");
+            }
+
+            // if the current service requires replying with data, do so
+            if (o) {
+                w_tx(srv[s], o);
+                w_nic_tx(w);
+            }
+
+            // track how much data was served
+            const uint32_t o_len = w_iov_chain_len(o);
+            if (i_len || o_len)
+                warn(info, "port %d handled %d byte%s in, %d byte%s out",
+                     port[s], i_len, plural(i_len), o_len, plural(o_len));
+
 
             // we are done serving the received data
             w_free(w, i);
-
-            if (len)
-                warn(info, "handled %d byte%s", len, plural(len));
         }
     }
 
