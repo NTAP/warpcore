@@ -8,8 +8,7 @@ Vagrant.configure("2") do |config|
 
       # OS to use for the VM
       if i <= 2 then
-        node.vm.box = "ubuntu/xenial64"
-        node.vm.box_version = "20160930.0.0"
+        node.vm.box = "ubuntu/yakkety64"
       else
         node.vm.box = "freebsd/FreeBSD-11.0-STABLE"
         node.vm.base_mac = "DECAFBAD00"
@@ -56,7 +55,7 @@ Vagrant.configure("2") do |config|
       ssh_pub_key = File.readlines(File.dirname(__FILE__) + "/misc/id_rsa.pub").join
       ssh_sec_key = File.readlines(File.dirname(__FILE__) + "/misc/id_rsa").join
 
-      if i <= 2 then
+      if i <= 2 then # Linux
         # apply some fixes to the VM OS, update it, and install some tools
         node.vm.provision "shell", inline: <<-SHELL
           # install common SSH keys, allow password-less auth
@@ -72,9 +71,14 @@ Vagrant.configure("2") do |config|
           export DEBIAN_FRONTEND=noninteractive
           apt-get update
 
+          # do a dist-upgrade and clean up
+          apt-get -y dist-upgrade
+          apt-get -y autoremove
+          apt-get -y autoclean
+
           # install some tools that are needed
           apt-get -y install cmake cmake-curses-gui git dpkg-dev xinetd \
-            doxygen graphviz iwyu clang-tidy clang-3.7
+            doxygen graphviz iwyu clang-tidy clang-3.8 ninja-build
 
           # and some that I often use
           apt-get -y install htop silversearcher-ag linux-tools-common \
@@ -90,12 +94,6 @@ Vagrant.configure("2") do |config|
 
           # get Linux kernel sources, for building netmap
           apt-get source linux-image-$(uname -r)
-
-          # do a dist-upgrade and clean up
-          # XXX might update kernel, which makes building netmap difficult
-          # apt-get -y dist-upgrade
-          # apt-get -y autoremove
-          # apt-get -y autoclean
 
           # compile and install netmap
           git clone https://github.com/luigirizzo/netmap ||
@@ -128,7 +126,8 @@ Vagrant.configure("2") do |config|
           echo 'IMPORTANT: You need to "vagrant reload #{node.vm.hostname}"' \
             'for netmap support!'
         SHELL
-      else
+
+      else # FreeBSD
         node.vm.provision "shell", inline: <<-SHELL
           pkg install sudo cmake nano git include-what-you-use
         SHELL
