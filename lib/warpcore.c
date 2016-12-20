@@ -341,8 +341,19 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
 
     // allocate engine struct
     assert((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct warpcore");
+
+    // initialize lists of sockets and iovs
+    SLIST_INIT(&w->sock);
+    STAILQ_INIT(&w->iov);
+
+    // allocate socket pointers
+    assert((w->udp = calloc(UINT16_MAX, sizeof(*w->udp))) != 0,
+           "cannot allocate UDP sockets");
+
+    // backend-specific init
     backend_init(w, ifname);
 
+    // get interface config
     // we mostly loop here because the link may be down
     do {
         // get interface information
@@ -414,14 +425,6 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
          rip ? ", router " : "",
          rip ? inet_ntop(AF_INET, &w->rip, rip_str, INET_ADDRSTRLEN) : "");
 #endif
-
-    // initialize lists of sockets and iovs
-    SLIST_INIT(&w->sock);
-    STAILQ_INIT(&w->iov);
-
-    // allocate socket pointers
-    assert((w->udp = calloc(UINT16_MAX, sizeof(*w->udp))) != 0,
-           "cannot allocate UDP sockets");
 
     // store the initialized engine in our global list
     SLIST_INSERT_HEAD(&engines, w, next);

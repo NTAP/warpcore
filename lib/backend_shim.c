@@ -92,6 +92,7 @@ void backend_cleanup(struct warpcore * const w)
         free(v);
     }
     free(w->mem);
+    free(w->ifname);
 }
 
 
