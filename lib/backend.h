@@ -116,15 +116,26 @@ struct warpcore {
     /// List of w_iovs that are currently in TX rings.
     SLIST_HEAD(tx_pending_head, w_iov) tx_pending;
     uint32_t cur_txr; ///< Index of the TX ring currently active.
-#endif
     /// @cond
     /// @internal Padding.
-    uint8_t _unused[4];
+    uint8_t _unused2[4];
     /// @endcond
+#else
+    /// @cond
+    /// @internal Padding.
+    uint8_t _unused1[4];
+    /// @endcond
+    const char * ifname; ///< Name of the interface of this engine.
+#endif
     const char * backend; ///< Name of the warpcore backend used by the engine.
     SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
     struct w_iov * bufs;
 };
+
+
+/// Global list of initialized warpcore engines.
+///
+extern SLIST_HEAD(w_engines, warpcore) engines;
 
 
 /// Compute the IPv4 broadcast address for the given IPv4 address and netmask.

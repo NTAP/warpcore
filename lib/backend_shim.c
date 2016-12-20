@@ -25,9 +25,11 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -55,9 +57,13 @@ static char backend_name[] = "shim";
 /// @param      w       Warpcore engine.
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
 ///
-void backend_init(struct warpcore * w,
-                  const char * const ifname __attribute__((unused)))
+void backend_init(struct warpcore * w, const char * const ifname)
 {
+    struct warpcore * ww;
+    SLIST_FOREACH (ww, &engines, next)
+        assert(strncmp(ifname, ww->ifname, IFNAMSIZ),
+               "can only have one warpcore engine active on %s", ifname);
+
     assert((w->mem = calloc(NUM_BUFS, IOV_BUF_LEN)) != 0, "cannot alloc bufs");
 
     for (uint32_t i = 0; i < NUM_BUFS; i++) {
@@ -68,6 +74,8 @@ void backend_init(struct warpcore * w,
         STAILQ_INSERT_HEAD(&w->iov, v, next);
     }
 
+    w->ifname = strndup(ifname, IFNAMSIZ);
+    assert(w->ifname, "could not strndup");
     w->backend = backend_name;
 }
 

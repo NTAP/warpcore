@@ -66,6 +66,11 @@ static char backend_name[] = "netmap";
 ///
 void backend_init(struct warpcore * w, const char * const ifname)
 {
+    struct warpcore * ww;
+    SLIST_FOREACH (ww, &engines, next)
+        assert(strncmp(ifname, ww->nif->ni_name, IFNAMSIZ),
+               "can only have one warpcore engine active on %s", ifname);
+
     // open /dev/netmap
     assert((w->fd = open("/dev/netmap", O_RDWR)) != -1,
            "cannot open /dev/netmap");

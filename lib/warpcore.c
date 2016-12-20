@@ -54,7 +54,7 @@ extern struct w_iov * alloc_iov(struct warpcore * const w);
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
 ///
-static SLIST_HEAD(engines, warpcore) wc = SLIST_HEAD_INITIALIZER(wc);
+struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 
 
 /// Allocate a w_iov chain for @p payload bytes, for eventual use with w_tx().
@@ -313,7 +313,7 @@ void w_cleanup(struct warpcore * const w)
     backend_cleanup(w);
     free(w->bufs);
     free(w->udp);
-    SLIST_REMOVE(&wc, w, warpcore, next);
+    SLIST_REMOVE(&engines, w, warpcore, next);
     free(w);
 }
 
@@ -339,12 +339,9 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     struct warpcore * w;
     bool link_up = false;
 
-    // SLIST_FOREACH (w, &wc, next)
-    //     assert(strcmp(ifname, w->req.nr_name),
-    //            "can only have one warpcore engine active on %s", ifname);
-
     // allocate engine struct
     assert((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct warpcore");
+    backend_init(w, ifname);
 
     // we mostly loop here because the link may be down
     do {
@@ -426,10 +423,8 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     assert((w->udp = calloc(UINT16_MAX, sizeof(*w->udp))) != 0,
            "cannot allocate UDP sockets");
 
-    backend_init(w, ifname);
-
     // store the initialized engine in our global list
-    SLIST_INSERT_HEAD(&wc, w, next);
+    SLIST_INSERT_HEAD(&engines, w, next);
 
     warn(info, "%s %s with %s backend on %s ready", warpcore_name,
          warpcore_version, w->backend, ifname);
