@@ -1,63 +1,91 @@
 #! /usr/bin/env bash
 
-loops=1
+loops=10000
 busywait=-b
 
 peer=phobos2
 # peer=three
-iface=ix0
+# iface=ix0
 # iface=enp4s0f0 # 40G
-# iface=enp8s0f0 # 10G
+iface=enp8s0f0 # 10G
 ip=10.11.12.3
 piface=$iface
 peerip=10.11.12.4
 
-build=~/warpcore/$(uname -s)
-#-rel
+build=~/warpcore/$(uname -s)-rel
 
-ssh="ssh $peer -q -M"
+ssh="ssh $peer -q"
 
 run () {
     echo "run $1"
-    $ssh "sudo pkill -f inetd"
-    $ssh "sh -c '(cd $build/.. && \
-            sudo nohup $build/examples/$1inetd -i $piface $busywait ) \
-            > $build/../$1inetd.log 2>&1 &'"
-    # "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait \
-    #     >> "$1.txt" 2> "$1ping.log"
+    $ssh sudo bash << EOF
+        pkill -f inetd
+        cd $build/..
+        nohup $build/examples/$1inetd -i $piface $busywait \
+            > $build/../$1inetd.log 2>&1 &
+EOF
     "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait \
-        -s 3000000 -e 3000000 >> "$1.txt" 2> "$1ping.log"
+        >> "$1.txt" 2> "$1ping.log"
     $ssh "sudo pkill -f inetd"
 }
 
 
-pushd "$build"; make || exit; popd
-sudo rm "$build"/../shim* "$build"/../warp* > /dev/null 2>&1
+pushd "$build"; ninja || exit; popd
 
-sudo pkill -f "dhclient.*$iface"
-sudo ifconfig $iface $ip/24 up
-sudo ethtool -A $iface rx off tx off
-sudo sysctl -q -w hw.ix.enable_aim=0
+sudo bash << EOF
+    rm "$build"/../shim* "$build"/../warp* "$build"/../core > /dev/null 2>&1
+    pkill -f "dhclient.*$iface"
+    ifconfig $iface $ip/24 up
+    if [ $(uname -s) == "Linux" ]; then
+        ethtool -A $iface rx off tx off
+        ethtool -C $iface rx-usecs 0
+    else
+        sysctl -q -w hw.ix.enable_aim=0
+    fi
+EOF
 
-$ssh "sudo pkill -f \"dhclient.*$piface\""
-$ssh "sudo ifconfig $piface $peerip/24 up"
-$ssh "sudo ethtool -A $piface rx off tx off"
-$ssh "sudo sysctl -q -w hw.ix.enable_aim=0"
+$ssh sudo bash << EOF
+    pkill -f "dhclient.*$piface"
+    ifconfig $piface $peerip/24 up
+    if [ $(uname -s) == "Linux" ]; then
+        ethtool -A $piface rx off tx off
+        ethtool -C $piface rx-usecs 0
+    else
+        sysctl -q -w hw.ix.enable_aim=0
+    fi
+EOF
 
 if [ ! "$1" ]; then
         run shim
 fi
 
-sudo ifconfig $iface -rxcsum -txcsum -tso -lro
-$ssh "sudo ifconfig $piface -rxcsum -txcsum -tso -lro"
+if [ "$(uname -s)" != "Linux" ]; then
+    sudo ifconfig $iface -rxcsum -txcsum -tso -lro
+fi
+
+$ssh sudo bash << EOF
+    if [ "$(uname -s)" != "Linux" ]; then
+        ifconfig $piface -rxcsum -txcsum -tso -lro
+    fi
+EOF
 
 if [ ! "$1" ]; then
         run warp
 fi
 
 if [ "$1" != "init" ]; then
-    sudo ip addr del $ip/24 dev $iface
-    sudo ifconfig $iface -alias 10.11.12.3 rxcsum txcsum tso lro
-    $ssh "sudo ip addr del $peerip/24 dev $piface"
-    $ssh "sudo ifconfig $piface -alias $peerip rxcsum txcsum tso lro"
+    sudo bash <<EOF
+        if [ $(uname -s) == "Linux" ]; then
+            ip addr del $ip/24 dev $iface
+        else
+            ifconfig $iface -alias 10.11.12.3 rxcsum txcsum tso lro
+        fi
+EOF
+    $ssh sudo bash << EOF
+        if [ $(uname -s) == "Linux" ]; then
+            ip addr del $peerip/24 dev $piface
+        else
+            ifconfig $piface -alias $peerip rxcsum txcsum tso lro
+        fi
+EOF
 fi
