@@ -68,15 +68,15 @@ void backend_init(struct warpcore * w, const char * const ifname)
 {
     struct warpcore * ww;
     SLIST_FOREACH (ww, &engines, next)
-        assert(strncmp(ifname, ww->nif->ni_name, IFNAMSIZ),
+        ensure(strncmp(ifname, ww->nif->ni_name, IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
 
     // open /dev/netmap
-    assert((w->fd = open("/dev/netmap", O_RDWR)) != -1,
+    ensure((w->fd = open("/dev/netmap", O_RDWR)) != -1,
            "cannot open /dev/netmap");
 
     w->req = calloc(1, sizeof(*w->req));
-    assert(w->req != 0, "cannot allocate nmreq");
+    ensure(w->req != 0, "cannot allocate nmreq");
 
     // switch interface to netmap mode
     strncpy(w->req->nr_name, ifname, sizeof w->req->nr_name);
@@ -87,12 +87,12 @@ void backend_init(struct warpcore * w, const char * const ifname)
     w->req->nr_ringid |= NETMAP_NO_TX_POLL;
     w->req->nr_flags = NR_REG_ALL_NIC;
     w->req->nr_arg3 = NUM_BUFS; // request extra buffers
-    assert(ioctl(w->fd, NIOCREGIF, w->req) != -1,
+    ensure(ioctl(w->fd, NIOCREGIF, w->req) != -1,
            "%s: cannot put interface into netmap mode", ifname);
 
     // mmap the buffer region
     const int flags = PLAT_MMFLAGS;
-    assert((w->mem = mmap(0, w->req->nr_memsize, PROT_WRITE | PROT_READ,
+    ensure((w->mem = mmap(0, w->req->nr_memsize, PROT_WRITE | PROT_READ,
                           MAP_SHARED | flags, w->fd, 0)) != MAP_FAILED,
            "cannot mmap netmap memory");
 
@@ -116,7 +116,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
     // save the indices of the extra buffers in the warpcore structure
     STAILQ_INIT(&w->iov);
     w->bufs = calloc(w->req->nr_arg3, sizeof(*w->bufs));
-    assert(w->bufs != 0, "cannot allocate w_iov");
+    ensure(w->bufs != 0, "cannot allocate w_iov");
     for (uint32_t n = 0, i = w->nif->ni_bufs_head; n < w->req->nr_arg3; n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
@@ -130,7 +130,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
         warn(notice, "allocated %d extra buffers", w->req->nr_arg3);
 
     // lock memory
-    assert(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
+    ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 
     w->backend = backend_name;
     SLIST_INIT(&w->arp_cache);
@@ -158,10 +158,10 @@ void backend_cleanup(struct warpcore * const w)
     }
     w->nif->ni_bufs_head = w->bufs[0].idx;
 
-    assert(munmap(w->mem, w->req->nr_memsize) != -1,
+    ensure(munmap(w->mem, w->req->nr_memsize) != -1,
            "cannot munmap netmap memory");
 
-    assert(close(w->fd) != -1, "cannot close /dev/netmap");
+    ensure(close(w->fd) != -1, "cannot close /dev/netmap");
     free(w->req);
 }
 
@@ -233,7 +233,7 @@ void backend_tx(const struct w_sock * const s, struct w_iov * const v)
 ///
 void w_nic_rx(struct warpcore * const w)
 {
-    assert(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
+    ensure(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
 
     // loop over all rx rings starting with cur_rxr and wrapping around
     for (uint32_t i = 0; likely(i < w->nif->ni_rx_rings); i++) {
@@ -258,7 +258,7 @@ void w_nic_rx(struct warpcore * const w)
 ///
 void w_nic_tx(struct warpcore * const w)
 {
-    assert(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
+    ensure(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 
     // grab the transmitted data out of the NIC rings and place it back into the
     // original w_iov_chains, so it's not lost to the app

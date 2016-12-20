@@ -102,7 +102,7 @@ arp_cache_update(struct warpcore * w,
     }
 
     a = calloc(1, sizeof(*a));
-    assert(a, "cannot allocate arp_entry");
+    ensure(a, "cannot allocate arp_entry");
     a->ip = ip;
     memcpy(a->mac, mac, ETH_ADDR_LEN);
     SLIST_INSERT_HEAD(&w->arp_cache, a, next);
@@ -239,10 +239,10 @@ void arp_rx(struct warpcore * const w, struct netmap_ring * const r)
     const struct arp_hdr * const arp = eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
-    assert(hrd == ARP_HRD_ETHER && arp->hln == ETH_ADDR_LEN,
+    ensure(hrd == ARP_HRD_ETHER && arp->hln == ETH_ADDR_LEN,
            "unhandled ARP hardware format %d with len %d", hrd, arp->hln);
 
-    assert(arp->pro == ETH_TYPE_IP && arp->pln == IP_ADDR_LEN,
+    ensure(arp->pro == ETH_TYPE_IP && arp->pln == IP_ADDR_LEN,
            "unhandled ARP protocol format %d with len %d", ntohs(arp->pro),
            arp->pln);
 

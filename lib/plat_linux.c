@@ -64,12 +64,12 @@ void plat_get_mac(uint8_t * mac, const struct ifaddrs * i)
 uint16_t plat_get_mtu(const struct ifaddrs * i)
 {
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
-    assert(s >= 0, "%s socket", i->ifa_name);
+    ensure(s >= 0, "%s socket", i->ifa_name);
 
     struct ifreq ifr = {0};
     strcpy(ifr.ifr_name, i->ifa_name);
 
-    assert(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
+    ensure(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
 
     // loopback MTU is 65536 on Linux, which is larger than what an IP header
     // can encode - sigh
@@ -89,14 +89,14 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 uint32_t plat_get_mbps(const struct ifaddrs * i)
 {
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
-    assert(s >= 0, "%s socket", i->ifa_name);
+    ensure(s >= 0, "%s socket", i->ifa_name);
 
     struct ifreq ifr = {0};
     strcpy(ifr.ifr_name, i->ifa_name);
 
     // if this is loopback interface, SIOCETHTOOL will fail, so just return a
     // placeholder value
-    assert(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
+    ensure(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
     if (ifr.ifr_flags & IFF_LOOPBACK) {
         close(s);
         return 0;
@@ -105,7 +105,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     struct ethtool_cmd edata;
     ifr.ifr_data = (__caddr_t)&edata;
     edata.cmd = ETHTOOL_GSET;
-    assert(ioctl(s, SIOCETHTOOL, &ifr) >= 0, "%s ioctl", i->ifa_name);
+    ensure(ioctl(s, SIOCETHTOOL, &ifr) >= 0, "%s ioctl", i->ifa_name);
 
     close(s);
     const uint32_t speed = ethtool_cmd_speed(&edata);
@@ -122,12 +122,12 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
 bool plat_get_link(const struct ifaddrs * i)
 {
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
-    assert(s >= 0, "%s socket", i->ifa_name);
+    ensure(s >= 0, "%s socket", i->ifa_name);
 
     struct ifreq ifr = {0};
     strcpy(ifr.ifr_name, i->ifa_name);
 
-    assert(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
+    ensure(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
 
     const bool link = (ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING);
 
@@ -142,20 +142,20 @@ void plat_setaffinity(void)
 {
     int i;
     cpu_set_t myset;
-    assert(sched_getaffinity(0, sizeof(cpu_set_t), &myset) != -1,
+    ensure(sched_getaffinity(0, sizeof(cpu_set_t), &myset) != -1,
            "sched_getaffinity");
 
     // Find last available CPU
     for (i = CPU_SETSIZE - 1; i >= -1; i--)
         if (CPU_ISSET(i, &myset))
             break;
-    assert(i != -1, "not allowed to run on any CPUs!?");
+    ensure(i != -1, "not allowed to run on any CPUs!?");
 
     // Set new CPU mask
     warn(info, "setting affinity to CPU %d", i);
     CPU_ZERO(&myset);
     CPU_SET(i, &myset);
 
-    assert(sched_setaffinity(0, sizeof(myset), &myset) != -1,
+    ensure(sched_setaffinity(0, sizeof(myset), &myset) != -1,
            "sched_setaffinity");
 }

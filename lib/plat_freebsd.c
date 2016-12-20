@@ -104,7 +104,7 @@ void plat_setaffinity(void)
     for (i = CPU_SETSIZE - 1; i >= -1; i--)
         if (CPU_ISSET(i, &myset))
             break;
-    assert(i != -1, "not allowed to run on any CPUs!?");
+    ensure(i != -1, "not allowed to run on any CPUs!?");
 
     // Set new CPU mask
     warn(info, "setting affinity to CPU %d", i);

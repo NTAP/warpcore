@@ -96,8 +96,8 @@ int main(const int argc, char * const argv[])
     struct warpcore * w = w_init(ifname, 0);
 
     // install a signal handler to clean up after interrupt
-    assert(signal(SIGTERM, &terminate) != SIG_ERR, "signal");
-    assert(signal(SIGINT, &terminate) != SIG_ERR, "signal");
+    ensure(signal(SIGTERM, &terminate) != SIG_ERR, "signal");
+    ensure(signal(SIGINT, &terminate) != SIG_ERR, "signal");
 
     // start four inetd-like "small services"
     const uint16_t port[] = {7, 9, 13, 37};

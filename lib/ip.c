@@ -103,10 +103,10 @@ void ip_rx(struct warpcore * const w, struct netmap_ring * const r)
     }
 
     // TODO: handle IP options
-    assert(ip_hl(ip) == 20, "no support for IP options");
+    ensure(ip_hl(ip) == 20, "no support for IP options");
 
     // TODO: handle IP fragments
-    assert((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP fragments");
+    ensure((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP fragments");
 
     if (likely(ip->p == IP_P_UDP))
         udp_rx(w, r);

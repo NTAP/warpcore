@@ -61,21 +61,21 @@ void backend_init(struct warpcore * w, const char * const ifname)
 {
     struct warpcore * ww;
     SLIST_FOREACH (ww, &engines, next)
-        assert(strncmp(ifname, ww->ifname, IFNAMSIZ),
+        ensure(strncmp(ifname, ww->ifname, IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
 
-    assert((w->mem = calloc(NUM_BUFS, IOV_BUF_LEN)) != 0, "cannot alloc bufs");
+    ensure((w->mem = calloc(NUM_BUFS, IOV_BUF_LEN)) != 0, "cannot alloc bufs");
 
     for (uint32_t i = 0; i < NUM_BUFS; i++) {
         struct w_iov * const v = calloc(1, sizeof(*v));
-        assert(v != 0, "cannot allocate w_iov");
+        ensure(v != 0, "cannot allocate w_iov");
         v->buf = IDX2BUF(w, i);
         v->idx = i;
         STAILQ_INSERT_HEAD(&w->iov, v, next);
     }
 
     w->ifname = strndup(ifname, IFNAMSIZ);
-    assert(w->ifname, "could not strndup");
+    ensure(w->ifname, "could not strndup");
     w->backend = backend_name;
 }
 
@@ -102,12 +102,12 @@ void backend_cleanup(struct warpcore * const w)
 ///
 void backend_bind(struct w_sock * s)
 {
-    assert(s->fd = socket(AF_INET, SOCK_DGRAM, 0), "socket");
-    assert(fcntl(s->fd, F_SETFL, O_NONBLOCK) != -1, "fcntl");
+    ensure(s->fd = socket(AF_INET, SOCK_DGRAM, 0), "socket");
+    ensure(fcntl(s->fd, F_SETFL, O_NONBLOCK) != -1, "fcntl");
     const struct sockaddr_in addr = {.sin_family = AF_INET,
                                      .sin_port = s->hdr->udp.sport,
                                      .sin_addr = {.s_addr = s->hdr->ip.src}};
-    assert(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
+    ensure(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
            "bind");
 }
 
@@ -178,7 +178,7 @@ void w_nic_rx(struct warpcore * const w)
             socklen_t plen = sizeof(peer);
             n = recvfrom(s->fd, v->buf, IOV_BUF_LEN, 0,
                          (struct sockaddr *)&peer, &plen);
-            assert(n != -1 || errno == EAGAIN, "recv");
+            ensure(n != -1 || errno == EAGAIN, "recv");
             if (n > 0) {
                 // add the iov to the tail of the result
                 STAILQ_INSERT_TAIL(s->iv, v, next);
@@ -188,7 +188,7 @@ void w_nic_rx(struct warpcore * const w)
                 v->ip = peer.sin_addr.s_addr;
                 v->port = peer.sin_port;
                 v->flags = 0; // can't get TOS and ECN info from the kernel
-                assert(gettimeofday(&v->ts, 0) == 0, "gettimeofday");
+                ensure(gettimeofday(&v->ts, 0) == 0, "gettimeofday");
             } else
                 // we didn't need this iov after all
                 STAILQ_INSERT_HEAD(&s->w->iov, v, next);

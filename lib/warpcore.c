@@ -75,7 +75,7 @@ w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
     struct w_iov * v = 0;
     int32_t l = (int32_t)len;
     struct w_iov_chain * chain = calloc(1, sizeof(*chain));
-    assert(chain, "could not calloc");
+    ensure(chain, "could not calloc");
     STAILQ_INIT(chain);
 #ifndef NDEBUG
     uint32_t n = 0;
@@ -203,8 +203,8 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
         return s;
     }
 
-    assert((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");
-    assert((s->hdr = calloc(1, sizeof(*s->hdr))) != 0, "cannot allocate w_hdr");
+    ensure((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");
+    ensure((s->hdr = calloc(1, sizeof(*s->hdr))) != 0, "cannot allocate w_hdr");
 
     // initialize the non-zero fields of outgoing template header
     s->hdr->eth.type = ETH_TYPE_IP;
@@ -219,7 +219,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
     s->w = w;
     SLIST_INSERT_HEAD(&w->sock, s, next);
     s->iv = calloc(1, sizeof(*s->iv));
-    assert(s->iv, "could not calloc");
+    ensure(s->iv, "could not calloc");
     STAILQ_INIT(s->iv);
 
     backend_bind(s);
@@ -278,7 +278,7 @@ struct w_iov_chain * w_rx(struct w_sock * const s)
     if (STAILQ_EMPTY(s->iv))
         return 0;
     struct w_iov_chain * const empty = calloc(1, sizeof(*empty));
-    assert(empty, "could not calloc");
+    ensure(empty, "could not calloc");
     STAILQ_INIT(empty);
     struct w_iov_chain * const tmp = s->iv;
     s->iv = empty;
@@ -296,7 +296,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 {
     struct w_iov * v;
     STAILQ_FOREACH (v, c, next) {
-        assert(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
+        ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
                "no destination information");
         backend_tx(s, v);
     }
@@ -348,7 +348,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     bool link_up = false;
 
     // allocate engine struct
-    assert((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct warpcore");
+    ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct warpcore");
 
     // initialize lists of sockets and iovs
     SLIST_INIT(&w->sock);
@@ -362,7 +362,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     do {
         // get interface information
         struct ifaddrs * ifap;
-        assert(getifaddrs(&ifap) != -1, "%s: cannot get interface information",
+        ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface information",
                ifname);
 
         bool found = false;
@@ -403,7 +403,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
                 break;
             }
         }
-        assert(found, "unknown interface %s", ifname);
+        ensure(found, "unknown interface %s", ifname);
 
         freeifaddrs(ifap);
         if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0) {
@@ -463,7 +463,7 @@ struct w_sock_chain * w_rx_ready(const struct warpcore * w)
 {
     // make a new w_sock_chain
     struct w_sock_chain * c = calloc(1, sizeof(*c));
-    assert(c, "calloc w_sock_chain");
+    ensure(c, "calloc w_sock_chain");
     SLIST_INIT(c);
 
     // insert all sockets with pending inbound data

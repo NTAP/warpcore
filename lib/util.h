@@ -225,8 +225,6 @@ extern regex_t _comp;
 #endif
 
 
-//
-#undef assert
 /// A version of the C assert() macro that isn't disabled by NDEBUG and that
 /// ties in with warn(), die() and our other debug functions.
 ///
@@ -234,7 +232,7 @@ extern regex_t _comp;
 /// @param      fmt     A printf()-style format string.
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
-#define assert(e, ...)                                                         \
+#define ensure(e, ...)                                                         \
     do {                                                                       \
         if (__builtin_expect(!(e), 0))                                         \
             die("assertion failed \n           " #e                            \

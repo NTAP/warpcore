@@ -155,7 +155,7 @@ int main(const int argc, char * const argv[])
     uint32_t rip = 0;
     if (rtr) {
         struct addrinfo * router;
-        assert(getaddrinfo(rtr, 0, &hints, &router) == 0, "getaddrinfo router");
+        ensure(getaddrinfo(rtr, 0, &hints, &router) == 0, "getaddrinfo router");
         rip = ((struct sockaddr_in *)(void *)router->ai_addr)->sin_addr.s_addr;
         freeaddrinfo(router);
     }
@@ -171,7 +171,7 @@ int main(const int argc, char * const argv[])
 
     // look up the peer IP address and "echo" port
     struct addrinfo * peer;
-    assert(getaddrinfo(dst, "echo", &hints, &peer) == 0, "getaddrinfo peer");
+    ensure(getaddrinfo(dst, "echo", &hints, &peer) == 0, "getaddrinfo peer");
 
     // connect to the peer
     w_connect(s, ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
@@ -181,7 +181,7 @@ int main(const int argc, char * const argv[])
     freeaddrinfo(peer);
 
     // set a timer handler (used with busywait)
-    assert(signal(SIGALRM, &timeout) != SIG_ERR, "signal");
+    ensure(signal(SIGALRM, &timeout) != SIG_ERR, "signal");
     const struct itimerval timer = {.it_value.tv_sec = 1};
 
     // send packet trains of sizes between "start" and "end"
@@ -195,7 +195,7 @@ int main(const int argc, char * const argv[])
         while (likely(iter--)) {
             // timestamp the payloads
             struct timespec now;
-            assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
+            ensure(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
             const struct w_iov * v;
             STAILQ_FOREACH (v, o, next)
                 memcpy(v->buf, &now, sizeof(now));
@@ -204,7 +204,7 @@ int main(const int argc, char * const argv[])
             w_tx(s, o);
             w_nic_tx(w);
             STAILQ_FOREACH (v, o, next)
-                assert(memcmp(v->buf, &now, sizeof(now)) == 0, "data changed");
+                ensure(memcmp(v->buf, &now, sizeof(now)) == 0, "data changed");
             warn(info, "sent %d byte%s", size, plural(size));
 
             // wait for a reply
@@ -212,7 +212,7 @@ int main(const int argc, char * const argv[])
             uint32_t len = 0;
 
             // set a timeout
-            assert(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
+            ensure(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
             done = false;
 
             // loop until timeout expires, or we have received all data
@@ -247,11 +247,11 @@ int main(const int argc, char * const argv[])
 
             // get the current time
             struct timespec diff;
-            assert(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
+            ensure(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
 
             // stop the timeout
             const struct itimerval stop = {0};
-            assert(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
+            ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
             warn(info, "received %d/%d byte%s", len, size, plural(len));
 

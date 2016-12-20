@@ -52,13 +52,13 @@ static void __attribute__((constructor)) premain()
     gettimeofday(&_epoch, 0);
 
     // Initialize lock
-    assert(pthread_mutex_init(&_lock, 0) == 0, "could not initialize mutex");
+    ensure(pthread_mutex_init(&_lock, 0) == 0, "could not initialize mutex");
 
     // Remember the ID of the main thread
     _master = pthread_self();
 
     // Initialize the regular expression used for restricting debug output
-    assert(regcomp(&_comp, DCOMPONENT, REG_EXTENDED | REG_ICASE | REG_NOSUB) ==
+    ensure(regcomp(&_comp, DCOMPONENT, REG_EXTENDED | REG_ICASE | REG_NOSUB) ==
                0,
            "may not be a valid regexp: %s", DCOMPONENT);
 }
@@ -73,7 +73,7 @@ static void __attribute__((destructor)) postmain()
     regfree(&_comp);
 
     // Free the lock
-    assert(pthread_mutex_destroy(&_lock) == 0, "could not destroy mutex");
+    ensure(pthread_mutex_destroy(&_lock) == 0, "could not destroy mutex");
 }
 
 #endif

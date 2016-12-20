@@ -109,7 +109,7 @@ void udp_rx(struct warpcore * const w, struct netmap_ring * const r)
 
     // grab an unused iov for the data in this packet
     struct w_iov * const i = STAILQ_FIRST(&w->iov);
-    assert(i != 0, "out of spare bufs");
+    ensure(i != 0, "out of spare bufs");
     STAILQ_REMOVE_HEAD(&w->iov, next);
 
     struct netmap_slot * const rxs = &r->slot[r->cur];
