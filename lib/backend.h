@@ -125,7 +125,7 @@ struct warpcore {
     /// @internal Padding.
     uint8_t _unused1[4];
     /// @endcond
-    const char * ifname; ///< Name of the interface of this engine.
+    char * ifname; ///< Name of the interface of this engine.
 #endif
     const char * backend; ///< Name of the warpcore backend used by the engine.
     SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.

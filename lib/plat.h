@@ -34,10 +34,17 @@ struct ifaddrs;
 #ifdef __linux__
 #define AF_LINK AF_PACKET
 #define PLAT_MMFLAGS MAP_POPULATE | MAP_LOCKED
+
+#define plat_random() random()
+
 #else
+
 /// Platform-dependent flags to pass to mmap().
 #define PLAT_MMFLAGS MAP_PREFAULT_READ | MAP_NOSYNC | MAP_ALIGNED_SUPER
+
+#define plat_random(x) arc4random(x)
 #endif
+
 
 extern void __attribute__((nonnull))
 plat_get_mac(uint8_t * mac, const struct ifaddrs * i);

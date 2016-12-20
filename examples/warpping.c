@@ -167,7 +167,7 @@ int main(const int argc, char * const argv[])
     struct warpcore * w = w_init(ifname, rip);
 
     // bind a new socket to a random local source port
-    struct w_sock * s = w_bind(w, (uint16_t)random());
+    struct w_sock * s = w_bind(w, (uint16_t)plat_random());
 
     // look up the peer IP address and "echo" port
     struct addrinfo * peer;
