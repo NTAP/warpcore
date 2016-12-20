@@ -32,8 +32,9 @@
 #include "plat.h" // IWYU pragma: export
 #include "util.h" // IWYU pragma: export
 
+#ifdef WITH_NETMAP
 struct netmap_slot;
-struct w_sock;
+#endif
 struct warpcore;
 
 
