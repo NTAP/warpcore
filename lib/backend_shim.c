@@ -105,8 +105,8 @@ void backend_bind(struct w_sock * s)
     assert(s->fd = socket(AF_INET, SOCK_DGRAM, 0), "socket");
     assert(fcntl(s->fd, F_SETFL, O_NONBLOCK) != -1, "fcntl");
     const struct sockaddr_in addr = {.sin_family = AF_INET,
-                                     .sin_port = s->hdr.udp.sport,
-                                     .sin_addr = {.s_addr = s->hdr.ip.src}};
+                                     .sin_port = s->hdr->udp.sport,
+                                     .sin_addr = {.s_addr = s->hdr->ip.src}};
     assert(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
            "bind");
 }
@@ -135,13 +135,38 @@ int w_fd(struct w_sock * const s)
 }
 
 
+/// Attempts to send the payload from @p v using the Socket API.
+///
+/// @param      s     w_sock socket to transmit over..
+/// @param      v     w_iov to transmit.
+///
+void backend_tx(const struct w_sock * const s, struct w_iov * const v)
+{
+    // if w_sock is disconnected, use destination IP and port from w_iov
+    // instead of the one in the template header
+    const struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = s->hdr->ip.dst ? s->hdr->udp.dport : v->port,
+        .sin_addr = {s->hdr->ip.dst ? s->hdr->ip.dst : v->ip}};
+
+    for (int tries = 10; tries; tries--) {
+        const ssize_t n = sendto(s->fd, v->buf, v->len, 0,
+                                 (const struct sockaddr *)&addr, sizeof(addr));
+        if (likely(n == v->len))
+            break;
+        else
+            warn(notice, "sendto failed, retrying %d more times", tries);
+    }
+}
+
+
 /// Calls recvfrom() for all sockets associated with the engine, emulating the
 /// operation of netmap backend_rx() function. Appends all data to the
 /// w_sock::iv socket buffers of the respective w_sock structures.
 ///
-/// @param      w     Warpcore engine.
+/// @param[in]  w     Warpcore engine.
 ///
-void backend_rx(struct warpcore * const w)
+void w_nic_rx(struct warpcore * const w)
 {
     const struct w_sock * s;
     SLIST_FOREACH (s, &w->sock, next) {
@@ -170,40 +195,6 @@ void backend_rx(struct warpcore * const w)
 
         } while (n > 0);
     }
-}
-
-
-/// Attempts to send the payload from @p v using the Socket API.
-///
-/// @param      s     w_sock socket to transmit over..
-/// @param      v     w_iov to transmit.
-///
-void backend_tx(const struct w_sock * const s, struct w_iov * const v)
-{
-    // if w_sock is disconnected, use destination IP and port from w_iov
-    // instead of the one in the template header
-    const struct sockaddr_in addr = {
-        .sin_family = AF_INET,
-        .sin_port = s->hdr.ip.dst ? s->hdr.udp.dport : v->port,
-        .sin_addr = {s->hdr.ip.dst ? s->hdr.ip.dst : v->ip}};
-
-    for (int tries = 10; tries; tries--) {
-        const ssize_t n = sendto(s->fd, v->buf, v->len, 0,
-                                 (const struct sockaddr *)&addr, sizeof(addr));
-        if (likely(n == v->len))
-            break;
-        else
-            warn(notice, "sendto failed, retrying %d more times", tries);
-    }
-}
-
-
-/// The shim backend performs no operation here.
-///
-/// @param[in]  w     Warpcore engine.
-///
-void w_nic_rx(const struct warpcore * const w __attribute__((unused)))
-{
 }
 
 

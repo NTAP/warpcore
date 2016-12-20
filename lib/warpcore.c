@@ -49,6 +49,7 @@
 
 
 extern struct w_iov * alloc_iov(struct warpcore * const w);
+extern struct w_sock * get_sock(struct warpcore * const w, const uint16_t port);
 
 
 /// A global list of netmap engines that have been initialized for different
@@ -169,21 +170,21 @@ void w_connect(struct w_sock * const s,
                const uint32_t dip,
                const uint16_t dport)
 {
-    s->hdr.ip.dst = dip;
-    s->hdr.udp.dport = dport;
+    s->hdr->ip.dst = dip;
+    s->hdr->udp.dport = dport;
     backend_connect(s);
 
-    warn(notice, "IP proto %d socket connected to %s port %d", s->hdr.ip.p,
+    warn(notice, "IP proto %d socket connected to %s port %d", s->hdr->ip.p,
          inet_ntoa(*(const struct in_addr * const) & dip), ntohs(dport));
 }
 
 
 void w_disconnect(struct w_sock * const s)
 {
-    s->hdr.ip.dst = 0;
-    s->hdr.udp.dport = 0;
+    s->hdr->ip.dst = 0;
+    s->hdr->udp.dport = 0;
 
-    warn(notice, "IP proto %d socket disconnected", s->hdr.ip.p);
+    warn(notice, "IP proto %d socket disconnected", s->hdr->ip.p);
 }
 
 
@@ -196,24 +197,24 @@ void w_disconnect(struct w_sock * const s)
 ///
 struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
 {
-    struct w_sock * s = w->udp[port];
+    struct w_sock * s = get_sock(w, port);
     if (s) {
         warn(warn, "UDP source port %d already in bound", ntohs(port));
         return s;
     }
 
-    assert((w->udp[port] = s = calloc(1, sizeof(*s))) != 0,
-           "cannot allocate w_sock");
+    assert((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");
+    assert((s->hdr = calloc(1, sizeof(*s->hdr))) != 0, "cannot allocate w_hdr");
 
     // initialize the non-zero fields of outgoing template header
-    s->hdr.eth.type = ETH_TYPE_IP;
-    memcpy(&s->hdr.eth.src, w->mac, ETH_ADDR_LEN);
-    // s->hdr.eth.dst is set on w_connect()
+    s->hdr->eth.type = ETH_TYPE_IP;
+    memcpy(&s->hdr->eth.src, w->mac, ETH_ADDR_LEN);
+    // s->hdr->eth.dst is set on w_connect()
 
-    ip_hdr_init(&s->hdr.ip);
-    s->hdr.ip.src = w->ip;
-    s->hdr.udp.sport = port;
-    // s->hdr.ip.dst is set on w_connect()
+    ip_hdr_init(&s->hdr->ip);
+    s->hdr->ip.src = w->ip;
+    s->hdr->udp.sport = port;
+    // s->hdr->ip.dst is set on w_connect()
 
     s->w = w;
     SLIST_INSERT_HEAD(&w->sock, s, next);
@@ -223,7 +224,7 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
 
     backend_bind(s);
 
-    warn(notice, "IP proto %d socket bound to port %d", s->hdr.ip.p,
+    warn(notice, "IP proto %d socket bound to port %d", s->hdr->ip.p,
          ntohs(port));
 
     return s;
@@ -243,8 +244,10 @@ void w_close(struct w_sock * const s)
     // remove the socket from list of sockets
     SLIST_REMOVE(&s->w->sock, s, w_sock, next);
 
+    // free the template header
+    free(s->hdr);
+
     // free the socket
-    s->w->udp[s->hdr.udp.sport] = 0;
     free(s);
 }
 
@@ -272,7 +275,6 @@ void w_close(struct w_sock * const s)
 ///
 struct w_iov_chain * w_rx(struct w_sock * const s)
 {
-    backend_rx(s->w);
     if (STAILQ_EMPTY(s->iv))
         return 0;
     struct w_iov_chain * const empty = calloc(1, sizeof(*empty));
@@ -294,7 +296,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 {
     struct w_iov * v;
     STAILQ_FOREACH (v, c, next) {
-        assert(s->hdr.ip.dst && s->hdr.udp.dport || v->ip && v->port,
+        assert(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
                "no destination information");
         backend_tx(s, v);
     }
@@ -310,9 +312,15 @@ void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 void w_cleanup(struct warpcore * const w)
 {
     warn(notice, "warpcore shutting down");
+
+    // close all sockets
+    while (!SLIST_EMPTY(&w->sock)) {
+        struct w_sock * s = SLIST_FIRST(&w->sock);
+        SLIST_REMOVE_HEAD(&w->sock, next);
+        w_close(s);
+    }
     backend_cleanup(w);
     free(w->bufs);
-    free(w->udp);
     SLIST_REMOVE(&engines, w, warpcore, next);
     free(w);
 }
@@ -345,10 +353,6 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
     // initialize lists of sockets and iovs
     SLIST_INIT(&w->sock);
     STAILQ_INIT(&w->iov);
-
-    // allocate socket pointers
-    assert((w->udp = calloc(UINT16_MAX, sizeof(*w->udp))) != 0,
-           "cannot allocate UDP sockets");
 
     // backend-specific init
     backend_init(w, ifname);
@@ -444,4 +448,29 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
 struct warpcore * w_engine(const struct w_sock * const s)
 {
     return s->w;
+}
+
+
+/// Return a w_sock_chain containing all sockets with pending inbound data.
+/// Caller needs to free() the returned value before the next call to
+/// w_rx_ready(). Data can be obtained via w_rx() on each w_sock in the chain.
+///
+/// @param[in]  w     Warpcore engine.
+///
+/// @return     Chain of w_sock sockets that have incoming data pending.
+///
+struct w_sock_chain * w_rx_ready(const struct warpcore * w)
+{
+    // make a new w_sock_chain
+    struct w_sock_chain * c = calloc(1, sizeof(*c));
+    assert(c, "calloc w_sock_chain");
+    SLIST_INIT(c);
+
+    // insert all sockets with pending inbound data
+    struct w_sock * s;
+    SLIST_FOREACH (s, &w->sock, next)
+        if (!STAILQ_EMPTY(s->iv))
+            SLIST_INSERT_HEAD(c, s, next_rx);
+
+    return c;
 }

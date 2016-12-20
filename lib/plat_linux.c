@@ -73,7 +73,7 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 
     // loopback MTU is 65536 on Linux, which is larger than what an IP header
     // can encode - sigh
-    const uint16_t mtu = MIN(UINT16_MAX, ifr.ifr_ifru.ifru_mtu);
+    const uint16_t mtu = MIN(UINT16_MAX, (uint16_t)ifr.ifr_ifru.ifru_mtu);
 
     close(s);
     return mtu;

@@ -69,37 +69,12 @@ struct w_hdr {
 };
 
 
-/// A warpcore socket.
-///
-struct w_sock {
-    /// Pointer back to the warpcore instance associated with this w_sock.
-    ///
-    struct warpcore * w;
-    struct w_iov_chain * iv;  ///< w_iov chain containing incoming unread data.
-    SLIST_ENTRY(w_sock) next; ///< Next socket associated with this engine.
-    /// The template header to be used for outbound packets on this
-    /// w_sock.
-    struct w_hdr hdr;
-#ifndef WITH_NETMAP
-    /// @cond
-    uint8_t _unused[2]; ///< @internal Padding.
-    /// @endcond
-    int fd; ///< Socket descriptor underlying the engine, if the shim is in use.
-#else
-    /// @cond
-    /// @internal Padding.
-    uint8_t _unused[6];
-/// @endcond
-#endif
-};
-
 struct arp_entry;
 struct tx_pending_entry;
 
 /// A warpcore engine.
 ///
 struct warpcore {
-    struct w_sock ** udp;        ///< Array 64K pointers to w_sock sockets.
     SLIST_HEAD(sh, w_sock) sock; ///< List of open (bound) w_sock sockets.
     struct w_iov_chain iov;      ///< List of w_iov buffers available.
     uint32_t ip;                 ///< Local IPv4 address used on this interface.
@@ -113,13 +88,13 @@ struct warpcore {
     struct netmap_if * nif; ///< Netmap interface.
     struct nmreq * req;     ///< Netmap request structure.
     SLIST_HEAD(arp_cache_head, arp_entry) arp_cache; ///< The ARP cache.
-    /// List of w_iovs that are currently in TX rings.
+    /// List of w_iov buffers that are currently in TX rings.
     SLIST_HEAD(tx_pending_head, w_iov) tx_pending;
     uint32_t cur_txr; ///< Index of the TX ring currently active.
     /// @cond
     /// @internal Padding.
     uint8_t _unused2[4];
-    /// @endcond
+/// @endcond
 #else
     /// @cond
     /// @internal Padding.
@@ -165,7 +140,8 @@ extern SLIST_HEAD(w_engines, warpcore) engines;
 ///
 /// @return     Spare w_iov.
 ///
-inline struct w_iov * alloc_iov(struct warpcore * const w)
+inline struct w_iov * __attribute__((nonnull))
+alloc_iov(struct warpcore * const w)
 {
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
     assert(v != 0, "out of spare iovs");
@@ -177,6 +153,24 @@ inline struct w_iov * alloc_iov(struct warpcore * const w)
 }
 
 
+/// Get the socket bound to local port @p port.
+///
+/// @param      w     Warpcore engine.
+/// @param[in]  port  The port number.
+///
+/// @return     The w_sock bound to @p port.
+///
+inline struct w_sock * __attribute__((nonnull))
+get_sock(struct warpcore * const w, const uint16_t port)
+{
+    struct w_sock * s;
+    SLIST_FOREACH (s, &w->sock, next)
+        if (s->hdr->udp.sport == port)
+            return s;
+    return 0;
+}
+
+
 extern void __attribute__((nonnull)) backend_bind(struct w_sock * s);
 
 extern void __attribute__((nonnull)) backend_connect(struct w_sock * const s);
@@ -185,8 +179,6 @@ extern void __attribute__((nonnull))
 backend_init(struct warpcore * w, const char * const ifname);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct warpcore * const w);
-
-extern void __attribute__((nonnull)) backend_rx(struct warpcore * const w);
 
 extern void __attribute__((nonnull))
 backend_tx(const struct w_sock * const s, struct w_iov * const v);

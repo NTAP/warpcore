@@ -120,8 +120,7 @@ arp_cache_update(struct warpcore * w,
 ///                   Ethernet frame
 ///
 static void __attribute__((nonnull))
-arp_is_at(struct warpcore * const w,
-          void * const buf)
+arp_is_at(struct warpcore * const w, void * const buf)
 {
     // grab iov for reply
     struct w_iov * v = alloc_iov(w);
@@ -214,7 +213,7 @@ uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
         // wait until packets have been received, then handle them
         struct pollfd fds = {.fd = w->fd, .events = POLLIN};
         poll(&fds, 1, 1000);
-        backend_rx(w);
+        w_nic_rx(w);
 
         // check if we can now resolve dip
         a = arp_cache_find(w, dip);
@@ -277,14 +276,14 @@ void arp_rx(struct warpcore * const w, struct netmap_ring * const r)
         SLIST_FOREACH (s, &w->sock, next) {
             if ( // is local-net socket and ARP src IP matches its dst
                 ((mk_net(s->w->ip, s->w->mask) ==
-                      mk_net(s->hdr.ip.dst, s->w->mask) &&
-                  arp->spa == s->hdr.ip.dst)) ||
+                      mk_net(s->hdr->ip.dst, s->w->mask) &&
+                  arp->spa == s->hdr->ip.dst)) ||
                 // or non-local socket and ARP src IP matches router
                 (s->w->rip && (s->w->rip == arp->spa))) {
                 warn(notice, "updating socket with %s for %s",
                      ether_ntoa((const struct ether_addr * const)arp->sha),
                      inet_ntoa(*(const struct in_addr * const) & arp->spa));
-                memcpy(&s->hdr.eth.dst, arp->sha, ETH_ADDR_LEN);
+                memcpy(&s->hdr->eth.dst, arp->sha, ETH_ADDR_LEN);
             }
         }
         break;

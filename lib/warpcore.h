@@ -40,6 +40,27 @@ struct warpcore;
 STAILQ_HEAD(w_iov_chain, w_iov);
 SLIST_HEAD(w_sock_chain, w_sock);
 
+/// A warpcore socket.
+///
+struct w_sock {
+    /// Pointer back to the warpcore instance associated with this w_sock.
+    ///
+    struct warpcore * w;
+    struct w_iov_chain * iv;  ///< w_iov chain containing incoming unread data.
+    SLIST_ENTRY(w_sock) next; ///< Next socket associated with this engine.
+    /// The template header to be used for outbound packets on this
+    /// w_sock.
+    struct w_hdr * hdr;
+    SLIST_ENTRY(w_sock) next_rx; ///< Next socket with unread data.
+#ifndef WITH_NETMAP
+    /// @cond
+    uint8_t _unused[4]; ///< @internal Padding.
+    /// @endcond
+    int fd; ///< Socket descriptor underlying the engine, if the shim is in use.
+#endif
+};
+
+
 /// The I/O vector structure that warpcore uses at the center of its API. It is
 /// mostly a pointer to the first UDP payload byte contained in a netmap packet
 /// buffer, together with some associated meta data.
@@ -119,7 +140,10 @@ w_rx(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_nic_tx(struct warpcore * const w);
 
-extern void __attribute__((nonnull)) w_nic_rx(const struct warpcore * const w);
+extern void __attribute__((nonnull)) w_nic_rx(struct warpcore * const w);
 
 extern struct warpcore * __attribute__((nonnull))
 w_engine(const struct w_sock * const s);
+
+extern struct w_sock_chain * __attribute__((nonnull))
+w_rx_ready(const struct warpcore * w);

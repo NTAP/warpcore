@@ -29,6 +29,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/queue.h>
 #include <time.h>
@@ -40,8 +41,6 @@
 #endif
 
 #include "warpcore.h"
-
-struct w_sock;
 
 
 static void usage(const char * const name)
@@ -120,41 +119,37 @@ int main(const int argc, char * const argv[])
             // otherwise, just pull in whatever is in the NIC rings
             w_nic_rx(w);
 
-        // for each of the small services...
-        for (uint16_t s = 0; s < n; s++) {
+        // for each of the small services that have received data...
+        struct w_sock_chain * c = w_rx_ready(w);
+        struct w_sock * s;
+        SLIST_FOREACH (s, c, next_rx) {
+            // for (uint16_t s = 0; s < n; s++) {
             // ...check if any new data has arrived on the socket
-            struct w_iov_chain * i = w_rx(srv[s]);
+            struct w_iov_chain * i = w_rx(s);
             if (i == 0)
                 continue;
 
             const uint32_t i_len = w_iov_chain_len(i);
             struct w_iov_chain * o = 0; // w_iov for outbound data
-            switch (s) {
-            // echo received data back to sender (zero-copy)
-            case 0:
+
+            if (s == srv[0]) {
+                // echo received data back to sender (zero-copy)
                 o = i;
-                break;
-
-            // discard; nothing to do
-            case 1:
-                break;
-
-            // daytime
-            case 2: {
+            } else if (s == srv[1]) {
+                // discard; nothing to do
+            } else if (s == srv[2]) {
+                // daytime
                 const time_t t = time(0);
-                const char * c = ctime(&t);
-                const uint16_t l = (uint16_t)strlen(c);
+                const char * ct = ctime(&t);
+                const uint16_t l = (uint16_t)strlen(ct);
                 struct w_iov * v;
                 STAILQ_FOREACH (v, i, next) {
                     memcpy(v->buf, c, l); // write a timestamp
                     v->len = l;
                 }
                 o = i;
-                break;
-            }
-
-            // time
-            case 3: {
+            } else if (s == srv[3]) {
+                // time
                 const time_t t = time(0);
                 struct w_iov * v;
                 STAILQ_FOREACH (v, i, next) {
@@ -162,29 +157,26 @@ int main(const int argc, char * const argv[])
                     v->len = sizeof(t);
                 }
                 o = i;
-                break;
-            }
-
-            default:
+            } else {
                 die("unknown service");
             }
 
             // if the current service requires replying with data, do so
             if (o) {
-                w_tx(srv[s], o);
+                w_tx(s, o);
                 w_nic_tx(w);
             }
 
             // track how much data was served
             const uint32_t o_len = w_iov_chain_len(o);
             if (i_len || o_len)
-                warn(info, "port %d handled %d byte%s in, %d byte%s out",
-                     port[s], i_len, plural(i_len), o_len, plural(o_len));
-
+                warn(info, "handled %d byte%s in, %d byte%s out", i_len,
+                     plural(i_len), o_len, plural(o_len));
 
             // we are done serving the received data
             w_free(w, i);
         }
+        free(c);
     }
 
     // we only get here after an interrupt; clean up

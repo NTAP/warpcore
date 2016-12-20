@@ -78,8 +78,7 @@
 /// @param      w     Warpcore engine
 /// @param      r     Currently active netmap RX ring.
 ///
-void udp_rx(struct warpcore * const w,
-            struct netmap_ring * const r)
+void udp_rx(struct warpcore * const w, struct netmap_ring * const r)
 {
     void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct ip_hdr * const ip = eth_data(buf);
@@ -99,7 +98,7 @@ void udp_rx(struct warpcore * const w,
         return;
     }
 
-    struct w_sock * const s = w->udp[udp->dport];
+    struct w_sock * const s = get_sock(w, udp->dport);
     if (unlikely(s == 0)) {
         // nobody bound to this port locally
         // send an ICMP unreachable reply, if this was not a broadcast
@@ -155,7 +154,7 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     // copy template header into buffer and fill in remaining fields
     void * const buf = IDX2BUF(s->w, v->idx);
-    memcpy(buf, &s->hdr, sizeof(s->hdr));
+    memcpy(buf, s->hdr, sizeof(*s->hdr));
 
     struct ip_hdr * const ip = eth_data(buf);
     struct udp_hdr * const udp = ip_data(buf);
@@ -164,7 +163,7 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 
     // if w_sock is disconnected, use destination IP and port from w_iov
     // instead of the one in the template header
-    if (s->hdr.ip.dst == 0) {
+    if (s->hdr->ip.dst == 0) {
         struct eth_hdr * const e = buf;
         memcpy(&e->dst, arp_who_has(s->w, v->ip), ETH_ADDR_LEN);
         ip->dst = v->ip;

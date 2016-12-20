@@ -185,12 +185,12 @@ void backend_connect(struct w_sock * const s)
 {
     // find the Ethernet MAC address of the destination or the default router,
     // and update the template header
-    const uint32_t ip = s->w->rip && (mk_net(s->hdr.ip.dst, s->w->mask) !=
-                                      mk_net(s->hdr.ip.src, s->w->mask))
+    const uint32_t ip = s->w->rip && (mk_net(s->hdr->ip.dst, s->w->mask) !=
+                                      mk_net(s->hdr->ip.src, s->w->mask))
                             ? s->w->rip
-                            : s->hdr.ip.dst;
+                            : s->hdr->ip.dst;
     const uint8_t * const mac = arp_who_has(s->w, ip);
-    memcpy(s->hdr.eth.dst, mac, ETH_ADDR_LEN);
+    memcpy(s->hdr->eth.dst, mac, ETH_ADDR_LEN);
 }
 
 
@@ -205,31 +205,6 @@ void backend_connect(struct w_sock * const s)
 int w_fd(struct w_sock * const s)
 {
     return s->w->fd;
-}
-
-
-/// Iterates over any new data in the RX rings, appending them to the w_sock::iv
-/// socket buffers of the respective w_sock structures associated with a given
-/// sender IPv4 address and port. Also handles pending inbound ARP and ICMP
-/// packets.
-///
-/// @param      w     Warpcore engine.
-///
-void backend_rx(struct warpcore * const w)
-{
-    // loop over all rx rings starting with cur_rxr and wrapping around
-    for (uint32_t i = 0; likely(i < w->nif->ni_rx_rings); i++) {
-        struct netmap_ring * const r = NETMAP_RXRING(w->nif, i);
-        while (!nm_ring_empty(r)) {
-            // prefetch the next slot into the cache
-            __builtin_prefetch(
-                NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
-
-            // process the current slot
-            eth_rx(w, r);
-            r->head = r->cur = nm_ring_next(r, r->cur);
-        }
-    }
 }
 
 
@@ -251,13 +226,28 @@ void backend_tx(const struct w_sock * const s, struct w_iov * const v)
 }
 
 
-/// Trigger netmap to make new received data available to w_rx().
+/// Trigger netmap to make new received data available to w_rx(). Iterates over
+/// any new data in the RX rings, calling eth_rx() for each.
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-void w_nic_rx(const struct warpcore * const w)
+void w_nic_rx(struct warpcore * const w)
 {
     assert(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
+
+    // loop over all rx rings starting with cur_rxr and wrapping around
+    for (uint32_t i = 0; likely(i < w->nif->ni_rx_rings); i++) {
+        struct netmap_ring * const r = NETMAP_RXRING(w->nif, i);
+        while (!nm_ring_empty(r)) {
+            // prefetch the next slot into the cache
+            __builtin_prefetch(
+                NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
+
+            // process the current slot
+            eth_rx(w, r);
+            r->head = r->cur = nm_ring_next(r, r->cur);
+        }
+    }
 }
 
 
