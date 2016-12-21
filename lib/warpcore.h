@@ -29,8 +29,10 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 
-#include "plat.h" // IWYU pragma: export
-#include "util.h" // IWYU pragma: export
+// IWYU pragma: begin_exports
+#include <plat.h>
+#include <util.h>
+// IWYU pragma: end_exports
 
 #ifdef WITH_NETMAP
 struct netmap_slot;

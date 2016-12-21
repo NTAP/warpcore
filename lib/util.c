@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 
-#include "util.h"
+#include <warpcore.h>
 
 pthread_mutex_t _lock;
 pthread_t _master;

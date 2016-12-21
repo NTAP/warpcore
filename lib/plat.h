@@ -24,6 +24,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
+// IWYU pragma: private, include <warpcore.h>
 
 #include <stdbool.h>
 #include <stdint.h>

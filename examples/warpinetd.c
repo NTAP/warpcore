@@ -40,7 +40,7 @@
 #include <arpa/inet.h>
 #endif
 
-#include "warpcore.h"
+#include <warpcore.h>
 
 
 static void usage(const char * const name)

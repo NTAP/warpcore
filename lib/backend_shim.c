@@ -35,10 +35,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include <warpcore.h>
+
 #include "backend.h"
 #include "ip.h"
 #include "udp.h"
-#include "warpcore.h"
 
 
 /// Length of a buffer. Same as netmap uses.

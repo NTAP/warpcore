@@ -40,13 +40,14 @@
 #include <arpa/inet.h>
 #endif
 
+#include <warpcore.h>
+
 #include "arp.h"
 #include "backend.h"
 #include "eth.h"
 #include "icmp.h"
 #include "ip.h"
 #include "udp.h"
-#include "warpcore.h"
 
 
 #ifndef NDEBUG

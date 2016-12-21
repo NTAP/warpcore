@@ -40,12 +40,13 @@
 #include <net/ethernet.h>
 #endif
 
+#include <warpcore.h>
+
 #include "backend.h"
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
 #include "version.h"
-#include "warpcore.h"
 
 
 extern struct w_iov * alloc_iov(struct warpcore * const w);

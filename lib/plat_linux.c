@@ -38,9 +38,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <warpcore.h>
+
 #include "eth.h"
-#include "plat.h" // IWYU pragma: keep
-#include "util.h"
 
 
 /// Return the Ethernet MAC address of network interface @p i.

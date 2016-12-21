@@ -44,11 +44,12 @@
 // clang-format on
 #endif
 
+#include <warpcore.h>
+
 #include "arp.h"
 #include "backend.h"
 #include "eth.h"
 #include "ip.h"
-#include "warpcore.h"
 
 
 /// Receive an Ethernet frame. This is the lowest-level RX function, called for

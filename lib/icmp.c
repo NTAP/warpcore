@@ -28,12 +28,13 @@
 #include <string.h>
 #include <sys/queue.h>
 
+#include <warpcore.h>
+
 #include "backend.h"
 #include "eth.h"
 #include "icmp.h"
 #include "ip.h"
 #include "udp.h"
-#include "warpcore.h"
 
 
 /// Make an ICMP message with the given @p type and @p code based on the

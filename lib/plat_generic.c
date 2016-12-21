@@ -27,9 +27,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <warpcore.h>
+
 #include "eth.h"
-#include "plat.h" // IWYU pragma: keep
-#include "util.h"
+
 
 struct ifaddrs;
 

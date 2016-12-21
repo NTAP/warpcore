@@ -33,12 +33,13 @@
 #include <netinet/in.h>
 #endif
 
+#include <warpcore.h>
+
 #include "backend.h"
 #include "eth.h"
 #include "icmp.h"
 #include "ip.h"
 #include "udp.h"
-#include "warpcore.h"
 
 
 #ifndef NDEBUG

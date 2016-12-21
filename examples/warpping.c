@@ -39,7 +39,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "warpcore.h"
+#include <warpcore.h>
 
 
 static void usage(const char * const name,

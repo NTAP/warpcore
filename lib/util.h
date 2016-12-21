@@ -24,6 +24,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
+// IWYU pragma: private, include <warpcore.h>
 
 #include <errno.h>
 #include <pthread.h>
