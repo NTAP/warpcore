@@ -11,7 +11,7 @@ endif()
 # Set general compile flags, if they are supported
 include(CheckCCompilerFlag)
 foreach(FLAG -std=c11 -march=native -Wextra -Wpedantic -Weverything -Werror
-        -Wno-missing-field-initializers -Wno-missing-braces)
+        -Wno-missing-field-initializers -Wno-missing-braces -fcolor-diagnostics)
   string(REGEX REPLACE "[-=]" "" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})
   if(${F})
