@@ -73,7 +73,7 @@ static void __attribute__((destructor)) postmain()
     regfree(&_comp);
 
     // Free the lock
-    ensure(pthread_mutex_destroy(&_lock) == 0, "could not destroy mutex");
+    pthread_mutex_destroy(&_lock);
 }
 
 #endif

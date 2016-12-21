@@ -49,8 +49,8 @@
 #include "version.h"
 
 
-extern struct w_iov * alloc_iov(struct warpcore * const w);
-extern struct w_sock * get_sock(struct warpcore * const w, const uint16_t port);
+extern struct w_iov * alloc_iov(struct warpcore * w);
+extern struct w_sock * get_sock(struct warpcore * w, uint16_t port);
 
 
 /// A global list of netmap engines that have been initialized for different
@@ -164,19 +164,17 @@ uint32_t w_iov_chain_cnt(const struct w_iov_chain * const c)
 /// w_sock.
 ///
 /// @param      s      w_sock to connect.
-/// @param[in]  dip    Destination IPv4 address to bind to.
-/// @param[in]  dport  Destination UDP port to bind to.
+/// @param[in]  ip    Destination IPv4 address to bind to.
+/// @param[in]  port  Destination UDP port to bind to.
 ///
-void w_connect(struct w_sock * const s,
-               const uint32_t dip,
-               const uint16_t dport)
+void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 {
-    s->hdr->ip.dst = dip;
-    s->hdr->udp.dport = dport;
+    s->hdr->ip.dst = ip;
+    s->hdr->udp.dport = port;
     backend_connect(s);
 
     warn(notice, "IP proto %d socket connected to %s port %d", s->hdr->ip.p,
-         inet_ntoa(*(const struct in_addr * const) & dip), ntohs(dport));
+         inet_ntoa(*(const struct in_addr * const) & ip), ntohs(port));
 }
 
 
