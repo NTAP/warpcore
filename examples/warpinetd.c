@@ -129,7 +129,7 @@ int main(const int argc, char * const argv[])
             if (i == 0)
                 continue;
 
-            const uint32_t i_len = w_iov_chain_len(i);
+            const uint32_t i_len = w_iov_chain_len(i, 0);
             struct w_iov_chain * o = 0; // w_iov for outbound data
 
             if (s == srv[0]) {
@@ -168,7 +168,7 @@ int main(const int argc, char * const argv[])
             }
 
             // track how much data was served
-            const uint32_t o_len = w_iov_chain_len(o);
+            const uint32_t o_len = w_iov_chain_len(o, 0);
             if (i_len || o_len)
                 warn(info, "handled %d byte%s in, %d byte%s out", i_len,
                      plural(i_len), o_len, plural(o_len));
