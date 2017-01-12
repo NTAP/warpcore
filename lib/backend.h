@@ -35,6 +35,13 @@
 #include "warpcore.h"
 
 
+#ifndef WITH_NETMAP
+/// Length of a buffer. Same as netmap uses.
+///
+#define IOV_BUF_LEN 2048
+#endif
+
+
 /// For a given buffer index, get a pointer to its beginning.
 ///
 /// Since netmap uses a macro for this, we also need to use a macro for the shim
@@ -48,7 +55,7 @@
 #ifdef WITH_NETMAP
 #define IDX2BUF(w, i) NETMAP_BUF(NETMAP_TXRING((w)->nif, 0), (i))
 #else
-#define IDX2BUF(w, i) (&((struct w_iov *)w->mem)[i])
+#define IDX2BUF(w, i) (((uint8_t *)w->mem + (i * IOV_BUF_LEN)))
 #endif
 
 

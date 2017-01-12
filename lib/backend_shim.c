@@ -42,11 +42,6 @@
 #include "udp.h"
 
 
-/// Length of a buffer. Same as netmap uses.
-///
-#define IOV_BUF_LEN 2048
-
-
 /// The backend name.
 ///
 static char backend_name[] = "shim";
