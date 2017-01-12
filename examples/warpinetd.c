@@ -40,6 +40,7 @@
 #include <arpa/inet.h>
 #endif
 
+#include "backend.h"
 #include <warpcore.h>
 
 
@@ -115,15 +116,14 @@ int main(const int argc, char * const argv[])
         if (busywait == false)
             // if we aren't supposed to busy-wait, poll for new data
             poll(fds, n, -1);
-        else
-            // otherwise, just pull in whatever is in the NIC rings
-            w_nic_rx(w);
+
+        // receive new data (there may not be any if busy-waiting)
+        w_nic_rx(w);
 
         // for each of the small services that have received data...
         struct w_sock_chain * c = w_rx_ready(w);
         struct w_sock * s;
         SLIST_FOREACH (s, c, next_rx) {
-            // for (uint16_t s = 0; s < n; s++) {
             // ...check if any new data has arrived on the socket
             struct w_iov_chain * i = w_rx(s);
             if (i == 0)
