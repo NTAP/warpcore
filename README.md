@@ -101,6 +101,14 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+## Acknowledgement
+
+This software has received funding from the European Union's Horizon 2020
+research and innovation program 2014-2018 under grant agreement No. 644866
+("SSICLOPS"). The European Commission is not responsible for any use that may be
+made of this software.
+
+
 [//]: # (@example warpping.c)
 [//]: # (@example warpinetd.c)
 
