@@ -151,3 +151,6 @@ w_engine(const struct w_sock * const s);
 
 extern struct w_sock_chain * __attribute__((nonnull))
 w_rx_ready(const struct warpcore * w);
+
+extern uint16_t __attribute__((nonnull, pure))
+w_iov_max_len(const struct warpcore * const w);
