@@ -247,5 +247,18 @@ extern regex_t _comp;
 extern struct timeval _epoch;
 
 
-extern void __attribute__((nonnull))
-hexdump(const void * const ptr, const size_t len);
+/// Print a hexdump of the memory region given by @p ptr and @p len to stderr.
+/// Also emits an ASCII representation. Uses _hexdump internally to augment the
+/// output with meta data.
+///
+/// @param[in]  ptr   The beginning of the memory region to hexdump.
+/// @param[in]  len   The length of the memory region to hexdump.
+///
+#define hexdump(ptr, len) _hexdump(ptr, len, #ptr, __func__, __FILE__, __LINE__)
+
+extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
+                                              const size_t len,
+                                              const char * const ptr_name,
+                                              const char * const func,
+                                              const char * const file,
+                                              const int line);

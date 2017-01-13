@@ -80,13 +80,14 @@ static void __attribute__((destructor)) postmain()
 #endif
 
 
-/// Print a hexdump of the memory region given by @p ptr and @p len to stderr.
-/// Also emits an ASCII representation.
-///
-/// @param[in]  ptr   The beginning of the memory region to hexdump.
-/// @param[in]  len   The length of the memory region to hexdump.
-///
-void hexdump(const void * const ptr, const size_t len)
+// See the hexdump() macro.
+//
+extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
+                                              const size_t len,
+                                              const char * const ptr_name,
+                                              const char * const func,
+                                              const char * const file,
+                                              const int line)
 {
     if (pthread_mutex_lock(&_lock))
         abort();
@@ -94,9 +95,16 @@ void hexdump(const void * const ptr, const size_t len)
     gettimeofday(&_now, 0);
     timersub(&_now, &_epoch, &_elapsed);
 
+    fprintf(stderr, REV "%s " NRM " %ld.%04ld " REV WHT " " NRM MAG " %s" BLK
+                        " " BLU "%s:%d " NRM "hex-dumping %zu byte%s of %s\n",
+            (pthread_self() == _master ? BLK : WHT), _elapsed.tv_sec % 1000,
+            (long)(_elapsed.tv_usec / 1000), func, basename(file), line, len,
+            plural(len), ptr_name);
+
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
-        fprintf(stderr, REV "%s " NRM " %ld.%04ld   " NRM BLU "0x%04lx:  " NRM,
+        fprintf(stderr, REV "%s " NRM " %ld.%04ld " REV WHT " " NRM " " BLU
+                            "0x%04lx:  " NRM,
                 (pthread_self() == _master ? BLK : WHT), _elapsed.tv_sec % 1000,
                 (long)(_elapsed.tv_usec / 1000), i);
         for (size_t j = 0; j < 16; j += 2) {
