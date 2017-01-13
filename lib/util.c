@@ -28,6 +28,7 @@
 #include <regex.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/time.h>
 
 #include <warpcore.h>
@@ -87,20 +88,33 @@ static void __attribute__((destructor)) postmain()
 ///
 void hexdump(const void * const ptr, const size_t len)
 {
+    if (pthread_mutex_lock(&_lock))
+        abort();
+    struct timeval _now, _elapsed;
+    gettimeofday(&_now, 0);
+    timersub(&_now, &_epoch, &_elapsed);
+
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
-        fprintf(stderr, "%06lx: ", i);
-        for (size_t j = 0; j < 16; j++) {
+        fprintf(stderr, REV "%s " NRM " %ld.%04ld   " NRM BLU "0x%04lx:  " NRM,
+                (pthread_self() == _master ? BLK : WHT), _elapsed.tv_sec % 1000,
+                (long)(_elapsed.tv_usec / 1000), i);
+        for (size_t j = 0; j < 16; j += 2) {
             if (i + j < len)
-                fprintf(stderr, "%02hhx ", buf[i + j]);
+                fprintf(stderr, "%02hhx%02hhx ", buf[i + j], buf[i + j + 1]);
             else
-                fprintf(stderr, "   ");
-            fprintf(stderr, " ");
+                fprintf(stderr, "     ");
         }
+        fprintf(stderr, " ");
         for (size_t j = 0; j < 16; j++) {
             if (i + j < len)
-                fprintf(stderr, "%c", isprint(buf[i + j]) ? buf[i + j] : '.');
+                fprintf(stderr, GRN "%c",
+                        isprint(buf[i + j]) ? buf[i + j] : '.');
         }
         fprintf(stderr, "\n");
     }
+
+    fflush(stderr);
+    if (pthread_mutex_unlock(&_lock))
+        abort();
 }
