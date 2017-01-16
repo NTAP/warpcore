@@ -122,14 +122,13 @@ int main(const int argc, char * const argv[])
             loops = strtol(optarg, 0, 10);
             break;
         case 's':
-            start =
-                MIN(UINT32_MAX, MAX(start, (uint32_t)strtol(optarg, 0, 10)));
+            start = MIN(UINT32_MAX, MAX(1, (uint32_t)strtol(optarg, 0, 10)));
             break;
         case 'c':
-            inc = MIN(UINT32_MAX, MAX(inc, (uint32_t)strtol(optarg, 0, 10)));
+            inc = MIN(UINT32_MAX, MAX(1, (uint32_t)strtol(optarg, 0, 10)));
             break;
         case 'e':
-            end = MIN(UINT32_MAX, MAX(end, (uint32_t)strtol(optarg, 0, 10)));
+            end = MIN(UINT32_MAX, MAX(1, (uint32_t)strtol(optarg, 0, 10)));
             break;
         case 'b':
             busywait = true;
@@ -197,8 +196,12 @@ int main(const int argc, char * const argv[])
             struct timespec now;
             ensure(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
             const struct w_iov * v;
-            STAILQ_FOREACH (v, o, next)
+            STAILQ_FOREACH (v, o, next) {
+                const uint16_t x = w_iov_max_len(w, v);
+                warn(debug, "max len %u", x);
+
                 memcpy(v->buf, &now, sizeof(now));
+            }
 
             // send the data and free the w_iov
             w_tx(s, o);
