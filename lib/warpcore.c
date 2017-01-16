@@ -476,12 +476,18 @@ struct w_sock_chain * w_rx_ready(const struct warpcore * w)
 }
 
 
-/// Return the maximum size a w_iov may have for the given engine.
+/// Return the maximum size a given w_iov may have for the given engine.
+/// Basically, subtracts the header space and any offset specified when
+/// allocating the w_iov from the MTU.
 ///
 /// @param[in]  w     Warpcore engine.
+/// @param[in]  v     The w_iov in question.
 ///
 /// @return     Maximum length of the data in a w_iov for this engine.
 ///
-uint16_t w_iov_max_len(const struct warpcore * const w) {
-    return w->mtu;
+uint16_t w_iov_max_len(const struct warpcore * const w,
+                       const struct w_iov * const v)
+{
+    const uint16_t offset = (uint16_t)((uint8_t *)v->buf - IDX2BUF(w, v->idx));
+    return w->mtu - offset;
 }
