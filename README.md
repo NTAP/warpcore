@@ -15,7 +15,8 @@ threads, timers nor signals. It exposes the underlying file descriptors to an
 application, for easy integration with different event loops (e.g.,
 [libev](http://software.schmorp.de/pkg/libev.html)).
 
-The warpcore repository is [on GitHub](https://github.com/NTAP/warpcore).
+The warpcore repository is [on GitHub](https://github.com/NTAP/warpcore), as is
+the [documentation](https://ntap.github.io/warpcore/).
 
 ## Building
 
@@ -23,12 +24,10 @@ Warpcore uses [cmake](https://cmake.org/) as a build system. To do an
 out-of-source build of warpcore (best practice with `cmake`), do the following
 to build with `make` as a generator:
 
-```
-mkdir Debug
-cd Debug
-cmake ..
-make
-```
+    mkdir Debug
+    cd Debug
+    cmake ..
+    make
 
 (cmake supports other generators, such as [ninja](https://ninja-build.org/). See
 the [cmake
@@ -50,12 +49,10 @@ implementing the [`echo`](https://www.ietf.org/rfc/rfc862.txt),
 The default build (per above) is without optimizations and with extensive debug
 logging enabled. In order to build an optimized build, do this:
 
-```
-mkdir Release
-cd Release
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
-```
+    mkdir Release
+    cd Release
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+    make
 
 If you are on a platform where netmap is not available, you can use the included
 `Vagrantfile` to bring up either a [`vagrant`](https://www.vagrantup.com/)
@@ -66,9 +63,7 @@ FreeBSD or Linux VM, which should be automatically provisioned with netmap.
 
 Warpcore comes with  documentation. This documentation can be build by doing
 
-```
-make doc
-```
+    make doc
 
 in any build directory. The starting page of the documentation is then
 `doc/html/index.html`.
@@ -104,9 +99,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## Acknowledgement
 
 This software has received funding from the European Union's Horizon 2020
-research and innovation program 2014-2018 under grant agreement No. 644866
-("SSICLOPS"). The European Commission is not responsible for any use that may be
-made of this software.
+research and innovation program 2014-2018 under grant agreement 644866
+("[SSICLOPS](https://ssiclops.eu/)"). The European Commission is not responsible
+for any use that may be made of this software.
 
 
 [//]: # (@example warpping.c)
