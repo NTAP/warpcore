@@ -25,5 +25,4 @@ script:
   - cmake .
 
 after_success:
-  - ls -la
   - sh $TRAVIS_BUILD_DIR/misc/push-to-gh-pages.sh
