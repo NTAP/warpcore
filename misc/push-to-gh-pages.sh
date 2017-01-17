@@ -32,7 +32,8 @@ doxygen "$DOXYFILE" 2>&1 | tee doxygen.log
 # that the html directory and the file html/index.html both exist. This is a
 # good indication that Doxygen did it's work.
 if [ -d "html" ] && [ -f "html/index.html" ]; then
-    cd html
+    # Move the documentation to this directory
+    mv html/* .
 
     # Add everything in this directory (the Doxygen code documentation) to the
     # gh-pages branch. GitHub is smart enough to know which files have changed
