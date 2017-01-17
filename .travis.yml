@@ -14,12 +14,12 @@ env:
 
 addons:
   apt:
+    sources:
+      - george-edison55-precise-backports
     packages:
       - cmake
+      - cmake-data
       - doxygen
-      # - doxygen-doc
-      # - doxygen-latex
-      # - doxygen-gui
       - graphviz
 
 script:
