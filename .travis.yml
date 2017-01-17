@@ -1,4 +1,3 @@
-# sudo: false
 language: C
 
 branches:
@@ -23,9 +22,8 @@ addons:
       - graphviz
 
 script:
-  - ls -la
   - cmake .
 
 after_success:
-  - cd $TRAVIS_BUILD_DIR
-  - sh ./push-to-gh-pages.sh
+  - ls -la
+  - sh $TRAVIS_BUILD_DIR/misc/push-to-gh-pages.sh
