@@ -1,0 +1,31 @@
+# sudo: false
+# language: C
+
+branches:
+  only:
+    - master
+
+env:
+  global:
+    - GH_REPO_NAME: warpcore
+    - DOXYFILE: $TRAVIS_BUILD_DIR/doc/Doxyfile
+    - GH_REPO_REF: github.com/NTAP/warpcore.git
+    - secure: "IHICwP4oMbC6yzx9G4YIthU6ujpt0bJ4jOElN7ujs8xGODB7YQFlxIaBwLvCf8APjczUuarN1r0Vc/Ekyp8LVBVdI6oEK0ZyHkvXOsydtYAtKrK60iEZXLoMzqTR/DeZaLkQb/hh4tYLAfrzNs9ZZA6vU1rJUJdaNmxluM9kcF253tfxKZ7rZ8dveD+gwmfJYH47sNwvFiGVTmU6c9fDVVfE/R3c0aX3A4pI3oOAUMH6Vs/76ZdRh2knzLLDgcNiIDapJd1xlw8HFSyEbsfEgTLPl+9qeXyh8fU6kwU7tGKetdr60klrXChIdwqStOxNwp4ylto727oYtztj7zJxYWQxbXQwehH66Xj44KEfW9MEuBEbGCmlR/74vCTNnKVU6D857ZU7r0L43GTD9KfAqqHWKtdQJpoRZMkhRcFrZkHCG8GJJo+3swwXFWnPbqPDuGWnLaeg4dsFpcAhq4ujSFheJbJ+ilERGio8ksv+FndlImSsQVEHtErPyJlizE3y2QfdWfASpn5HYVJ5la0Vy5Tea0rPRymdtLQm3lCMX+qcAg9EQLFHsc52LsFUwnHrNu5WqzfCmN0b7kfT4SlEHVXOXtC6k5PYxAUBaHfyeVFspc4UN5ZTUmSj9Y2h47Oa5KV/DJRaNKalve3TYgysEvlnTqv6qJfqnbHO2Swl+GE="
+
+addons:
+  apt:
+    packages:
+      - cmake
+      - doxygen
+      # - doxygen-doc
+      # - doxygen-latex
+      # - doxygen-gui
+      - graphviz
+
+script:
+  - ls -la
+  - cmake .
+
+after_success:
+  - cd $TRAVIS_BUILD_DIR
+  - sh ./push-to-gh-pages.sh
