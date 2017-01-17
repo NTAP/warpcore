@@ -1,5 +1,5 @@
 # sudo: false
-# language: C
+language: C
 
 branches:
   only:
