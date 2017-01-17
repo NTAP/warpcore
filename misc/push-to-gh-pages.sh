@@ -25,9 +25,8 @@ rm -rf ./*
 touch .nojekyll
 
 # Generate the Doxygen code documentation and log the output.
-cat "$DOXYFILE"
-ls -la ..
 doxygen "$DOXYFILE" 2>&1 | tee doxygen.log
+cat html/index.html
 
 # Upload the documentation to the gh-pages branch of the repository. Only upload
 # if Doxygen successfully created the documentation. Check this by verifying
