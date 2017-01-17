@@ -1,3 +1,4 @@
+sudo: required
 language: C
 
 branches:
@@ -13,8 +14,8 @@ env:
 
 addons:
   apt:
-    sources:
-      - george-edison55-precise-backports
+    # sources:
+      # - george-edison55-precise-backports
     packages:
       - cmake
       - cmake-data
