@@ -488,6 +488,8 @@ struct w_sock_chain * w_rx_ready(const struct warpcore * w)
 uint16_t w_iov_max_len(const struct warpcore * const w,
                        const struct w_iov * const v)
 {
-    const uint16_t offset = (uint16_t)((uint8_t *)v->buf - IDX2BUF(w, v->idx));
+    const uint16_t offset =
+        (const uint16_t)((const uint8_t * const)v->buf -
+                         (const uint8_t * const)IDX2BUF(w, v->idx));
     return w->mtu - offset;
 }
