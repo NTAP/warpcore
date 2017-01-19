@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(warpcore VERSION 0.1.0 LANGUAGES C)
+project(warpcore VERSION 0.1.1 LANGUAGES C)
 
 # Build "Debug" type by default
 if(NOT CMAKE_BUILD_TYPE)
