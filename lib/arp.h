@@ -30,6 +30,7 @@
 #include "eth.h"
 
 struct warpcore;
+struct netmap_ring;
 
 
 /// A representation of an ARP header; see

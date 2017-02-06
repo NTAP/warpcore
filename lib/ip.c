@@ -24,14 +24,14 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
+#include <net/if.h> // IWYU pragma: keep
+#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 
-#ifdef __linux__
-#include <netinet/in.h>
-#endif
+#include <net/netmap.h> // this needs to come after the other system includes
 
 #include <warpcore.h>
 

@@ -36,6 +36,7 @@
 
 struct w_iov;
 struct warpcore;
+struct netmap_ring;
 
 
 #define IP_ECT1 1 ///< ECN ECT(1) codepoint.

@@ -23,22 +23,16 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// clang-format off
-// because these includes need to be in-order
 #include <net/if.h> // IWYU pragma: keep
-#include <stdint.h>
-#include <net/netmap.h>
-// clang-format on
+#include <netinet/in.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/queue.h>
 #include <sys/time.h>
+#include <unistd.h>
 
-#ifdef __linux__
-#include <netinet/in.h>
-#else
-#include <arpa/inet.h>
-#endif
+#include <net/netmap.h> // this needs to come after the other system includes
 
 #include <warpcore.h>
 

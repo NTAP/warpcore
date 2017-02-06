@@ -25,12 +25,7 @@
 
 
 #include <fcntl.h>
-// clang-format off
-// because these includes need to be in-order
 #include <net/if.h> // IWYU pragma: keep
-#include <stdint.h> // IWYU pragma: keep
-#include <net/netmap.h>
-// clang-format on
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -43,6 +38,8 @@
 #ifdef __FreeBSD__
 #include <sys/types.h>
 #endif
+
+#include <net/netmap.h> // this needs to come after the other system includes
 
 #include <warpcore.h>
 

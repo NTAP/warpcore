@@ -34,9 +34,6 @@
 #include <util.h>
 // IWYU pragma: end_exports
 
-#ifdef WITH_NETMAP
-struct netmap_slot;
-#endif
 struct warpcore;
 
 

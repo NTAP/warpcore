@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-loops=10000
+loops=10
 busywait=-b
 
 peer=phobos2
@@ -12,7 +12,8 @@ ip=10.11.12.3
 piface=$iface
 peerip=10.11.12.4
 
-build=~/warpcore/$(uname -s)-rel
+build=~/warpcore/$(uname -s)
+#-rel
 
 ssh="ssh $peer -q"
 
@@ -21,11 +22,13 @@ run () {
     $ssh sudo bash << EOF
         pkill -f inetd
         cd $build/..
-        nohup $build/examples/$1inetd -i $piface $busywait \
-            > $build/../$1inetd.log 2>&1 &
+        nohup sudo ~/bin/perf record -F 99 -ag -o $1inetd.perf \
+            $build/examples/$1inetd -i $piface $busywait \
+                > $build/../$1inetd.log 2>&1 &
 EOF
-    "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait \
-        >> "$1.txt" 2> "$1ping.log"
+    sudo ~/bin/perf record -F 99 -ag -o "$1ping.perf" \
+        "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait \
+            >> "$1.txt" 2> "$1ping.log"
     $ssh "sudo pkill -f inetd"
 }
 

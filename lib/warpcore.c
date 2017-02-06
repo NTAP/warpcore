@@ -40,6 +40,11 @@
 #include <net/ethernet.h>
 #endif
 
+#ifdef WITH_NETMAP
+#include <net/if.h> // IWYU pragma: keep
+#include <net/netmap.h>
+#endif
+
 #include <warpcore.h>
 
 #include "backend.h"

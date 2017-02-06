@@ -25,14 +25,10 @@
 
 #pragma once
 
+#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#ifdef __linux__
-#include <netinet/in.h>
-#else
-#include <arpa/inet.h>
-#endif
 
 struct w_iov;
 struct warpcore;

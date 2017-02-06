@@ -23,8 +23,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-
 #include <arpa/inet.h>
+#include <net/if.h> // IWYU pragma: keep
+#include <netinet/in.h>
 #include <poll.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -34,14 +35,11 @@
 
 #ifdef __linux__
 #include <netinet/ether.h>
-#include <netinet/in.h>
 #else
-// clang-format off
-// because these includes need to be in-order
-#include <sys/types.h> // IWYU pragma: keep
 #include <net/ethernet.h>
-// clang-format on
 #endif
+
+#include <net/netmap.h> // this needs to come after the other system includes
 
 #include <warpcore.h>
 
