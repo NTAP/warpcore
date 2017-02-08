@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -60,27 +59,17 @@ static void usage(const char * const name,
 }
 
 
-// Subtract the struct timespec values x and y (x-y), storing the result in r
-static void time_diff(struct timespec * const r,
-                      struct timespec * const x,
-                      struct timespec * const y)
-{
-    // Perform the carry for the later subtraction by updating y
-    if (x->tv_nsec < y->tv_nsec) {
-        const long nsec = (y->tv_nsec - x->tv_nsec) / 1000000000 + 1;
-        y->tv_nsec -= 1000000000 * nsec;
-        y->tv_sec += nsec;
-    }
-    if (x->tv_nsec - y->tv_nsec > 1000000000) {
-        const long nsec = (x->tv_nsec - y->tv_nsec) / 1000000000;
-        y->tv_nsec += 1000000000 * nsec;
-        y->tv_sec -= nsec;
-    }
-
-    // Compute the result; tv_nsec is certainly positive.
-    r->tv_sec = x->tv_sec - y->tv_sec;
-    r->tv_nsec = x->tv_nsec - y->tv_nsec;
-}
+// Subtract the struct timespec values x and y (x-y), storing the result in r.
+// Inspired by timersub()
+#define time_diff(r, x, y)                                                     \
+    do {                                                                       \
+        (r)->tv_sec = (x)->tv_sec - (y)->tv_sec;                               \
+        (r)->tv_nsec = (x)->tv_nsec - (y)->tv_nsec;                            \
+        if ((r)->tv_nsec < 0) {                                                \
+            --(r)->tv_sec;                                                     \
+            (r)->tv_nsec += 1000000000;                                        \
+        }                                                                      \
+    } while (0)
 
 
 // global timeout flag
@@ -193,21 +182,14 @@ int main(const int argc, char * const argv[])
         long iter = loops;
         while (likely(iter--)) {
             // timestamp the payloads
-            struct timespec now;
-            ensure(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
             const struct w_iov * v;
-            STAILQ_FOREACH (v, o, next) {
-                const uint16_t x = w_iov_max_len(w, v);
-                warn(debug, "max len %u", x);
-
-                memcpy(v->buf, &now, sizeof(now));
-            }
+            STAILQ_FOREACH (v, o, next)
+                ensure(clock_gettime(CLOCK_MONOTONIC, v->buf) != -1,
+                       "clock_gettime");
 
             // send the data and free the w_iov
             w_tx(s, o);
             w_nic_tx(w);
-            STAILQ_FOREACH (v, o, next)
-                ensure(memcmp(v->buf, &now, sizeof(now)) == 0, "data changed");
             warn(info, "sent %d byte%s", size, plural(size));
 
             // wait for a reply
@@ -241,7 +223,7 @@ int main(const int argc, char * const argv[])
                 }
             }
 
-            // if we received no data, move to next iteration
+            // if timeout fired, move to next iteration
             if (done) {
                 if (i)
                     w_free(w, i);
@@ -249,8 +231,8 @@ int main(const int argc, char * const argv[])
             }
 
             // get the current time
-            struct timespec diff;
-            ensure(clock_gettime(CLOCK_REALTIME, &now) != -1, "clock_gettime");
+            struct timespec now;
+            ensure(clock_gettime(CLOCK_MONOTONIC, &now) != -1, "clock_gettime");
 
             // stop the timeout
             const struct itimerval stop = {0};
@@ -267,7 +249,8 @@ int main(const int argc, char * const argv[])
             }
 
             // compute time difference between the packet and the current time
-            time_diff(&diff, &now, STAILQ_FIRST(i)->buf);
+            struct timespec diff;
+            time_diff(&diff, &now, (struct timespec *)STAILQ_FIRST(i)->buf);
             if (unlikely(diff.tv_sec != 0))
                 warn(warn, "time difference is more than %ld sec", diff.tv_sec);
             else
