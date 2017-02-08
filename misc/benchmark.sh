@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-loops=10
+loops=100000
 busywait=-b
 
 peer=phobos2
@@ -12,22 +12,22 @@ ip=10.11.12.3
 piface=$iface
 peerip=10.11.12.4
 
-build=~/warpcore/$(uname -s)
+build=~/warpcore/$(uname -s)-rel
 #-rel
 
 ssh="ssh $peer -q"
 
 run () {
     echo "run $1"
+        # nohup sudo ~/bin/perf record -F 99 -ag -o $1inetd.perf \
     $ssh sudo bash << EOF
         pkill -f inetd
         cd $build/..
-        nohup sudo ~/bin/perf record -F 99 -ag -o $1inetd.perf \
-            $build/examples/$1inetd -i $piface $busywait \
+        nohup sudo $build/examples/$1inetd -i $piface $busywait \
                 > $build/../$1inetd.log 2>&1 &
 EOF
-    sudo ~/bin/perf record -F 99 -ag -o "$1ping.perf" \
-        "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait \
+    # sudo ~/bin/perf record -F 99 -ag -o "$1ping.perf" \
+    sudo "$build/examples/$1ping" -i $iface -d "$peerip" -l $loops $busywait \
             >> "$1.txt" 2> "$1ping.log"
     $ssh "sudo pkill -f inetd"
 }
@@ -41,10 +41,12 @@ sudo bash << EOF
     ifconfig $iface $ip/24 up
     if [ $(uname -s) == "Linux" ]; then
         ethtool -A $iface rx off tx off
-        ethtool -C $iface rx-usecs 0
+        ethtool -C $iface rx-usecs 0 tx-usecs 0 adaptive-rx off adaptive-tx off rx-usecs-high 0
+        ethtool -L $iface combined 2
     else
         sysctl -q -w hw.ix.enable_aim=0
     fi
+    sleep 3
 EOF
 
 $ssh sudo bash << EOF
@@ -52,10 +54,12 @@ $ssh sudo bash << EOF
     ifconfig $piface $peerip/24 up
     if [ $(uname -s) == "Linux" ]; then
         ethtool -A $piface rx off tx off
-        ethtool -C $piface rx-usecs 0
+        ethtool -C $piface rx-usecs 0 tx-usecs 0 adaptive-rx off adaptive-tx off rx-usecs-high 0
+        ethtool -L $piface combined 2
     else
         sysctl -q -w hw.ix.enable_aim=0
     fi
+    sleep 3
 EOF
 
 if [ ! "$1" ]; then
