@@ -55,6 +55,7 @@ static void usage(const char * const name,
     printf("\t[-c increment]          optional, default %d\n", inc);
     printf("\t[-e end packet size]    optional, default %d\n", end);
     printf("\t[-l loop iterations]    optional, default %ld\n", loops);
+    printf("\t[-z]                    optional, turn off UDP checksums\n");
     printf("\t[-b]                    busy-wait\n");
 }
 
@@ -93,10 +94,11 @@ int main(const int argc, char * const argv[])
     uint32_t inc = 103;
     uint32_t end = 1458;
     bool busywait = false;
+    uint8_t flags = 0;
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv, "hi:d:l:r:s:c:e:b")) != -1) {
+    while ((ch = getopt(argc, argv, "hzi:d:l:r:s:c:e:b")) != -1) {
         switch (ch) {
         case 'i':
             ifname = optarg;
@@ -121,6 +123,9 @@ int main(const int argc, char * const argv[])
             break;
         case 'b':
             busywait = true;
+            break;
+        case 'z':
+            flags |= W_ZERO_CHKSUM;
             break;
         case 'h':
         case '?':
@@ -155,7 +160,7 @@ int main(const int argc, char * const argv[])
     struct warpcore * w = w_init(ifname, rip);
 
     // bind a new socket to a random local source port
-    struct w_sock * s = w_bind(w, (uint16_t)plat_random());
+    struct w_sock * s = w_bind(w, (uint16_t)plat_random(), flags);
 
     // look up the peer IP address and "echo" port
     struct addrinfo * peer;

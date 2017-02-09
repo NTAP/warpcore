@@ -47,7 +47,8 @@ static void usage(const char * const name)
 {
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
-    printf("\t[-b]                    busy-wait\n");
+    printf("\t[-b]                    optional, busy-wait\n");
+    printf("\t[-z]                    optional, turn off UDP checksums\n");
 }
 
 // global termination flag
@@ -65,16 +66,20 @@ int main(const int argc, char * const argv[])
 {
     const char * ifname = 0;
     bool busywait = false;
+    uint8_t flags = 0;
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv, "hi:b")) != -1) {
+    while ((ch = getopt(argc, argv, "hi:bz")) != -1) {
         switch (ch) {
         case 'i':
             ifname = optarg;
             break;
         case 'b':
             busywait = true;
+            break;
+        case 'z':
+            flags |= W_ZERO_CHKSUM;
             break;
         case 'h':
         case '?':
@@ -102,8 +107,8 @@ int main(const int argc, char * const argv[])
     // start four inetd-like "small services"
     const uint16_t port[] = {7, 9, 13, 37};
     struct w_sock * const srv[] = {
-        w_bind(w, htons(port[0])), w_bind(w, htons(port[1])),
-        w_bind(w, htons(port[2])), w_bind(w, htons(port[3]))};
+        w_bind(w, htons(port[0]), flags), w_bind(w, htons(port[1]), flags),
+        w_bind(w, htons(port[2]), flags), w_bind(w, htons(port[3]), flags)};
     const uint16_t n = sizeof(srv) / sizeof(struct w_sock *);
     struct pollfd fds[] = {{.fd = w_fd(srv[0]), .events = POLLIN},
                            {.fd = w_fd(srv[1]), .events = POLLIN},

@@ -82,15 +82,17 @@ void udp_rx(struct warpcore * const w, struct netmap_ring * const r)
 
     udp_log(udp);
 
-    // validate the checksum
-    const uint16_t orig = udp->cksum;
-    udp->cksum = in_pseudo(ip->src, ip->dst, htons(udp_len + ip->p));
-    const uint16_t cksum = in_cksum(udp, udp_len);
-    udp->cksum = orig;
-    if (unlikely(orig != cksum)) {
-        warn(warn, "invalid UDP checksum, received 0x%04x != 0x%04x",
-             ntohs(orig), ntohs(cksum));
-        return;
+    if (udp->cksum) {
+        // validate the checksum
+        const uint16_t orig = udp->cksum;
+        udp->cksum = in_pseudo(ip->src, ip->dst, htons(udp_len + ip->p));
+        const uint16_t cksum = in_cksum(udp, udp_len);
+        udp->cksum = orig;
+        if (unlikely(orig != cksum)) {
+            warn(warn, "invalid UDP checksum, received 0x%04x != 0x%04x",
+                 ntohs(orig), ntohs(cksum));
+            return;
+        }
     }
 
     struct w_sock * const s = get_sock(w, udp->dport);
@@ -165,9 +167,12 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
         udp->dport = v->port;
     }
 
-    // compute the checksum
-    udp->cksum = in_pseudo(s->w->ip, ip->dst, htons(len + IP_P_UDP));
-    udp->cksum = in_cksum(udp, len);
+    // compute the checksum, unless disabled by a socket option
+    if (s->flags & W_ZERO_CHKSUM == 0) {
+        udp->cksum = in_pseudo(s->w->ip, ip->dst, htons(len + IP_P_UDP));
+        udp->cksum = in_cksum(udp, len);
+    }
+
     udp_log(udp);
 
     return ip_tx(s->w, v, len);

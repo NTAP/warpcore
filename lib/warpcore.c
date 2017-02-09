@@ -195,12 +195,14 @@ void w_disconnect(struct w_sock * const s)
 
 /// Bind a w_sock to the given local UDP port number.
 ///
-/// @param      w     The w_sock to bind.
-/// @param[in]  port  The local port number to bind to, in network byte order.
+/// @param      w      The w_sock to bind.
+/// @param[in]  port   The local port number to bind to, in network byte order.
+/// @param[in]  flags  Flags for this socket.
 ///
 /// @return     Pointer to a bound w_sock.
 ///
-struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
+struct w_sock *
+w_bind(struct warpcore * const w, const uint16_t port, const uint8_t flags)
 {
     struct w_sock * s = get_sock(w, port);
     if (s) {
@@ -210,6 +212,9 @@ struct w_sock * w_bind(struct warpcore * const w, const uint16_t port)
 
     ensure((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");
     ensure((s->hdr = calloc(1, sizeof(*s->hdr))) != 0, "cannot allocate w_hdr");
+
+    // initialize flags
+    s->flags = flags;
 
     // initialize the non-zero fields of outgoing template header
     s->hdr->eth.type = ETH_TYPE_IP;

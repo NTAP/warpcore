@@ -40,6 +40,13 @@ struct warpcore;
 STAILQ_HEAD(w_iov_chain, w_iov);
 SLIST_HEAD(w_sock_chain, w_sock);
 
+
+/// Do not compute a UDP checksum for outgoing packets. Has no effect for the
+/// shim backend.
+///
+#define W_ZERO_CHKSUM 1
+
+
 /// A warpcore socket.
 ///
 struct w_sock {
@@ -52,10 +59,11 @@ struct w_sock {
     /// w_sock.
     struct w_hdr * hdr;
     SLIST_ENTRY(w_sock) next_rx; ///< Next socket with unread data.
-#ifndef WITH_NETMAP
+    uint8_t flags;
     /// @cond
-    uint8_t _unused[4]; ///< @internal Padding.
+    uint8_t _unused[3]; ///< @internal Padding.
     /// @endcond
+#ifndef WITH_NETMAP
     int fd; ///< Socket descriptor underlying the engine, if the shim is in use.
 #endif
 };
@@ -111,7 +119,7 @@ w_init(const char * const ifname, const uint32_t rip);
 extern void __attribute__((nonnull)) w_cleanup(struct warpcore * const w);
 
 extern struct w_sock * __attribute__((nonnull))
-w_bind(struct warpcore * const w, const uint16_t port);
+w_bind(struct warpcore * const w, const uint16_t port, const uint8_t flags);
 
 extern void __attribute__((nonnull))
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
