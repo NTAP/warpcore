@@ -213,9 +213,10 @@ int main(const int argc, char * const argv[])
                     if (poll(&fds, 1, -1) == -1)
                         // if the poll was interrupted, move on
                         continue;
-                } else
-                    // just suck in whatever is in the NIC rings
-                    w_nic_rx(w);
+                }
+
+                // receive new data (there may not be any if busy-waiting)
+                w_nic_rx(w);
 
                 // read new data
                 struct w_iov_chain * new = w_rx(s);
