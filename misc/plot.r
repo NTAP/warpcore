@@ -36,9 +36,9 @@ my_plot<- function(dt, ymax, legend) {
             axis.text=element_text(family="Times", size=7, color="black"),
             axis.ticks.x=element_line(colour="#777777", size=.2),
             axis.ticks.y=element_line(colour="#777777", size=.2),
+            axis.title.x=element_text(margin=margin(-.1, 0, 0, 0)),
+            axis.title.y=element_text(margin=margin(0, -.1, 0, 0)),
             axis.title=element_text(family="Times", size=7, color="black"),
-            axis.title.y=element_text(margin=margin(0, -.5, 0, 0)),
-            axis.title.x=element_text(margin=margin(-.5, 0, 0, 0)),
             legend.background=element_blank(),
             legend.key.height=unit(7, "pt"),
             legend.key.width=unit(7, "mm"),
@@ -77,10 +77,11 @@ legend <- TRUE
 for (s in unique(stats$speed)) {
     for (m in unique(stats$method)) {
         fstats <- stats[stats$speed == s & stats$method == m]
+        print(fstats[, grep(c("speed|method|busywait|zcksum|size|median|q1|q99"), names(fstats)), with = FALSE])
         ggsave(plot=my_plot(fstats, ymax, legend),
                height=1.3, width=3.5, units="in",
                filename=paste(m, "-", s, ".pdf", sep=""))
-        legend <- FALSE
+        # legend <- FALSE
     }
     # compute some stats for the text
 

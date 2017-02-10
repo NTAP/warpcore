@@ -6,17 +6,19 @@ from time import *
 
 env.colorize_errors = True
 env.use_ssh_config = True
-env.builddir = {}
+env.builddir = ""
 env.keeplog = False
 
-env.roledefs = {"client": ["phobos1"],
-                "server": ["phobos2"], }
-
-env.ifaces = [{"speed": 10, "name": "enp8s0f0"},
-              {"speed": 40, "name": "enp4s0f0"}, ]
-
 env.ip = {"phobos1": "10.11.12.3",
-          "phobos2": "10.11.12.4", }
+          "phobos2": "10.11.12.4",
+          "five": "10.11.12.5",
+          "six": "10.11.12.6"}
+
+env.tests = [
+    # {"speed": 1, "client": "five", "server": "six", "iface": "ens1f1"},
+    {"speed": 10, "client": "phobos1", "server": "phobos2", "iface": "enp8s0f0"},
+    {"speed": 40, "client": "phobos1", "server": "phobos2", "iface": "enp4s0f0"},
+]
 
 
 @task
@@ -24,6 +26,11 @@ env.ip = {"phobos1": "10.11.12.3",
 @roles("client", "server")
 def ip_config(iface):
     sudo("ifconfig %s %s/24 up" % (iface, env.ip[env.host_string]))
+    with settings(warn_only=True):
+        if run("uname -s") == "Linux":
+            sudo("ethtool -C %s rx-usecs 0 tx-usecs 0 adaptive-rx off "
+                 "adaptive-tx off rx-usecs-high 0" % iface)
+            sudo("ethtool -L %s combined 2" % iface)
 
 
 @task
@@ -32,9 +39,11 @@ def ip_config(iface):
 def ip_unconfig(iface):
     with settings(warn_only=True):
         if run("uname -s") == "Linux":
-            sudo("ip addr del %s/24 dev %s" % (env.ip[env.host_string], iface))
+            for i in str.split(run("ls /sys/class/net")):
+                sudo("ip addr del %s/24 dev %s" % (env.ip[env.host_string], i))
         else:
-            sudo("ifconfig %s -alias 10.11.12.3" % iface)
+            for i in str.split(run("ifconfig -a")):
+                sudo("ifconfig %s -alias %s" % i)
 
 
 @parallel
@@ -45,9 +54,6 @@ def netmap_config(iface):
         if run("uname -s") == "Linux":
             sudo("echo 4096 > /sys/module/netmap/parameters/if_size")
             sudo("ethtool -A %s rx off tx off" % iface)
-            sudo("ethtool -C %s rx-usecs 0 tx-usecs 0 adaptive-rx off "
-                 "adaptive-tx off rx-usecs-high 0" % iface)
-            sudo("ethtool -L %s combined 2" % iface)
         else:
             sudo("sysctl -q -w hw.ix.enable_aim=0")
             sudo("sudo ifconfig %s -rxcsum -txcsum -tso -lro" % iface)
@@ -58,25 +64,26 @@ def netmap_config(iface):
 def netmap_unconfig(iface):
     with settings(warn_only=True):
         if run("uname -s") == "Linux":
+            # reload the driver module
+            # driver = run("ethtool -i enp4s0f0 | head -n1 | cut -f2 -d:")
+            # driver += "_netmap"
+            # sudo("rmmod %s && modprobe %s" % (driver, driver))
             sudo("ethtool -A %s rx on tx on" % iface)
-            # XXX need to figure out what the defaults are
-            # sudo("ethtool -C %s rx-usecs 1 tx-usecs 0 adaptive-rx on "
-            #      "adaptive-tx on rx-usecs-high 0" % iface)
-            sudo("ethtool -L %s combined 63" % iface)
         else:
             sudo("sysctl -q -w hw.ix.enable_aim=1")
             sudo("sudo ifconfig %s rxcsum txcsum tso lro" % iface)
 
 
-@parallel
-@roles("client", "server")
+# @roles("client", "server")
+@runs_once
 def clear_logs():
     with cd("~/warpcore"):
         with settings(warn_only=True):
-            sudo("rm warp*.log shim*.log warp*.txt shim*.txt")
+            sudo("rm warp*.log shim*.log warp*.txt shim*.txt 2> /dev/null")
 
 
 @roles("client", "server")
+@runs_once
 def build():
     with cd("~/warpcore/"):
         dir = "%s-benchmarking" % run("uname -s")
@@ -84,18 +91,18 @@ def build():
         with cd(dir):
             run("cmake -GNinja ..")  # -DCMAKE_BUILD_TYPE=Release
             run("ninja")
-            env.builddir[env.host_string] = run("pwd")
+            env.builddir = run("pwd")
 
 
 @parallel
 @roles("server")
-def start_server(iface, busywait, cksum, kind):
-    with cd(env.builddir[env.host_string]):
-        log = "../%sinetd-%s%s%s.log" % (kind, iface["speed"], busywait, cksum)
+def start_server(test, busywait, cksum, kind):
+    with cd(env.builddir):
+        log = "../%sinetd-%s%s%s.log" % (kind, test["speed"], busywait, cksum)
         if not env.keeplog:
             log = "/dev/null"
         sudo("nohup examples/%sinetd -i %s %s %s > %s 2>&1 &" %
-             (kind, iface["name"], busywait, cksum, log))
+             (kind, test["iface"], busywait, cksum, log))
 
 
 @task
@@ -112,41 +119,46 @@ def stop(flag=""):
 
 
 @roles("client")
-def start_client(iface, peerip, busywait, cksum, kind):
-    with cd(env.builddir[env.host_string]):
-        prefix = "../%sping-%s%s%s" % (kind, iface["speed"], busywait, cksum)
+def start_client(test, busywait, cksum, kind):
+    with cd(env.builddir):
+        prefix = "../%sping-%s%s%s" % (kind, test["speed"], busywait, cksum)
         file = prefix + ".txt"
         log = prefix + ".log"
         if not env.keeplog:
             log = "/dev/null"
-        sudo("examples/%sping -i %s -d %s %s %s -l 10000 > %s 2> %s" %
-             (kind, iface["name"], peerip, busywait, cksum, file, log))
+        sudo("examples/%sping -i %s -d %s %s %s -l 100000 > %s 2> %s" %
+             (kind, test["iface"], env.ip[test["server"]],
+              busywait, cksum, file, log))
 
 
 @task(default=True)
 def bench():
-    execute(build)
+    with settings(hosts=env.tests[0]["client"]):
+        execute(clear_logs)
 
-    # clean up after possibly failed previous run
-    execute(clear_logs)
-    execute(stop)
-    for i in env.ifaces:
-        execute(ip_unconfig, i["name"])
+    for t in env.tests:
+        print(t["speed"])
+        with settings(roledefs={"client": [t["client"]],
+                                "server": [t["server"]]}):
+            execute(build)
 
-    # start run
-    for i in env.ifaces:
-        execute(ip_config, i["name"])
-        for k in ["warp", "shim"]:
-            if k == "warp":
-                execute(netmap_config, i["name"])
-            for c in ["-z", ""]:
-                for w in ["-b", ""]:
-                    sleep(3)
-                    execute(start_server, i, w, c, k)
-                    sleep(3)
-                    execute(start_client, i, env.ip[env.roledefs["server"][0]],
-                            w, c, k)
-                    execute(stop)
-            # if k == "warp":
-                # execute(netmap_unconfig, i["name"])
-        execute(ip_unconfig, i["name"])
+            execute(stop)
+            execute(netmap_unconfig, t["iface"])
+            execute(ip_unconfig, t["iface"])
+
+            execute(ip_config, t["iface"])
+
+            for k in ["warp", "shim"]:
+                if k == "warp":
+                    execute(netmap_config, t["iface"])
+                for c in ["-z", ""]:
+                    for w in ["-b", ""]:
+                        sleep(3)
+                        execute(start_server, t, w, c, k)
+                        sleep(3)
+                        execute(start_client, t, w, c, k)
+                        execute(stop)
+                if k == "warp":
+                    execute(netmap_unconfig, t["iface"])
+
+            execute(ip_unconfig, t["iface"])
