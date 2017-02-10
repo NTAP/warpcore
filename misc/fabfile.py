@@ -24,7 +24,6 @@ env.ip = {"phobos1": "10.11.12.3",
 @roles("client", "server")
 def ip_config(iface):
     sudo("ifconfig %s %s/24 up" % (iface, env.ip[env.host_string]))
-    # run("sleep 3")
 
 
 @task
@@ -33,11 +32,9 @@ def ip_config(iface):
 def ip_unconfig(iface):
     with settings(warn_only=True):
         if run("uname -s") == "Linux":
-            sudo("ip addr del %s/24 dev %s" %
-                 (env.ip[env.host_string], iface))
+            sudo("ip addr del %s/24 dev %s" % (env.ip[env.host_string], iface))
         else:
-            sudo("ifconfig %s -alias 10.11.12.3 rxcsum txcsum tso lro" %
-                 iface)
+            sudo("ifconfig %s -alias 10.11.12.3" % iface)
 
 
 @parallel
@@ -54,7 +51,6 @@ def netmap_config(iface):
         else:
             sudo("sysctl -q -w hw.ix.enable_aim=0")
             sudo("sudo ifconfig %s -rxcsum -txcsum -tso -lro" % iface)
-    # run("sleep 3")
 
 
 @parallel
@@ -95,9 +91,11 @@ def build():
 @roles("server")
 def start_server(iface, busywait, cksum, kind):
     with cd(env.builddir[env.host_string]):
-        file = "../%sinetd-%s%s%s" % (kind, iface["speed"], busywait, cksum)
-        sudo("nohup examples/%sinetd -i %s %s %s > %s.log 2>&1 &" %
-             (kind, iface["name"], busywait, cksum, file))
+        log = "../%sinetd-%s%s%s.log" % (kind, iface["speed"], busywait, cksum)
+        if not env.keeplog:
+            log = "/dev/null"
+        sudo("nohup examples/%sinetd -i %s %s %s > %s 2>&1 &" %
+             (kind, iface["name"], busywait, cksum, log))
 
 
 @task
@@ -111,16 +109,18 @@ def stop(flag=""):
             [ "$?" == 1 ] && break; \
             sleep 1; \
         done''')
-    # run("ps -ef | ag 'warp|shim'")
 
 
 @roles("client")
 def start_client(iface, peerip, busywait, cksum, kind):
     with cd(env.builddir[env.host_string]):
-        file = "../%sping-%s%s%s" % (kind, iface["speed"], busywait, cksum)
-        sudo("examples/%sping -i %s -d %s %s %s -l 100000 "
-             "> %s.txt 2> %s.log" %
-             (kind, iface["name"], peerip, busywait, cksum, file, file))
+        prefix = "../%sping-%s%s%s" % (kind, iface["speed"], busywait, cksum)
+        file = prefix + ".txt"
+        log = prefix + ".log"
+        if not env.keeplog:
+            log = "/dev/null"
+        sudo("examples/%sping -i %s -d %s %s %s -l 10000 > %s 2> %s" %
+             (kind, iface["name"], peerip, busywait, cksum, file, log))
 
 
 @task(default=True)
