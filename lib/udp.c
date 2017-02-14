@@ -168,7 +168,7 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
     }
 
     // compute the checksum, unless disabled by a socket option
-    if (s->flags & W_ZERO_CHKSUM == 0) {
+    if ((s->flags & W_ZERO_CHKSUM) == 0) {
         udp->cksum = in_pseudo(s->w->ip, ip->dst, htons(len + IP_P_UDP));
         udp->cksum = in_cksum(udp, len);
     }

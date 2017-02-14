@@ -65,6 +65,10 @@ struct w_sock {
     /// @endcond
 #ifndef WITH_NETMAP
     int fd; ///< Socket descriptor underlying the engine, if the shim is in use.
+#else
+    /// @cond
+    uint8_t _unused2[4]; ///< @internal Padding.
+    /// @endcond
 #endif
 };
 
