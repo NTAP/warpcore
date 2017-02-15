@@ -24,8 +24,8 @@ set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Default debug logging level
-  if(NOT DEFINED DDLEVEL)
-    set(DDLEVEL "debug")
+  if(NOT DEFINED DLEVEL)
+    set(DLEVEL "debug")
   endif()
 
   # Set some additional flags for Debug builds
@@ -47,8 +47,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   endforeach()
 else()
   # Default logging level
-  if(NOT DEFINED DDLEVEL)
-    set(DDLEVEL "notice")
+  if(NOT DEFINED DLEVEL)
+    set(DLEVEL "notice")
   endif()
 
   # See if we can use LTO
@@ -122,7 +122,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   endif()
 endif()
 
-add_definitions(-DDLEVEL=${DDLEVEL})
+add_definitions(-DDLEVEL=${DLEVEL})
 
 add_subdirectory(doc)
 add_subdirectory(bin)
