@@ -89,12 +89,13 @@ int main(const int argc, char * const argv[])
     const char * ifname = 0;
     const char * dst = 0;
     const char * rtr = 0;
-    long loops = 1;
+    unsigned long loops = 1;
     uint32_t start = sizeof(struct timespec);
     uint32_t inc = 103;
     uint32_t end = 1458;
     bool busywait = false;
     uint8_t flags = 0;
+    unsigned long transact = 0;
 
     // handle arguments
     int ch;
@@ -179,20 +180,22 @@ int main(const int argc, char * const argv[])
 
     // send packet trains of sizes between "start" and "end"
     puts("nsec\tsize");
-    for (uint32_t size = start; size <= end; size += inc) {
-        // allocate tx chain
-        struct w_iov_chain * const o = w_alloc(w, size, 0);
 
-        // send "loops" number of payloads of size "size" and wait for reply
-        long iter = loops;
-        while (likely(iter--)) {
+    // send "loops" number of payloads of size "size" and wait for reply
+    long iter = loops;
+    while (likely(iter--)) {
+
+        for (uint32_t size = start; size <= end; size += inc) {
+            // allocate tx chain
+            struct w_iov_chain * const o = w_alloc(w, size, 0);
+
             // timestamp the payloads
             const struct w_iov * v;
             STAILQ_FOREACH (v, o, next)
                 ensure(clock_gettime(CLOCK_MONOTONIC, v->buf) != -1,
                        "clock_gettime");
 
-            // send the data and free the w_iov
+            // send the data
             w_tx(s, o);
             w_nic_tx(w);
             warn(info, "sent %d byte%s", size, plural(size));
@@ -259,16 +262,18 @@ int main(const int argc, char * const argv[])
             time_diff(&diff, &now, (struct timespec *)STAILQ_FIRST(i)->buf);
             if (unlikely(diff.tv_sec != 0))
                 warn(warn, "time difference is more than %ld sec", diff.tv_sec);
-            else
+            else {
                 printf("%ld\t%d\n", diff.tv_nsec, size);
+                transact++;
+            }
 
             // we are done with the received data
             w_free(w, i);
+            w_free(w, o);
         }
-
-        w_free(w, o);
     }
     w_close(s);
+    warn(notice, "executed %ld transaction%s", transact, plural(transact));
     w_cleanup(w);
     return 0;
 }
