@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(warpcore VERSION 0.1.1 LANGUAGES C)
+project(warpcore VERSION 0.2.0 LANGUAGES C)
 
 # Build "Debug" type by default
 if(NOT CMAKE_BUILD_TYPE)
@@ -23,6 +23,11 @@ endforeach()
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
+  # Default debug logging level
+  if(NOT DEFINED DDLEVEL)
+    set(DDLEVEL "debug")
+  endif()
+
   # Set some additional flags for Debug builds
   set(FLAGS -fsanitize=address -fsanitize=memory -fsanitize-memory-track-origins
           -fsanitize=thread -fno-omit-frame-pointer)
@@ -41,6 +46,11 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     endif()
   endforeach()
 else()
+  # Default logging level
+  if(NOT DEFINED DDLEVEL)
+    set(DDLEVEL "notice")
+  endif()
+
   # See if we can use LTO
   check_c_compiler_flag(-flto LTO)
   if(${LTO})
@@ -61,7 +71,7 @@ endif()
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Ofast")
 
 # flags for "RelWithDebInfo" builds
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-DNDEBUG -Ofast -g")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -g")
 
 # Check if _GNU_SOURCE is available.
 include(CheckSymbolExists)
@@ -112,8 +122,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   endif()
 endif()
 
-# add_definitions(-DDLEVEL=info)
-# add_definitions(-DDCOMPONENT="warp")
+add_definitions(-DDLEVEL=${DDLEVEL})
 
 add_subdirectory(doc)
 add_subdirectory(examples)
