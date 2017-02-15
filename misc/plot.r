@@ -13,7 +13,8 @@ my_fread <-function(file) {
     item$method <- tags[1] # if(tags[1] == "shimping", "Kernel Stack", "Warpcore")
     item$speed <- tags[2] # paste(tags[2], "G")
     item$busywait <- if (tags[3] %in% "b") "busy-wait" else "poll()"
-    item$zcksum <- if (tags[3] %in% "z" | tags[4] %in% "z") "zero-checksum" else "checksum"
+    item$zcksum <-
+        if (tags[3] %in% "z" | tags[4] %in% "z") "zero-checksum" else "checksum"
     return (item)
 }
 
@@ -58,13 +59,14 @@ my_plot<- function(dt, ymax, legend) {
     )
 
     plot <- ggplot(data=dt, aes(x=size, y=median,
-                                   shape=paste(busywait, "+", zcksum),
-                                   color=paste(busywait, "+", zcksum))) +
+                                   shape=paste(busywait), #, "+", zcksum),
+                                   color=paste(busywait))) + #, "+", zcksum))) +
             geom_errorbar(aes(ymin=q1, ymax=q99), linetype="solid", size=.25,
-                          position=position_dodge(width=20)) +
+                          # position=position_dodge(width=20)
+                          width=20) +
             geom_line(size=.5) +
             geom_point(size=1) +
-            scale_colour_brewer(type="div", palette="PuOr") +
+            # scale_colour_brewer(type="div", palette="PuOr") +
             scale_x_continuous(expand=c(0, 0), limit=c(0, 1551),
                                name="Packet Size [B]") +
             scale_y_continuous(expand=c(0, 0), limit=c(0, ymax),
@@ -77,7 +79,8 @@ legend <- TRUE
 for (s in unique(stats$speed)) {
     for (m in unique(stats$method)) {
         fstats <- stats[stats$speed == s & stats$method == m]
-        print(fstats[, grep(c("speed|method|busywait|zcksum|size|median|q1|q99"), names(fstats)), with = FALSE])
+        print(fstats[, grep(c("speed|method|busywait|zcksum|^n|size|median|q1|q99"),
+                            names(fstats)), with = FALSE])
         ggsave(plot=my_plot(fstats, ymax, legend),
                height=1.3, width=3.5, units="in",
                filename=paste(m, "-", s, ".pdf", sep=""))
