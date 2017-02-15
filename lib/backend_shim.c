@@ -151,7 +151,8 @@ void backend_tx(const struct w_sock * const s, struct w_iov * const v)
         if (likely(n == v->len))
             break;
         else
-            die("sendto failed");
+            warn(warn, "sendto of %d byte%s failed, retrying %d more times",
+                 v->len, plural(v->len), tries);
     }
 }
 
