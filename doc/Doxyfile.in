@@ -11,7 +11,7 @@ INPUT                  = @PROJECT_SOURCE_DIR@/lib \
 FILE_PATTERNS          = *.h \
                          *.c
 EXCLUDE                = @PROJECT_SOURCE_DIR@/lib/in_cksum.c
-EXAMPLE_PATH           = @PROJECT_SOURCE_DIR@/examples
+EXAMPLE_PATH           = @PROJECT_SOURCE_DIR@/bin
 #RECURSIVE              = YES
 EXTRACT_ALL            = YES
 EXTRACT_STATIC         = YES

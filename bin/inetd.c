@@ -67,7 +67,7 @@ int main(const int argc, char * const argv[])
     const char * ifname = 0;
     bool busywait = false;
     uint8_t flags = 0;
-    unsigned long transact = 0;
+    uint32_t transact = 0;
 
     // handle arguments
     int ch;
@@ -187,7 +187,7 @@ int main(const int argc, char * const argv[])
     // we only get here after an interrupt; clean up
     for (uint16_t s = 0; s < n; s++)
         w_close(srv[s]);
-    warn(notice, "executed %ld transaction%s", transact, plural(transact));
+    warn(notice, "executed %u transaction%s", transact, plural(transact));
     w_cleanup(w);
     return 0;
 }

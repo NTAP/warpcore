@@ -125,7 +125,7 @@ endif()
 add_definitions(-DDLEVEL=${DDLEVEL})
 
 add_subdirectory(doc)
-add_subdirectory(examples)
+add_subdirectory(bin)
 add_subdirectory(lib)
 
 # Add a "distclean" target; see http://stackoverflow.com/a/12055610/1437081

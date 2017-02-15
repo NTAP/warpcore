@@ -104,6 +104,5 @@ research and innovation program 2014-2018 under grant agreement 644866
 for any use that may be made of this software.
 
 
-[//]: # (@example warpping.c)
-[//]: # (@example warpinetd.c)
-
+[//]: # (@example ping.c)
+[//]: # (@example inetd.c)

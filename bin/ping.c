@@ -45,16 +45,16 @@ static void usage(const char * const name,
                   const uint32_t start,
                   const uint32_t inc,
                   const uint32_t end,
-                  const long loops)
+                  const uint32_t loops)
 {
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
     printf("\t -d destination IP      peer to connect to\n");
     printf("\t[-r router IP]          router to use for non-local peers\n");
-    printf("\t[-s start packet size]  optional, default %d\n", start);
-    printf("\t[-c increment]          optional, default %d\n", inc);
-    printf("\t[-e end packet size]    optional, default %d\n", end);
-    printf("\t[-l loop iterations]    optional, default %ld\n", loops);
+    printf("\t[-s start packet size]  optional, default %u\n", start);
+    printf("\t[-c increment]          optional, default %u\n", inc);
+    printf("\t[-e end packet size]    optional, default %u\n", end);
+    printf("\t[-l loop iterations]    optional, default %u\n", loops);
     printf("\t[-z]                    optional, turn off UDP checksums\n");
     printf("\t[-b]                    busy-wait\n");
 }
@@ -89,13 +89,13 @@ int main(const int argc, char * const argv[])
     const char * ifname = 0;
     const char * dst = 0;
     const char * rtr = 0;
-    unsigned long loops = 1;
+    uint32_t loops = 1;
     uint32_t start = sizeof(struct timespec);
     uint32_t inc = 103;
     uint32_t end = 1458;
     bool busywait = false;
     uint8_t flags = 0;
-    unsigned long transact = 0;
+    uint32_t transact = 0;
 
     // handle arguments
     int ch;
@@ -111,16 +111,16 @@ int main(const int argc, char * const argv[])
             rtr = optarg;
             break;
         case 'l':
-            loops = strtol(optarg, 0, 10);
+            loops = MIN(UINT32_MAX, (uint32_t)strtoul(optarg, 0, 10));
             break;
         case 's':
-            start = MIN(UINT32_MAX, MAX(1, (uint32_t)strtol(optarg, 0, 10)));
+            start = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
             break;
         case 'c':
-            inc = MIN(UINT32_MAX, MAX(1, (uint32_t)strtol(optarg, 0, 10)));
+            inc = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
             break;
         case 'e':
-            end = MIN(UINT32_MAX, MAX(1, (uint32_t)strtol(optarg, 0, 10)));
+            end = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
             break;
         case 'b':
             busywait = true;
@@ -198,7 +198,7 @@ int main(const int argc, char * const argv[])
             // send the data
             w_tx(s, o);
             w_nic_tx(w);
-            warn(info, "sent %d byte%s", size, plural(size));
+            warn(info, "sent %u byte%s", size, plural(size));
 
             // wait for a reply
             struct w_iov_chain * i = 0;
@@ -247,7 +247,7 @@ int main(const int argc, char * const argv[])
             const struct itimerval stop = {0};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            warn(info, "received %d/%d byte%s", len, size, plural(len));
+            warn(info, "received %u/%u byte%s", len, size, plural(len));
 
             // if we didn't receive all the data we sent
             if (unlikely(len < size)) {
@@ -273,7 +273,7 @@ int main(const int argc, char * const argv[])
         }
     }
     w_close(s);
-    warn(notice, "executed %ld transaction%s", transact, plural(transact));
+    warn(notice, "executed %u transaction%s", transact, plural(transact));
     w_cleanup(w);
     return 0;
 }
