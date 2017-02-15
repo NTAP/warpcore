@@ -179,7 +179,7 @@ int main(const int argc, char * const argv[])
     const struct itimerval timer = {.it_value.tv_sec = 1};
 
     // send packet trains of sizes between "start" and "end"
-    puts("nsec\tsize");
+    puts("time\tnsec\tsize");
 
     // send "loops" number of payloads of size "size" and wait for reply
     long iter = loops;
@@ -263,7 +263,8 @@ int main(const int argc, char * const argv[])
             if (unlikely(diff.tv_sec != 0))
                 warn(warn, "time difference is more than %ld sec", diff.tv_sec);
             else {
-                printf("%ld\t%d\n", diff.tv_nsec, size);
+                printf("%ld.%ld\t%ld\t%d\n", now.tv_sec, now.tv_nsec,
+                       diff.tv_nsec, size);
                 transact++;
             }
 
