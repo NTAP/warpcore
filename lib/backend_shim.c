@@ -146,7 +146,7 @@ void backend_tx(const struct w_sock * const s, struct w_iov * const v)
         .sin_addr = {s->hdr->ip.dst ? s->hdr->ip.dst : v->ip}};
 
     for (int tries = 10; tries; tries--) {
-        const ssize_t n = sendto(s->fd, v->buf, v->len, MSG_DONTWAIT,
+        const ssize_t n = sendto(s->fd, v->buf, v->len, 0,
                                  (const struct sockaddr *)&addr, sizeof(addr));
         if (likely(n == v->len))
             break;
@@ -173,7 +173,7 @@ void w_nic_rx(struct warpcore * const w)
             struct w_iov * const v = alloc_iov(w);
             struct sockaddr_in peer;
             socklen_t plen = sizeof(peer);
-            n = recvfrom(s->fd, v->buf, IOV_BUF_LEN, MSG_DONTWAIT,
+            n = recvfrom(s->fd, v->buf, IOV_BUF_LEN, 0,
                          (struct sockaddr *)&peer, &plen);
             ensure(n != -1 || errno == EAGAIN, "recv");
             if (n > 0) {
