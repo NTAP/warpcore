@@ -67,6 +67,7 @@ int main(const int argc, char * const argv[])
     const char * ifname = 0;
     bool busywait = false;
     uint8_t flags = 0;
+    unsigned long transact = 0;
 
     // handle arguments
     int ch;
@@ -105,10 +106,9 @@ int main(const int argc, char * const argv[])
     ensure(signal(SIGINT, &terminate) != SIG_ERR, "signal");
 
     // start four inetd-like "small services"
-    const uint16_t port[] = {7, 9, 13, 37};
     struct w_sock * const srv[] = {
-        w_bind(w, htons(port[0]), flags), w_bind(w, htons(port[1]), flags),
-        w_bind(w, htons(port[2]), flags), w_bind(w, htons(port[3]), flags)};
+        w_bind(w, htons(7), flags), w_bind(w, htons(9), flags),
+        w_bind(w, htons(13), flags), w_bind(w, htons(37), flags)};
     const uint16_t n = sizeof(srv) / sizeof(struct w_sock *);
     struct pollfd fds[] = {{.fd = w_fd(srv[0]), .events = POLLIN},
                            {.fd = w_fd(srv[1]), .events = POLLIN},
@@ -172,6 +172,7 @@ int main(const int argc, char * const argv[])
             }
 
             // track how much data was served
+            transact++;
             const uint32_t o_len = w_iov_chain_len(o, 0);
             if (i_len || o_len)
                 warn(info, "handled %d byte%s in, %d byte%s out", i_len,
@@ -186,6 +187,7 @@ int main(const int argc, char * const argv[])
     // we only get here after an interrupt; clean up
     for (uint16_t s = 0; s < n; s++)
         w_close(srv[s]);
+    warn(notice, "executed %ld transaction%s", transact, plural(transact));
     w_cleanup(w);
     return 0;
 }
