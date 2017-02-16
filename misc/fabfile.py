@@ -7,7 +7,7 @@ from time import *
 env.colorize_errors = True
 env.use_ssh_config = True
 env.builddir = ""
-env.keeplog = True
+env.keeplog = False
 env.uname = {}
 
 env.ip = {"phobos1": "10.11.12.3",
@@ -49,7 +49,8 @@ def ip_unconfig(iface):
         cmd = ""
         if env.uname[env.host_string] == "Linux":
             for i in run("ls /sys/class/net").split():
-                cmd += "ip addr del %s/24 dev %s; " % (env.ip[env.host_string], i)
+                cmd += ("ip addr del %s/24 dev %s; " %
+                        (env.ip[env.host_string], i))
         else:
             for i in run("ifconfig -l").split():
                 cmd += "ifconfig %s -alias %s; " % (i, env.ip[env.host_string])
@@ -121,7 +122,8 @@ def start_server(test, busywait, cksum, kind):
 @roles("client", "server")
 def stop(flag=""):
     with settings(warn_only=True):
-        sudo("pkill %s '(warp|shim)(ping|inetd)'; pkill %s inetd" % (flag, flag))
+        sudo("pkill %s '(warp|shim)(ping|inetd)'; pkill %s inetd" %
+             (flag, flag))
     run('''while : ; do \
             pgrep "(warp|shim)(ping|inetd)"; \
             [ "$?" == 1 ] && break; \
@@ -143,7 +145,7 @@ def start_client(test, busywait, cksum, kind):
         log = prefix + ".log"
         if not env.keeplog:
             log = "/dev/null"
-        sudo("nice -20 bin/%sping -i %s -d %s %s %s -l 1000 > %s 2> %s" %
+        sudo("nice -20 bin/%sping -i %s -d %s %s %s -l 500 > %s 2> %s" %
              (kind, test["iface"], env.ip[test["server"]],
               busywait, cksum, file, log))
 
@@ -163,17 +165,14 @@ def bench():
             execute(ip_unconfig, t["iface"])
             execute(ip_config, t["iface"])
 
-            for k in ["warp", "shim"]:
+            for k in ["shim"]:  # "warp",
                 if k == "warp":
                     execute(netmap_config, t["iface"])
-                # for c in ["-z", ""]:
-                c = ""
-                for w in ["-b", ""]:
-                    sleep(3)
-                    execute(start_server, t, w, c, k)
-                    sleep(3)
-                    execute(start_client, t, w, c, k)
-                    execute(stop)
+                for c in [""]:  # "-z",
+                    for w in ["-b", ""]:
+                        execute(start_server, t, w, c, k)
+                        execute(start_client, t, w, c, k)
+                        execute(stop)
                 if k == "warp":
                     execute(netmap_unconfig, t["iface"])
             execute(ip_unconfig, t["iface"])
