@@ -64,9 +64,9 @@ extern struct w_sock * get_sock(struct warpcore * w, uint16_t port);
 struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 
 
-/// Allocate a w_iov chain for @p payload bytes, for eventual use with w_tx().
-/// Must be later freed with w_free(). If a @p off offset is specified, leave
-/// this much extra space before @p buf in each w_iov. This is meant for
+/// Allocate a w_iov chain for @p len payload bytes, for eventual use with
+/// w_tx(). Must be later freed with w_free(). If a @p off offset is specified,
+/// leave this much extra space before @p buf in each w_iov. This is meant for
 /// upper-level protocols that wish to reserve space for their headers.
 ///
 /// @param      w     Warpcore engine.
@@ -76,33 +76,47 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 /// @return     Chain of w_iov structs.
 ///
 struct w_iov_chain *
-w_alloc(struct warpcore * const w, const uint32_t len, const uint16_t off)
+w_alloc_size(struct warpcore * const w, const uint32_t len, const uint16_t off)
+{
+    const uint32_t space = w->mtu - sizeof(struct w_hdr) - off;
+    const uint32_t count = len / space + (len % space != 0);
+    struct w_iov_chain * const chain = w_alloc_count(w, count, off);
+
+    // adjust length of last iov so chain is the exact length requested
+    struct w_iov * const v = STAILQ_LAST(chain, w_iov, next);
+    if (likely(v))
+        v->len -= (space * count - len);
+    return chain;
+}
+
+
+/// Allocate a w_iov chain of @p count packets, for eventual use with w_tx().
+/// Must be later freed with w_free(). If a @p off offset is specified, leave
+/// this much extra space before @p buf in each w_iov. This is meant for
+/// upper-level protocols that wish to reserve space for their headers.
+///
+/// @param      w      Warpcore engine.
+/// @param[in]  count  Number of packets in the returned chain.
+/// @param[in]  off    Additional offset for @p buf.
+///
+/// @return     Chain of w_iov structs.
+///
+struct w_iov_chain * w_alloc_count(struct warpcore * const w,
+                                   const uint32_t count,
+                                   const uint16_t off)
 {
     struct w_iov * v = 0;
-    int32_t l = (int32_t)len;
     struct w_iov_chain * chain = calloc(1, sizeof(*chain));
     ensure(chain, "could not calloc");
     STAILQ_INIT(chain);
-#ifndef NDEBUG
-    uint32_t n = 0;
-#endif
-    while (l > 0) {
+    for (uint32_t i = 0; i < count; i++) {
         v = alloc_iov(w);
         v->buf = (uint8_t *)v->buf + sizeof(struct w_hdr) + off;
         v->len -= (sizeof(struct w_hdr) + off);
-        l -= v->len;
         STAILQ_INSERT_TAIL(chain, v, next);
-#ifndef NDEBUG
-        n++;
-#endif
     }
-
-    if (v)
-        // adjust length of last iov so chain is the exact length requested
-        v->len += l; // l is negative
-
-    warn(info, "allocated w_iov_chain (len %d in %d w_iov%s, offset %d)", len,
-         n, plural(n), off);
+    warn(info, "allocated w_iov_chain (%d w_iov%s, offset %d)", count,
+         plural(count), off);
     return chain;
 }
 
@@ -132,7 +146,7 @@ void w_free(struct warpcore * const w, struct w_iov_chain * const c)
 uint32_t w_iov_chain_len(const struct w_iov_chain * const c, const uint16_t off)
 {
     uint32_t l = 0;
-    if (c) {
+    if (likely(c)) {
         const struct w_iov * v;
         STAILQ_FOREACH (v, c, next)
             l += (v->len - off);
@@ -150,7 +164,7 @@ uint32_t w_iov_chain_len(const struct w_iov_chain * const c, const uint16_t off)
 uint32_t w_iov_chain_cnt(const struct w_iov_chain * const c)
 {
     uint32_t l = 0;
-    if (c) {
+    if (likely(c)) {
         const struct w_iov * v;
         STAILQ_FOREACH (v, c, next)
             l++;
@@ -205,7 +219,7 @@ struct w_sock *
 w_bind(struct warpcore * const w, const uint16_t port, const uint8_t flags)
 {
     struct w_sock * s = get_sock(w, port);
-    if (s) {
+    if (unlikely(s)) {
         warn(warn, "UDP source port %d already in bound", ntohs(port));
         return s;
     }
@@ -285,7 +299,7 @@ void w_close(struct w_sock * const s)
 ///
 struct w_iov_chain * w_rx(struct w_sock * const s)
 {
-    if (STAILQ_EMPTY(s->iv))
+    if (unlikely(STAILQ_EMPTY(s->iv)))
         return 0;
     struct w_iov_chain * const empty = calloc(1, sizeof(*empty));
     ensure(empty, "could not calloc");

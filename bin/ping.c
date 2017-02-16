@@ -187,7 +187,7 @@ int main(const int argc, char * const argv[])
 
         for (uint32_t size = start; size <= end; size += inc) {
             // allocate tx chain
-            struct w_iov_chain * const o = w_alloc(w, size, 0);
+            struct w_iov_chain * o = w_alloc_size(w, size, 0);
 
             // timestamp the payloads
             const struct w_iov * v;
