@@ -107,19 +107,25 @@ int main(const int argc, char * const argv[])
 
     // start four inetd-like "small services"
     struct w_sock * const srv[] = {
-        w_bind(w, htons(7), flags), w_bind(w, htons(9), flags),
-        w_bind(w, htons(13), flags), w_bind(w, htons(37), flags)};
+        w_bind(w, htons(7), flags),
+        // w_bind(w, htons(9), flags),
+        // w_bind(w, htons(13), flags),
+        // w_bind(w, htons(37), flags)
+    };
     const uint16_t n = sizeof(srv) / sizeof(struct w_sock *);
-    struct pollfd fds[] = {{.fd = w_fd(srv[0]), .events = POLLIN},
-                           {.fd = w_fd(srv[1]), .events = POLLIN},
-                           {.fd = w_fd(srv[2]), .events = POLLIN},
-                           {.fd = w_fd(srv[3]), .events = POLLIN}};
+    struct pollfd fds[] = {
+        {.fd = w_fd(srv[0]), .events = POLLIN},
+        // {.fd = w_fd(srv[1]), .events = POLLIN},
+        // {.fd = w_fd(srv[2]), .events = POLLIN},
+        // {.fd = w_fd(srv[3]), .events = POLLIN}
+    };
 
     // serve requests on the four sockets until an interrupt occurs
     while (done == false) {
-        if (busywait == false)
+        if (busywait == false) {
             // if we aren't supposed to busy-wait, poll for new data
             poll(fds, n, -1);
+        }
 
         // receive new data (there may not be any if busy-waiting)
         w_nic_rx(w);
@@ -139,28 +145,28 @@ int main(const int argc, char * const argv[])
             if (s == srv[0]) {
                 // echo received data back to sender (zero-copy)
                 o = i;
-            } else if (s == srv[1]) {
-                // discard; nothing to do
-            } else if (s == srv[2]) {
-                // daytime
-                const time_t t = time(0);
-                const char * ct = ctime(&t);
-                const uint16_t l = (uint16_t)strlen(ct);
-                struct w_iov * v;
-                STAILQ_FOREACH (v, i, next) {
-                    memcpy(v->buf, c, l); // write a timestamp
-                    v->len = l;
-                }
-                o = i;
-            } else if (s == srv[3]) {
-                // time
-                const time_t t = time(0);
-                struct w_iov * v;
-                STAILQ_FOREACH (v, i, next) {
-                    memcpy(v->buf, &t, sizeof(t)); // write a timestamp
-                    v->len = sizeof(t);
-                }
-                o = i;
+            // } else if (s == srv[1]) {
+            //     // discard; nothing to do
+            // } else if (s == srv[2]) {
+            //     // daytime
+            //     const time_t t = time(0);
+            //     const char * ct = ctime(&t);
+            //     const uint16_t l = (uint16_t)strlen(ct);
+            //     struct w_iov * v;
+            //     STAILQ_FOREACH (v, i, next) {
+            //         memcpy(v->buf, c, l); // write a timestamp
+            //         v->len = l;
+            //     }
+            //     o = i;
+            // } else if (s == srv[3]) {
+            //     // time
+            //     const time_t t = time(0);
+            //     struct w_iov * v;
+            //     STAILQ_FOREACH (v, i, next) {
+            //         memcpy(v->buf, &t, sizeof(t)); // write a timestamp
+            //         v->len = sizeof(t);
+            //     }
+            //     o = i;
             } else {
                 die("unknown service");
             }
