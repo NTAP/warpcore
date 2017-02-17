@@ -24,7 +24,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <errno.h>
-#include <fcntl.h>
+// #include <fcntl.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -99,7 +99,7 @@ void backend_cleanup(struct warpcore * const w)
 void backend_bind(struct w_sock * s)
 {
     ensure(s->fd = socket(AF_INET, SOCK_DGRAM, 0), "socket");
-    ensure(fcntl(s->fd, F_SETFL, O_NONBLOCK) != -1, "fcntl");
+    // ensure(fcntl(s->fd, F_SETFL, O_NONBLOCK) != -1, "fcntl");
     const struct sockaddr_in addr = {.sin_family = AF_INET,
                                      .sin_port = s->hdr->udp.sport,
                                      .sin_addr = {.s_addr = s->hdr->ip.src}};
@@ -145,15 +145,8 @@ void backend_tx(const struct w_sock * const s, struct w_iov * const v)
         .sin_port = s->hdr->ip.dst ? s->hdr->udp.dport : v->port,
         .sin_addr = {s->hdr->ip.dst ? s->hdr->ip.dst : v->ip}};
 
-    for (int tries = 10; tries; tries--) {
-        const ssize_t n = sendto(s->fd, v->buf, v->len, 0,
-                                 (const struct sockaddr *)&addr, sizeof(addr));
-        if (likely(n == v->len))
-            break;
-        else
-            warn(warn, "sendto of %d byte%s failed, retrying %d more times",
-                 v->len, plural(v->len), tries);
-    }
+    sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&addr,
+           sizeof(addr));
 }
 
 
@@ -173,7 +166,7 @@ void w_nic_rx(struct warpcore * const w)
             struct w_iov * const v = alloc_iov(w);
             struct sockaddr_in peer;
             socklen_t plen = sizeof(peer);
-            n = recvfrom(s->fd, v->buf, IOV_BUF_LEN, 0,
+            n = recvfrom(s->fd, v->buf, IOV_BUF_LEN, MSG_DONTWAIT,
                          (struct sockaddr *)&peer, &plen);
             ensure(n != -1 || errno == EAGAIN, "recv");
             if (n > 0) {
