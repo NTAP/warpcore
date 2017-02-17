@@ -64,6 +64,35 @@ extern struct w_sock * get_sock(struct warpcore * w, uint16_t port);
 struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 
 
+// Helper function for w_alloc_size and w_alloc_count. Really only needed,
+// because Linux doesn't define STALIQ_LAST in sys/queue.h for whatever reason.
+//
+static inline struct w_iov_chain * alloc_count(struct warpcore * const w,
+                                               const uint32_t count,
+                                               const uint16_t off,
+                                               const uint16_t adj_last)
+{
+    struct w_iov * v = 0;
+    struct w_iov_chain * chain = calloc(1, sizeof(*chain));
+    ensure(chain, "could not calloc");
+    STAILQ_INIT(chain);
+    for (uint32_t i = 0; i < count; i++) {
+        v = alloc_iov(w);
+        v->buf = (uint8_t *)v->buf + sizeof(struct w_hdr) + off;
+        v->len -= (sizeof(struct w_hdr) + off);
+        STAILQ_INSERT_TAIL(chain, v, next);
+    }
+    if (v)
+        v->len -= adj_last;
+    warn(info,
+         "allocated w_iov_chain of len %zu byte%s (%d w_iov%s, offset %d)",
+         count * (w->mtu - sizeof(struct w_hdr) - off) - adj_last,
+         plural(count * (w->mtu - sizeof(struct w_hdr) - off) - adj_last),
+         count, plural(count), off);
+    return chain;
+}
+
+
 /// Allocate a w_iov chain for @p len payload bytes, for eventual use with
 /// w_tx(). Must be later freed with w_free(). If a @p off offset is specified,
 /// leave this much extra space before @p buf in each w_iov. This is meant for
@@ -80,12 +109,8 @@ w_alloc_size(struct warpcore * const w, const uint32_t len, const uint16_t off)
 {
     const uint32_t space = w->mtu - sizeof(struct w_hdr) - off;
     const uint32_t count = len / space + (len % space != 0);
-    struct w_iov_chain * const chain = w_alloc_count(w, count, off);
-
-    // adjust length of last iov so chain is the exact length requested
-    struct w_iov * const v = STAILQ_LAST(chain, w_iov, next);
-    if (likely(v))
-        v->len -= (space * count - len);
+    struct w_iov_chain * const chain =
+        alloc_count(w, count, off, (uint16_t)(space * count - len));
     return chain;
 }
 
@@ -105,19 +130,7 @@ struct w_iov_chain * w_alloc_count(struct warpcore * const w,
                                    const uint32_t count,
                                    const uint16_t off)
 {
-    struct w_iov * v = 0;
-    struct w_iov_chain * chain = calloc(1, sizeof(*chain));
-    ensure(chain, "could not calloc");
-    STAILQ_INIT(chain);
-    for (uint32_t i = 0; i < count; i++) {
-        v = alloc_iov(w);
-        v->buf = (uint8_t *)v->buf + sizeof(struct w_hdr) + off;
-        v->len -= (sizeof(struct w_hdr) + off);
-        STAILQ_INSERT_TAIL(chain, v, next);
-    }
-    warn(info, "allocated w_iov_chain (%d w_iov%s, offset %d)", count,
-         plural(count), off);
-    return chain;
+    return alloc_count(w, count, off, 0);
 }
 
 
@@ -293,9 +306,8 @@ void w_close(struct w_sock * const s)
 /// @param      s     w_sock for which the application would like to receive new
 ///                   data.
 ///
-/// @return     Chain of received wFirst w_iov in w_sock::iv if there is new
-/// data, or zero. Needs
-///             to be freed with w_free() by the caller.
+/// @return     Chain of received w_iovs on @p s, or zero. Needs to be freed
+///             with w_free() by the caller.
 ///
 struct w_iov_chain * w_rx(struct w_sock * const s)
 {
@@ -310,11 +322,11 @@ struct w_iov_chain * w_rx(struct w_sock * const s)
 }
 
 
-/// Loops over the w_iov structures in the chain @p c, attemoting to send them
-/// all.
+/// Loops over the w_iov structures in the chain @p c, sending them all over
+/// w_sock @p s.
 ///
-/// @param[in]  s     { parameter_description }
-/// @param      c     { parameter_description }
+/// @param[in]  s     w_sock to send data over.
+/// @param      c     w_iov_chain to send.
 ///
 void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 {
