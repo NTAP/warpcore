@@ -259,6 +259,9 @@ void arp_rx(struct warpcore * const w, struct netmap_ring * const r)
             arp_is_at(w, buf);
         else
             warn(warn, "ignoring ARP request not asking for us");
+
+        // opportunistically store the ARP mapping
+        arp_cache_update(w, arp->spa, arp->sha);
         break;
     }
 
