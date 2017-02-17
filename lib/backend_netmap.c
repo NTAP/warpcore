@@ -218,7 +218,7 @@ int w_fd(struct w_sock * const s)
 void backend_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     while (udp_tx(s, v) == false) {
-        warn(notice, "all rings seem full, forcing TX");
+        warn(notice, "all rings full, forcing TX");
         w_nic_tx(s->w);
     }
 }
