@@ -140,8 +140,7 @@ struct ip_hdr {
 #define ip_data_len(ip) ((ntohs((ip)->len) - ip_hl(ip)))
 
 
-/// Initialize the static fields in an IPv4 ip_hdr header. TTL is currently set
-/// to 1.
+/// Initialize the static fields in an IPv4 ip_hdr header.
 ///
 /// @param      ip    Pointer to the ip_hdr to initialize.
 ///
@@ -149,7 +148,7 @@ struct ip_hdr {
     do {                                                                       \
         (ip)->vhl = (4 << 4) + 5;                                              \
         (ip)->off = htons(IP_DF);                                              \
-        (ip)->ttl = 1;                                                         \
+        (ip)->ttl = 64; /* XXX this should be configurable */                  \
         (ip)->p = IP_P_UDP;                                                    \
         (ip)->cksum = 0;                                                       \
     } while (0)
