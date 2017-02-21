@@ -30,9 +30,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+// #include <string.h>
 #include <sys/queue.h>
-#include <time.h>
+// #include <time.h>
+// #include <unistd.h>
 
 #ifdef __linux__
 #include <netinet/in.h>
@@ -67,7 +68,6 @@ int main(const int argc, char * const argv[])
     const char * ifname = 0;
     bool busywait = false;
     uint8_t flags = 0;
-    uint32_t transact = 0;
 
     // handle arguments
     int ch;
@@ -145,28 +145,28 @@ int main(const int argc, char * const argv[])
             if (s == srv[0]) {
                 // echo received data back to sender (zero-copy)
                 o = i;
-            // } else if (s == srv[1]) {
-            //     // discard; nothing to do
-            // } else if (s == srv[2]) {
-            //     // daytime
-            //     const time_t t = time(0);
-            //     const char * ct = ctime(&t);
-            //     const uint16_t l = (uint16_t)strlen(ct);
-            //     struct w_iov * v;
-            //     STAILQ_FOREACH (v, i, next) {
-            //         memcpy(v->buf, c, l); // write a timestamp
-            //         v->len = l;
-            //     }
-            //     o = i;
-            // } else if (s == srv[3]) {
-            //     // time
-            //     const time_t t = time(0);
-            //     struct w_iov * v;
-            //     STAILQ_FOREACH (v, i, next) {
-            //         memcpy(v->buf, &t, sizeof(t)); // write a timestamp
-            //         v->len = sizeof(t);
-            //     }
-            //     o = i;
+                // } else if (s == srv[1]) {
+                //     // discard; nothing to do
+                // } else if (s == srv[2]) {
+                //     // daytime
+                //     const time_t t = time(0);
+                //     const char * ct = ctime(&t);
+                //     const uint16_t l = (uint16_t)strlen(ct);
+                //     struct w_iov * v;
+                //     STAILQ_FOREACH (v, i, next) {
+                //         memcpy(v->buf, c, l); // write a timestamp
+                //         v->len = l;
+                //     }
+                //     o = i;
+                // } else if (s == srv[3]) {
+                //     // time
+                //     const time_t t = time(0);
+                //     struct w_iov * v;
+                //     STAILQ_FOREACH (v, i, next) {
+                //         memcpy(v->buf, &t, sizeof(t)); // write a timestamp
+                //         v->len = sizeof(t);
+                //     }
+                //     o = i;
             } else {
                 die("unknown service");
             }
@@ -175,13 +175,13 @@ int main(const int argc, char * const argv[])
             if (o) {
                 w_tx(s, o);
                 w_nic_tx(w);
+
             }
 
             // track how much data was served
-            transact++;
             const uint32_t o_len = w_iov_chain_len(o, 0);
             if (i_len || o_len)
-                warn(info, "handled %d byte%s in, %d byte%s out", i_len,
+                warn(warn, "handled %d byte%s in, %d byte%s out", i_len,
                      plural(i_len), o_len, plural(o_len));
 
             // we are done serving the received data
@@ -193,7 +193,6 @@ int main(const int argc, char * const argv[])
     // we only get here after an interrupt; clean up
     for (uint16_t s = 0; s < n; s++)
         w_close(srv[s]);
-    warn(notice, "executed %u transaction%s", transact, plural(transact));
     w_cleanup(w);
     return 0;
 }
