@@ -32,11 +32,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
+// #include <unistd.h>
 
 #include <warpcore.h>
 
@@ -95,7 +97,6 @@ int main(const int argc, char * const argv[])
     uint32_t end = 1458;
     bool busywait = false;
     uint8_t flags = 0;
-    uint32_t transact = 0;
 
     // handle arguments
     int ch;
@@ -179,7 +180,7 @@ int main(const int argc, char * const argv[])
     const struct itimerval timer = {.it_value.tv_sec = 1};
 
     // send packet trains of sizes between "start" and "end"
-    puts("time\tnsec\tsize");
+    puts("time\tbyte\ttx\trx");
 
     // send "loops" number of payloads of size "size" and wait for reply
     long iter = loops;
@@ -189,16 +190,26 @@ int main(const int argc, char * const argv[])
             // allocate tx chain
             struct w_iov_chain * o = w_alloc_size(w, size, 0);
 
+            // get the current time
+            struct timespec before_tx;
+            ensure(clock_gettime(CLOCK_MONOTONIC, &before_tx) != -1,
+                   "clock_gettime");
+
             // timestamp the payloads
             const struct w_iov * v;
             STAILQ_FOREACH (v, o, next)
-                ensure(clock_gettime(CLOCK_MONOTONIC, v->buf) != -1,
-                       "clock_gettime");
+                memcpy(v->buf, &before_tx, sizeof(struct timespec));
 
-            // send the data
+            // send the data, and wait until it is out
             w_tx(s, o);
             w_nic_tx(w);
-            warn(info, "sent %u byte%s", size, plural(size));
+
+            warn(notice, "sent %u byte%s", size, plural(size));
+
+            // get the current time
+            struct timespec after_tx;
+            ensure(clock_gettime(CLOCK_MONOTONIC, &after_tx) != -1,
+                   "clock_gettime");
 
             // wait for a reply
             struct w_iov_chain * i = 0;
@@ -210,7 +221,7 @@ int main(const int argc, char * const argv[])
 
             // loop until timeout expires, or we have received all data
             while (likely(len < size && done == false)) {
-                if (busywait == false) {
+                if (unlikely(busywait == false)) {
                     // poll for new data
                     struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
                     if (poll(&fds, 1, -1) == -1)
@@ -229,52 +240,39 @@ int main(const int argc, char * const argv[])
                         STAILQ_CONCAT(i, new);
                     else
                         i = new;
+                    w_free(w, new);
                 }
             }
 
-            // if timeout fired, move to next iteration
-            if (done) {
-                if (i)
-                    w_free(w, i);
-                continue;
-            }
-
             // get the current time
-            struct timespec now;
-            ensure(clock_gettime(CLOCK_MONOTONIC, &now) != -1, "clock_gettime");
+            struct timespec after_rx;
+            ensure(clock_gettime(CLOCK_MONOTONIC, &after_rx) != -1,
+                   "clock_gettime");
 
             // stop the timeout
             const struct itimerval stop = {0};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            warn(info, "received %u/%u byte%s", len, size, plural(len));
-
-            // if we didn't receive all the data we sent
-            if (unlikely(len < size)) {
-                // assume loss
-                w_free(w, i);
-                warn(warn, "incomplete response, packet loss?");
-                continue;
-            }
+            warn(notice, "received %u/%u byte%s", len, size, plural(len));
 
             // compute time difference between the packet and the current time
-            struct timespec diff;
-            time_diff(&diff, &now, (struct timespec *)STAILQ_FIRST(i)->buf);
-            if (unlikely(diff.tv_sec != 0))
-                warn(warn, "time difference is more than %ld sec", diff.tv_sec);
-            else {
-                printf("%ld.%ld\t%ld\t%d\n", now.tv_sec, now.tv_nsec,
-                       diff.tv_nsec, size);
-                transact++;
+            struct timespec diff_tx, diff_rx;
+            time_diff(&diff_tx, &after_tx, &before_tx);
+            char rx[256] = "NA";
+            if (len == size) {
+                time_diff(&diff_rx, &after_rx, &before_tx);
+                snprintf(rx, 256, "%ld.%.9ld", diff_rx.tv_sec, diff_rx.tv_nsec);
             }
+            printf("%ld.%.9ld\t%d\t%ld.%.9ld\t%s\n", after_rx.tv_sec,
+                   after_rx.tv_nsec, size, diff_tx.tv_sec, diff_tx.tv_nsec, rx);
 
             // we are done with the received data
-            w_free(w, i);
+            if (i)
+                w_free(w, i);
             w_free(w, o);
         }
     }
     w_close(s);
-    warn(notice, "executed %u transaction%s", transact, plural(transact));
     w_cleanup(w);
     return 0;
 }
