@@ -331,7 +331,10 @@ struct w_iov_chain * w_rx(struct w_sock * const s)
 void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 {
     struct w_iov * v;
+    c->tx_pending = 0;
     STAILQ_FOREACH (v, c, next) {
+        c->tx_pending++;
+        v->chain = c;
         ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
                "no destination information");
         backend_tx(s, v);

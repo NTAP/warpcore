@@ -38,7 +38,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
-// #include <unistd.h>
+#include <unistd.h>
 
 #include <warpcore.h>
 
@@ -202,8 +202,11 @@ int main(const int argc, char * const argv[])
 
             // send the data, and wait until it is out
             w_tx(s, o);
-            w_nic_tx(w);
-
+            while(o->tx_pending) {
+                warn(debug, "waiting for %u slots to TX", o->tx_pending);
+                w_nic_tx(w);
+                usleep(1);
+            }
             warn(notice, "sent %u byte%s", size, plural(size));
 
             // get the current time

@@ -146,6 +146,10 @@ void backend_tx(const struct w_sock * const s, struct w_iov * const v)
 
     sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&addr,
            sizeof(addr));
+
+    // update tx_pending
+    if (likely(v->chain))
+        v->chain->tx_pending--;
 }
 
 

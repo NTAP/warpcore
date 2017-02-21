@@ -281,6 +281,10 @@ void w_nic_tx(struct warpcore * const w)
                 v->idx = slot_idx;
                 s->flags = NS_BUF_CHANGED;
                 s->ptr = 0;
+
+                // update tx_pending
+                if (likely(v->chain))
+                    v->chain->tx_pending--;
             } else
                 warn(warn, "no w_iov in ring %u slot %u, ignoring", i, j);
         }

@@ -37,8 +37,12 @@
 struct warpcore;
 
 
-STAILQ_HEAD(w_iov_chain, w_iov);
 SLIST_HEAD(w_sock_chain, w_sock);
+
+struct w_iov_chain {
+    STAILQ_HEAD(, w_iov);
+    uint32_t tx_pending;
+};
 
 
 /// Do not compute a UDP checksum for outgoing packets. Has no effect for the
@@ -108,6 +112,8 @@ struct w_iov {
     /// @endcond
 
     struct timeval ts; ///< Receive time of the data. Only valid on RX.
+
+    struct w_iov_chain * chain; ///< Pointer to w_ioc_chain. Only valid on TX.
 };
 
 

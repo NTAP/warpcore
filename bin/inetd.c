@@ -33,7 +33,7 @@
 // #include <string.h>
 #include <sys/queue.h>
 // #include <time.h>
-// #include <unistd.h>
+#include <unistd.h>
 
 #ifdef __linux__
 #include <netinet/in.h>
@@ -175,7 +175,11 @@ int main(const int argc, char * const argv[])
             if (o) {
                 w_tx(s, o);
                 w_nic_tx(w);
-
+                while (o->tx_pending) {
+                    warn(debug, "waiting for %u slots to TX", o->tx_pending);
+                    w_nic_tx(w);
+                    usleep(1);
+                }
             }
 
             // track how much data was served
