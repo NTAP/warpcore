@@ -38,7 +38,6 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <warpcore.h>
 
@@ -54,7 +53,8 @@ static void usage(const char * const name,
     printf("\t -d destination IP      peer to connect to\n");
     printf("\t[-r router IP]          router to use for non-local peers\n");
     printf("\t[-s start packet size]  optional, default %u\n", start);
-    printf("\t[-c increment]          optional, default %u\n", inc);
+    printf("\t[-c increment]          optional (0 = exponential), default %u\n",
+           inc);
     printf("\t[-e end packet size]    optional, default %u\n", end);
     printf("\t[-l loop iterations]    optional, default %u\n", loops);
     printf("\t[-z]                    optional, turn off UDP checksums\n");
@@ -118,7 +118,7 @@ int main(const int argc, char * const argv[])
             start = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
             break;
         case 'c':
-            inc = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
+            inc = MIN(UINT32_MAX, MAX(0, (uint32_t)strtoul(optarg, 0, 10)));
             break;
         case 'e':
             end = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
@@ -186,7 +186,7 @@ int main(const int argc, char * const argv[])
     long iter = loops;
     while (likely(iter--)) {
 
-        for (uint32_t size = start; size <= end; size += inc) {
+        for (uint32_t size = start; size <= end; size += (inc ? inc : size)) {
             // allocate tx chain
             struct w_iov_chain * o = w_alloc_size(w, size, 0);
 
@@ -202,12 +202,14 @@ int main(const int argc, char * const argv[])
 
             // send the data, and wait until it is out
             w_tx(s, o);
-            while(o->tx_pending) {
-                warn(debug, "waiting for %u slots to TX", o->tx_pending);
+            while (o->tx_pending)
                 w_nic_tx(w);
-                usleep(1);
-            }
-            warn(notice, "sent %u byte%s", size, plural(size));
+
+            // set a timeout
+            ensure(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
+            done = false;
+
+            warn(info, "sent %u byte%s", size, plural(size));
 
             // get the current time
             struct timespec after_tx;
@@ -217,10 +219,6 @@ int main(const int argc, char * const argv[])
             // wait for a reply
             struct w_iov_chain * i = 0;
             uint32_t len = 0;
-
-            // set a timeout
-            ensure(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
-            done = false;
 
             // loop until timeout expires, or we have received all data
             while (likely(len < size && done == false)) {
@@ -243,7 +241,6 @@ int main(const int argc, char * const argv[])
                         STAILQ_CONCAT(i, new);
                     else
                         i = new;
-                    w_free(w, new);
                 }
             }
 
@@ -256,7 +253,7 @@ int main(const int argc, char * const argv[])
             const struct itimerval stop = {0};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            warn(notice, "received %u/%u byte%s", len, size, plural(len));
+            warn(info, "received %u/%u byte%s", len, size, plural(len));
 
             // compute time difference between the packet and the current time
             struct timespec diff_tx, diff_rx;

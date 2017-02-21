@@ -33,7 +33,6 @@
 // #include <string.h>
 #include <sys/queue.h>
 // #include <time.h>
-#include <unistd.h>
 
 #ifdef __linux__
 #include <netinet/in.h>
@@ -174,18 +173,14 @@ int main(const int argc, char * const argv[])
             // if the current service requires replying with data, do so
             if (o) {
                 w_tx(s, o);
-                w_nic_tx(w);
-                while (o->tx_pending) {
-                    warn(debug, "waiting for %u slots to TX", o->tx_pending);
+                while (o->tx_pending)
                     w_nic_tx(w);
-                    usleep(1);
-                }
             }
 
             // track how much data was served
             const uint32_t o_len = w_iov_chain_len(o, 0);
             if (i_len || o_len)
-                warn(warn, "handled %d byte%s in, %d byte%s out", i_len,
+                warn(info, "handled %d byte%s in, %d byte%s out", i_len,
                      plural(i_len), o_len, plural(o_len));
 
             // we are done serving the received data
