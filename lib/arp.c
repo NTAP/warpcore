@@ -32,6 +32,7 @@
 #include <string.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #ifdef __linux__
 #include <netinet/ether.h>
@@ -202,9 +203,13 @@ uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
              inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
 #endif
 
-        // send the Ethernet packet
+        // send the Ethernet packet (make sure it went out)
+        const uint32_t orig_idx = v->idx;
         eth_tx(w, v, sizeof(*eth) + sizeof(*arp));
-        w_nic_tx(w);
+        while (v->idx != orig_idx) {
+            usleep(100);
+            w_nic_tx(w);
+        }
 
         // make iov available again
         STAILQ_INSERT_HEAD(&w->iov, v, next);

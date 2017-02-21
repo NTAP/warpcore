@@ -77,7 +77,6 @@ struct w_hdr {
 
 
 struct arp_entry;
-struct tx_pending_entry;
 
 /// A warpcore engine.
 ///
@@ -95,13 +94,12 @@ struct warpcore {
     struct netmap_if * nif; ///< Netmap interface.
     struct nmreq * req;     ///< Netmap request structure.
     SLIST_HEAD(arp_cache_head, arp_entry) arp_cache; ///< The ARP cache.
-    /// List of w_iov buffers that are currently in TX rings.
-    SLIST_HEAD(tx_pending_head, w_iov) tx_pending;
     uint32_t cur_txr; ///< Index of the TX ring currently active.
+    uint32_t * tail;  ///< TX ring tails after last NIOCTXSYNC call.
     /// @cond
     /// @internal Padding.
     uint8_t _unused2[4];
-/// @endcond
+    /// @endcond
 #else
     /// @cond
     /// @internal Padding.

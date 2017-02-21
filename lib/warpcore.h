@@ -105,13 +105,7 @@ struct w_iov {
 
     /// @cond
     uint8_t _unused[3]; ///< @internal Padding.
-/// @endcond
-
-#ifdef WITH_NETMAP
-    struct netmap_slot * slot; ///< During TX, pointer to TX slot.
-#endif
-
-    SLIST_ENTRY(w_iov) next_tx; ///< Next w_iov during TX pending.
+    /// @endcond
 
     struct timeval ts; ///< Receive time of the data. Only valid on RX.
 };

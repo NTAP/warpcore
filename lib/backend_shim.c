@@ -24,7 +24,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <errno.h>
-// #include <fcntl.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <stdint.h>

@@ -28,7 +28,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/queue.h>
 #include <sys/types.h>
 
 #ifdef __linux__
@@ -119,35 +118,28 @@ bool eth_tx(struct warpcore * const w,
         return false;
     }
 
-    // remember the slot we're placing this buffer into
-    v->slot = &txr->slot[txr->cur];
-    SLIST_INSERT_HEAD(&w->tx_pending, v, next_tx);
-
-    warn(debug, "placing iov idx %u in tx ring %u slot %d (current buf %u)",
-         v->idx, w->cur_txr, txr->cur, v->slot->buf_idx);
-
-    // place v in the current tx ring
-    const uint32_t tmp_idx = v->slot->buf_idx;
-    v->slot->buf_idx = v->idx;
-    v->slot->len = len + sizeof(struct eth_hdr);
-    v->slot->flags = NS_BUF_CHANGED;
+    // place v into the current tx ring
+    struct netmap_slot * const s = &txr->slot[txr->cur];
+    const uint32_t slot_idx = s->buf_idx;
+    warn(debug, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
+         v->idx, w->cur_txr, txr->cur, slot_idx);
+    s->buf_idx = v->idx;
+    v->idx = slot_idx;
+    s->flags = NS_BUF_CHANGED;
+    s->len = len + sizeof(struct eth_hdr);
+    s->ptr = (uint64_t)v;
 
 #ifndef NDEBUG
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
-    const struct eth_hdr * const eth =
-        (void *)NETMAP_BUF(txr, v->slot->buf_idx);
+    const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, s->buf_idx);
     warn(debug, "Eth %s -> %s, type %d, len %lu",
          ether_ntoa_r((const struct ether_addr *)eth->src, src),
          ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
          ntohs(eth->type), len + sizeof(*eth));
 #endif
 
-    // place the original tx buffer in v
-    v->idx = tmp_idx;
-
     // advance tx ring
     txr->head = txr->cur = nm_ring_next(txr, txr->cur);
-
     return true;
 }

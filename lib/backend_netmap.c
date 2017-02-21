@@ -73,10 +73,8 @@ void backend_init(struct warpcore * w, const char * const ifname)
     ensure((w->fd = open("/dev/netmap", O_RDWR)) != -1,
            "cannot open /dev/netmap");
 
-    w->req = calloc(1, sizeof(*w->req));
-    ensure(w->req != 0, "cannot allocate nmreq");
-
     // switch interface to netmap mode
+    ensure((w->req = calloc(1, sizeof(*w->req))) != 0, "cannot allocate nmreq");
     strncpy(w->req->nr_name, ifname, sizeof w->req->nr_name);
     w->req->nr_name[sizeof w->req->nr_name - 1] = '\0';
     w->req->nr_version = NETMAP_API;
@@ -97,13 +95,18 @@ void backend_init(struct warpcore * w, const char * const ifname)
     // direct pointer to the netmap interface struct for convenience
     w->nif = NETMAP_IF(w->mem, w->req->nr_offset);
 
-#ifndef NDEBUG
-    // print some info about our rings
+
+    // allocate space for tails
+    ensure((w->tail = calloc(w->nif->ni_tx_rings, sizeof(*w->tail))) != 0,
+           "cannot allocate tail");
     for (uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
         const struct netmap_ring * const r = NETMAP_TXRING(w->nif, ri);
+        // initialize tails
+        w->tail[ri] = r->tail;
         warn(info, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
+#ifndef NDBUEG
     for (uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
         const struct netmap_ring * const r = NETMAP_RXRING(w->nif, ri);
         warn(info, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
@@ -132,7 +135,6 @@ void backend_init(struct warpcore * w, const char * const ifname)
 
     w->backend = backend_name;
     SLIST_INIT(&w->arp_cache);
-    SLIST_INIT(&w->tx_pending);
 }
 
 
@@ -161,6 +163,7 @@ void backend_cleanup(struct warpcore * const w)
 
     ensure(close(w->fd) != -1, "cannot close /dev/netmap");
     free(w->req);
+    free(w->tail);
 }
 
 
@@ -250,7 +253,7 @@ void w_nic_rx(struct warpcore * const w)
 
 
 /// Push data placed in the TX rings via udp_tx() and similar methods out onto
-/// the link.
+/// the link. Also move any transmitted data back into the original w_iovs.
 ///
 /// @param[in]  w     Warpcore engine.
 ///
@@ -258,19 +261,31 @@ void w_nic_tx(struct warpcore * const w)
 {
     ensure(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 
-    // grab the transmitted data out of the NIC rings and place it back into the
-    // original w_iov_chains, so it's not lost to the app
-    while (!SLIST_EMPTY(&w->tx_pending)) {
-        struct w_iov * const v = SLIST_FIRST(&w->tx_pending);
-        SLIST_REMOVE_HEAD(&w->tx_pending, next_tx);
+    // grab the transmitted data out of the NIC rings and place it back into
+    // the original w_iov_chains, so it's not lost to the app
+    for (uint32_t i = 0; likely(i < w->nif->ni_tx_rings); i++) {
+        struct netmap_ring * const r = NETMAP_TXRING(w->nif, i);
 
-        // place the ring buf back into the w_iov
-        warn(debug, "moving idx %d from ring %d back into w_iov after tx",
-             v->slot->buf_idx, w->cur_txr);
-        const uint32_t tmp_idx = v->slot->buf_idx;
-        v->slot->buf_idx = v->idx;
-        v->slot->flags = NS_BUF_CHANGED;
-        v->idx = tmp_idx;
-        // v->buf and v->len are unchanged after NIC TX, no need to update
+        // XXX we need to abuse the netmap API here by touching tail until a fix
+        // is included upstream
+        for (uint32_t j = nm_ring_next(r, w->tail[i]);
+             j != nm_ring_next(r, r->tail); j = nm_ring_next(r, j)) {
+            struct netmap_slot * const s = &r->slot[j];
+            struct w_iov * const v = (struct w_iov * const)s->ptr;
+            if (likely(v)) {
+                warn(debug, "moving idx %u from ring %u slot %u back into "
+                            "w_iov after tx (swap with %u)",
+                     s->buf_idx, i, j, v->idx);
+                const uint32_t slot_idx = s->buf_idx;
+                s->buf_idx = v->idx;
+                v->idx = slot_idx;
+                s->flags = NS_BUF_CHANGED;
+                s->ptr = 0;
+            } else
+                warn(warn, "no w_iov in ring %u slot %u, ignoring", i, j);
+        }
+
+        // remember current tail
+        w->tail[i] = r->tail;
     }
 }

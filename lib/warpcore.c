@@ -72,10 +72,10 @@ static inline struct w_iov_chain * alloc_count(struct warpcore * const w,
                                                const uint16_t off,
                                                const uint16_t adj_last)
 {
-    struct w_iov * v = 0;
     struct w_iov_chain * chain = calloc(1, sizeof(*chain));
     ensure(chain, "could not calloc");
     STAILQ_INIT(chain);
+    struct w_iov * v = 0;
     for (uint32_t i = 0; i < count; i++) {
         v = alloc_iov(w);
         v->buf = (uint8_t *)v->buf + sizeof(struct w_hdr) + off;
@@ -316,9 +316,9 @@ struct w_iov_chain * w_rx(struct w_sock * const s)
     struct w_iov_chain * const empty = calloc(1, sizeof(*empty));
     ensure(empty, "could not calloc");
     STAILQ_INIT(empty);
-    struct w_iov_chain * const tmp = s->iv;
+    struct w_iov_chain * const iv = s->iv;
     s->iv = empty;
-    return tmp;
+    return iv;
 }
 
 
