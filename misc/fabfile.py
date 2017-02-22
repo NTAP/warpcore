@@ -7,7 +7,7 @@ from time import *
 env.colorize_errors = True
 env.use_ssh_config = True
 env.builddir = ""
-env.keeplog = False
+env.keeplog = True  # False
 env.uname = {}
 
 env.ip = {"phobos1": "10.11.12.3",
@@ -36,9 +36,14 @@ def ip_config(iface):
     sudo("ifconfig %s %s/24 up" % (iface, env.ip[env.host_string]))
     with settings(warn_only=True):
         if env.uname[env.host_string] == "Linux":
-            sudo("ethtool -C %s adaptive-rx off adaptive-tx off "
+            sudo("sysctl -w net.core.rmem_default=2621440; "
+                 "sysctl -w net.core.wmem_default=2621440; "
+                 "sysctl -w net.core.rmem_max=2621440; "
+                 "sysctl -w net.core.wmem_max=2621440; "
+                 "ethtool -C %s adaptive-rx off adaptive-tx off "
                  "rx-usecs 0 tx-usecs 0; "
-                 "ethtool -L %s combined 1" % (iface, iface))
+                 "ethtool -G %s rx 2048 tx 2048; "
+                 "ethtool -L %s combined 2" % (iface, iface, iface))
 
 
 @task
@@ -51,6 +56,7 @@ def ip_unconfig(iface):
             for i in run("ls /sys/class/net").split():
                 cmd += ("ip addr del %s/24 dev %s; " %
                         (env.ip[env.host_string], i))
+            cmd += "ethtool -G %s rx 512 tx 512; "
         else:
             for i in run("ifconfig -l").split():
                 cmd += "ifconfig %s -alias %s; " % (i, env.ip[env.host_string])
@@ -63,11 +69,15 @@ def netmap_config(iface):
     with settings(warn_only=True):
         if env.uname[env.host_string] == "Linux":
             sudo("echo 4096 > /sys/module/netmap/parameters/if_size; "
+                 "echo 1 > /sys/module/netmap/parameters/admode; "
+                 "echo 1000000 > /sys/module/netmap/parameters/buf_num; "
                  "ethtool -K %s sg off rx off tx off tso off gro off lro off" %
                  iface)
         else:
             sudo("sysctl -q -w hw.ix.enable_aim=0; "
-                 "sysctl -q -w dev.netmap.admode=1;     "
+                 "sysctl -q -w dev.netmap.if_size=4096; "
+                 "sysctl -q -w dev.netmap.admode=1; "
+                 "sysctl -q -w dev.netmap.buf_num=1000000; "
                  "ifconfig %s -rxcsum -txcsum -tso -lro" % iface)
 
 
@@ -145,7 +155,8 @@ def start_client(test, busywait, cksum, kind):
         log = prefix + ".log"
         if not env.keeplog:
             log = "/dev/null"
-        sudo("nice -20 bin/%sping -i %s -d %s %s %s -l 500 > %s 2> %s" %
+        sudo("nice -20 "
+             "bin/%sping -i %s -d %s %s %s -l 10 -c 0 -e 3000000 > %s 2> %s" %
              (kind, test["iface"], env.ip[test["server"]],
               busywait, cksum, file, log))
 
@@ -165,10 +176,10 @@ def bench():
             execute(ip_unconfig, t["iface"])
             execute(ip_config, t["iface"])
 
-            for k in ["shim"]:  # "warp",
+            for k in ["warp", "shim"]:
                 if k == "warp":
                     execute(netmap_config, t["iface"])
-                for c in [""]:  # "-z",
+                for c in ["", "-z"]:
                     for w in ["-b", ""]:
                         execute(start_server, t, w, c, k)
                         execute(start_client, t, w, c, k)
