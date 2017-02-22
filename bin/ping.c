@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -180,30 +179,29 @@ int main(const int argc, char * const argv[])
     const struct itimerval timer = {.it_value.tv_sec = 1};
 
     // send packet trains of sizes between "start" and "end"
-    puts("time\tbyte\ttx\trx");
+    puts("byte\tpkts\ttx\trx");
 
     // send "loops" number of payloads of size "size" and wait for reply
-    long iter = loops;
-    while (likely(iter--)) {
-
-        for (uint32_t size = start; size <= end; size += (inc ? inc : size)) {
-            // allocate tx chain
-            struct w_iov_chain * o = w_alloc_size(w, size, 0);
-
+    struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
+    for (uint32_t size = start; size <= end; size += (inc ? inc : 0.51*size)) {
+        // allocate tx chain
+        struct w_iov_chain * o = w_alloc_size(w, size, 0);
+        long iter = loops;
+        while (likely(iter--)) {
             // get the current time
             struct timespec before_tx;
             ensure(clock_gettime(CLOCK_MONOTONIC, &before_tx) != -1,
                    "clock_gettime");
 
-            // timestamp the payloads
-            const struct w_iov * v;
-            STAILQ_FOREACH (v, o, next)
-                memcpy(v->buf, &before_tx, sizeof(struct timespec));
-
             // send the data, and wait until it is out
             w_tx(s, o);
             while (o->tx_pending)
                 w_nic_tx(w);
+
+            // get the current time
+            struct timespec after_tx;
+            ensure(clock_gettime(CLOCK_MONOTONIC, &after_tx) != -1,
+                   "clock_gettime");
 
             // set a timeout
             ensure(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
@@ -211,24 +209,15 @@ int main(const int argc, char * const argv[])
 
             warn(info, "sent %u byte%s", size, plural(size));
 
-            // get the current time
-            struct timespec after_tx;
-            ensure(clock_gettime(CLOCK_MONOTONIC, &after_tx) != -1,
-                   "clock_gettime");
-
-            // wait for a reply
+            // wait for a reply; loop until timeout or we have received all data
             struct w_iov_chain * i = 0;
             uint32_t len = 0;
-
-            // loop until timeout expires, or we have received all data
             while (likely(len < size && done == false)) {
-                if (unlikely(busywait == false)) {
+                if (unlikely(busywait == false))
                     // poll for new data
-                    struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
                     if (poll(&fds, 1, -1) == -1)
                         // if the poll was interrupted, move on
                         continue;
-                }
 
                 // receive new data (there may not be any if busy-waiting)
                 w_nic_rx(w);
@@ -253,24 +242,30 @@ int main(const int argc, char * const argv[])
             const struct itimerval stop = {0};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            warn(info, "received %u/%u byte%s", len, size, plural(len));
+            if (len < size) {
+                warn(warn, "only received %u/%u byte%s", len, size,
+                     plural(len));
+                continue;
+            }
 
             // compute time difference between the packet and the current time
-            struct timespec diff_tx, diff_rx;
-            time_diff(&diff_tx, &after_tx, &before_tx);
+            struct timespec diff;
             char rx[256] = "NA";
             if (len == size) {
-                time_diff(&diff_rx, &after_rx, &before_tx);
-                snprintf(rx, 256, "%ld.%.9ld", diff_rx.tv_sec, diff_rx.tv_nsec);
+                time_diff(&diff, &after_rx, &before_tx);
+                ensure(diff.tv_sec == 0, "time difference > 1 sec");
+                snprintf(rx, 256, "%ld", diff.tv_nsec);
             }
-            printf("%ld.%.9ld\t%d\t%ld.%.9ld\t%s\n", after_rx.tv_sec,
-                   after_rx.tv_nsec, size, diff_tx.tv_sec, diff_tx.tv_nsec, rx);
+            const uint32_t pkts = w_iov_chain_cnt(o);
+            time_diff(&diff, &after_tx, &before_tx);
+            ensure(diff.tv_sec == 0, "time difference > 1 sec");
+            printf("%d\t%d\t%ld\t%s\n", size, pkts, diff.tv_nsec, rx);
 
             // we are done with the received data
             if (i)
                 w_free(w, i);
-            w_free(w, o);
         }
+        w_free(w, o);
     }
     w_close(s);
     w_cleanup(w);
