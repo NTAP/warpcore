@@ -114,7 +114,7 @@ bool eth_tx(struct warpcore * const w,
 
     // return false if all rings are full
     if (unlikely(txr == 0)) {
-        warn(warn, "all tx rings are full");
+        warn(info, "all tx rings are full");
         return false;
     }
 
