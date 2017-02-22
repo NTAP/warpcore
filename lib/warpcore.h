@@ -36,12 +36,20 @@
 
 struct warpcore;
 
-
+/// A chain of w_sock socket.
+///
 SLIST_HEAD(w_sock_chain, w_sock);
 
+
+/// A chain of w_iov I/O vectors. Also contains a counter that (on TX) tracks
+/// how many w_iovs have not yet been transmitted by the NIC.
+///
 struct w_iov_chain {
-    STAILQ_HEAD(, w_iov);
-    uint32_t tx_pending;
+    STAILQ_HEAD(, w_iov); ///< Head of the w_iov chain.
+    uint32_t tx_pending; ///< Counter of untransmitted w_iovs. Only valid on TX.
+    /// @cond
+    uint8_t _unused2[4]; ///< @internal Padding.
+    /// @endcond
 };
 
 
@@ -72,7 +80,7 @@ struct w_sock {
 #else
     /// @cond
     uint8_t _unused2[4]; ///< @internal Padding.
-                         /// @endcond
+    /// @endcond
 #endif
 };
 
