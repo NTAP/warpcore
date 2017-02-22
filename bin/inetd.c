@@ -121,10 +121,9 @@ int main(const int argc, char * const argv[])
 
     // serve requests on the four sockets until an interrupt occurs
     while (done == false) {
-        if (busywait == false) {
+        if (busywait == false)
             // if we aren't supposed to busy-wait, poll for new data
             poll(fds, n, -1);
-        }
 
         // receive new data (there may not be any if busy-waiting)
         w_nic_rx(w);
