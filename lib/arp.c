@@ -93,20 +93,14 @@ arp_cache_update(struct warpcore * w,
                  const uint8_t mac[ETH_ADDR_LEN])
 {
     struct arp_entry * a = arp_cache_find(w, ip);
-    if (a) {
-        warn(info, "updating ARP cache entry: %s is at %s",
-             inet_ntoa(*(const struct in_addr * const) & ip),
-             ether_ntoa((const struct ether_addr * const)mac));
-        memcpy(a->mac, mac, ETH_ADDR_LEN);
-        return;
+    if (unlikely(a == 0)) {
+        a = calloc(1, sizeof(*a));
+        ensure(a, "cannot allocate arp_entry");
+        a->ip = ip;
     }
-
-    a = calloc(1, sizeof(*a));
-    ensure(a, "cannot allocate arp_entry");
-    a->ip = ip;
     memcpy(a->mac, mac, ETH_ADDR_LEN);
     SLIST_INSERT_HEAD(&w->arp_cache, a, next);
-    warn(info, "new ARP cache entry: %s is at %s",
+    warn(info, "ARP cache entry: %s is at %s",
          inet_ntoa(*(const struct in_addr * const) & ip),
          ether_ntoa((const struct ether_addr * const)mac));
 }

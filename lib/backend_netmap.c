@@ -243,6 +243,8 @@ void w_nic_rx(struct warpcore * const w)
                 NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
 
             // process the current slot
+            warn(debug, "rx idx %u from ring %u slot %u",
+                 r->slot[r->cur].buf_idx, i, r->cur);
             eth_rx(w, r);
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
@@ -267,7 +269,7 @@ void w_nic_tx(struct warpcore * const w)
         // XXX we need to abuse the netmap API here by touching tail until a fix
         // is included upstream
         for (uint32_t j = nm_ring_next(r, w->tail[i]);
-             j != nm_ring_next(r, r->tail); j = nm_ring_next(r, j)) {
+             likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
             struct w_iov * const v = (struct w_iov * const)s->ptr;
             if (likely(v)) {
