@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(warpcore VERSION 0.2.0 LANGUAGES C)
+project(warpcore VERSION 0.2.0 LANGUAGES C CXX)
 
 # Build "Debug" type by default
 if(NOT CMAKE_BUILD_TYPE)
@@ -8,19 +8,27 @@ if(NOT CMAKE_BUILD_TYPE)
         CACHE STRING "Set build type (default Debug)" FORCE)
 endif()
 
+# Use modern C and C++
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_C_STANDARD 11)
+
 # Set general compile flags, if they are supported
 include(CheckCCompilerFlag)
-foreach(FLAG -std=c11 -march=native -Wextra -Wpedantic -Weverything -Werror
+include(CheckCXXCompilerFlag)
+foreach(FLAG -march=native -Wextra -Wpedantic -Weverything -Werror
+        -Wno-c++98-compat -Wno-global-constructors
         -Wno-missing-field-initializers -Wno-missing-braces -fcolor-diagnostics)
   string(REGEX REPLACE "[-=]" "" F ${FLAG})
-  check_c_compiler_flag(${FLAG} ${F})
+  check_cxx_compiler_flag(${FLAG} ${F})
   if(${F})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
   endif()
 endforeach()
 
 # flags for "Debug" and "None" builds
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Default debug logging level
@@ -43,6 +51,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     check_c_compiler_flag(${FLAG} ${F})
     if(${F})
       set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
+      set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
     endif()
   endforeach()
 else()
@@ -56,6 +65,7 @@ else()
   if(${LTO})
     # Turn LTO on
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
     # Use the correct toolchain for LTO, if enabled
     if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       set(CMAKE_AR llvm-ar)
@@ -69,9 +79,11 @@ endif()
 
 # flags for "Release" builds
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Ofast")
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast")
 
 # flags for "RelWithDebInfo" builds
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -g")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -g")
 
 # Check if _GNU_SOURCE is available.
 include(CheckSymbolExists)
@@ -101,6 +113,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(CMAKE_C_INCLUDE_WHAT_YOU_USE
         ${IWYU} -Xiwyu --no_comments -Xiwyu
         --mapping_file=${PROJECT_SOURCE_DIR}/misc/${CMAKE_SYSTEM_NAME_LC}.imp)
+    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${CMAKE_C_INCLUDE_WHAT_YOU_USE})
   endif()
 
   # Use clang-tidy for extra warnings, if it's installed
@@ -113,12 +126,14 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         -google-readability-function-size
         -readability-function-size
         -google-readability-todo
+        -google-runtime-references
         -readability-else-after-return
         -clang-analyzer-alpha.deadcode.UnreachableCode
         -clang-analyzer-alpha.core.CastToStruct
         -clang-analyzer-alpha.core.CastSize)
     string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
     set(CMAKE_C_CLANG_TIDY ${CLANGTIDY} -checks=${CLANG_TIDY_CHECKS})
+    set(CMAKE_CXX_CLANG_TIDY ${CMAKE_C_CLANG_TIDY})
   endif()
 endif()
 
@@ -128,5 +143,12 @@ add_subdirectory(doc)
 add_subdirectory(bin)
 add_subdirectory(lib)
 
-# Add a "distclean" target; see http://stackoverflow.com/a/12055610/1437081
-add_custom_target(distclean COMMAND git clean -fdx)
+# See if we can enable testing
+find_path(HAVE_GOOGLE_BENCHMARK benchmark/benchmark.h PATHS /usr/local/include)
+if(HAVE_GOOGLE_BENCHMARK)
+  message(STATUS "Found Google Benchmark in ${HAVE_GOOGLE_BENCHMARK}")
+  add_subdirectory(test)
+  enable_testing()
+else()
+  message(STATUS "Google Benchmark not found; not enabling tests")
+endif()
