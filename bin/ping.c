@@ -183,7 +183,7 @@ int main(const int argc, char * const argv[])
 
     // send "loops" number of payloads of size "size" and wait for reply
     struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
-    for (uint32_t size = start; size <= end; size += (inc ? inc : 0.51*size)) {
+    for (uint32_t size = start; size <= end; size += (inc ? inc : .51 * size)) {
         // allocate tx chain
         struct w_iov_chain * o = w_alloc_size(w, size, 0);
         long iter = loops;

@@ -156,7 +156,7 @@ def start_client(test, busywait, cksum, kind):
         if not env.keeplog:
             log = "/dev/null"
         sudo("nice -20 "
-             "bin/%sping -i %s -d %s %s %s -l 10 -c 0 -e 3000000 > %s 2> %s" %
+             "bin/%sping -i %s -d %s %s %s -l 10 -c 0 -e 8000000 > %s 2> %s" %
              (kind, test["iface"], env.ip[test["server"]],
               busywait, cksum, file, log))
 
