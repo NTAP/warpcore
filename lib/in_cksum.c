@@ -50,7 +50,7 @@ union q_util;
 // modified for each CPU to be as fast as possible.
 
 
-#define ADDCARRY(x) (x > 65535 ? x -= 65535 : x)
+#define ADDCARRY(x) ((x) > 65535 ? (x) -= 65535 : (x))
 #define REDUCE32                                                               \
     {                                                                          \
         q_util.q = sum;                                                        \
