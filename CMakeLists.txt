@@ -2,6 +2,29 @@ cmake_minimum_required(VERSION 3.0)
 
 project(warpcore VERSION 0.2.0 LANGUAGES C CXX)
 
+# Check for dependencies before mucking with the compiler flags
+
+# See if we can enable testing
+include(CheckCXXSymbolExists)
+set(CMAKE_REQUIRED_LIBRARIES benchmark)
+check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
+                        HAVE_BENCHMARK_H)
+include(CMakePushCheckState)
+cmake_reset_check_state()
+
+# Look for netmap
+include(CheckIncludeFile)
+set(CMAKE_REQUIRED_INCLUDES "/usr/include /usr/local/include")
+check_include_file(net/netmap_user.h HAVE_NETMAP_H)
+cmake_reset_check_state()
+
+# Check if _GNU_SOURCE is available.
+include(CheckSymbolExists)
+check_symbol_exists(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
+if(_GNU_SOURCE)
+  add_definitions(-D_GNU_SOURCE)
+endif()
+
 # Build "Debug" type by default
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug
@@ -16,13 +39,30 @@ set(CMAKE_C_STANDARD 11)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 foreach(FLAG -march=native -Wextra -Wpedantic -Weverything -Werror
-        -Wno-c++98-compat -Wno-global-constructors
-        -Wno-missing-field-initializers -Wno-missing-braces -fcolor-diagnostics)
-  string(REGEX REPLACE "[-=]" "" F ${FLAG})
+        -fcolor-diagnostics)
+  string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_cxx_compiler_flag(${FLAG} ${F})
   if(${F})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
+  endif()
+endforeach()
+
+# Set CXX flags
+foreach(FLAG -Wno-c++11-extensions -Wno-c++98-compat -Wno-global-constructors)
+  string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
+  check_cxx_compiler_flag(${FLAG} ${F})
+  if(${F})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
+  endif()
+endforeach()
+
+# Set C flags
+foreach(FLAG -Wno-missing-field-initializers -Wno-missing-braces)
+  string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
+  check_c_compiler_flag(${FLAG} ${F})
+  if(${F})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
   endif()
 endforeach()
 
@@ -47,7 +87,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(FLAGS ${FLAGS} -fsanitize=undefined -fno-sanitize=alignment)
   endif()
   foreach(FLAG ${FLAGS})
-    string(REGEX REPLACE "[-=]" "" F ${FLAG})
+    string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
     check_c_compiler_flag(${FLAG} ${F})
     if(${F})
       set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
@@ -85,24 +125,9 @@ set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -g")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -g")
 
-# Check if _GNU_SOURCE is available.
-include(CheckSymbolExists)
-check_symbol_exists(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
-if(_GNU_SOURCE)
-  add_definitions(-D_GNU_SOURCE)
-endif()
-
 # Extract compile options into variable, for doxygen's CLANG_ASSISTED_PARSING
 get_property(COMPILE_OPTIONS DIRECTORY PROPERTY COMPILE_OPTIONS)
 string(REPLACE ";" " " COMPILE_OPTIONS "${COMPILE_OPTIONS}")
-
-# Look for netmap
-find_path(HAVE_NETMAP_H net/netmap.h PATHS /usr/local/include)
-if(HAVE_NETMAP_H)
-  message(STATUS "Found netmap include in ${HAVE_NETMAP_H}")
-else()
-  message(STATUS "netmap.h not found; building shim backend only")
-endif()
 
 string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
@@ -123,14 +148,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(CLANG_TIDY_CHECKS *
         -google-readability-braces-around-statements
         -readability-braces-around-statements
-        -google-readability-function-size
-        -readability-function-size
-        -google-readability-todo
         -google-runtime-references
-        -readability-else-after-return
         -clang-analyzer-alpha.deadcode.UnreachableCode
-        -clang-analyzer-alpha.core.CastToStruct
-        -clang-analyzer-alpha.core.CastSize)
+    )
     string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
     set(CMAKE_C_CLANG_TIDY ${CLANGTIDY} -checks=${CLANG_TIDY_CHECKS})
     set(CMAKE_CXX_CLANG_TIDY ${CMAKE_C_CLANG_TIDY})
@@ -143,12 +163,10 @@ add_subdirectory(doc)
 add_subdirectory(bin)
 add_subdirectory(lib)
 
-# See if we can enable testing
-find_path(HAVE_GOOGLE_BENCHMARK benchmark/benchmark.h PATHS /usr/local/include)
-if(HAVE_GOOGLE_BENCHMARK)
-  message(STATUS "Found Google Benchmark in ${HAVE_GOOGLE_BENCHMARK}")
+if(HAVE_BENCHMARK_H)
   add_subdirectory(test)
   enable_testing()
 else()
   message(STATUS "Google Benchmark not found; not enabling tests")
 endif()
+
