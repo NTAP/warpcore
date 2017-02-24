@@ -184,6 +184,3 @@ extern void __attribute__((nonnull))
 backend_init(struct warpcore * w, const char * const ifname);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct warpcore * const w);
-
-extern void __attribute__((nonnull))
-backend_tx(const struct w_sock * const s, struct w_iov * const v);

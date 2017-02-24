@@ -209,19 +209,28 @@ int w_fd(struct w_sock * const s)
 }
 
 
-/// Places the payload of @p v into an IPv4 UDP packet, and attempts to move it
-/// onto a TX ring. Will force a NIC TX if all rings are full, retry the failed
-/// w_iov and continue with the chain. The (last batch of) packets are not send
-/// yet; w_nic_tx() needs to be called (again) for that. This is, so that an
-/// application has control over exactly when to schedule packet I/O.
+/// Loops over the w_iov structures in the chain @p c, sending them all over
+/// w_sock @p s. Places the payloads into IPv4 UDP packets, and attempts to move
+/// them into TX rings. Will force a NIC TX if all rings are full, retry the
+/// failed w_iovs and continue with the chain. The (last batch of) packets are
+/// not send yet; w_nic_tx() needs to be called (again) for that. This is, so
+/// that an application has control over exactly when to schedule packet I/O.
 ///
 /// @param      s     w_sock socket to transmit over.
-/// @param      v     w_iov to transmit.
+/// @param      c     w_iov_chain to send.
 ///
-void backend_tx(const struct w_sock * const s, struct w_iov * const v)
+void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 {
-    while (udp_tx(s, v) == false)
-        w_nic_tx(s->w);
+    struct w_iov * v;
+    c->tx_pending = 0;
+    STAILQ_FOREACH (v, c, next) {
+        c->tx_pending++;
+        v->chain = c;
+        ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
+               "no destination information");
+        while (udp_tx(s, v) == false)
+            w_nic_tx(s->w);
+    }
 }
 
 

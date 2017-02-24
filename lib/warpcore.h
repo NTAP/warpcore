@@ -122,7 +122,9 @@ struct w_iov {
 
     struct timeval ts; ///< Receive time of the data. Only valid on RX.
 
+#ifdef WITH_NETMAP
     struct w_iov_chain * chain; ///< Pointer to w_ioc_chain. Only valid on TX.
+#endif
 };
 
 

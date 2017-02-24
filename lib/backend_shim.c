@@ -130,26 +130,32 @@ int w_fd(struct w_sock * const s)
 }
 
 
-/// Attempts to send the payload from @p v using the Socket API.
+/// Loops over the w_iov structures in the chain @p c, sending them all over
+/// w_sock @p s. This backend uses the Socket API.
 ///
-/// @param      s     w_sock socket to transmit over..
-/// @param      v     w_iov to transmit.
+/// @param      s     w_sock socket to transmit over.
+/// @param      c     w_iov_chain to send.
 ///
-void backend_tx(const struct w_sock * const s, struct w_iov * const v)
+void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 {
-    // if w_sock is disconnected, use destination IP and port from w_iov
-    // instead of the one in the template header
-    const struct sockaddr_in addr = {
-        .sin_family = AF_INET,
-        .sin_port = s->hdr->ip.dst ? s->hdr->udp.dport : v->port,
-        .sin_addr = {s->hdr->ip.dst ? s->hdr->ip.dst : v->ip}};
+    struct w_iov * v;
+    c->tx_pending = 0;
+    STAILQ_FOREACH (v, c, next) {
+        // since we use blocking I/O, there is no need to update c->tx_pending
 
-    sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&addr,
-           sizeof(addr));
+        ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
+               "no destination information");
 
-    // update tx_pending
-    if (likely(v->chain))
-        v->chain->tx_pending--;
+        // if w_sock is disconnected, use destination IP and port from w_iov
+        // instead of the one in the template header
+        const struct sockaddr_in addr = {
+            .sin_family = AF_INET,
+            .sin_port = s->hdr->ip.dst ? s->hdr->udp.dport : v->port,
+            .sin_addr = {s->hdr->ip.dst ? s->hdr->ip.dst : v->ip}};
+
+        sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&addr,
+               sizeof(addr));
+    }
 }
 
 
