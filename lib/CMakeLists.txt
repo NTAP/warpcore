@@ -1,6 +1,10 @@
+include(CheckFunctionExists)
+check_function_exists(recvmmsg HAVE_RECVMMSG)
+check_function_exists(sendmmsg HAVE_SENDMMSG)
+
 string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_UC)
-configure_file(version.h.in version.h)
-configure_file(version.c.in version.c)
+configure_file(config.h.in config.h)
+configure_file(config.c.in config.c)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_${CMAKE_SYSTEM_NAME_LC}.c)
@@ -11,15 +15,16 @@ if(NOT(EXISTS ${PLAT}))
 endif()
 
 set(SOURCES ${SOURCES}
-  ${PLAT} util.c warpcore.c ${CMAKE_CURRENT_BINARY_DIR}/version.c)
+  ${PLAT} util.c warpcore.c ${CMAKE_CURRENT_BINARY_DIR}/config.c)
 
 set(SHIMSOURCES ${SOURCES} backend_shim.c)
 add_library(shimcore ${SHIMSOURCES})
 set_property(TARGET shimcore PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-target_include_directories(shimcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(shimcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+                           PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
 install(TARGETS shimcore DESTINATION lib)
-install(FILES warpcore.h util.h plat.h DESTINATION include)
+install(FILES warpcore.h util.h plat.h config.h DESTINATION include)
 
 if(HAVE_NETMAP_H)
   set(WARPSOURCES
@@ -27,7 +32,8 @@ if(HAVE_NETMAP_H)
   add_library(warpcore ${WARPSOURCES})
   target_compile_definitions(warpcore PRIVATE -DWITH_NETMAP)
   set_property(TARGET warpcore PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-  target_include_directories(warpcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+  target_include_directories(warpcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+                             PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
   install(TARGETS warpcore DESTINATION lib)
 endif()

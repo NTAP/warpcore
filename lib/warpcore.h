@@ -30,6 +30,7 @@
 #include <sys/time.h>
 
 // IWYU pragma: begin_exports
+#include <config.h>
 #include <plat.h>
 #include <util.h>
 // IWYU pragma: end_exports

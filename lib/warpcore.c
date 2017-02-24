@@ -49,11 +49,10 @@
 #include <warpcore.h>
 
 #include "backend.h"
+#include "config.h"
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
-#include "version.h"
-
 
 extern struct w_iov * alloc_iov(struct warpcore * w);
 extern struct w_sock * get_sock(struct warpcore * w, uint16_t port);
