@@ -36,6 +36,12 @@
 
 #include <warpcore.h>
 
+#if defined(HAVE_SENDMMSG) || defined(HAVE_RECVMMSG)
+// IWYU pragma: no_include "config.h"
+#include <limits.h>
+#include <sys/uio.h>
+#endif
+
 #include "backend.h"
 #include "ip.h"
 #include "udp.h"
@@ -98,7 +104,6 @@ void backend_cleanup(struct warpcore * const w)
 void backend_bind(struct w_sock * s)
 {
     ensure(s->fd = socket(AF_INET, SOCK_DGRAM, 0), "socket");
-    // ensure(fcntl(s->fd, F_SETFL, O_NONBLOCK) != -1, "fcntl");
     const struct sockaddr_in addr = {.sin_family = AF_INET,
                                      .sin_port = s->hdr->udp.sport,
                                      .sin_addr = {.s_addr = s->hdr->ip.src}};
@@ -138,6 +143,12 @@ int w_fd(struct w_sock * const s)
 ///
 void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 {
+#ifdef HAVE_SENDMMSG
+    struct mmsghdr msgvec[IOV_MAX];
+    struct iovec msg[IOV_MAX];
+    struct sockaddr_in dst[IOV_MAX];
+    size_t i = 0;
+#endif
     struct w_iov * v;
     c->tx_pending = 0;
     STAILQ_FOREACH (v, c, next) {
@@ -146,15 +157,38 @@ void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
         ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
                "no destination information");
 
+#ifdef HAVE_SENDMMSG
+        // for sendmmsg, we populate the parameters
+        msg[i] = (struct iovec){.iov_base = v->buf, .iov_len = v->len};
         // if w_sock is disconnected, use destination IP and port from w_iov
         // instead of the one in the template header
-        const struct sockaddr_in addr = {
+        dst[i] = (struct sockaddr_in){
             .sin_family = AF_INET,
             .sin_port = s->hdr->ip.dst ? s->hdr->udp.dport : v->port,
             .sin_addr = {s->hdr->ip.dst ? s->hdr->ip.dst : v->ip}};
-
-        sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&addr,
-               sizeof(addr));
+        msgvec[i].msg_hdr = (struct msghdr){.msg_name = &dst[i],
+                                            .msg_namelen = sizeof(dst[i]),
+                                            .msg_iov = &msg[i],
+                                            .msg_iovlen = 1};
+        i++;
+        if (unlikely(i == IOV_MAX || STAILQ_NEXT(v, next) == 0)) {
+            // the iov is full, or we are at the last w_iov, so send
+            const ssize_t r = sendmmsg(s->fd, msgvec, i, 0);
+            ensure(r == (ssize_t)i, "sendmmsg %zu %zu", i, r);
+            // reuse the iov structure for the next batch
+            i = 0;
+        }
+#else
+        // without sendmmsg, send one packet directly
+        // if w_sock is disconnected, use destination IP and port from w_iov
+        // instead of the one in the template header
+        const struct sockaddr_in dst = {
+            .sin_family = AF_INET,
+            .sin_port = s->hdr->ip.dst ? s->hdr->udp.dport : v->port,
+            .sin_addr = {s->hdr->ip.dst ? s->hdr->ip.dst : v->ip}};
+        sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&dst,
+               sizeof(dst));
+#endif
     }
 }
 
@@ -169,6 +203,41 @@ void w_nic_rx(struct warpcore * const w)
 {
     const struct w_sock * s;
     SLIST_FOREACH (s, &w->sock, next) {
+#ifdef HAVE_RECVMMSG
+        struct mmsghdr msgvec[IOV_MAX];
+        struct iovec msg[IOV_MAX];
+        struct sockaddr_in peer[IOV_MAX];
+        struct w_iov * v[IOV_MAX];
+        for (int i = 0; likely(i < IOV_MAX); i++) {
+            v[i] = alloc_iov(w);
+            msg[i] =
+                (struct iovec){.iov_base = v[i]->buf, .iov_len = v[i]->len};
+            msgvec[i].msg_hdr = (struct msghdr){.msg_name = &peer[i],
+                                                .msg_namelen = sizeof(peer[i]),
+                                                .msg_iov = &msg[i],
+                                                .msg_iovlen = 1};
+        }
+
+        const ssize_t n = recvmmsg(s->fd, msgvec, IOV_MAX, MSG_DONTWAIT, 0);
+        ensure(n != -1 || errno == EAGAIN, "recv");
+        struct timeval ts;
+        ensure(gettimeofday(&ts, 0) == 0, "gettimeofday");
+        for (ssize_t i = 0; likely(i < n); i++) {
+            v[i]->len = (uint16_t)msgvec[i].msg_len;
+            v[i]->ip = peer[i].sin_addr.s_addr;
+            v[i]->port = peer[i].sin_port;
+            v[i]->flags = 0;
+            v[i]->ts = ts;
+            // add the iov to the tail of the result
+            STAILQ_INSERT_TAIL(s->iv, v[i], next);
+        }
+        // return any unused buffers
+        // XXX there is a crash here
+        for (ssize_t i = n; likely(i < IOV_MAX); i++) {
+            warn(warn, "return %zu", i);
+            STAILQ_INSERT_HEAD(&s->w->iov, v[i], next);
+        }
+#else
         ssize_t n = 0;
         do {
             // grab a spare buffer
@@ -191,8 +260,8 @@ void w_nic_rx(struct warpcore * const w)
             } else
                 // we didn't need this iov after all
                 STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-
         } while (n > 0);
+#endif
     }
 }
 
