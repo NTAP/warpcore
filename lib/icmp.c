@@ -23,13 +23,12 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <net/if.h> // IWYU pragma: keep
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <netinet/in.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/queue.h>
-
-#include <net/netmap.h> // this needs to come after the other system includes
 
 #include <warpcore.h>
 

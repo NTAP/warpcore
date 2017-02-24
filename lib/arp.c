@@ -23,8 +23,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+// IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/if.h> // IWYU pragma: keep
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <netinet/in.h>
 #include <poll.h>
 #include <stdint.h>
@@ -39,8 +40,6 @@
 #else
 #include <net/ethernet.h>
 #endif
-
-#include <net/netmap.h> // this needs to come after the other system includes
 
 #include <warpcore.h>
 

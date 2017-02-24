@@ -24,8 +24,10 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
+// IWYU pragma: no_include <net/netmap.h>
 #include <fcntl.h>
-#include <net/if.h> // IWYU pragma: keep
+#include <net/if.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -38,8 +40,6 @@
 #ifdef __FreeBSD__
 #include <sys/types.h>
 #endif
-
-#include <net/netmap.h> // this needs to come after the other system includes
 
 #include <warpcore.h>
 
