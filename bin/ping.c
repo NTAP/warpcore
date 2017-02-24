@@ -215,20 +215,24 @@ int main(const int argc, char * const argv[])
             while (likely(len < size && done == false)) {
                 if (unlikely(busywait == false))
                     // poll for new data
-                    if (poll(&fds, 1, -1) == -1)
+                    if (poll(&fds, 1, -1) == -1) {
                         // if the poll was interrupted, move on
+                        if (i)
+                            w_free(w, i);
                         continue;
+                    }
 
                 // receive new data (there may not be any if busy-waiting)
                 w_nic_rx(w);
 
                 // read new data
-                struct w_iov_chain * new = w_rx(s);
+                struct w_iov_chain * const new = w_rx(s);
                 if (new) {
                     len += w_iov_chain_len(new, 0);
-                    if (i)
+                    if (i) {
                         STAILQ_CONCAT(i, new);
-                    else
+                        w_free(w, new);
+                    } else
                         i = new;
                 }
             }
