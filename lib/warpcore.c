@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 #ifdef __linux__
+#include <net/ethernet.h>
 #include <netinet/ether.h>
 #else
 #include <net/ethernet.h>
@@ -206,8 +207,11 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
     s->hdr->udp.dport = port;
     backend_connect(s);
 
+#ifndef NDEBUG
+    char str[INET_ADDRSTRLEN];
     warn(notice, "IP proto %d socket connected to %s port %d", s->hdr->ip.p,
-         inet_ntoa(*(const struct in_addr * const) & ip), ntohs(port));
+         inet_ntop(AF_INET, &ip, str, INET_ADDRSTRLEN), ntohs(port));
+#endif
 }
 
 
@@ -419,10 +423,11 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
 #ifndef NDEBUG
                 // mpbs can be zero on generic platforms and loopback interfaces
                 const uint32_t mbps = plat_get_mbps(i);
+                struct ether_addr a;
+                memcpy(&a, w->mac, ETH_ADDR_LEN);
                 warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
-                     i->ifa_name,
-                     ether_ntoa((const struct ether_addr * const)w->mac),
-                     w->mtu, mbps / 1000, link_up ? "up" : "down");
+                     i->ifa_name, ether_ntoa(&a), w->mtu, mbps / 1000,
+                     link_up ? "up" : "down");
 #endif
                 break;
             case AF_INET:

@@ -95,11 +95,11 @@ struct warpcore {
     struct nmreq * req;     ///< Netmap request structure.
     SLIST_HEAD(arp_cache_head, arp_entry) arp_cache; ///< The ARP cache.
     uint32_t cur_txr; ///< Index of the TX ring currently active.
-    uint32_t * tail;  ///< TX ring tails after last NIOCTXSYNC call.
     /// @cond
     /// @internal Padding.
     uint8_t _unused2[4];
     /// @endcond
+    uint32_t * tail;  ///< TX ring tails after last NIOCTXSYNC call.
 #else
     /// @cond
     /// @internal Padding.
