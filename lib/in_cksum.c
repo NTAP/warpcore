@@ -41,8 +41,8 @@
 
 #include "ip.h" // IWYU pragma: keep
 
-union l_util;
-union q_util;
+// IWYU pragma: no_forward_declare l_util
+// IWYU pragma: no_forward_declare q_util
 
 
 // Checksum routine for Internet Protocol family headers (portable Alpha
