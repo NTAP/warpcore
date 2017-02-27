@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -144,19 +145,22 @@ int w_fd(struct w_sock * const s)
 void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 {
 #ifdef HAVE_SENDMMSG
-    struct mmsghdr msgvec[IOV_MAX];
-    struct iovec msg[IOV_MAX];
-    struct sockaddr_in dst[IOV_MAX];
+// There is a tradeoff here in terms of how many messages we should try and
+// send. Preparing to handle longer sizes has preparation overheads, whereas
+// only handling shorter sizes may require multiple syscalls (and incur their
+// overheads). So we're picking a number out of a hat. We could allocate
+// dynamically for MAX(IOV_MAX, w_iov_chain_cnt(c)), but that seems overkill.
+#define SEND_SIZE MIN(16, IOV_MAX)
+    struct mmsghdr msgvec[SEND_SIZE];
+    struct iovec msg[SEND_SIZE];
+    struct sockaddr_in dst[SEND_SIZE];
     size_t i = 0;
 #endif
-    struct w_iov * v;
-    c->tx_pending = 0;
+    c->tx_pending = 0; // blocking I/O, no need to update c->tx_pending
+    const struct w_iov * v;
     STAILQ_FOREACH (v, c, next) {
-        // since we use blocking I/O, there is no need to update c->tx_pending
-
         ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
                "no destination information");
-
 #ifdef HAVE_SENDMMSG
         // for sendmmsg, we populate the parameters
         msg[i] = (struct iovec){.iov_base = v->buf, .iov_len = v->len};
@@ -170,9 +174,9 @@ void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
                                             .msg_namelen = sizeof(dst[i]),
                                             .msg_iov = &msg[i],
                                             .msg_iovlen = 1};
-        i++;
-        if (unlikely(i == IOV_MAX || STAILQ_NEXT(v, next) == 0)) {
+        if (unlikely(++i == SEND_SIZE || STAILQ_NEXT(v, next) == 0)) {
             // the iov is full, or we are at the last w_iov, so send
+            // warn(warn, "send %zu", i);
             const ssize_t r = sendmmsg(s->fd, msgvec, i, 0);
             ensure(r == (ssize_t)i, "sendmmsg %zu %zu", i, r);
             // reuse the iov structure for the next batch
@@ -193,75 +197,72 @@ void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
 }
 
 
-/// Calls recvfrom() for all sockets associated with the engine, emulating the
-/// operation of netmap backend_rx() function. Appends all data to the
-/// w_sock::iv socket buffers of the respective w_sock structures.
+/// Calls recvmsg() or recvmmsg() for all sockets associated with the engine,
+/// emulating the operation of netmap backend_rx() function. Appends all data to
+/// the w_sock::iv socket buffers of the respective w_sock structures.
 ///
 /// @param[in]  w     Warpcore engine.
 ///
 void w_nic_rx(struct warpcore * const w)
 {
+#ifdef HAVE_RECVMMSG
+// There is a tradeoff here in terms of how many messages we should try and
+// receive. Preparing to handle longer sizes has preparation overheads, whereas
+// only handling shorter sizes may require multiple syscalls (and incur their
+// overheads). So we're picking a number out of a hat.
+#define RECV_SIZE MIN(16, IOV_MAX)
+#else
+#define RECV_SIZE 1
+#endif
     const struct w_sock * s;
     SLIST_FOREACH (s, &w->sock, next) {
-#ifdef HAVE_RECVMMSG
-        struct mmsghdr msgvec[IOV_MAX];
-        struct iovec msg[IOV_MAX];
-        struct sockaddr_in peer[IOV_MAX];
-        struct w_iov * v[IOV_MAX];
-        for (int i = 0; likely(i < IOV_MAX); i++) {
-            v[i] = alloc_iov(w);
-            msg[i] =
-                (struct iovec){.iov_base = v[i]->buf, .iov_len = v[i]->len};
-            msgvec[i].msg_hdr = (struct msghdr){.msg_name = &peer[i],
-                                                .msg_namelen = sizeof(peer[i]),
-                                                .msg_iov = &msg[i],
-                                                .msg_iovlen = 1};
-        }
-
-        const ssize_t n = recvmmsg(s->fd, msgvec, IOV_MAX, MSG_DONTWAIT, 0);
-        ensure(n != -1 || errno == EAGAIN, "recv");
-        struct timeval ts;
-        ensure(gettimeofday(&ts, 0) == 0, "gettimeofday");
-        for (ssize_t i = 0; likely(i < n); i++) {
-            v[i]->len = (uint16_t)msgvec[i].msg_len;
-            v[i]->ip = peer[i].sin_addr.s_addr;
-            v[i]->port = peer[i].sin_port;
-            v[i]->flags = 0;
-            v[i]->ts = ts;
-            // add the iov to the tail of the result
-            STAILQ_INSERT_TAIL(s->iv, v[i], next);
-        }
-        // return any unused buffers
-        // XXX there is a crash here
-        for (ssize_t i = n; likely(i < IOV_MAX); i++) {
-            warn(warn, "return %zu", i);
-            STAILQ_INSERT_HEAD(&s->w->iov, v[i], next);
-        }
-#else
         ssize_t n = 0;
         do {
-            // grab a spare buffer
-            struct w_iov * const v = alloc_iov(w);
-            struct sockaddr_in peer;
-            socklen_t plen = sizeof(peer);
-            n = recvfrom(s->fd, v->buf, IOV_BUF_LEN, MSG_DONTWAIT,
-                         (struct sockaddr *)&peer, &plen);
-            ensure(n != -1 || errno == EAGAIN, "recv");
-            if (n > 0) {
-                // add the iov to the tail of the result
-                STAILQ_INSERT_TAIL(s->iv, v, next);
+            struct mmsghdr msgvec[RECV_SIZE];
+            struct iovec msg[RECV_SIZE];
+            struct sockaddr_in peer[RECV_SIZE];
+            struct w_iov * v[RECV_SIZE];
+            for (int i = 0; likely(i < RECV_SIZE); i++) {
+                v[i] = alloc_iov(w);
+                msg[i] =
+                    (struct iovec){.iov_base = v[i]->buf, .iov_len = v[i]->len};
+                msgvec[i].msg_hdr =
+                    (struct msghdr){.msg_name = &peer[i],
+                                    .msg_namelen = sizeof(peer[i]),
+                                    .msg_iov = &msg[i],
+                                    .msg_iovlen = 1};
+            }
+#ifdef HAVE_RECVMMSG
+            n = recvmmsg(s->fd, msgvec, RECV_SIZE, MSG_DONTWAIT, 0);
+            ensure(n != -1 || errno == EAGAIN, "recvmmsg");
+#else
 
-                // store the length and other info
-                v->len = (uint16_t)n;
-                v->ip = peer.sin_addr.s_addr;
-                v->port = peer.sin_port;
-                v->flags = 0; // can't get TOS and ECN info from the kernel
-                ensure(gettimeofday(&v->ts, 0) == 0, "gettimeofday");
-            } else
-                // we didn't need this iov after all
-                STAILQ_INSERT_HEAD(&s->w->iov, v, next);
-        } while (n > 0);
+            n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
+            ensure(n != -1 || errno == EAGAIN, "recvmsg");
+            // recvmsg returns number of bytes, we need number of messages
+            n = (n > 0);
 #endif
+            if (n > 0) {
+                // warn(warn, "recv %zu", n);
+                struct timeval ts;
+                ensure(gettimeofday(&ts, 0) == 0, "gettimeofday");
+                for (ssize_t i = 0; likely(i < n); i++) {
+                    v[i]->len = (uint16_t)msgvec[i].msg_len;
+                    v[i]->ip = peer[i].sin_addr.s_addr;
+                    v[i]->port = peer[i].sin_port;
+                    v[i]->flags = 0;
+                    v[i]->ts = ts;
+                    // add the iov to the tail of the result
+                    STAILQ_INSERT_TAIL(s->iv, v[i], next);
+                }
+            } else
+                // in case EGAGIN was returned (n == -1)
+                n = 0;
+
+            // return any unused buffers
+            for (ssize_t i = n; likely(i < RECV_SIZE); i++)
+                STAILQ_INSERT_HEAD(&s->w->iov, v[i], next);
+        } while (n > 0);
     }
 }
 
