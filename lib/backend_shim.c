@@ -29,18 +29,18 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/uio.h>
 
 #include <warpcore.h>
 
 #if defined(HAVE_SENDMMSG) || defined(HAVE_RECVMMSG)
 // IWYU pragma: no_include "config.h"
 #include <limits.h>
-#include <sys/uio.h>
+#include <sys/param.h>
 #endif
 
 #include "backend.h"
@@ -218,15 +218,23 @@ void w_nic_rx(struct warpcore * const w)
     SLIST_FOREACH (s, &w->sock, next) {
         ssize_t n = 0;
         do {
-            struct mmsghdr msgvec[RECV_SIZE];
-            struct iovec msg[RECV_SIZE];
             struct sockaddr_in peer[RECV_SIZE];
             struct w_iov * v[RECV_SIZE];
+            struct iovec msg[RECV_SIZE];
+#ifdef HAVE_RECVMMSG
+            struct mmsghdr msgvec[RECV_SIZE];
+#else
+            struct msghdr msgvec[RECV_SIZE];
+#endif
             for (int i = 0; likely(i < RECV_SIZE); i++) {
                 v[i] = alloc_iov(w);
                 msg[i] =
                     (struct iovec){.iov_base = v[i]->buf, .iov_len = v[i]->len};
+#ifdef HAVE_RECVMMSG
                 msgvec[i].msg_hdr =
+#else
+                msgvec[i] =
+#endif
                     (struct msghdr){.msg_name = &peer[i],
                                     .msg_namelen = sizeof(peer[i]),
                                     .msg_iov = &msg[i],
@@ -247,7 +255,11 @@ void w_nic_rx(struct warpcore * const w)
                 struct timeval ts;
                 ensure(gettimeofday(&ts, 0) == 0, "gettimeofday");
                 for (ssize_t i = 0; likely(i < n); i++) {
-                    v[i]->len = (uint16_t)msgvec[i].msg_len;
+#ifdef HAVE_RECVMMSG
+                    v[i]->len = (uint16_t)msgvec[i].msg_hdr.msg_iov->iov_len;
+#else
+                    v[i]->len = (uint16_t)msgvec[i].msg_iov->iov_len;
+#endif
                     v[i]->ip = peer[i].sin_addr.s_addr;
                     v[i]->port = peer[i].sin_port;
                     v[i]->flags = 0;
