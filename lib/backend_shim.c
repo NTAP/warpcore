@@ -247,8 +247,6 @@ void w_nic_rx(struct warpcore * const w)
 
             n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
             ensure(n != -1 || errno == EAGAIN, "recvmsg");
-            // recvmsg returns number of bytes, we need number of messages
-            n = (n > 0);
 #endif
             if (n > 0) {
                 // warn(warn, "recv %zu", n);
@@ -256,9 +254,12 @@ void w_nic_rx(struct warpcore * const w)
                 ensure(gettimeofday(&ts, 0) == 0, "gettimeofday");
                 for (ssize_t i = 0; likely(i < n); i++) {
 #ifdef HAVE_RECVMMSG
-                    v[i]->len = (uint16_t)msgvec[i].msg_hdr.msg_iov->iov_len;
+                    v[i]->len = (uint16_t)msgvec[i].msg_len;
 #else
-                    v[i]->len = (uint16_t)msgvec[i].msg_iov->iov_len;
+                    v[i]->len = n;
+                    // recvmsg returns number of bytes, we need number of
+                    // messages for the return loop below
+                    n = 1;
 #endif
                     v[i]->ip = peer[i].sin_addr.s_addr;
                     v[i]->port = peer[i].sin_port;
@@ -268,7 +269,7 @@ void w_nic_rx(struct warpcore * const w)
                     STAILQ_INSERT_TAIL(s->iv, v[i], next);
                 }
             } else
-                // in case EGAGIN was returned (n == -1)
+                // in case EAGAIN was returned (n == -1)
                 n = 0;
 
             // return any unused buffers
