@@ -115,26 +115,12 @@ else()
       set(CMAKE_RANLIB gcc-ranlib)
     endif()
   endif()
-endif()
 
-# flags for "Release" builds
-set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Ofast")
-set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast")
-
-# flags for "RelWithDebInfo" builds
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -g")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -g")
-
-# Extract compile options into variable, for doxygen's CLANG_ASSISTED_PARSING
-get_property(COMPILE_OPTIONS DIRECTORY PROPERTY COMPILE_OPTIONS)
-string(REPLACE ";" " " COMPILE_OPTIONS "${COMPILE_OPTIONS}")
-
-string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
-if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Use include-what-you-use to check #includes, if it's installed
   find_program(IWYU NAMES include-what-you-use iwyu)
   if(IWYU)
     message(STATUS "Found include-what-you-use: ${IWYU}")
+    string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
     set(CMAKE_C_INCLUDE_WHAT_YOU_USE
         ${IWYU} -Xiwyu
         --mapping_file=${PROJECT_SOURCE_DIR}/misc/${CMAKE_SYSTEM_NAME_LC}.imp)
@@ -156,6 +142,18 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(CMAKE_CXX_CLANG_TIDY ${CMAKE_C_CLANG_TIDY})
   endif()
 endif()
+
+# flags for "Release" builds
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Ofast")
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast")
+
+# flags for "RelWithDebInfo" builds
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-Ofast -g")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Ofast -g")
+
+# Extract compile options into variable, for doxygen's CLANG_ASSISTED_PARSING
+get_property(COMPILE_OPTIONS DIRECTORY PROPERTY COMPILE_OPTIONS)
+string(REPLACE ";" " " COMPILE_OPTIONS "${COMPILE_OPTIONS}")
 
 add_definitions(-DDLEVEL=${DLEVEL})
 
