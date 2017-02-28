@@ -7,6 +7,7 @@ configure_file(config.h.in config.h)
 configure_file(config.c.in config.c)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
 set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_${CMAKE_SYSTEM_NAME_LC}.c)
 if(NOT(EXISTS ${PLAT}))
   message(STATUS "Cannot find " ${CMAKE_SYSTEM_NAME} "-specific platform "
