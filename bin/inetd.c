@@ -33,6 +33,12 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 
+#ifdef __linux__
+#include <byteswap.h>
+#else
+#include <netinet/in.h>
+#endif
+
 #if 0
 #include <string.h>
 #include <time.h>
@@ -180,11 +186,11 @@ int main(const int argc, char * const argv[])
                 static uint32_t tmp_len = 0;
                 tmp_len += i_len;
                 STAILQ_CONCAT(tmp, i);
-                w_free(w, i);
 
                 // did we receive all data?
                 if (tmp_len == ntohl(*(uint32_t *)STAILQ_FIRST(tmp)->buf)) {
                     // yep, let's send the data back
+                    w_free(w, i);
                     i = o = tmp;
                     tmp = 0;
                     tmp_len = 0;
