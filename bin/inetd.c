@@ -23,6 +23,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <arpa/inet.h>
 #include <getopt.h>
 #include <poll.h>
 #include <signal.h>
@@ -30,14 +31,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-// #include <string.h>
 #include <sys/queue.h>
-// #include <time.h>
 
-#ifdef __linux__
-#include <netinet/in.h>
-#else
-#include <arpa/inet.h>
+#if 0
+#include <string.h>
+#include <time.h>
 #endif
 
 #include <warpcore.h>
@@ -104,19 +102,25 @@ int main(const int argc, char * const argv[])
     ensure(signal(SIGTERM, &terminate) != SIG_ERR, "signal");
     ensure(signal(SIGINT, &terminate) != SIG_ERR, "signal");
 
-    // start four inetd-like "small services"
+    // start four inetd-like "small services" and one benchmark of our own
     struct w_sock * const srv[] = {
+#if 0
         w_bind(w, htons(7), flags),
-        // w_bind(w, htons(9), flags),
-        // w_bind(w, htons(13), flags),
-        // w_bind(w, htons(37), flags)
+        w_bind(w, htons(9), flags),
+        w_bind(w, htons(13), flags),
+        w_bind(w, htons(37), flags)
+#endif
+        w_bind(w, htons(55555), flags)
     };
-    const uint16_t n = sizeof(srv) / sizeof(struct w_sock *);
+    uint16_t n = 0;
     struct pollfd fds[] = {
-        {.fd = w_fd(srv[0]), .events = POLLIN},
-        // {.fd = w_fd(srv[1]), .events = POLLIN},
-        // {.fd = w_fd(srv[2]), .events = POLLIN},
-        // {.fd = w_fd(srv[3]), .events = POLLIN}
+#if 0
+        {.fd = w_fd(srv[n++]), .events = POLLIN},
+        {.fd = w_fd(srv[n++]), .events = POLLIN},
+        {.fd = w_fd(srv[n++]), .events = POLLIN},
+        {.fd = w_fd(srv[n++]), .events = POLLIN}
+#endif
+        {.fd = w_fd(srv[n++]), .events = POLLIN}
     };
 
     // serve requests on the four sockets until an interrupt occurs
@@ -139,32 +143,53 @@ int main(const int argc, char * const argv[])
 
             const uint32_t i_len = w_iov_chain_len(i, 0);
             struct w_iov_chain * o = 0; // w_iov for outbound data
-
-            if (s == srv[0]) {
+            uint16_t t = 0;
+#if 0
+            if (s == srv[t++]) {
                 // echo received data back to sender (zero-copy)
                 o = i;
-                // } else if (s == srv[1]) {
-                //     // discard; nothing to do
-                // } else if (s == srv[2]) {
-                //     // daytime
-                //     const time_t t = time(0);
-                //     const char * ct = ctime(&t);
-                //     const uint16_t l = (uint16_t)strlen(ct);
-                //     struct w_iov * v;
-                //     STAILQ_FOREACH (v, i, next) {
-                //         memcpy(v->buf, c, l); // write a timestamp
-                //         v->len = l;
-                //     }
-                //     o = i;
-                // } else if (s == srv[3]) {
-                //     // time
-                //     const time_t t = time(0);
-                //     struct w_iov * v;
-                //     STAILQ_FOREACH (v, i, next) {
-                //         memcpy(v->buf, &t, sizeof(t)); // write a timestamp
-                //         v->len = sizeof(t);
-                //     }
-                //     o = i;
+            } else if (s == srv[t++]) {
+                // discard; nothing to do
+            } else if (s == srv[t++]) {
+                // daytime
+                const time_t t = time(0);
+                const char * ct = ctime(&t);
+                const uint16_t l = (uint16_t)strlen(ct);
+                struct w_iov * v;
+                STAILQ_FOREACH (v, i, next) {
+                    memcpy(v->buf, c, l); // write a timestamp
+                    v->len = l;
+                }
+                o = i;
+            } else if (s == srv[t++]) {
+                // time
+                const time_t t = time(0);
+                struct w_iov * v;
+                STAILQ_FOREACH (v, i, next) {
+                    memcpy(v->buf, &t, sizeof(t)); // write a timestamp
+                    v->len = sizeof(t);
+                }
+                o = i;
+            } else
+#endif
+            if (s == srv[t++]) {
+                // our benchmark
+                static struct w_iov_chain * tmp = 0;
+                if (tmp == 0)
+                    tmp = w_alloc_size(w, 0, 0);
+                static uint32_t tmp_len = 0;
+                tmp_len += i_len;
+                STAILQ_CONCAT(tmp, i);
+                w_free(w, i);
+
+                // did we receive all data?
+                if (tmp_len == ntohl(*(uint32_t *)STAILQ_FIRST(tmp)->buf)) {
+                    // yep, let's send the data back
+                    i = o = tmp;
+                    tmp = 0;
+                    tmp_len = 0;
+                }
+
             } else {
                 die("unknown service");
             }

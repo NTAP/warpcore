@@ -23,6 +23,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <arpa/inet.h>
 #include <getopt.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -163,9 +164,9 @@ int main(const int argc, char * const argv[])
     // bind a new socket to a random local source port
     struct w_sock * s = w_bind(w, (uint16_t)plat_random(), flags);
 
-    // look up the peer IP address and "echo" port
+    // look up the peer IP address and our benchmark port
     struct addrinfo * peer;
-    ensure(getaddrinfo(dst, "echo", &hints, &peer) == 0, "getaddrinfo peer");
+    ensure(getaddrinfo(dst, "55555", &hints, &peer) == 0, "getaddrinfo peer");
 
     // connect to the peer
     w_connect(s, ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
@@ -192,6 +193,11 @@ int main(const int argc, char * const argv[])
             struct timespec before_tx;
             ensure(clock_gettime(CLOCK_MONOTONIC, &before_tx) != -1,
                    "clock_gettime");
+
+            // stamp the data
+            struct w_iov * v;
+            STAILQ_FOREACH (v, o, next)
+                *(uint32_t *)v->buf = htonl(size);
 
             // send the data, and wait until it is out
             w_tx(s, o);
