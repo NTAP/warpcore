@@ -36,6 +36,7 @@
 #include <unistd.h>
 
 #ifdef __linux__
+#include <byteswap.h>
 #include <netinet/ether.h>
 #else
 #include <net/ethernet.h>

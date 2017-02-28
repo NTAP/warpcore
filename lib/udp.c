@@ -33,6 +33,12 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#ifdef __linux__
+#include <byteswap.h>
+#else
+#include <netinet/in.h>
+#endif
+
 #include <warpcore.h>
 
 #include "arp.h"

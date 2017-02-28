@@ -30,6 +30,12 @@
 #include <string.h>
 #include <sys/queue.h>
 
+#ifdef __linux__
+#include <byteswap.h>
+#else
+#include <netinet/in.h>
+#endif
+
 #include <warpcore.h>
 
 #include "backend.h"

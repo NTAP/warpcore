@@ -32,6 +32,10 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#ifdef __linux__
+#include <byteswap.h>
+#endif
+
 #include <warpcore.h>
 
 #include "backend.h"

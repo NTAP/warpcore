@@ -25,12 +25,9 @@
 
 #pragma once
 
+#include <arpa/inet.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-#ifdef __FreeBSD__
-#include <arpa/inet.h>
-#endif
 
 #include "eth.h"
 
