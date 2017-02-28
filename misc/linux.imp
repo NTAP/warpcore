@@ -2,5 +2,9 @@
 [
         { include: ["<bits/socket_type.h>", "private", "<sys/socket.h>", "public"] },
 
+        { symbol: ["htonl", "private", "<arpa/inet.h>", "public"] },
+        { symbol: ["htons", "private", "<arpa/inet.h>", "public"] },
         { symbol: ["IOV_MAX", "private", "<limits.h>", "public"] },
+        { symbol: ["ntohl", "private", "<arpa/inet.h>", "public"] },
+        { symbol: ["ntohs", "private", "<arpa/inet.h>", "public"] },
 ]

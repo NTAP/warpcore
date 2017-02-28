@@ -24,8 +24,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 // IWYU pragma: no_include <net/netmap.h>
+#include <arpa/inet.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
-#include <netinet/in.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/queue.h>
