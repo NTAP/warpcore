@@ -99,7 +99,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
     // allocate space for tails
     ensure((w->tail = calloc(w->nif->ni_tx_rings, sizeof(*w->tail))) != 0,
            "cannot allocate tail");
-    for (uint32_t ri = 0; ri < w->nif->ni_tx_rings; ri++) {
+    for (uint32_t ri = 0; likely(ri < w->nif->ni_tx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_TXRING(w->nif, ri);
         // initialize tails
         w->tail[ri] = r->tail;
@@ -107,7 +107,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 #ifndef NDBUEG
-    for (uint32_t ri = 0; ri < w->nif->ni_rx_rings; ri++) {
+    for (uint32_t ri = 0; likely(ri < w->nif->ni_rx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_RXRING(w->nif, ri);
         warn(info, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
@@ -118,7 +118,8 @@ void backend_init(struct warpcore * w, const char * const ifname)
     STAILQ_INIT(&w->iov);
     w->bufs = calloc(w->req->nr_arg3, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
-    for (uint32_t n = 0, i = w->nif->ni_bufs_head; n < w->req->nr_arg3; n++) {
+    for (uint32_t n = 0, i = w->nif->ni_bufs_head; likely(n < w->req->nr_arg3);
+         n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
         STAILQ_INSERT_HEAD(&w->iov, &w->bufs[n], next);
@@ -149,9 +150,9 @@ void backend_cleanup(struct warpcore * const w)
     free_arp_cache(w);
 
     // re-construct the extra bufs list, so netmap can free the memory
-    for (uint32_t n = 0; n < w->req->nr_arg3; n++) {
+    for (uint32_t n = 0; likely(n < w->req->nr_arg3); n++) {
         uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
-        if (n < w->req->nr_arg3 - 1)
+        if (likely(n < w->req->nr_arg3 - 1))
             *buf = w->bufs[n + 1].idx;
         else
             *buf = 0;
@@ -228,7 +229,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
         v->chain = c;
         ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
                "no destination information");
-        while (udp_tx(s, v) == false)
+        while (unlikely(udp_tx(s, v) == false))
             w_nic_tx(s->w);
     }
 }
@@ -246,7 +247,7 @@ void w_nic_rx(struct warpcore * const w)
     // loop over all rx rings starting with cur_rxr and wrapping around
     for (uint32_t i = 0; likely(i < w->nif->ni_rx_rings); i++) {
         struct netmap_ring * const r = NETMAP_RXRING(w->nif, i);
-        while (!nm_ring_empty(r)) {
+        while (likely(!nm_ring_empty(r))) {
             // prefetch the next slot into the cache
             __builtin_prefetch(
                 NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
