@@ -176,7 +176,6 @@ void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
                                             .msg_iovlen = 1};
         if (unlikely(++i == SEND_SIZE || STAILQ_NEXT(v, next) == 0)) {
             // the iov is full, or we are at the last w_iov, so send
-            // warn(warn, "send %zu", i);
             const ssize_t r = sendmmsg(s->fd, msgvec, i, 0);
             ensure(r == (ssize_t)i, "sendmmsg %zu %zu", i, r);
             // reuse the iov structure for the next batch
@@ -249,14 +248,13 @@ void w_nic_rx(struct warpcore * const w)
             ensure(n != -1 || errno == EAGAIN, "recvmsg");
 #endif
             if (n > 0) {
-                // warn(warn, "recv %zu", n);
                 struct timeval ts;
                 ensure(gettimeofday(&ts, 0) == 0, "gettimeofday");
                 for (ssize_t i = 0; likely(i < n); i++) {
 #ifdef HAVE_RECVMMSG
                     v[i]->len = (uint16_t)msgvec[i].msg_len;
 #else
-                    v[i]->len = n;
+                    v[i]->len = (uint16_t)n;
                     // recvmsg returns number of bytes, we need number of
                     // messages for the return loop below
                     n = 1;
