@@ -1,3 +1,9 @@
-.vagrant
+*.log
+*.pyc
+
+._*
 .DS_Store
-.pyz
+.vagrant
+
+shim*.txt
+warp*.txt
