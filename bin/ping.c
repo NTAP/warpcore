@@ -96,7 +96,7 @@ int main(const int argc, char * const argv[])
     const char * dst = 0;
     const char * rtr = 0;
     uint32_t loops = 1;
-    uint32_t start = sizeof(struct timespec);
+    uint32_t start = sizeof(uint32_t);
     uint32_t inc = 103;
     uint32_t end = 1458;
     bool busywait = false;
@@ -188,7 +188,8 @@ int main(const int argc, char * const argv[])
 
     // send "loops" number of payloads of size "size" and wait for reply
     struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
-    for (uint32_t size = start; size <= end; size += (inc ? inc : .51 * size)) {
+    for (uint32_t size = start; size <= end;
+         size += (inc ? inc : .8339 * size)) {
         // allocate tx chain
         struct w_iov_chain * o = w_alloc_size(w, size, 0);
         long iter = loops;
