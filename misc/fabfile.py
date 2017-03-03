@@ -112,6 +112,8 @@ def build():
         run("mkdir -p %s" % dir)
         with cd(dir):
             run("cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja ..; ninja")
+            with settings(warn_only=True):
+                sudo("rm *core")
             env.builddir = run("pwd")
 
 
@@ -132,13 +134,12 @@ def start_server(test, busywait, cksum, kind):
 @roles("client", "server")
 def stop(flag=""):
     with settings(warn_only=True):
-        sudo("pkill %s '(warp|shim)(ping|inetd)'; pkill %s inetd" %
-             (flag, flag))
-    run('''while : ; do \
-            pgrep "(warp|shim)(ping|inetd)"; \
-            [ "$?" == 1 ] && break; \
-            sleep 1; \
-        done''')
+        sudo('''while : ; do \
+                pkill %s '(warp|shim)(ping|inetd)'; pkill %s inetd; \
+                pgrep "(warp|shim)(ping|inetd)"; \
+                [ "$?" == 1 ] && break; \
+                sleep 1; \
+            done''' % (flag, flag))
 
 
 @task
@@ -156,7 +157,7 @@ def start_client(test, busywait, cksum, kind):
         if not env.keeplog:
             log = "/dev/null"
         sudo("nice -20 "
-             "bin/%sping -i %s -d %s %s %s -l 10 -c 0 -e 8000000 > %s 2> %s" %
+             "bin/%sping -i %s -d %s %s %s -l 50 -c 0 -e 8000000 > %s 2> %s" %
              (kind, test["iface"], env.ip[test["server"]],
               busywait, cksum, file, log))
 
