@@ -75,8 +75,9 @@ my_plot = function(dt, x, y, xlabel, ylabel, ymax, ylabeller) {
   plot = ggplot(data=dt, aes_string(x=x, y=y, shape="group", color="group")) +
           facet_grid(method ~ speed,
                      labeller=labeller(speed=speed_lab, method=method_lab)) +
-          geom_smooth(size=.5, alpha=.25, method="loess") +
-          stat_summary(fun.data=mean_se, size=.1) +
+          # geom_smooth(size=.5, alpha=.25, method="loess") +
+          stat_summary(fun.y=median, geom="line") +
+          stat_summary(fun.y=median, geom="point", size=1.5) +
           scale_colour_brewer(type="div", palette="PuOr", drop=FALSE) +
           scale_x_continuous(labels=shortb, expand=c(0, 0), limit=c(0, NA),
                              name=xlabel) +
@@ -87,15 +88,16 @@ my_plot = function(dt, x, y, xlabel, ylabel, ymax, ylabeller) {
 }
 
 
+
 ggsave(plot=my_plot(dt, "byte", "rx", "UDP Payload Size [B]",
                     expression(paste("RTT [", mu, "s]")), NA, usec),
        height=2.75, width=7.15, units="in", filename="latency.pdf")
 
-ggsave(plot=my_plot(dt, "byte", "byte/rx", "UDP Payload Size [B]",
+ggsave(plot=my_plot(dt, "byte", "2*(byte+pkts*46)/rx", "UDP Payload Size [B]",
                     "Throughput [GB/s]", NA, gbps),
        height=2.75, width=7.15, units="in", filename="thruput.pdf")
 
-ggsave(plot=my_plot(dt, "pkts", "pkts/tx", "Packets [#]",
+ggsave(plot=my_plot(dt, "pkts", "2*pkts/rx", "Packets [#]",
                     "Packets/Second [Mpps]", NA, mpps),
        height=2.75, width=7.15, units="in", filename="pps.pdf")
 
@@ -105,6 +107,7 @@ ggsave(plot=my_plot(short, "byte", "rx", "UDP Payload Size [B]",
                     expression(paste("RTT [", mu, "s]")), NA, usec),
        height=2.75, width=7.15, units="in", filename="latency-1500.pdf")
 
-ggsave(plot=my_plot(short, "byte", "byte/rx", "UDP Payload Size [B]",
+ggsave(plot=my_plot(short, "byte", "2*(byte+pkts*46)/rx",
+                    "UDP Payload Size [B]",
                     "Throughput [GB/s]", NA, gbps),
        height=2.75, width=7.15, units="in", filename="thruput-1500.pdf")
