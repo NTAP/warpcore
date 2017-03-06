@@ -94,27 +94,6 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
     endif()
   endforeach()
-else()
-  # Default logging level
-  if(NOT DEFINED DLEVEL)
-    set(DLEVEL "notice")
-  endif()
-
-  # See if we can use LTO
-  check_c_compiler_flag(-flto LTO)
-  if(${LTO})
-    # Turn LTO on
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
-    # Use the correct toolchain for LTO, if enabled
-    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-      set(CMAKE_AR llvm-ar)
-      set(CMAKE_RANLIB llvm-ranlib)
-    elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
-      set(CMAKE_AR gcc-ar)
-      set(CMAKE_RANLIB gcc-ranlib)
-    endif()
-  endif()
 
   # Use include-what-you-use to check #includes, if it's installed
   find_program(IWYU NAMES include-what-you-use iwyu)
@@ -140,6 +119,27 @@ else()
     string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
     set(CMAKE_C_CLANG_TIDY ${CLANGTIDY} -checks=${CLANG_TIDY_CHECKS})
     set(CMAKE_CXX_CLANG_TIDY ${CMAKE_C_CLANG_TIDY})
+  endif()
+else()
+  # Default logging level
+  if(NOT DEFINED DLEVEL)
+    set(DLEVEL "notice")
+  endif()
+
+  # See if we can use LTO
+  check_c_compiler_flag(-flto LTO)
+  if(${LTO})
+    # Turn LTO on
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
+    # Use the correct toolchain for LTO, if enabled
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+      set(CMAKE_AR llvm-ar)
+      set(CMAKE_RANLIB llvm-ranlib)
+    elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+      set(CMAKE_AR gcc-ar)
+      set(CMAKE_RANLIB gcc-ranlib)
+    endif()
   endif()
 endif()
 
