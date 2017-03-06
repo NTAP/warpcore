@@ -33,9 +33,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#ifdef __linux__
-#include <byteswap.h>
-#else
+#ifndef __linux__
 #include <netinet/in.h>
 #endif
 

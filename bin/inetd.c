@@ -33,12 +33,6 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 
-#ifdef __linux__
-#include <byteswap.h>
-#else
-#include <netinet/in.h>
-#endif
-
 #if 0
 #include <string.h>
 #include <time.h>

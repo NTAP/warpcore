@@ -39,10 +39,6 @@
 #include <sys/time.h>
 #include <time.h>
 
-#ifdef __linux__
-#include <byteswap.h>
-#endif
-
 #include <warpcore.h>
 
 

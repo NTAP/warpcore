@@ -30,9 +30,7 @@
 #include <string.h>
 #include <sys/queue.h>
 
-#ifdef __linux__
-#include <byteswap.h>
-#else
+#ifndef __linux__
 #include <netinet/in.h>
 #endif
 

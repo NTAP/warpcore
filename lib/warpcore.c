@@ -40,7 +40,6 @@
 #include <unistd.h>
 
 #ifdef __linux__
-#include <byteswap.h>
 #include <net/ethernet.h>
 #include <netinet/ether.h>
 #else
