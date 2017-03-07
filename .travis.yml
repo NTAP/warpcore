@@ -1,5 +1,8 @@
 dist: trusty
 language: C
+os:
+  - linux
+  - osx
 
 branches:
   only:
