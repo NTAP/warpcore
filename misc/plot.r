@@ -16,8 +16,7 @@ my_fread = function(file) {
     item$busywait = if (tags[3] %in% "b") "busy-wait" else "poll()"
     item$zcksum =
         if (tags[3] %in% "z" | tags[4] %in% "z") "zero-checksum" else "checksum"
-    # drop the first measurement, as it is often artificially long
-    item = item[-1,]
+    item
 }
 
 dt = rbindlist(lapply(list.files(pattern=".*ping.*.txt"), my_fread))
@@ -36,13 +35,13 @@ usec = function(nsec) { comma(nsec/1000) }
 mpps = function(ppnsec) { comma(ppnsec*1000) }
 
 shortb = function(byte) {
-  ifelse(byte > 10^9, paste(comma(byte/10^9), "G"),
-         ifelse(byte > 10^6, paste(comma(byte/10^6), "M"),
-                ifelse(byte > 10^3, paste(comma(byte/10^3), "K"),
+  ifelse(byte >= 10^9, paste(comma(byte/10^9), "G"),
+         ifelse(byte >= 10^6, paste(comma(byte/10^6), "M"),
+                ifelse(byte >= 10^3, paste(comma(byte/10^3), "K"),
                        comma(byte))))
 }
 
-my_plot = function(dt, x, y, xlabel, ylabel, ymax, ylabeller) {
+my_plot = function(dt, x, y, xlabel, ylabel, ylabeller) {
   theme = theme(
     axis.line.x=element_line(size=0.2, colour="#777777"),
     axis.line.y=element_line(size=0.2, colour="#777777"),
@@ -82,7 +81,7 @@ my_plot = function(dt, x, y, xlabel, ylabel, ymax, ylabeller) {
           scale_x_continuous(labels=shortb, expand=c(0, 0), limit=c(0, NA),
                              name=xlabel) +
           scale_y_continuous(labels=ylabeller, expand=c(0, 0),
-                             limit=c(0, ymax), name=ylabel) +
+                             limit=c(0, NA), name=ylabel) +
           guides(color=guide_legend(override.aes=list(fill=NA)))
     plot + theme
 }
@@ -90,24 +89,24 @@ my_plot = function(dt, x, y, xlabel, ylabel, ymax, ylabeller) {
 
 
 ggsave(plot=my_plot(dt, "byte", "rx", "UDP Payload Size [B]",
-                    expression(paste("RTT [", mu, "s]")), NA, usec),
+                    expression(paste("RTT [", mu, "s]")), usec),
        height=2.75, width=7.15, units="in", filename="latency.pdf")
 
 ggsave(plot=my_plot(dt, "byte", "2*(byte+pkts*46)/rx", "UDP Payload Size [B]",
-                    "Throughput [GB/s]", NA, gbps),
+                    "Throughput [GB/s]", gbps),
        height=2.75, width=7.15, units="in", filename="thruput.pdf")
 
 ggsave(plot=my_plot(dt, "pkts", "2*pkts/rx", "Packets [#]",
-                    "Packets/Second [Mpps]", NA, mpps),
+                    "Packets/Second [Mpps]", mpps),
        height=2.75, width=7.15, units="in", filename="pps.pdf")
 
 short = dt[dt$byte < 1600]
 
 ggsave(plot=my_plot(short, "byte", "rx", "UDP Payload Size [B]",
-                    expression(paste("RTT [", mu, "s]")), NA, usec),
+                    expression(paste("RTT [", mu, "s]")), usec),
        height=2.75, width=7.15, units="in", filename="latency-1500.pdf")
 
 ggsave(plot=my_plot(short, "byte", "2*(byte+pkts*46)/rx",
                     "UDP Payload Size [B]",
-                    "Throughput [GB/s]", NA, gbps),
+                    "Throughput [GB/s]", gbps),
        height=2.75, width=7.15, units="in", filename="thruput-1500.pdf")

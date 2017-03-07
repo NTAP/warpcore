@@ -20,9 +20,9 @@ env.ip = {"phobos1": "10.11.12.3",
 
 env.tests = [
     # {"speed": 1, "client": "five", "server": "six", "iface": "enp9s0f0"},
-    {"speed": 1, "client": "phobos1", "server": "phobos2", "iface": "eno2"},
+    # {"speed": 1, "client": "phobos1", "server": "phobos2", "iface": "eno2"},
     {"speed": 10, "client": "phobos1", "server": "phobos2", "iface": "enp8s0f0"},
-    {"speed": 40, "client": "phobos1", "server": "phobos2", "iface": "enp4s0f0"},
+    # {"speed": 40, "client": "phobos1", "server": "phobos2", "iface": "enp4s0f0"},
     # {"speed": 1, "client": "mora1", "server": "mora2", "iface": "igb1"},
     # {"speed": 10, "client": "mora1", "server": "mora2", "iface": "ix0"},
     # {"speed": 40, "client": "mora1", "server": "mora2", "iface": "ixl0"},
@@ -86,12 +86,9 @@ def netmap_config(iface):
 def netmap_unconfig(iface):
     with settings(warn_only=True):
         if env.uname[env.host_string] == "Linux":
-            # reload the driver module
-            # driver = run("ethtool -i enp4s0f0 | head -n1 | cut -f2 -d:")
-            # driver += "_netmap"
-            # sudo("rmmod %s && modprobe %s" % (driver, driver))
-            sudo("ethtool -K %s sg on rx on tx on tso on gro on lro on" %
-                 iface)
+            sudo("ethtool -K %s sg on rx on tx on tso on gro on lro on; "
+                 "ethtool -C %s adaptive-rx on adaptive-tx on "
+                 "rx-usecs 10 ; " % (iface, iface))
         else:
             sudo("sysctl -q -w hw.ix.enable_aim=1; "
                  "ifconfig %s rxcsum txcsum tso lro" % iface)
@@ -157,7 +154,7 @@ def start_client(test, busywait, cksum, kind):
         if not env.keeplog:
             log = "/dev/null"
         sudo("nice -20 "
-             "bin/%sping -i %s -d %s %s %s -l 50 -c 0 -e 8000000 > %s 2> %s" %
+             "bin/%sping -i %s -d %s %s %s -l 50 -c 0 -e 1000000 > %s 2> %s" %
              (kind, test["iface"], env.ip[test["server"]],
               busywait, cksum, file, log))
 
@@ -187,4 +184,4 @@ def bench():
                         execute(stop)
                 if k == "warp":
                     execute(netmap_unconfig, t["iface"])
-            execute(ip_unconfig, t["iface"])
+            # execute(ip_unconfig, t["iface"])
