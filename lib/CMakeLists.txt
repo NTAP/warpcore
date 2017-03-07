@@ -7,16 +7,8 @@ configure_file(config.h.in config.h)
 configure_file(config.c.in config.c)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
-set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_${CMAKE_SYSTEM_NAME_LC}.c)
-if(NOT(EXISTS ${PLAT}))
-  message(STATUS "Cannot find " ${CMAKE_SYSTEM_NAME} "-specific platform "
-          "support, using generic methods")
-  set(PLAT ${CMAKE_CURRENT_SOURCE_DIR}/plat_generic.c)
-endif()
-
 set(SOURCES ${SOURCES}
-  ${PLAT} util.c warpcore.c ${CMAKE_CURRENT_BINARY_DIR}/config.c)
+  plat.c util.c warpcore.c ${CMAKE_CURRENT_BINARY_DIR}/config.c)
 
 set(SHIMSOURCES ${SOURCES} backend_shim.c)
 add_library(shimcore ${SHIMSOURCES})

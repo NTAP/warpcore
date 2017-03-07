@@ -28,6 +28,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/socket.h>
 
 struct ifaddrs;
 

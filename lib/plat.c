@@ -23,6 +23,16 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#if defined(__FreeBSD__)
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <sys/cpuset.h>
+
+#elif defined(__linux__)
 #include <ifaddrs.h>
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
@@ -38,9 +48,19 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#else
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#endif
+
 #include <warpcore.h>
 
 #include "eth.h"
+
+#if !defined(__FreeBSD__) && !defined(__linux__)
+struct ifaddrs;
+#endif
 
 
 /// Return the Ethernet MAC address of network interface @p i.
@@ -48,10 +68,23 @@
 /// @param[out] mac   A buffer of at least ETH_ADDR_LEN bytes.
 /// @param[in]  i     A network interface.
 ///
-void plat_get_mac(uint8_t * mac, const struct ifaddrs * i)
+void plat_get_mac(uint8_t * mac,
+                  const struct ifaddrs * i
+#if !defined(__FreeBSD__) && !defined(__linux__)
+                  __attribute__((unused))
+#endif
+                  )
 {
+#if defined(__FreeBSD__)
+    memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr),
+           ETH_ADDR_LEN);
+#elif defined(__linux__)
     memcpy(mac, ((struct sockaddr_ll *)(void *)i->ifa_addr)->sll_addr,
            ETH_ADDR_LEN);
+#else
+    warn(warn, "MAC address queries not supported on this platform");
+    memcpy(mac, "\xde\xad\xde\xad\xde\xad", ETH_ADDR_LEN);
+#endif
 }
 
 
@@ -61,8 +94,15 @@ void plat_get_mac(uint8_t * mac, const struct ifaddrs * i)
 ///
 /// @return     The MTU of @p i.
 ///
-uint16_t plat_get_mtu(const struct ifaddrs * i)
+uint16_t plat_get_mtu(const struct ifaddrs * i
+#if !defined(__FreeBSD__) && !defined(__linux__)
+                      __attribute__((unused))
+#endif
+                      )
 {
+#if defined(__FreeBSD__)
+    return (uint16_t)((struct if_data *)(i->ifa_data))->ifi_mtu;
+#elif defined(__linux__)
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
@@ -77,6 +117,10 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 
     close(s);
     return mtu;
+#else
+    warn(warn, "MTU queries not supported on this platform");
+    return 1500;
+#endif
 }
 
 
@@ -86,8 +130,16 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 ///
 /// @return     Link speed of interface @p i.
 ///
-uint32_t plat_get_mbps(const struct ifaddrs * i)
+uint32_t plat_get_mbps(const struct ifaddrs * i
+#if !defined(__FreeBSD__) && !defined(__linux__)
+                       __attribute__((unused))
+#endif
+                       )
 {
+#if defined(__FreeBSD__)
+    return (uint32_t)(((struct if_data *)(i->ifa_data))->ifi_baudrate /
+                      1000000);
+#elif defined(__linux__)
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
@@ -110,6 +162,10 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     close(s);
     const uint32_t speed = ethtool_cmd_speed(&edata);
     return speed != (uint32_t)SPEED_UNKNOWN ? speed : 0;
+#else
+    warn(warn, "link speed queries not supported on this platform");
+    return UINT32_MAX;
+#endif
 }
 
 
@@ -119,8 +175,18 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
 ///
 /// @return     Link status of interface @p i. True means link is up.
 ///
-bool plat_get_link(const struct ifaddrs * i)
+bool plat_get_link(const struct ifaddrs * i
+#if !defined(__FreeBSD__) && !defined(__linux__)
+                   __attribute__((unused))
+#endif
+                   )
 {
+#if defined(__FreeBSD__)
+    if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
+        return true;
+    return (((uint8_t)((struct if_data *)(i->ifa_data))->ifi_link_state) &
+            LINK_STATE_UP);
+#elif defined(__linux__)
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
@@ -133,6 +199,10 @@ bool plat_get_link(const struct ifaddrs * i)
 
     close(s);
     return link;
+#else
+    warn(warn, "link state queries not supported on this platform");
+    return true;
+#endif
 }
 
 
@@ -140,6 +210,30 @@ bool plat_get_link(const struct ifaddrs * i)
 ///
 void plat_setaffinity(void)
 {
+#if defined(__FreeBSD__)
+    int i;
+    cpuset_t myset;
+    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
+                           &myset) == -1) {
+        warn(crit, "cpuset_getaffinity failed");
+        return;
+    }
+
+    // Find last available CPU
+    for (i = CPU_SETSIZE - 1; i >= -1; i--)
+        if (CPU_ISSET(i, &myset))
+            break;
+    ensure(i != -1, "not allowed to run on any CPUs!?");
+
+    // Set new CPU mask
+    warn(info, "setting affinity to CPU %d", i);
+    CPU_ZERO(&myset);
+    CPU_SET(i, &myset);
+
+    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
+                           &myset) == -1)
+        warn(crit, "cpuset_setaffinity failed");
+#elif defined(__linux__)
     int i;
     cpu_set_t myset;
     ensure(sched_getaffinity(0, sizeof(cpu_set_t), &myset) != -1,
@@ -158,4 +252,7 @@ void plat_setaffinity(void)
 
     ensure(sched_setaffinity(0, sizeof(myset), &myset) != -1,
            "sched_setaffinity");
+#else
+    warn(warn, "setting thread affinity not supported on this platform");
+#endif
 }
