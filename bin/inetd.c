@@ -141,7 +141,6 @@ int main(const int argc, char * const argv[])
             if (i == 0)
                 continue;
 
-            const uint32_t i_len = w_iov_chain_len(i, 0);
             struct w_iov_chain * o = 0; // w_iov for outbound data
             uint16_t t = 0;
 #if 0
@@ -175,19 +174,36 @@ int main(const int argc, char * const argv[])
             if (s == srv[t++]) {
                 // our benchmark
                 static struct w_iov_chain * tmp = 0;
-                if (tmp == 0)
-                    tmp = w_alloc_size(w, 0, 0);
                 static uint32_t tmp_len = 0;
-                tmp_len += i_len;
-                STAILQ_CONCAT(tmp, i);
+
+                // if tmp is empty, the target size is in the first buf of the
+                // incoming chain; otherwise, it's in the first buf of tmp
+                const uint32_t size =
+                    ntohl(*(uint32_t *)STAILQ_FIRST(tmp ? tmp : i)->buf);
+                // warn(crit, "waiting for %d", size);
+
+                if (tmp == 0) {
+                    tmp = w_alloc_size(w, 0, 0);
+                    tmp_len = 0;
+                }
+
+                while (tmp_len < size && !STAILQ_EMPTY(i)) {
+                    struct w_iov * const v = STAILQ_FIRST(i);
+                    STAILQ_REMOVE_HEAD(i, next);
+                    STAILQ_INSERT_TAIL(tmp, v, next);
+                    tmp_len += v->len;
+                }
 
                 // did we receive all data?
-                if (tmp_len == ntohl(*(uint32_t *)STAILQ_FIRST(tmp)->buf)) {
+                if (tmp_len == size) {
                     // yep, let's send the data back
-                    w_free(w, i);
-                    i = o = tmp;
-                    tmp = 0;
-                    tmp_len = 0;
+                    o = tmp;
+                    // and keep any leftovers around
+                    tmp = i;
+                    if (STAILQ_EMPTY(tmp)) {
+                        w_free(w, tmp);
+                        tmp = i = 0;
+                    }
                 }
 
             } else {
@@ -201,14 +217,8 @@ int main(const int argc, char * const argv[])
                     w_nic_tx(w);
             }
 
-            // track how much data was served
-            const uint32_t o_len = w_iov_chain_len(o, 0);
-            if (i_len || o_len)
-                warn(info, "handled %d byte%s in, %d byte%s out", i_len,
-                     plural(i_len), o_len, plural(o_len));
-
             // we are done serving the received data
-            w_free(w, i);
+            w_free(w, o ? o : i);
         }
         free(c);
     }
