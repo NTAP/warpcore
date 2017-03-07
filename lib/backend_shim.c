@@ -66,14 +66,15 @@ void backend_init(struct warpcore * w, const char * const ifname)
         ensure(strncmp(ifname, ww->ifname, IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
 
-    ensure((w->mem = calloc(NUM_BUFS, IOV_BUF_LEN)) != 0, "cannot alloc bufs");
+    ensure((w->mem = calloc(NUM_BUFS, IOV_BUF_LEN)) != 0,
+           "cannot alloc buf mem");
+    ensure((w->bufs = calloc(NUM_BUFS, sizeof(*w->bufs))) != 0,
+           "cannot alloc bufs");
 
     for (uint32_t i = 0; i < NUM_BUFS; i++) {
-        struct w_iov * const v = calloc(1, sizeof(*v));
-        ensure(v != 0, "cannot allocate w_iov");
-        v->buf = IDX2BUF(w, i);
-        v->idx = i;
-        STAILQ_INSERT_HEAD(&w->iov, v, next);
+        w->bufs[i].buf = IDX2BUF(w, i);
+        w->bufs[i].idx = i;
+        STAILQ_INSERT_HEAD(&w->iov, &w->bufs[i], next);
     }
 
     w->ifname = strndup(ifname, IFNAMSIZ);
@@ -88,11 +89,7 @@ void backend_init(struct warpcore * w, const char * const ifname)
 ///
 void backend_cleanup(struct warpcore * const w)
 {
-    while (!STAILQ_EMPTY(&w->iov)) {
-        struct w_iov * const v = STAILQ_FIRST(&w->iov);
-        STAILQ_REMOVE_HEAD(&w->iov, next);
-        free(v);
-    }
+    STAILQ_INIT(&w->iov);
     free(w->mem);
     free(w->ifname);
 }
