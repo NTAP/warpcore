@@ -16,4 +16,5 @@
         { include: ["@<sys/_types/_iovec_t.*>", "private", "<sys/uio.h>", "public"] },
 
         { symbol: ["_OSSwapInt16", "private", "<arpa/inet.h>", "public"] },
+        { symbol: ["_OSSwapInt32", "private", "<arpa/inet.h>", "public"] },
 ]
