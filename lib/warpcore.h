@@ -81,7 +81,7 @@ struct w_sock {
 #else
     /// @cond
     uint8_t _unused2[4]; ///< @internal Padding.
-    /// @endcond
+                         /// @endcond
 #endif
 };
 
@@ -143,13 +143,15 @@ extern void __attribute__((nonnull)) w_disconnect(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
-extern struct w_iov_chain * __attribute__((nonnull))
-w_alloc_size(struct warpcore * const w, const uint32_t len, const uint16_t off);
+extern void __attribute__((nonnull)) w_alloc_len(struct warpcore * const w,
+                                                 struct w_iov_chain * const c,
+                                                 const uint32_t len,
+                                                 const uint16_t off);
 
-extern struct w_iov_chain * __attribute__((nonnull))
-w_alloc_count(struct warpcore * const w,
-              const uint32_t count,
-              const uint16_t off);
+extern void __attribute__((nonnull)) w_alloc_cnt(struct warpcore * const w,
+                                                 struct w_iov_chain * const c,
+                                                 const uint32_t count,
+                                                 const uint16_t off);
 
 extern void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov_chain * const c);
@@ -164,8 +166,8 @@ extern uint32_t w_iov_chain_cnt(const struct w_iov_chain * const c);
 
 extern int __attribute__((nonnull)) w_fd(struct w_sock * const s);
 
-extern struct w_iov_chain * __attribute__((nonnull))
-w_rx(struct w_sock * const s);
+extern void __attribute__((nonnull))
+w_rx(struct w_sock * const s, struct w_iov_chain * const c);
 
 extern void __attribute__((nonnull)) w_nic_tx(struct warpcore * const w);
 

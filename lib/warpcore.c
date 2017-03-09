@@ -64,23 +64,28 @@ extern struct w_sock * get_sock(struct warpcore * w, uint16_t port);
 struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 
 
-// Helper function for w_alloc_size and w_alloc_count. Really only needed,
-// because Linux doesn't define STALIQ_LAST in sys/queue.h for whatever reason.
-//
-static inline struct w_iov_chain * alloc_count(struct warpcore * const w,
-                                               const uint32_t count,
-                                               const uint16_t off,
-                                               const uint16_t adj_last)
+/// Helper function for w_alloc_size and w_alloc_cnt. Really only needed,
+/// because Linux doesn't define STALIQ_LAST in sys/queue.h for whatever reason.
+///
+/// @param      w         Warpcore engine
+/// @param      c         Chain w_iov structs.
+/// @param[in]  count     Number of w_iov structs to allocate.
+/// @param[in]  off       Additional offset for each buffer.
+/// @param[in]  adj_last  Amount to reduce the length of the last w_iov by.
+///
+static inline void alloc_cnt(struct warpcore * const w,
+                             struct w_iov_chain * const c,
+                             const uint32_t count,
+                             const uint16_t off,
+                             const uint16_t adj_last)
 {
-    struct w_iov_chain * chain = calloc(1, sizeof(*chain));
-    ensure(chain, "could not calloc");
-    STAILQ_INIT(chain);
+    STAILQ_INIT(c);
     struct w_iov * v = 0;
     for (uint32_t i = 0; i < count; i++) {
         v = alloc_iov(w);
         v->buf = (uint8_t *)v->buf + sizeof(struct w_hdr) + off;
         v->len -= (sizeof(struct w_hdr) + off);
-        STAILQ_INSERT_TAIL(chain, v, next);
+        STAILQ_INSERT_TAIL(c, v, next);
     }
     if (v)
         v->len -= adj_last;
@@ -89,55 +94,53 @@ static inline struct w_iov_chain * alloc_count(struct warpcore * const w,
          count * (w->mtu - sizeof(struct w_hdr) - off) - adj_last,
          plural(count * (w->mtu - sizeof(struct w_hdr) - off) - adj_last),
          count, plural(count), off);
-    return chain;
 }
 
 
 /// Allocate a w_iov chain for @p len payload bytes, for eventual use with
-/// w_tx(). Must be later freed with w_free(). If a @p off offset is specified,
-/// leave this much extra space before @p buf in each w_iov. This is meant for
-/// upper-level protocols that wish to reserve space for their headers.
+/// w_tx(). The chain must be later returned to warpcore w_free().  If a @p off
+/// offset is specified, leave this much extra space before @p buf in each
+/// w_iov. This is meant for upper-level protocols that wish to reserve space
+/// for their headers.
 ///
 /// @param      w     Warpcore engine.
+/// @param      c     Chain of w_iov structs.
 /// @param[in]  len   Amount of payload bytes in the returned chain.
 /// @param[in]  off   Additional offset for @p buf.
 ///
-/// @return     Chain of w_iov structs.
-///
-struct w_iov_chain *
-w_alloc_size(struct warpcore * const w, const uint32_t len, const uint16_t off)
+void w_alloc_len(struct warpcore * const w,
+                 struct w_iov_chain * const c,
+                 const uint32_t len,
+                 const uint16_t off)
 {
     const uint32_t space = w->mtu - sizeof(struct w_hdr) - off;
     const uint32_t count = len / space + (len % space != 0);
-    struct w_iov_chain * const chain =
-        alloc_count(w, count, off, (uint16_t)(space * count - len));
-    return chain;
+    alloc_cnt(w, c, count, off, (uint16_t)(space * count - len));
 }
 
 
 /// Allocate a w_iov chain of @p count packets, for eventual use with w_tx().
-/// Must be later freed with w_free(). If a @p off offset is specified, leave
-/// this much extra space before @p buf in each w_iov. This is meant for
-/// upper-level protocols that wish to reserve space for their headers.
+/// The chain must be later returned to warpcore w_free(). If a @p off offset is
+/// specified, leave this much extra space before @p buf in each w_iov. This is
+/// meant for upper-level protocols that wish to reserve space for their
+/// headers.
 ///
 /// @param      w      Warpcore engine.
+/// @param      c      Chain of w_iov structs.
 /// @param[in]  count  Number of packets in the returned chain.
 /// @param[in]  off    Additional offset for @p buf.
 ///
-/// @return     Chain of w_iov structs.
-///
-struct w_iov_chain * w_alloc_count(struct warpcore * const w,
-                                   const uint32_t count,
-                                   const uint16_t off)
+void w_alloc_cnt(struct warpcore * const w,
+                 struct w_iov_chain * const c,
+                 const uint32_t count,
+                 const uint16_t off)
 {
-    return alloc_count(w, count, off, 0);
+    alloc_cnt(w, c, count, off, 0);
 }
 
 
-/// Return a w_iov chain obtained via w_alloc() or w_rx() back to warpcore. The
-/// application must not use @p v after this call.
-///
-/// Do not make this , so the caller doesn't have to check v.
+/// Return a w_iov chain obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
+/// back to warpcore.
 ///
 /// @param      w     Warpcore engine.
 /// @param      c     Chain of w_iov structs to free.
@@ -145,7 +148,6 @@ struct w_iov_chain * w_alloc_count(struct warpcore * const w,
 void w_free(struct warpcore * const w, struct w_iov_chain * const c)
 {
     STAILQ_CONCAT(&w->iov, c);
-    free(c);
 }
 
 
@@ -280,6 +282,7 @@ void w_close(struct w_sock * const s)
 {
     // make iovs of the socket available again
     w_free(s->w, s->iv);
+    free(s->iv);
 
     // remove the socket from list of sockets
     SLIST_REMOVE(&s->w->sock, s, w_sock, next);
@@ -292,36 +295,17 @@ void w_close(struct w_sock * const s)
 }
 
 
-/// Iterates over any new data in the RX rings, appending them to the w_sock::iv
-/// socket buffers of the respective w_sock structures associated with a given
-/// sender IPv4 address and port.
-///
-/// Unlike with the Socket API, w_rx() can append data to w_sock::iv chains
-/// *other* that that of the w_sock passed as @p s. This is, because warpcore
-/// needs to drain the RX rings, in order to allow new data to be received by
-/// the NIC. It would be inconvenient to require the application to constantly
-/// iterate over all w_sock sockets it has opened.
-///
-/// This means that although w_rx() may return zero, because no new data has
-/// been received on @p s, it may enqueue new data into the w_sock::iv chains of
-/// other w_sock socket.
+/// Return any new data that has been received on a socket by appending it to @p
+/// c. The chain must eventually be returned to warpcore via w_free().
 ///
 /// @param      s     w_sock for which the application would like to receive new
 ///                   data.
+/// @param      c     w_iov chain.
 ///
-/// @return     Chain of received w_iovs on @p s, or zero. Needs to be freed
-///             with w_free() by the caller.
 ///
-struct w_iov_chain * w_rx(struct w_sock * const s)
+void w_rx(struct w_sock * const s, struct w_iov_chain * const c)
 {
-    if (unlikely(STAILQ_EMPTY(s->iv)))
-        return 0;
-    struct w_iov_chain * const empty = calloc(1, sizeof(*empty));
-    ensure(empty, "could not calloc");
-    STAILQ_INIT(empty);
-    struct w_iov_chain * const iv = s->iv;
-    s->iv = empty;
-    return iv;
+    STAILQ_CONCAT(c, s->iv);
 }
 
 
