@@ -141,8 +141,16 @@ arp_is_at(struct warpcore * const w, void * const buf)
     memcpy(eth->dst, req->sha, ETH_ADDR_LEN);
     memcpy(eth->src, w->mac, ETH_ADDR_LEN);
     eth->type = ETH_TYPE_ARP;
+
+    // send the Ethernet packet (make sure it went out)
+    const uint32_t orig_idx = v->idx;
     eth_tx(w, v, sizeof(*reply));
-    w_nic_tx(w);
+    while (v->idx != orig_idx) {
+        usleep(100);
+        w_nic_tx(w);
+    }
+
+    // make iov available again
     STAILQ_INSERT_HEAD(&w->iov, v, next);
 }
 
