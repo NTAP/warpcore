@@ -52,10 +52,10 @@ static void usage(const char * const name,
     printf("\t -i interface           interface to run over\n");
     printf("\t -d destination IP      peer to connect to\n");
     printf("\t[-r router IP]          router to use for non-local peers\n");
-    printf("\t[-s start packet size]  optional, default %u\n", start);
+    printf("\t[-s start packet len]   optional, default %u\n", start);
     printf("\t[-c increment]          optional (0 = exponential), default %u\n",
            inc);
-    printf("\t[-e end packet size]    optional, default %u\n", end);
+    printf("\t[-e end packet len]     optional, default %u\n", end);
     printf("\t[-l loop iterations]    optional, default %u\n", loops);
     printf("\t[-z]                    optional, turn off UDP checksums\n");
     printf("\t[-b]                    busy-wait\n");
@@ -86,13 +86,19 @@ static void timeout(int signum __attribute__((unused)))
 }
 
 
+struct payload {
+    uint32_t len;
+    struct timespec ts __attribute__((packed));
+};
+
+
 int main(const int argc, char * const argv[])
 {
     const char * ifname = 0;
     const char * dst = 0;
     const char * rtr = 0;
     uint32_t loops = 1;
-    uint32_t start = sizeof(uint32_t);
+    uint32_t start = sizeof(struct payload);
     uint32_t inc = 103;
     uint32_t end = 1458;
     bool busywait = false;
@@ -182,12 +188,12 @@ int main(const int argc, char * const argv[])
     // send packet trains of sizes between "start" and "end"
     puts("byte\tpkts\ttx\trx");
 
-    // send "loops" number of payloads of size "size" and wait for reply
+    // send "loops" number of payloads of len "len" and wait for reply
     struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
-    for (uint32_t size = start; size <= end;
-         size += (inc ? inc : .8339 * size)) {
+    for (uint32_t len = start; len <= end; len += (inc ? inc : .483 * len)) {
         // allocate tx chain
-        struct w_iov_chain * o = w_alloc_size(w, size, 0);
+        struct w_iov_chain o;
+        w_alloc_len(w, &o, len, 0);
         long iter = loops;
         while (likely(iter--)) {
             // get the current time
@@ -197,12 +203,15 @@ int main(const int argc, char * const argv[])
 
             // stamp the data
             struct w_iov * v;
-            STAILQ_FOREACH (v, o, next)
-                *(uint32_t *)v->buf = htonl(size);
+            STAILQ_FOREACH (v, &o, next) {
+                struct payload * const p = v->buf;
+                p->len = htonl(len);
+                p->ts = before_tx;
+            }
 
             // send the data, and wait until it is out
-            w_tx(s, o);
-            while (o->tx_pending)
+            w_tx(s, &o);
+            while (o.tx_pending)
                 w_nic_tx(w);
 
             // get the current time
@@ -214,34 +223,20 @@ int main(const int argc, char * const argv[])
             ensure(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
             done = false;
 
-            warn(info, "sent %u byte%s", size, plural(size));
+            warn(info, "sent %u byte%s", len, plural(len));
 
             // wait for a reply; loop until timeout or we have received all data
-            struct w_iov_chain * i = 0;
-            uint32_t len = 0;
-            while (likely(len < size && done == false)) {
+            struct w_iov_chain i = STAILQ_HEAD_INITIALIZER(i);
+            while (likely(w_iov_chain_len(&i, 0) < len && done == false)) {
                 if (unlikely(busywait == false))
                     // poll for new data
-                    if (poll(&fds, 1, -1) == -1) {
+                    if (poll(&fds, 1, -1) == -1)
                         // if the poll was interrupted, move on
-                        if (i)
-                            w_free(w, i);
                         continue;
-                    }
 
                 // receive new data (there may not be any if busy-waiting)
                 w_nic_rx(w);
-
-                // read new data
-                struct w_iov_chain * const new = w_rx(s);
-                if (new) {
-                    len += w_iov_chain_len(new, 0);
-                    if (i) {
-                        STAILQ_CONCAT(i, new);
-                        w_free(w, new);
-                    } else
-                        i = new;
-                }
+                w_rx(s, &i);
             }
 
             // get the current time
@@ -253,30 +248,30 @@ int main(const int argc, char * const argv[])
             const struct itimerval stop = {0};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            if (len < size) {
-                warn(warn, "only received %u/%u byte%s", len, size,
-                     plural(len));
+            const uint32_t i_len = w_iov_chain_len(&i, 0);
+            if (i_len != len) {
+                warn(warn, "received %u/%u byte%s", i_len, len,
+                     plural(i_len));
                 continue;
             }
 
             // compute time difference between the packet and the current time
             struct timespec diff;
             char rx[256] = "NA";
-            if (len == size) {
+            if (i_len == len) {
                 time_diff(&diff, &after_rx, &before_tx);
                 ensure(diff.tv_sec == 0, "time difference > 1 sec");
                 snprintf(rx, 256, "%ld", diff.tv_nsec);
             }
-            const uint32_t pkts = w_iov_chain_cnt(o);
+            const uint32_t pkts = w_iov_chain_cnt(&o);
             time_diff(&diff, &after_tx, &before_tx);
             ensure(diff.tv_sec == 0, "time difference > 1 sec");
-            printf("%d\t%d\t%ld\t%s\n", size, pkts, diff.tv_nsec, rx);
+            printf("%d\t%d\t%ld\t%s\n", len, pkts, diff.tv_nsec, rx);
 
             // we are done with the received data
-            if (i)
-                w_free(w, i);
+            w_free(w, &i);
         }
-        w_free(w, o);
+        w_free(w, &o);
     }
     w_close(s);
     w_cleanup(w);
