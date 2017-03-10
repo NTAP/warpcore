@@ -165,7 +165,7 @@ extern uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q,
 
 extern uint32_t w_iov_stailq_cnt(const struct w_iov_stailq * const q);
 
-extern int __attribute__((nonnull)) w_fd(struct w_sock * const s);
+extern int __attribute__((nonnull)) w_fd(const struct w_sock * const s);
 
 extern void __attribute__((nonnull))
 w_rx(struct w_sock * const s, struct w_iov_stailq * const i);

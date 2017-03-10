@@ -204,7 +204,7 @@ void backend_connect(struct w_sock * const s)
 ///
 /// @return     A file descriptor.
 ///
-int w_fd(struct w_sock * const s)
+int w_fd(const struct w_sock * const s)
 {
     return s->w->fd;
 }
