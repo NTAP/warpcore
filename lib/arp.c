@@ -142,15 +142,13 @@ arp_is_at(struct warpcore * const w, void * const buf)
     memcpy(eth->src, w->mac, ETH_ADDR_LEN);
     eth->type = ETH_TYPE_ARP;
 
-    // send the Ethernet packet (make sure it went out)
+    // now send the packet, and make sure it went out before returning it
     const uint32_t orig_idx = v->idx;
     eth_tx(w, v, sizeof(*reply));
     while (v->idx != orig_idx) {
         usleep(100);
         w_nic_tx(w);
     }
-
-    // make iov available again
     STAILQ_INSERT_HEAD(&w->iov, v, next);
 }
 
@@ -204,15 +202,13 @@ uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
              inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
 #endif
 
-        // send the Ethernet packet (make sure it went out)
+        // now send the packet, and make sure it went out before returning it
         const uint32_t orig_idx = v->idx;
         eth_tx(w, v, sizeof(*eth) + sizeof(*arp));
         while (v->idx != orig_idx) {
             usleep(100);
             w_nic_tx(w);
         }
-
-        // make iov available again
         STAILQ_INSERT_HEAD(&w->iov, v, next);
 
         // wait until packets have been received, then handle them
