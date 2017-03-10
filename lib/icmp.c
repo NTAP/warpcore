@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/queue.h>
+#include <unistd.h>
 
 #ifndef __linux__
 #include <netinet/in.h>
@@ -114,9 +115,13 @@ void icmp_tx(struct warpcore * const w,
     memcpy(dst_eth->src, w->mac, ETH_ADDR_LEN);
     dst_eth->type = ETH_TYPE_IP;
 
-    // now send the IP packet
+    // now send the packet, and make sure it went out before returning it
+    const uint32_t orig_idx = v->idx;
     ip_tx(w, v, sizeof(*dst_icmp) + data_len);
-    w_nic_tx(w);
+    while (v->idx != orig_idx) {
+        usleep(100);
+        w_nic_tx(w);
+    }
     STAILQ_INSERT_HEAD(&w->iov, v, next);
 }
 
