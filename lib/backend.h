@@ -139,7 +139,7 @@ extern SLIST_HEAD(w_engines, warpcore) engines;
 
 
 /// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
-/// returned via STAILQ_INSERT_HEAD(&w->iov, v, next).
+/// returned to w->iov via STAILQ_INSERT_HEAD() or STAILQ_CONCAT().
 ///
 /// @param      w     Warpcore engine.
 ///
@@ -154,6 +154,9 @@ alloc_iov(struct warpcore * const w)
     // warn(debug, "allocating spare iov %u", v->idx);
     v->buf = IDX2BUF(w, v->idx);
     v->len = w->mtu;
+#ifdef WITH_NETMAP
+    v->chain = 0;
+#endif
     return v;
 }
 
