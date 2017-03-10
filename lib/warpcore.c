@@ -455,28 +455,28 @@ struct warpcore * w_engine(const struct w_sock * const s)
 }
 
 
-/// Return a w_sock_chain containing all sockets with pending inbound data.
+/// Return a w_sock_slist containing all sockets with pending inbound data.
 /// Caller needs to free() the returned value before the next call to
-/// w_rx_ready(). Data can be obtained via w_rx() on each w_sock in the chain.
+/// w_rx_ready(). Data can be obtained via w_rx() on each w_sock in the list.
 ///
 /// @param[in]  w     Warpcore engine.
 ///
-/// @return     Chain of w_sock sockets that have incoming data pending.
+/// @return     List of w_sock sockets that have incoming data pending.
 ///
-struct w_sock_chain * w_rx_ready(const struct warpcore * w)
+struct w_sock_slist * w_rx_ready(const struct warpcore * w)
 {
-    // make a new w_sock_chain
-    struct w_sock_chain * c = calloc(1, sizeof(*c));
-    ensure(c, "calloc w_sock_chain");
-    SLIST_INIT(c);
+    // make a new w_sock_slist
+    struct w_sock_slist * sl = calloc(1, sizeof(*sl));
+    ensure(sl, "calloc w_sock_slist");
+    SLIST_INIT(sl);
 
     // insert all sockets with pending inbound data
     struct w_sock * s;
     SLIST_FOREACH (s, &w->sock, next)
         if (!STAILQ_EMPTY(&s->iv))
-            SLIST_INSERT_HEAD(c, s, next_rx);
+            SLIST_INSERT_HEAD(sl, s, next_rx);
 
-    return c;
+    return sl;
 }
 
 

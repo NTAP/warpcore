@@ -39,7 +39,7 @@ struct warpcore;
 
 /// A chain of w_sock socket.
 ///
-SLIST_HEAD(w_sock_chain, w_sock);
+SLIST_HEAD(w_sock_slist, w_sock);
 
 
 /// A chain of w_iov I/O vectors. Also contains a counter that (on TX) tracks
@@ -176,7 +176,7 @@ extern void __attribute__((nonnull)) w_nic_rx(struct warpcore * const w);
 extern struct warpcore * __attribute__((nonnull))
 w_engine(const struct w_sock * const s);
 
-extern struct w_sock_chain * __attribute__((nonnull))
+extern struct w_sock_slist * __attribute__((nonnull))
 w_rx_ready(const struct warpcore * w);
 
 extern uint16_t __attribute__((nonnull))
