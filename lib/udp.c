@@ -132,7 +132,7 @@ void udp_rx(struct warpcore * const w, struct netmap_ring * const r)
     memcpy(&i->ts, &r->ts, sizeof(i->ts));
 
     // append the iov to the socket
-    STAILQ_INSERT_TAIL(s->iv, i, next);
+    STAILQ_INSERT_TAIL(&s->iv, i, next);
 
     // put the original buffer of the iov into the receive ring
     rxs->buf_idx = tmp_idx;

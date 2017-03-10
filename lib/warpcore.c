@@ -260,9 +260,7 @@ w_bind(struct warpcore * const w, const uint16_t port, const uint8_t flags)
 
     s->w = w;
     SLIST_INSERT_HEAD(&w->sock, s, next);
-    s->iv = calloc(1, sizeof(*s->iv));
-    ensure(s->iv, "could not calloc");
-    STAILQ_INIT(s->iv);
+    STAILQ_INIT(&s->iv);
 
     backend_bind(s);
 
@@ -281,8 +279,7 @@ w_bind(struct warpcore * const w, const uint16_t port, const uint8_t flags)
 void w_close(struct w_sock * const s)
 {
     // make iovs of the socket available again
-    w_free(s->w, s->iv);
-    free(s->iv);
+    STAILQ_CONCAT(&s->w->iov, &s->iv);
 
     // remove the socket from list of sockets
     SLIST_REMOVE(&s->w->sock, s, w_sock, next);
@@ -305,7 +302,7 @@ void w_close(struct w_sock * const s)
 ///
 void w_rx(struct w_sock * const s, struct w_iov_chain * const c)
 {
-    STAILQ_CONCAT(c, s->iv);
+    STAILQ_CONCAT(c, &s->iv);
 }
 
 
@@ -476,7 +473,7 @@ struct w_sock_chain * w_rx_ready(const struct warpcore * w)
     // insert all sockets with pending inbound data
     struct w_sock * s;
     SLIST_FOREACH (s, &w->sock, next)
-        if (!STAILQ_EMPTY(s->iv))
+        if (!STAILQ_EMPTY(&s->iv))
             SLIST_INSERT_HEAD(c, s, next_rx);
 
     return c;

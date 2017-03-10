@@ -66,7 +66,7 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     ///
     struct warpcore * w;
-    struct w_iov_chain * iv;  ///< w_iov chain containing incoming unread data.
+    STAILQ_HEAD(, w_iov) iv;  ///< w_iov chain containing incoming unread data.
     SLIST_ENTRY(w_sock) next; ///< Next socket associated with this engine.
     /// The template header to be used for outbound packets on this
     /// w_sock.

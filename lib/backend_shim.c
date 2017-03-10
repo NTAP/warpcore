@@ -210,7 +210,7 @@ void w_nic_rx(struct warpcore * const w)
 #else
 #define RECV_SIZE 1
 #endif
-    const struct w_sock * s;
+    struct w_sock * s;
     SLIST_FOREACH (s, &w->sock, next) {
         ssize_t n = 0;
         do {
@@ -261,7 +261,7 @@ void w_nic_rx(struct warpcore * const w)
                     v[i]->flags = 0;
                     v[i]->ts = ts;
                     // add the iov to the tail of the result
-                    STAILQ_INSERT_TAIL(s->iv, v[i], next);
+                    STAILQ_INSERT_TAIL(&s->iv, v[i], next);
                 }
             } else
                 // in case EAGAIN was returned (n == -1)
