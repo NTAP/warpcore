@@ -7,7 +7,7 @@ from time import *
 env.colorize_errors = True
 env.use_ssh_config = True
 env.builddir = ""
-env.keeplog = True  # False
+env.keeplog = False
 env.uname = {}
 
 env.ip = {"phobos1": "10.11.12.3",
@@ -20,9 +20,9 @@ env.ip = {"phobos1": "10.11.12.3",
 
 env.tests = [
     # {"speed": 1, "client": "five", "server": "six", "iface": "enp9s0f0"},
-    # {"speed": 1, "client": "phobos1", "server": "phobos2", "iface": "eno2"},
+    {"speed": 1, "client": "phobos1", "server": "phobos2", "iface": "eno2"},
     {"speed": 10, "client": "phobos1", "server": "phobos2", "iface": "enp8s0f0"},
-    # {"speed": 40, "client": "phobos1", "server": "phobos2", "iface": "enp4s0f0"},
+    {"speed": 40, "client": "phobos1", "server": "phobos2", "iface": "enp4s0f0"},
     # {"speed": 1, "client": "mora1", "server": "mora2", "iface": "igb1"},
     # {"speed": 10, "client": "mora1", "server": "mora2", "iface": "ix0"},
     # {"speed": 40, "client": "mora1", "server": "mora2", "iface": "ixl0"},
@@ -36,14 +36,17 @@ def ip_config(iface):
     sudo("ifconfig %s %s/24 up" % (iface, env.ip[env.host_string]))
     with settings(warn_only=True):
         if env.uname[env.host_string] == "Linux":
-            sudo("sysctl -w net.core.rmem_default=2621440; "
-                 "sysctl -w net.core.wmem_default=2621440; "
-                 "sysctl -w net.core.rmem_max=2621440; "
-                 "sysctl -w net.core.wmem_max=2621440; "
+            sudo("sysctl -w net.core.rmem_max=26214400; "
+                 "sysctl -w net.core.wmem_max=26214400; "
+                 "sysctl -w net.core.rmem_default=26214400; "
+                 "sysctl -w net.core.wmem_default=26214400; "
+                 "ifconfig %s down; "
                  "ethtool -C %s adaptive-rx off adaptive-tx off "
                  "rx-usecs 0 tx-usecs 0; "
                  "ethtool -G %s rx 2048 tx 2048; "
-                 "ethtool -L %s combined 2" % (iface, iface, iface))
+                 "ethtool -A %s autoneg off rx off tx off ; "
+                 "ethtool -L %s combined 2; "
+                 "ifconfig %s up; " % ((iface, ) * 6))
 
 
 @task
@@ -56,7 +59,7 @@ def ip_unconfig(iface):
             for i in run("ls /sys/class/net").split():
                 cmd += ("ip addr del %s/24 dev %s; " %
                         (env.ip[env.host_string], i))
-            cmd += "ethtool -G %s rx 512 tx 512; "
+            cmd += ("ethtool -G %s rx 512 tx 512; " % (i))
         else:
             for i in run("ifconfig -l").split():
                 cmd += "ifconfig %s -alias %s; " % (i, env.ip[env.host_string])
@@ -71,14 +74,15 @@ def netmap_config(iface):
             sudo("echo 4096 > /sys/module/netmap/parameters/if_size; "
                  "echo 1 > /sys/module/netmap/parameters/admode; "
                  "echo 1000000 > /sys/module/netmap/parameters/buf_num; "
-                 "ethtool -K %s sg off rx off tx off tso off gro off lro off" %
-                 iface)
+                 "ifconfig %s down; "
+                 "ethtool -K %s sg off rx off tx off tso off gro off lro off; "
+                 "ifconfig %s up; " % ((iface, ) * 3))
         else:
             sudo("sysctl -q -w hw.ix.enable_aim=0; "
                  "sysctl -q -w dev.netmap.if_size=4096; "
                  "sysctl -q -w dev.netmap.admode=1; "
                  "sysctl -q -w dev.netmap.buf_num=1000000; "
-                 "ifconfig %s -rxcsum -txcsum -tso -lro" % iface)
+                 "ifconfig %s -rxcsum -txcsum -tso -lro; " % (iface))
 
 
 @parallel
@@ -86,12 +90,14 @@ def netmap_config(iface):
 def netmap_unconfig(iface):
     with settings(warn_only=True):
         if env.uname[env.host_string] == "Linux":
-            sudo("ethtool -K %s sg on rx on tx on tso on gro on lro on; "
+            sudo("ifconfig %s down; "
+                 "ethtool -K %s sg on rx on tx on tso on gro on lro on; "
                  "ethtool -C %s adaptive-rx on adaptive-tx on "
-                 "rx-usecs 10 ; " % (iface, iface))
+                 "rx-usecs 10 ; "
+                 "ifconfig %s up; " % ((iface, ) * 4))
         else:
             sudo("sysctl -q -w hw.ix.enable_aim=1; "
-                 "ifconfig %s rxcsum txcsum tso lro" % iface)
+                 "ifconfig %s rxcsum txcsum tso lro; " % (iface))
 
 
 @runs_once
@@ -154,7 +160,7 @@ def start_client(test, busywait, cksum, kind):
         if not env.keeplog:
             log = "/dev/null"
         sudo("nice -20 "
-             "bin/%sping -i %s -d %s %s %s -l 50 -c 0 -e 1000000 > %s 2> %s" %
+             "bin/%sping -i %s -d %s %s %s -l 50 -c 0 -e 512000 > %s 2> %s" %
              (kind, test["iface"], env.ip[test["server"]],
               busywait, cksum, file, log))
 
@@ -174,7 +180,8 @@ def bench():
             execute(ip_unconfig, t["iface"])
             execute(ip_config, t["iface"])
 
-            for k in ["warp", "shim"]:
+            # XXX need to test shim before warp, otherwise 40G shim perf sucks?
+            for k in ["shim", "warp"]:
                 if k == "warp":
                     execute(netmap_config, t["iface"])
                 for c in ["", "-z"]:
@@ -184,4 +191,4 @@ def bench():
                         execute(stop)
                 if k == "warp":
                     execute(netmap_unconfig, t["iface"])
-            # execute(ip_unconfig, t["iface"])
+            execute(ip_unconfig, t["iface"])
