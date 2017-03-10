@@ -108,10 +108,10 @@ void udp_rx(struct warpcore * const w, struct netmap_ring * const r)
     }
 
     // grab an unused iov for the data in this packet
-    struct w_iov * const i = STAILQ_FIRST(&w->iov);
-    ensure(i != 0, "out of spare bufs");
-    STAILQ_REMOVE_HEAD(&w->iov, next);
-
+    //
+    // XXX alloc_iov() does some (in this case) unneeded initialization;
+    // determine if that overhead is a problem
+    struct w_iov * const i = alloc_iov(w);
     struct netmap_slot * const rxs = &r->slot[r->cur];
 
     warn(debug, "swapping rx ring %u slot %d (buf %d) and spare buf %u",
