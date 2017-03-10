@@ -81,19 +81,19 @@ struct arp_entry;
 /// A warpcore engine.
 ///
 struct warpcore {
-    SLIST_HEAD(sh, w_sock) sock; ///< List of open (bound) w_sock sockets.
-    struct w_iov_stailq iov;     ///< Tail queue of w_iov buffers available.
-    uint32_t ip;                 ///< Local IPv4 address used on this interface.
-    uint32_t mask;               ///< IPv4 netmask of this interface.
-    uint16_t mtu;                ///< MTU of this interface.
+    SLIST_HEAD(, w_sock) sock; ///< List of open (bound) w_sock sockets.
+    STAILQ_HEAD(, w_iov) iov;  ///< Tail queue of w_iov buffers available.
+    uint32_t ip;               ///< Local IPv4 address used on this interface.
+    uint32_t mask;             ///< IPv4 netmask of this interface.
+    uint16_t mtu;              ///< MTU of this interface.
     uint8_t mac[ETH_ADDR_LEN]; ///< Local Ethernet MAC address of the interface.
     void * mem;   ///< Pointer to netmap or shim buffer memory region.
     uint32_t rip; ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP
-    int fd;                 ///< Netmap file descriptor.
-    struct netmap_if * nif; ///< Netmap interface.
-    struct nmreq * req;     ///< Netmap request structure.
-    SLIST_HEAD(arp_cache_head, arp_entry) arp_cache; ///< The ARP cache.
+    int fd;                            ///< Netmap file descriptor.
+    struct netmap_if * nif;            ///< Netmap interface.
+    struct nmreq * req;                ///< Netmap request structure.
+    SLIST_HEAD(, arp_entry) arp_cache; ///< The ARP cache.
     uint32_t cur_txr; ///< Index of the TX ring currently active.
     /// @cond
     /// @internal Padding.
