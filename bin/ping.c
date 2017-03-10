@@ -191,8 +191,8 @@ int main(const int argc, char * const argv[])
     // send "loops" number of payloads of len "len" and wait for reply
     struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
     for (uint32_t len = start; len <= end; len += (inc ? inc : .483 * len)) {
-        // allocate tx chain
-        struct w_iov_chain o;
+        // allocate tx tail queue
+        struct w_iov_stailq o;
         w_alloc_len(w, &o, len, 0);
         long iter = loops;
         while (likely(iter--)) {
@@ -226,8 +226,8 @@ int main(const int argc, char * const argv[])
             warn(info, "sent %u byte%s", len, plural(len));
 
             // wait for a reply; loop until timeout or we have received all data
-            struct w_iov_chain i = STAILQ_HEAD_INITIALIZER(i);
-            while (likely(w_iov_chain_len(&i, 0) < len && done == false)) {
+            struct w_iov_stailq i = STAILQ_HEAD_INITIALIZER(i);
+            while (likely(w_iov_stailq_len(&i, 0) < len && done == false)) {
                 if (unlikely(busywait == false))
                     // poll for new data
                     if (poll(&fds, 1, -1) == -1)
@@ -248,10 +248,9 @@ int main(const int argc, char * const argv[])
             const struct itimerval stop = {0};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            const uint32_t i_len = w_iov_chain_len(&i, 0);
+            const uint32_t i_len = w_iov_stailq_len(&i, 0);
             if (i_len != len) {
-                warn(warn, "received %u/%u byte%s", i_len, len,
-                     plural(i_len));
+                warn(warn, "received %u/%u byte%s", i_len, len, plural(i_len));
                 continue;
             }
 
@@ -263,7 +262,7 @@ int main(const int argc, char * const argv[])
                 ensure(diff.tv_sec == 0, "time difference > 1 sec");
                 snprintf(rx, 256, "%ld", diff.tv_nsec);
             }
-            const uint32_t pkts = w_iov_chain_cnt(&o);
+            const uint32_t pkts = w_iov_stailq_cnt(&o);
             time_diff(&diff, &after_tx, &before_tx);
             ensure(diff.tv_sec == 0, "time difference > 1 sec");
             printf("%d\t%d\t%ld\t%s\n", len, pkts, diff.tv_nsec, rx);

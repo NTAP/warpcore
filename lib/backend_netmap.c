@@ -210,23 +210,23 @@ int w_fd(struct w_sock * const s)
 }
 
 
-/// Loops over the w_iov structures in the chain @p c, sending them all over
-/// w_sock @p s. Places the payloads into IPv4 UDP packets, and attempts to move
-/// them into TX rings. Will force a NIC TX if all rings are full, retry the
-/// failed w_iovs and continue with the chain. The (last batch of) packets are
-/// not send yet; w_nic_tx() needs to be called (again) for that. This is, so
-/// that an application has control over exactly when to schedule packet I/O.
+/// Loops over the w_iov structures in the w_iov_stailq @p o, sending them all
+/// over w_sock @p s. Places the payloads into IPv4 UDP packets, and attempts to
+/// move them into TX rings. Will force a NIC TX if all rings are full, retry
+/// the failed w_iovs. The (last batch of) packets are not send yet; w_nic_tx()
+/// needs to be called (again) for that. This is, so that an application has
+/// control over exactly when to schedule packet I/O.
 ///
 /// @param      s     w_sock socket to transmit over.
-/// @param      c     w_iov_chain to send.
+/// @param      o     w_iov_stailq to send.
 ///
-void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
+void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
 {
     struct w_iov * v;
-    c->tx_pending = 0;
-    STAILQ_FOREACH (v, c, next) {
-        c->tx_pending++;
-        v->chain = c;
+    o->tx_pending = 0;
+    STAILQ_FOREACH (v, o, next) {
+        o->tx_pending++;
+        v->o = o;
         ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
                "no destination information");
         while (unlikely(udp_tx(s, v) == false))
@@ -272,7 +272,7 @@ void w_nic_tx(struct warpcore * const w)
     ensure(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 
     // grab the transmitted data out of the NIC rings and place it back into
-    // the original w_iov_chains, so it's not lost to the app
+    // the original w_iov_stailqs, so it's not lost to the app
     for (uint32_t i = 0; likely(i < w->nif->ni_tx_rings); i++) {
         struct netmap_ring * const r = NETMAP_TXRING(w->nif, i);
 
@@ -293,8 +293,8 @@ void w_nic_tx(struct warpcore * const w)
                 s->ptr = 0;
 
                 // update tx_pending
-                if (likely(v->chain))
-                    v->chain->tx_pending--;
+                if (likely(v->o))
+                    v->o->tx_pending--;
             } else
                 warn(warn, "no w_iov in ring %u slot %u, ignoring", i, j);
         }

@@ -143,12 +143,12 @@ int main(const int argc, char * const argv[])
         struct w_sock * s;
         SLIST_FOREACH (s, sl, next_rx) {
             // ...check if any new data has arrived on the socket
-            struct w_iov_chain i = STAILQ_HEAD_INITIALIZER(i);
+            struct w_iov_stailq i = STAILQ_HEAD_INITIALIZER(i);
             w_rx(s, &i);
             if (STAILQ_EMPTY(&i))
                 continue;
 
-            struct w_iov_chain o = STAILQ_HEAD_INITIALIZER(o);
+            struct w_iov_stailq o = STAILQ_HEAD_INITIALIZER(o);
             uint16_t t = 0;
 #if 0
             if (s == srv[t++]) {
@@ -183,13 +183,13 @@ int main(const int argc, char * const argv[])
                 // our benchmark
 
                 // if o is empty, the target len is in the first buf of the
-                // incoming chain; otherwise, it's in the first buf of o
+                // incoming tail queue; otherwise, it's in the first buf of o
                 const struct w_iov * const head =
                     STAILQ_FIRST(STAILQ_EMPTY(&o) ? &i : &o);
                 const uint32_t len = ntohl(((struct payload *)head->buf)->len);
 
                 while (!STAILQ_EMPTY(&i)) {
-                    static struct w_iov_chain tmp =
+                    static struct w_iov_stailq tmp =
                         STAILQ_HEAD_INITIALIZER(tmp);
                     static uint32_t tmp_len = 0;
 

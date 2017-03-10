@@ -68,122 +68,121 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 /// because Linux doesn't define STALIQ_LAST in sys/queue.h for whatever reason.
 ///
 /// @param      w         Warpcore engine
-/// @param      c         Chain w_iov structs.
+/// @param[out] q         Tail queue of w_iov structs.
 /// @param[in]  count     Number of w_iov structs to allocate.
 /// @param[in]  off       Additional offset for each buffer.
 /// @param[in]  adj_last  Amount to reduce the length of the last w_iov by.
 ///
 static inline void alloc_cnt(struct warpcore * const w,
-                             struct w_iov_chain * const c,
+                             struct w_iov_stailq * const q,
                              const uint32_t count,
                              const uint16_t off,
                              const uint16_t adj_last)
 {
-    STAILQ_INIT(c);
+    STAILQ_INIT(q);
     struct w_iov * v = 0;
     for (uint32_t i = 0; i < count; i++) {
         v = alloc_iov(w);
         v->buf = (uint8_t *)v->buf + sizeof(struct w_hdr) + off;
         v->len -= (sizeof(struct w_hdr) + off);
-        STAILQ_INSERT_TAIL(c, v, next);
+        STAILQ_INSERT_TAIL(q, v, next);
     }
     if (v)
         v->len -= adj_last;
     warn(info,
-         "allocated w_iov_chain of len %zu byte%s (%d w_iov%s, offset %d)",
+         "allocated w_iov_stailq of len %zu byte%s (%d w_iov%s, offset %d)",
          count * (w->mtu - sizeof(struct w_hdr) - off) - adj_last,
          plural(count * (w->mtu - sizeof(struct w_hdr) - off) - adj_last),
          count, plural(count), off);
 }
 
 
-/// Allocate a w_iov chain for @p len payload bytes, for eventual use with
-/// w_tx(). The chain must be later returned to warpcore w_free().  If a @p off
-/// offset is specified, leave this much extra space before @p buf in each
+/// Allocate a w_iov tail queue for @p len payload bytes, for eventual use with
+/// w_tx(). The tail queue must be later returned to warpcore w_free().  If a @p
+/// off offset is specified, leave this much extra space before @p buf in each
 /// w_iov. This is meant for upper-level protocols that wish to reserve space
 /// for their headers.
 ///
 /// @param      w     Warpcore engine.
-/// @param      c     Chain of w_iov structs.
-/// @param[in]  len   Amount of payload bytes in the returned chain.
+/// @param[out] q     Tail queue of w_iov structs.
+/// @param[in]  len   Amount of payload bytes in the returned tail queue.
 /// @param[in]  off   Additional offset for @p buf.
 ///
 void w_alloc_len(struct warpcore * const w,
-                 struct w_iov_chain * const c,
+                 struct w_iov_stailq * const q,
                  const uint32_t len,
                  const uint16_t off)
 {
     const uint32_t space = w->mtu - sizeof(struct w_hdr) - off;
     const uint32_t count = len / space + (len % space != 0);
-    alloc_cnt(w, c, count, off, (uint16_t)(space * count - len));
+    alloc_cnt(w, q, count, off, (uint16_t)(space * count - len));
 }
 
 
-/// Allocate a w_iov chain of @p count packets, for eventual use with w_tx().
-/// The chain must be later returned to warpcore w_free(). If a @p off offset is
-/// specified, leave this much extra space before @p buf in each w_iov. This is
-/// meant for upper-level protocols that wish to reserve space for their
-/// headers.
+/// Allocate a w_iov tail queue of @p count packets, for eventual use with
+/// w_tx(). The tail queue must be later returned to warpcore w_free(). If a @p
+/// off offset is specified, leave this much extra space before @p buf in each
+/// w_iov. This is meant for upper-level protocols that wish to reserve space
+/// for their headers.
 ///
 /// @param      w      Warpcore engine.
-/// @param      c      Chain of w_iov structs.
-/// @param[in]  count  Number of packets in the returned chain.
+/// @param[out] q      Tail queue of w_iov structs.
+/// @param[in]  count  Number of packets in the returned tail queue.
 /// @param[in]  off    Additional offset for @p buf.
 ///
 void w_alloc_cnt(struct warpcore * const w,
-                 struct w_iov_chain * const c,
+                 struct w_iov_stailq * const q,
                  const uint32_t count,
                  const uint16_t off)
 {
-    alloc_cnt(w, c, count, off, 0);
+    alloc_cnt(w, q, count, off, 0);
 }
 
 
-/// Return a w_iov chain obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
-/// back to warpcore.
+/// Return a w_iov tail queue obtained via w_alloc_len(), w_alloc_cnt() or
+/// w_rx() back to warpcore.
 ///
 /// @param      w     Warpcore engine.
-/// @param      c     Chain of w_iov structs to free.
+/// @param      q     Tail queue of w_iov structs to return.
 ///
-void w_free(struct warpcore * const w, struct w_iov_chain * const c)
+void w_free(struct warpcore * const w, struct w_iov_stailq * const q)
 {
-    STAILQ_CONCAT(&w->iov, c);
+    STAILQ_CONCAT(&w->iov, q);
 }
 
 
-/// Return the total payload length of w_iov chain @p c.
+/// Return the total payload length of w_iov tail queue @p c.
 ///
-/// @param[in]  c     The w_iov chain to compute the payload length of.
+/// @param[in]  q     The w_iov tail queue to compute the payload length of.
 /// @param[in]  off   Additional offset in each @p buf.
 ///
-/// @return     Sum of the payload lengths of the w_iov structs in @p c.
+/// @return     Sum of the payload lengths of the w_iov structs in @p q.
 ///
-uint32_t w_iov_chain_len(const struct w_iov_chain * const c, const uint16_t off)
+uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q,
+                          const uint16_t off)
 {
     uint32_t l = 0;
-    if (likely(c)) {
+    if (likely(q)) {
         const struct w_iov * v;
-        STAILQ_FOREACH (v, c, next)
+        STAILQ_FOREACH (v, q, next)
             l += (v->len - off);
     }
     return l;
 }
 
 
-/// Return the number of w_iov structures in the w_iov chain @p c.
+/// Return the number of w_iov structures in the w_iov tail queue @p c.
 ///
-/// @param[in]  c     The w_iov chain to compute the payload length of.
+/// @param[in]  q     The w_iov tail queue to compute the payload length of.
 ///
-/// @return     Number of w_iov structs in @p c.
+/// @return     Number of w_iov structs in @p q.
 ///
-uint32_t w_iov_chain_cnt(const struct w_iov_chain * const c)
+uint32_t w_iov_stailq_cnt(const struct w_iov_stailq * const q)
 {
     uint32_t l = 0;
-    if (likely(c)) {
-        const struct w_iov * v;
-        STAILQ_FOREACH (v, c, next)
-            l++;
-    }
+    const struct w_iov * v;
+    STAILQ_FOREACH (v, q, next)
+        l++;
     return l;
 }
 
@@ -198,7 +197,7 @@ uint32_t w_iov_chain_cnt(const struct w_iov_chain * const c)
 /// w_sock and allows a server application to send data to multiple peers over a
 /// w_sock.
 ///
-/// @param      s      w_sock to connect.
+/// @param      s     w_sock to connect.
 /// @param[in]  ip    Destination IPv4 address to bind to.
 /// @param[in]  port  Destination UDP port to bind to.
 ///
@@ -292,17 +291,17 @@ void w_close(struct w_sock * const s)
 }
 
 
-/// Return any new data that has been received on a socket by appending it to @p
-/// c. The chain must eventually be returned to warpcore via w_free().
+/// Return any new data that has been received on a socket by appending it to
+/// the w_iov tail queue @p i. The tail queue must eventually be returned to
+/// warpcore via w_free().
 ///
 /// @param      s     w_sock for which the application would like to receive new
 ///                   data.
-/// @param      c     w_iov chain.
+/// @param      i     w_iov tail queue to append new data to.
 ///
-///
-void w_rx(struct w_sock * const s, struct w_iov_chain * const c)
+void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 {
-    STAILQ_CONCAT(c, &s->iv);
+    STAILQ_CONCAT(i, &s->iv);
 }
 
 

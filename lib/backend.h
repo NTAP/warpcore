@@ -82,7 +82,7 @@ struct arp_entry;
 ///
 struct warpcore {
     SLIST_HEAD(sh, w_sock) sock; ///< List of open (bound) w_sock sockets.
-    struct w_iov_chain iov;      ///< List of w_iov buffers available.
+    struct w_iov_stailq iov;     ///< Tail queue of w_iov buffers available.
     uint32_t ip;                 ///< Local IPv4 address used on this interface.
     uint32_t mask;               ///< IPv4 netmask of this interface.
     uint16_t mtu;                ///< MTU of this interface.
@@ -99,7 +99,7 @@ struct warpcore {
     /// @internal Padding.
     uint8_t _unused2[4];
     /// @endcond
-    uint32_t * tail;  ///< TX ring tails after last NIOCTXSYNC call.
+    uint32_t * tail; ///< TX ring tails after last NIOCTXSYNC call.
 #else
     /// @cond
     /// @internal Padding.
@@ -155,7 +155,7 @@ alloc_iov(struct warpcore * const w)
     v->buf = IDX2BUF(w, v->idx);
     v->len = w->mtu;
 #ifdef WITH_NETMAP
-    v->chain = 0;
+    v->o = 0;
 #endif
     return v;
 }

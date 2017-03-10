@@ -42,11 +42,11 @@ struct warpcore;
 SLIST_HEAD(w_sock_slist, w_sock);
 
 
-/// A chain of w_iov I/O vectors. Also contains a counter that (on TX) tracks
-/// how many w_iovs have not yet been transmitted by the NIC.
+/// A tail queue of w_iov I/O vectors. Also contains a counter that (on TX)
+/// tracks how many w_iovs have not yet been transmitted by the NIC.
 ///
-struct w_iov_chain {
-    STAILQ_HEAD(, w_iov); ///< Head of the w_iov chain.
+struct w_iov_stailq {
+    STAILQ_HEAD(, w_iov); ///< Head of the w_iov tail queue.
     uint32_t tx_pending; ///< Counter of untransmitted w_iovs. Only valid on TX.
     /// @cond
     uint8_t _unused2[4]; ///< @internal Padding.
@@ -66,7 +66,7 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     ///
     struct warpcore * w;
-    STAILQ_HEAD(, w_iov) iv;  ///< w_iov chain containing incoming unread data.
+    STAILQ_HEAD(, w_iov) iv;  ///< Tail queue containing incoming unread data.
     SLIST_ENTRY(w_sock) next; ///< Next socket associated with this engine.
     /// The template header to be used for outbound packets on this
     /// w_sock.
@@ -100,7 +100,7 @@ struct w_sock {
 ///
 struct w_iov {
     void * buf;               ///< Start of payload data.
-    STAILQ_ENTRY(w_iov) next; ///< Next w_iov in a w_iov_chain.
+    STAILQ_ENTRY(w_iov) next; ///< Next w_iov in a w_iov_stailq.
     uint32_t idx;             ///< Index of netmap buffer. (Internal use.)
     uint16_t len;             ///< Length of payload data.
 
@@ -123,7 +123,8 @@ struct w_iov {
     struct timeval ts; ///< Receive time of the data. Only valid on RX.
 
 #ifdef WITH_NETMAP
-    struct w_iov_chain * chain; ///< Pointer to w_ioc_chain. Only valid on TX.
+    ///< Pointer to the w_iov_stailq this w_iov resides in. Only valid on TX.
+    struct w_iov_stailq * o;
 #endif
 };
 
@@ -144,30 +145,30 @@ extern void __attribute__((nonnull)) w_disconnect(struct w_sock * const s);
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_alloc_len(struct warpcore * const w,
-                                                 struct w_iov_chain * const c,
+                                                 struct w_iov_stailq * const q,
                                                  const uint32_t len,
                                                  const uint16_t off);
 
 extern void __attribute__((nonnull)) w_alloc_cnt(struct warpcore * const w,
-                                                 struct w_iov_chain * const c,
+                                                 struct w_iov_stailq * const q,
                                                  const uint32_t count,
                                                  const uint16_t off);
 
 extern void __attribute__((nonnull))
-w_tx(const struct w_sock * const s, struct w_iov_chain * const c);
+w_tx(const struct w_sock * const s, struct w_iov_stailq * const o);
 
 extern void __attribute__((nonnull))
-w_free(struct warpcore * const w, struct w_iov_chain * const c);
+w_free(struct warpcore * const w, struct w_iov_stailq * const q);
 
-extern uint32_t w_iov_chain_len(const struct w_iov_chain * const c,
-                                const uint16_t off);
+extern uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q,
+                                 const uint16_t off);
 
-extern uint32_t w_iov_chain_cnt(const struct w_iov_chain * const c);
+extern uint32_t w_iov_stailq_cnt(const struct w_iov_stailq * const q);
 
 extern int __attribute__((nonnull)) w_fd(struct w_sock * const s);
 
 extern void __attribute__((nonnull))
-w_rx(struct w_sock * const s, struct w_iov_chain * const c);
+w_rx(struct w_sock * const s, struct w_iov_stailq * const i);
 
 extern void __attribute__((nonnull)) w_nic_tx(struct warpcore * const w);
 

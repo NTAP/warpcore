@@ -133,29 +133,29 @@ int w_fd(struct w_sock * const s)
 }
 
 
-/// Loops over the w_iov structures in the chain @p c, sending them all over
+/// Loops over the w_iov structures in the tail queue @p o, sending them all over
 /// w_sock @p s. This backend uses the Socket API.
 ///
 /// @param      s     w_sock socket to transmit over.
-/// @param      c     w_iov_chain to send.
+/// @param      o     w_iov_stailq to send.
 ///
-void w_tx(const struct w_sock * const s, struct w_iov_chain * const c)
+void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
 {
 #ifdef HAVE_SENDMMSG
 // There is a tradeoff here in terms of how many messages we should try and
 // send. Preparing to handle longer sizes has preparation overheads, whereas
 // only handling shorter sizes may require multiple syscalls (and incur their
 // overheads). So we're picking a number out of a hat. We could allocate
-// dynamically for MAX(IOV_MAX, w_iov_chain_cnt(c)), but that seems overkill.
+// dynamically for MAX(IOV_MAX, w_iov_stailq_cnt(c)), but that seems overkill.
 #define SEND_SIZE MIN(16, IOV_MAX)
     struct mmsghdr msgvec[SEND_SIZE];
     struct iovec msg[SEND_SIZE];
     struct sockaddr_in dst[SEND_SIZE];
     size_t i = 0;
 #endif
-    c->tx_pending = 0; // blocking I/O, no need to update c->tx_pending
+    o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
     const struct w_iov * v;
-    STAILQ_FOREACH (v, c, next) {
+    STAILQ_FOREACH (v, o, next) {
         ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
                "no destination information");
 #ifdef HAVE_SENDMMSG
