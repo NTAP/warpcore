@@ -99,7 +99,7 @@ int main(const int argc, char * const argv[])
     const char * rtr = 0;
     uint32_t loops = 1;
     uint32_t start = sizeof(struct payload);
-    uint32_t inc = 103;
+    uint32_t inc = 102;
     uint32_t end = 1458;
     bool busywait = false;
     uint8_t flags = 0;
