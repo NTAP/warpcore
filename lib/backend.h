@@ -47,7 +47,7 @@
 /// Since netmap uses a macro for this, we also need to use a macro for the shim
 /// backend.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param      i     Buffer index.
 ///
 /// @return     Memory region associated with buffer @p i.
@@ -78,9 +78,9 @@ struct w_hdr {
 
 struct arp_entry;
 
-/// A warpcore engine.
+/// A warpcore backend engine.
 ///
-struct warpcore {
+struct w_engine {
     SLIST_HEAD(, w_sock) sock; ///< List of open (bound) w_sock sockets.
     STAILQ_HEAD(, w_iov) iov;  ///< Tail queue of w_iov buffers available.
     uint32_t ip;               ///< Local IPv4 address used on this interface.
@@ -108,14 +108,14 @@ struct warpcore {
     char * ifname; ///< Name of the interface of this engine.
 #endif
     const char * backend; ///< Name of the warpcore backend used by the engine.
-    SLIST_ENTRY(warpcore) next; ///< Pointer to next engine.
+    SLIST_ENTRY(w_engine) next; ///< Pointer to next engine.
     struct w_iov * bufs;
 };
 
 
 /// Global list of initialized warpcore engines.
 ///
-extern SLIST_HEAD(w_engines, warpcore) engines;
+extern SLIST_HEAD(w_engines, w_engine) engines;
 
 
 /// Compute the IPv4 broadcast address for the given IPv4 address and netmask.
@@ -141,12 +141,12 @@ extern SLIST_HEAD(w_engines, warpcore) engines;
 /// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
 /// returned to w->iov via STAILQ_INSERT_HEAD() or STAILQ_CONCAT().
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 ///
 /// @return     Spare w_iov.
 ///
 inline struct w_iov * __attribute__((nonnull))
-alloc_iov(struct warpcore * const w)
+alloc_iov(struct w_engine * const w)
 {
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
     ensure(v != 0, "out of spare iovs");
@@ -163,13 +163,13 @@ alloc_iov(struct warpcore * const w)
 
 /// Get the socket bound to local port @p port.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param[in]  port  The port number.
 ///
 /// @return     The w_sock bound to @p port.
 ///
 inline struct w_sock * __attribute__((nonnull))
-get_sock(struct warpcore * const w, const uint16_t port)
+get_sock(struct w_engine * const w, const uint16_t port)
 {
     struct w_sock * s;
     SLIST_FOREACH (s, &w->sock, next)
@@ -184,6 +184,6 @@ extern void __attribute__((nonnull)) backend_bind(struct w_sock * s);
 extern void __attribute__((nonnull)) backend_connect(struct w_sock * const s);
 
 extern void __attribute__((nonnull))
-backend_init(struct warpcore * w, const char * const ifname);
+backend_init(struct w_engine * w, const char * const ifname);
 
-extern void __attribute__((nonnull)) backend_cleanup(struct warpcore * const w);
+extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);

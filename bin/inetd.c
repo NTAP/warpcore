@@ -102,7 +102,7 @@ int main(const int argc, char * const argv[])
     plat_setaffinity();
 
     // initialize a warpcore engine on the given network interface
-    struct warpcore * w = w_init(ifname, 0);
+    struct w_engine * w = w_init(ifname, 0);
 
     // install a signal handler to clean up after interrupt
     ensure(signal(SIGTERM, &terminate) != SIG_ERR, "signal");

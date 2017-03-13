@@ -35,7 +35,7 @@
 #include <util.h>
 // IWYU pragma: end_exports
 
-struct warpcore;
+struct w_engine;
 
 /// A chain of w_sock socket.
 ///
@@ -65,7 +65,7 @@ struct w_iov_stailq {
 struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     ///
-    struct warpcore * w;
+    struct w_engine * w;
     STAILQ_HEAD(, w_iov) iv;  ///< Tail queue containing incoming unread data.
     SLIST_ENTRY(w_sock) next; ///< Next socket associated with this engine.
     /// The template header to be used for outbound packets on this
@@ -129,13 +129,13 @@ struct w_iov {
 };
 
 
-extern struct warpcore * __attribute__((nonnull))
+extern struct w_engine * __attribute__((nonnull))
 w_init(const char * const ifname, const uint32_t rip);
 
-extern void __attribute__((nonnull)) w_cleanup(struct warpcore * const w);
+extern void __attribute__((nonnull)) w_cleanup(struct w_engine * const w);
 
 extern struct w_sock * __attribute__((nonnull))
-w_bind(struct warpcore * const w, const uint16_t port, const uint8_t flags);
+w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags);
 
 extern void __attribute__((nonnull))
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
@@ -144,12 +144,12 @@ extern void __attribute__((nonnull)) w_disconnect(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
-extern void __attribute__((nonnull)) w_alloc_len(struct warpcore * const w,
+extern void __attribute__((nonnull)) w_alloc_len(struct w_engine * const w,
                                                  struct w_iov_stailq * const q,
                                                  const uint32_t len,
                                                  const uint16_t off);
 
-extern void __attribute__((nonnull)) w_alloc_cnt(struct warpcore * const w,
+extern void __attribute__((nonnull)) w_alloc_cnt(struct w_engine * const w,
                                                  struct w_iov_stailq * const q,
                                                  const uint32_t count,
                                                  const uint16_t off);
@@ -158,7 +158,7 @@ extern void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov_stailq * const o);
 
 extern void __attribute__((nonnull))
-w_free(struct warpcore * const w, struct w_iov_stailq * const q);
+w_free(struct w_engine * const w, struct w_iov_stailq * const q);
 
 extern uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q,
                                  const uint16_t off);
@@ -170,18 +170,18 @@ extern int __attribute__((nonnull)) w_fd(const struct w_sock * const s);
 extern void __attribute__((nonnull))
 w_rx(struct w_sock * const s, struct w_iov_stailq * const i);
 
-extern void __attribute__((nonnull)) w_nic_tx(struct warpcore * const w);
+extern void __attribute__((nonnull)) w_nic_tx(struct w_engine * const w);
 
-extern void __attribute__((nonnull)) w_nic_rx(struct warpcore * const w);
+extern void __attribute__((nonnull)) w_nic_rx(struct w_engine * const w);
 
-extern struct warpcore * __attribute__((nonnull))
+extern struct w_engine * __attribute__((nonnull))
 w_engine(const struct w_sock * const s);
 
 extern struct w_sock_slist * __attribute__((nonnull))
-w_rx_ready(const struct warpcore * w);
+w_rx_ready(const struct w_engine * w);
 
 extern uint16_t __attribute__((nonnull))
-w_iov_max_len(const struct warpcore * const w, const struct w_iov * const v);
+w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);
 
 /// Return the number of w_iov structs in @p q that are still waiting for
 /// transmission. Only valid after w_tx() has been called on @p p.

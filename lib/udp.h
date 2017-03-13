@@ -31,7 +31,7 @@
 struct netmap_ring;
 struct w_iov;
 struct w_sock;
-struct warpcore;
+struct w_engine;
 
 
 /// A representation of a UDP header; see
@@ -46,7 +46,7 @@ struct udp_hdr {
 
 
 extern void __attribute__((nonnull))
-udp_rx(struct warpcore * const w, struct netmap_ring * const r);
+udp_rx(struct w_engine * const w, struct netmap_ring * const r);
 
 extern bool __attribute__((nonnull))
 udp_tx(const struct w_sock * const s, struct w_iov * const v);

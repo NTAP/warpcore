@@ -56,12 +56,12 @@ static char backend_name[] = "shim";
 /// Initialize the warpcore shim backend for engine @p w. Sets up the extra
 /// buffers.
 ///
-/// @param      w       Warpcore engine.
+/// @param      w       Backend engine.
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
 ///
-void backend_init(struct warpcore * w, const char * const ifname)
+void backend_init(struct w_engine * w, const char * const ifname)
 {
-    struct warpcore * ww;
+    struct w_engine * ww;
     SLIST_FOREACH (ww, &engines, next)
         ensure(strncmp(ifname, ww->ifname, IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
@@ -85,9 +85,9 @@ void backend_init(struct warpcore * w, const char * const ifname)
 
 /// Shut a warpcore shim engine down cleanly. Does nothing, at the moment.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 ///
-void backend_cleanup(struct warpcore * const w)
+void backend_cleanup(struct w_engine * const w)
 {
     STAILQ_INIT(&w->iov);
     free(w->mem);
@@ -133,7 +133,8 @@ int w_fd(const struct w_sock * const s)
 }
 
 
-/// Loops over the w_iov structures in the tail queue @p o, sending them all over
+/// Loops over the w_iov structures in the tail queue @p o, sending them all
+/// over
 /// w_sock @p s. This backend uses the Socket API.
 ///
 /// @param      s     w_sock socket to transmit over.
@@ -197,9 +198,9 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
 /// emulating the operation of netmap backend_rx() function. Appends all data to
 /// the w_sock::iv socket buffers of the respective w_sock structures.
 ///
-/// @param[in]  w     Warpcore engine.
+/// @param[in]  w     Backend engine.
 ///
-void w_nic_rx(struct warpcore * const w)
+void w_nic_rx(struct w_engine * const w)
 {
 #ifdef HAVE_RECVMMSG
 // There is a tradeoff here in terms of how many messages we should try and
@@ -277,8 +278,8 @@ void w_nic_rx(struct warpcore * const w)
 
 /// The shim backend performs no operation here.
 ///
-/// @param[in]  w     Warpcore engine.
+/// @param[in]  w     Backend engine.
 ///
-void w_nic_tx(struct warpcore * const w __attribute__((unused)))
+void w_nic_tx(struct w_engine * const w __attribute__((unused)))
 {
 }

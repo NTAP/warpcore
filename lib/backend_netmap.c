@@ -59,12 +59,12 @@ static char backend_name[] = "netmap";
 /// interface to netmap mode, maps the underlying buffers into memory and locks
 /// it there, and sets up the extra buffers.
 ///
-/// @param      w       Warpcore engine.
+/// @param      w       Backend engine.
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
 ///
-void backend_init(struct warpcore * w, const char * const ifname)
+void backend_init(struct w_engine * w, const char * const ifname)
 {
-    struct warpcore * ww;
+    struct w_engine * ww;
     SLIST_FOREACH (ww, &engines, next)
         ensure(strncmp(ifname, ww->nif->ni_name, IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
@@ -142,9 +142,9 @@ void backend_init(struct warpcore * w, const char * const ifname)
 /// Shut a warpcore netmap engine down cleanly. This function returns all w_iov
 /// structures associated the engine to netmap.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 ///
-void backend_cleanup(struct warpcore * const w)
+void backend_cleanup(struct w_engine * const w)
 {
     // free ARP cache
     free_arp_cache(w);
@@ -238,9 +238,9 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
 /// Trigger netmap to make new received data available to w_rx(). Iterates over
 /// any new data in the RX rings, calling eth_rx() for each.
 ///
-/// @param[in]  w     Warpcore engine.
+/// @param[in]  w     Backend engine.
 ///
-void w_nic_rx(struct warpcore * const w)
+void w_nic_rx(struct w_engine * const w)
 {
     ensure(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
 
@@ -265,9 +265,9 @@ void w_nic_rx(struct warpcore * const w)
 /// Push data placed in the TX rings via udp_tx() and similar methods out onto
 /// the link. Also move any transmitted data back into the original w_iovs.
 ///
-/// @param[in]  w     Warpcore engine.
+/// @param[in]  w     Backend engine.
 ///
-void w_nic_tx(struct warpcore * const w)
+void w_nic_tx(struct w_engine * const w)
 {
     ensure(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 

@@ -74,10 +74,10 @@
 ///
 /// IPv4 options are currently unsupported; as are IPv4 fragments.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void ip_rx(struct warpcore * const w, struct netmap_ring * const r)
+void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct ip_hdr * const ip = eth_data(buf);
@@ -129,14 +129,14 @@ void ip_rx(struct warpcore * const w, struct netmap_ring * const r)
 /// IPv4 header, calculates the checksum, sets the TOS bits and passes the
 /// packet to eth_tx().
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param      v     The w_iov containing the data to transmit.
 /// @param[in]  len   The length of the payload data in @p v.
 ///
 /// @return     Passes on the return value from eth_tx(), which indicates
 ///             whether @p v was successfully placed into a TX ring.
 ///
-bool ip_tx(struct warpcore * const w,
+bool ip_tx(struct w_engine * const w,
            struct w_iov * const v,
            const uint16_t len)
 {

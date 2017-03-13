@@ -31,7 +31,7 @@
 
 
 struct w_iov;
-struct warpcore;
+struct w_engine;
 struct netmap_ring;
 
 #define ETH_ADDR_LEN 6 ///< MAC address length in bytes. Six.
@@ -68,10 +68,10 @@ struct eth_hdr {
 
 
 extern void __attribute__((nonnull))
-eth_tx_rx_cur(struct warpcore * w, void * const buf, const uint16_t len);
+eth_tx_rx_cur(struct w_engine * w, void * const buf, const uint16_t len);
 
 extern void __attribute__((nonnull))
-eth_rx(struct warpcore * const w, struct netmap_ring * const r);
+eth_rx(struct w_engine * const w, struct netmap_ring * const r);
 
 extern bool __attribute__((nonnull))
-eth_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);
+eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len);

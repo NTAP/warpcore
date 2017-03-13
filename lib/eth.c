@@ -53,10 +53,10 @@
 /// The Ethernet frame to operate on is in the current netmap lot of the
 /// indicated RX ring.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void eth_rx(struct warpcore * const w, struct netmap_ring * const r)
+void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     struct eth_hdr * const eth = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
 
@@ -89,13 +89,13 @@ void eth_rx(struct warpcore * const w, struct netmap_ring * const r)
 /// the w_iov @p v, and will be placed into an available slot in a TX ring or -
 /// if all are full - dropped.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param      v     The w_iov containing the Ethernet frame to transmit.
 /// @param[in]  len   The length of the Ethernet *payload* contained in @p v.
 ///
 /// @return     True if the buffer was placed into a TX ring, false otherwise.
 ///
-bool eth_tx(struct warpcore * const w,
+bool eth_tx(struct w_engine * const w,
             struct w_iov * const v,
             const uint16_t len)
 {

@@ -64,13 +64,13 @@ struct arp_entry {
 
 /// Find the ARP cache entry associated with IPv4 address @p ip.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param[in]  ip    IPv4 address to look up in ARP cache.
 ///
 /// @return     Pointer to arp_entry of @p ip, or zero.
 ///
 static struct arp_entry * __attribute__((nonnull))
-arp_cache_find(struct warpcore * w, const uint32_t ip)
+arp_cache_find(struct w_engine * w, const uint32_t ip)
 {
     struct arp_entry * a;
     SLIST_FOREACH (a, &w->arp_cache, next)
@@ -82,12 +82,12 @@ arp_cache_find(struct warpcore * w, const uint32_t ip)
 
 /// Update the MAC address associated with IPv4 address @p ip in the ARP cache.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param[in]  ip    IPv4 address to update the ARP cache for.
 /// @param[in]  mac   New Ethernet MAC address of @p ip.
 ///
 static void __attribute__((nonnull))
-arp_cache_update(struct warpcore * w,
+arp_cache_update(struct w_engine * w,
                  const uint32_t ip,
                  const uint8_t mac[ETH_ADDR_LEN])
 {
@@ -108,12 +108,12 @@ arp_cache_update(struct warpcore * w,
 /// Modifies the ARP request in @p buf into a corresponding ARP reply, and sends
 /// it. Helper function called by arp_rx().
 ///
-/// @param      w     Warpcore engine
+/// @param      w     Backend engine.
 /// @param      buf   Buffer containing an incoming ARP request inside an
 ///                   Ethernet frame
 ///
 static void __attribute__((nonnull))
-arp_is_at(struct warpcore * const w, void * const buf)
+arp_is_at(struct w_engine * const w, void * const buf)
 {
     // grab iov for reply
     struct w_iov * v = alloc_iov(w);
@@ -158,13 +158,13 @@ arp_is_at(struct warpcore * const w, void * const buf)
 /// address @p dip, this function will block while attempting to resolve the
 /// address.
 ///
-/// @param      w     Warpcore engine
+/// @param      w     Backend engine.
 /// @param[in]  dip   IP address that is the target of the ARP request
 ///
 /// @return     Pointer to Ethernet MAC address (#ETH_ADDR_LEN bytes long) of @p
 ///             dip.
 ///
-uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
+uint8_t * arp_who_has(struct w_engine * const w, const uint32_t dip)
 {
     struct arp_entry * a = arp_cache_find(w, dip);
     while (a == 0) {
@@ -231,10 +231,10 @@ uint8_t * arp_who_has(struct warpcore * const w, const uint32_t dip)
 /// The Ethernet frame to operate on is in the current netmap lot of the
 /// indicated RX ring.
 ///
-/// @param      w     Warpcore engine
+/// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void arp_rx(struct warpcore * const w, struct netmap_ring * const r)
+void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct arp_hdr * const arp = eth_data(buf);
@@ -302,9 +302,9 @@ void arp_rx(struct warpcore * const w, struct netmap_ring * const r)
 
 /// Free the ARP cache entries associated with engine @p w.
 ///
-/// @param[in]  w     Warpcore engine.
+/// @param[in]  w     Backend engine.
 ///
-void free_arp_cache(struct warpcore * const w)
+void free_arp_cache(struct w_engine * const w)
 {
     while (!SLIST_EMPTY(&w->arp_cache)) {
         struct arp_entry * a = SLIST_FIRST(&w->arp_cache);

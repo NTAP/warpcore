@@ -73,10 +73,10 @@
 /// The Ethernet frame to operate on is in the current netmap lot of the
 /// indicated RX ring.
 ///
-/// @param      w     Warpcore engine
+/// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void udp_rx(struct warpcore * const w, struct netmap_ring * const r)
+void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct ip_hdr * const ip = eth_data(buf);

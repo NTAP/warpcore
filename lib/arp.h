@@ -29,7 +29,7 @@
 
 #include "eth.h"
 
-struct warpcore;
+struct w_engine;
 struct netmap_ring;
 
 
@@ -82,9 +82,9 @@ struct arp_hdr {
 
 
 extern void __attribute__((nonnull))
-arp_rx(struct warpcore * w, struct netmap_ring * const r);
+arp_rx(struct w_engine * w, struct netmap_ring * const r);
 
 extern uint8_t * __attribute__((nonnull))
-arp_who_has(struct warpcore * const w, const uint32_t dip);
+arp_who_has(struct w_engine * const w, const uint32_t dip);
 
-extern void __attribute__((nonnull)) free_arp_cache(struct warpcore * const w);
+extern void __attribute__((nonnull)) free_arp_cache(struct w_engine * const w);

@@ -47,12 +47,12 @@
 /// Make an ICMP message with the given @p type and @p code based on the
 /// received packet in @p buf.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param[in]  type  The ICMP type to send.
 /// @param[in]  code  The ICMP code to send.
 /// @param[in]  buf   The received packet to send the ICMP message for.
 ///
-void icmp_tx(struct warpcore * const w,
+void icmp_tx(struct w_engine * const w,
              const uint8_t type,
              const uint8_t code,
              void * const buf)
@@ -134,10 +134,10 @@ void icmp_tx(struct warpcore * const w,
 /// The Ethernet frame to operate on is in the current netmap lot of the
 /// indicated RX ring.
 ///
-/// @param      w     Warpcore engine
+/// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void icmp_rx(struct warpcore * const w, struct netmap_ring * const r)
+void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     struct icmp_hdr * const icmp = ip_data(buf);

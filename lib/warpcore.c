@@ -54,8 +54,8 @@
 #include "ip.h"
 #include "udp.h"
 
-extern struct w_iov * alloc_iov(struct warpcore * w);
-extern struct w_sock * get_sock(struct warpcore * w, uint16_t port);
+extern struct w_iov * alloc_iov(struct w_engine * w);
+extern struct w_sock * get_sock(struct w_engine * w, uint16_t port);
 
 
 /// A global list of netmap engines that have been initialized for different
@@ -67,13 +67,13 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 /// Helper function for w_alloc_size and w_alloc_cnt. Really only needed,
 /// because Linux doesn't define STALIQ_LAST in sys/queue.h for whatever reason.
 ///
-/// @param      w         Warpcore engine
+/// @param      w         Backend engine.
 /// @param[out] q         Tail queue of w_iov structs.
 /// @param[in]  count     Number of w_iov structs to allocate.
 /// @param[in]  off       Additional offset for each buffer.
 /// @param[in]  adj_last  Amount to reduce the length of the last w_iov by.
 ///
-static inline void alloc_cnt(struct warpcore * const w,
+static inline void alloc_cnt(struct w_engine * const w,
                              struct w_iov_stailq * const q,
                              const uint32_t count,
                              const uint16_t off,
@@ -103,12 +103,12 @@ static inline void alloc_cnt(struct warpcore * const w,
 /// w_iov. This is meant for upper-level protocols that wish to reserve space
 /// for their headers.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param[out] q     Tail queue of w_iov structs.
 /// @param[in]  len   Amount of payload bytes in the returned tail queue.
 /// @param[in]  off   Additional offset for @p buf.
 ///
-void w_alloc_len(struct warpcore * const w,
+void w_alloc_len(struct w_engine * const w,
                  struct w_iov_stailq * const q,
                  const uint32_t len,
                  const uint16_t off)
@@ -125,12 +125,12 @@ void w_alloc_len(struct warpcore * const w,
 /// w_iov. This is meant for upper-level protocols that wish to reserve space
 /// for their headers.
 ///
-/// @param      w      Warpcore engine.
+/// @param      w      Backend engine.
 /// @param[out] q      Tail queue of w_iov structs.
 /// @param[in]  count  Number of packets in the returned tail queue.
 /// @param[in]  off    Additional offset for @p buf.
 ///
-void w_alloc_cnt(struct warpcore * const w,
+void w_alloc_cnt(struct w_engine * const w,
                  struct w_iov_stailq * const q,
                  const uint32_t count,
                  const uint16_t off)
@@ -142,10 +142,10 @@ void w_alloc_cnt(struct warpcore * const w,
 /// Return a w_iov tail queue obtained via w_alloc_len(), w_alloc_cnt() or
 /// w_rx() back to warpcore.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 /// @param      q     Tail queue of w_iov structs to return.
 ///
-void w_free(struct warpcore * const w, struct w_iov_stailq * const q)
+void w_free(struct w_engine * const w, struct w_iov_stailq * const q)
 {
     STAILQ_CONCAT(&w->iov, q);
 }
@@ -233,7 +233,7 @@ void w_disconnect(struct w_sock * const s)
 /// @return     Pointer to a bound w_sock.
 ///
 struct w_sock *
-w_bind(struct warpcore * const w, const uint16_t port, const uint8_t flags)
+w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 {
     struct w_sock * s = get_sock(w, port);
     if (unlikely(s)) {
@@ -309,9 +309,9 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 /// backend-specific cleanup function, it frees up the extra buffers and other
 /// memory structures.
 ///
-/// @param      w     Warpcore engine.
+/// @param      w     Backend engine.
 ///
-void w_cleanup(struct warpcore * const w)
+void w_cleanup(struct w_engine * const w)
 {
     warn(notice, "warpcore shutting down");
 
@@ -323,7 +323,7 @@ void w_cleanup(struct warpcore * const w)
     }
     backend_cleanup(w);
     free(w->bufs);
-    SLIST_REMOVE(&engines, w, warpcore, next);
+    SLIST_REMOVE(&engines, w, w_engine, next);
     free(w);
 }
 
@@ -344,13 +344,13 @@ void w_cleanup(struct warpcore * const w)
 ///
 /// @return     Initialized warpcore engine.
 ///
-struct warpcore * w_init(const char * const ifname, const uint32_t rip)
+struct w_engine * w_init(const char * const ifname, const uint32_t rip)
 {
-    struct warpcore * w;
+    struct w_engine * w;
     bool link_up = false;
 
     // allocate engine struct
-    ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct warpcore");
+    ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
 
     // initialize lists of sockets and iovs
     SLIST_INIT(&w->sock);
@@ -448,7 +448,7 @@ struct warpcore * w_init(const char * const ifname, const uint32_t rip)
 ///
 /// @return     The warpcore engine for w_sock @p s.
 ///
-struct warpcore * w_engine(const struct w_sock * const s)
+struct w_engine * w_engine(const struct w_sock * const s)
 {
     return s->w;
 }
@@ -458,11 +458,11 @@ struct warpcore * w_engine(const struct w_sock * const s)
 /// Caller needs to free() the returned value before the next call to
 /// w_rx_ready(). Data can be obtained via w_rx() on each w_sock in the list.
 ///
-/// @param[in]  w     Warpcore engine.
+/// @param[in]  w     Backend engine.
 ///
 /// @return     List of w_sock sockets that have incoming data pending.
 ///
-struct w_sock_slist * w_rx_ready(const struct warpcore * w)
+struct w_sock_slist * w_rx_ready(const struct w_engine * w)
 {
     // make a new w_sock_slist
     struct w_sock_slist * sl = calloc(1, sizeof(*sl));
@@ -483,12 +483,12 @@ struct w_sock_slist * w_rx_ready(const struct warpcore * w)
 /// Basically, subtracts the header space and any offset specified when
 /// allocating the w_iov from the MTU.
 ///
-/// @param[in]  w     Warpcore engine.
+/// @param[in]  w     Backend engine.
 /// @param[in]  v     The w_iov in question.
 ///
 /// @return     Maximum length of the data in a w_iov for this engine.
 ///
-uint16_t w_iov_max_len(const struct warpcore * const w,
+uint16_t w_iov_max_len(const struct w_engine * const w,
                        const struct w_iov * const v)
 {
     const uint16_t offset =

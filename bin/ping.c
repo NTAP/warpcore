@@ -165,7 +165,7 @@ int main(const int argc, char * const argv[])
     plat_setaffinity();
 
     // initialize a warpcore engine on the given network interface
-    struct warpcore * w = w_init(ifname, rip);
+    struct w_engine * w = w_init(ifname, rip);
 
     // bind a new socket to a random local source port
     struct w_sock * s = w_bind(w, (uint16_t)plat_random(), flags);

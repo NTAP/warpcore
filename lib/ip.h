@@ -31,7 +31,7 @@
 #include "eth.h"
 
 struct w_iov;
-struct warpcore;
+struct w_engine;
 struct netmap_ring;
 
 
@@ -150,16 +150,16 @@ struct ip_hdr {
     } while (0)
 
 
-extern void __attribute__((nonnull)) ip_tx_with_rx_buf(struct warpcore * w,
+extern void __attribute__((nonnull)) ip_tx_with_rx_buf(struct w_engine * w,
                                                        const uint8_t p,
                                                        void * const buf,
                                                        const uint16_t len);
 
 extern void __attribute__((nonnull))
-ip_rx(struct warpcore * const w, struct netmap_ring * const r);
+ip_rx(struct w_engine * const w, struct netmap_ring * const r);
 
 extern bool __attribute__((nonnull))
-ip_tx(struct warpcore * const w, struct w_iov * const v, const uint16_t len);
+ip_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len);
 
 
 // these are documented here, since in_chksum.c taken from FreeBSD
