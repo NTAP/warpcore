@@ -182,3 +182,12 @@ w_rx_ready(const struct warpcore * w);
 
 extern uint16_t __attribute__((nonnull))
 w_iov_max_len(const struct warpcore * const w, const struct w_iov * const v);
+
+/// Return the number of w_iov structs in @p q that are still waiting for
+/// transmission. Only valid after w_tx() has been called on @p p.
+///
+/// @param      q     A tail queue of w_iov structs.
+///
+/// @return     Number of w_iov structs not yet transmitted.
+///
+#define w_tx_pending(q) (q)->tx_pending

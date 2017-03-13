@@ -211,7 +211,7 @@ int main(const int argc, char * const argv[])
 
             // send the data, and wait until it is out
             w_tx(s, &o);
-            while (o.tx_pending)
+            while (w_tx_pending(&o))
                 w_nic_tx(w);
 
             // get the current time

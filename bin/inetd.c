@@ -215,7 +215,7 @@ int main(const int argc, char * const argv[])
             // if the current service requires replying with data, do so
             if (!STAILQ_EMPTY(&o)) {
                 w_tx(s, &o);
-                while (o.tx_pending)
+                while (w_tx_pending(&o))
                     w_nic_tx(w);
             }
 
