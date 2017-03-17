@@ -25,7 +25,7 @@ dt = rbindlist(lapply(list.files(pattern=".*ping.*.txt"), my_fread))
 speed_lab = function(string) { paste0(string, "G Ethernet") }
 
 method_lab = function(string) {
-  ifelse(string == "shimping", "Linux Kernel Stack", "Warpcore")
+  ifelse(string == "shimping", "Kernel Stack", "Warpcore")
 }
 
 gbps = function(bytepnsec) { comma(bytepnsec*8) }
@@ -53,7 +53,7 @@ my_plot = function(dt, x, y, xlabel, ylabel, ylabeller) {
     legend.key.height=unit(7, "pt"),
     legend.key.width=unit(7, "mm"),
     legend.key=element_blank(),
-    legend.position=c(.12, .4),
+    legend.position=c(.12, .3),
     legend.text=element_text(family="Times", size=7, color="black"),
     legend.title=element_blank(),
     panel.background=element_blank(),
@@ -90,23 +90,23 @@ my_plot = function(dt, x, y, xlabel, ylabel, ylabeller) {
 
 ggsave(plot=my_plot(dt, "byte", "rx", "UDP Payload Size [B]",
                     expression(paste("RTT [", mu, "s]")), usec),
-       height=2.75, width=7.15, units="in", filename="latency.pdf")
+       height=1.75, width=7.15, units="in", filename="latency.pdf")
 
-ggsave(plot=my_plot(dt, "byte", "2*(byte+pkts*46)/rx", "UDP Payload Size [B]",
+ggsave(plot=my_plot(dt, "byte", "2*byte/rx", "UDP Payload Size [B]",
                     "Throughput [GB/s]", gbps),
-       height=2.75, width=7.15, units="in", filename="thruput.pdf")
+       height=1.75, width=7.15, units="in", filename="thruput.pdf")
 
 ggsave(plot=my_plot(dt, "pkts", "2*pkts/rx", "Packets [#]",
                     "Packets/Second [Mpps]", mpps),
-       height=2.75, width=7.15, units="in", filename="pps.pdf")
+       height=1.75, width=7.15, units="in", filename="pps.pdf")
 
 short = dt[dt$byte < 1600]
 
 ggsave(plot=my_plot(short, "byte", "rx", "UDP Payload Size [B]",
                     expression(paste("RTT [", mu, "s]")), usec),
-       height=2.75, width=7.15, units="in", filename="latency-1500.pdf")
+       height=1.75, width=7.15, units="in", filename="latency-1500.pdf")
 
-ggsave(plot=my_plot(short, "byte", "2*(byte+pkts*46)/rx",
+ggsave(plot=my_plot(short, "byte", "2*byte/rx",
                     "UDP Payload Size [B]",
                     "Throughput [GB/s]", gbps),
-       height=2.75, width=7.15, units="in", filename="thruput-1500.pdf")
+       height=1.75, width=7.15, units="in", filename="thruput-1500.pdf")
