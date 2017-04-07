@@ -30,7 +30,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/cpuset.h>
 
 #elif defined(__linux__)
 #include <ifaddrs.h>
@@ -38,7 +37,6 @@
 #include <linux/sockios.h>
 #include <net/if.h>
 #include <netpacket/packet.h>
-#include <sched.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -202,57 +200,5 @@ bool plat_get_link(const struct ifaddrs * i
 #else
     warn(warn, "link state queries not supported on this platform");
     return true;
-#endif
-}
-
-
-/// Sets the affinity of the current thread to the highest existing CPU core.
-///
-void plat_setaffinity(void)
-{
-#if defined(__FreeBSD__)
-    int i;
-    cpuset_t myset;
-    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
-                           &myset) == -1) {
-        warn(crit, "cpuset_getaffinity failed");
-        return;
-    }
-
-    // Find last available CPU
-    for (i = CPU_SETSIZE - 1; i >= -1; i--)
-        if (CPU_ISSET(i, &myset))
-            break;
-    ensure(i != -1, "not allowed to run on any CPUs!?");
-
-    // Set new CPU mask
-    warn(info, "setting affinity to CPU %d", i);
-    CPU_ZERO(&myset);
-    CPU_SET(i, &myset);
-
-    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t),
-                           &myset) == -1)
-        warn(crit, "cpuset_setaffinity failed");
-#elif defined(__linux__)
-    int i;
-    cpu_set_t myset;
-    ensure(sched_getaffinity(0, sizeof(cpu_set_t), &myset) != -1,
-           "sched_getaffinity");
-
-    // Find last available CPU
-    for (i = CPU_SETSIZE - 1; i >= -1; i--)
-        if (CPU_ISSET(i, &myset))
-            break;
-    ensure(i != -1, "not allowed to run on any CPUs!?");
-
-    // Set new CPU mask
-    warn(info, "setting affinity to CPU %d", i);
-    CPU_ZERO(&myset);
-    CPU_SET(i, &myset);
-
-    ensure(sched_setaffinity(0, sizeof(myset), &myset) != -1,
-           "sched_setaffinity");
-#else
-    warn(warn, "setting thread affinity not supported on this platform");
 #endif
 }

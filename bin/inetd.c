@@ -98,9 +98,6 @@ int main(const int argc, char * const argv[])
         return 0;
     }
 
-    // bind this app to a single core
-    plat_setaffinity();
-
     // initialize a warpcore engine on the given network interface
     struct w_engine * w = w_init(ifname, 0);
 

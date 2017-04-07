@@ -161,9 +161,6 @@ int main(const int argc, char * const argv[])
         freeaddrinfo(router);
     }
 
-    // bind this app to a single core
-    plat_setaffinity();
-
     // initialize a warpcore engine on the given network interface
     struct w_engine * w = w_init(ifname, rip);
 
