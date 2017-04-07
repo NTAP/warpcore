@@ -19,13 +19,20 @@ env.ip = {"phobos1": "10.11.12.3",
           }
 
 env.tests = [
-    # {"speed": 1, "client": "five", "server": "six", "iface": "enp9s0f0"},
-    {"speed": 1, "client": "phobos1", "server": "phobos2", "iface": "eno2"},
-    {"speed": 10, "client": "phobos1", "server": "phobos2", "iface": "enp8s0f0"},
-    {"speed": 40, "client": "phobos1", "server": "phobos2", "iface": "enp4s0f0"},
-    # {"speed": 1, "client": "mora1", "server": "mora2", "iface": "igb1"},
+    # phobos Linux
+    # {"speed": 1, "client": "phobos1", "server": "phobos2", "iface": "eno2"},
+    # {"speed": 10, "client": "phobos1", "server": "phobos2", "iface": "enp8s0f0"},
+    # {"speed": 40, "client": "phobos1", "server": "phobos2", "iface": "enp4s0f0"},
+
+    # mora FreeBSD
+    # {"speed": 1, "client": "mora1", "server": "mora2", "iface": "igb5"},
     # {"speed": 10, "client": "mora1", "server": "mora2", "iface": "ix0"},
     # {"speed": 40, "client": "mora1", "server": "mora2", "iface": "ixl0"},
+
+    # mora Linux
+    {"speed": 1, "client": "mora1", "server": "mora2", "iface": "eno3"},
+    {"speed": 10, "client": "mora1", "server": "mora2", "iface": "enp6s0f0"},
+    {"speed": 40, "client": "mora1", "server": "mora2", "iface": "enp3s0f0"},
 ]
 
 
@@ -33,20 +40,24 @@ env.tests = [
 @parallel
 @roles("client", "server")
 def ip_config(iface):
-    sudo("ifconfig %s %s/24 up" % (iface, env.ip[env.host_string]))
     with settings(warn_only=True):
+        cmd = ""
         if env.uname[env.host_string] == "Linux":
-            sudo("sysctl -w net.core.rmem_max=26214400; "
-                 "sysctl -w net.core.wmem_max=26214400; "
-                 "sysctl -w net.core.rmem_default=26214400; "
-                 "sysctl -w net.core.wmem_default=26214400; "
-                 "ifconfig %s down; "
-                 "ethtool -C %s adaptive-rx off adaptive-tx off "
-                 "rx-usecs 0 tx-usecs 0; "
-                 "ethtool -G %s rx 2048 tx 2048; "
-                 "ethtool -A %s autoneg off rx off tx off ; "
-                 "ethtool -L %s combined 2; "
-                 "ifconfig %s up; " % ((iface, ) * 6))
+            cmd += ("sysctl -w net.core.rmem_max=26214400; "
+                    "sysctl -w net.core.wmem_max=26214400; "
+                    "sysctl -w net.core.rmem_default=26214400; "
+                    "sysctl -w net.core.wmem_default=26214400; "
+                    "ifconfig %s down; "
+                    "ethtool -C %s adaptive-rx off adaptive-tx off "
+                    "rx-usecs 0 tx-usecs 0; "
+                    "ethtool -G %s rx 2048 tx 2048; "
+                    "ethtool -A %s autoneg off rx off tx off ; "
+                    "ethtool -L %s combined 2; "
+                    "ifconfig %s up; " % ((iface, ) * 6))
+        else:
+            cmd += ("pkill -f 'dhclient: %s'; " % iface)
+        cmd += ("ifconfig %s %s/24 up; " % (iface, env.ip[env.host_string]))
+        sudo(cmd)
 
 
 @task
@@ -137,8 +148,8 @@ def start_server(test, busywait, cksum, kind):
 @roles("client", "server")
 def stop(flag=""):
     with settings(warn_only=True):
-        sudo('''while : ; do \
-                pkill %s '(warp|shim)(ping|inetd)'; pkill %s inetd; \
+        sudo('''pkill %s -f inetd ; while : ; do \
+                pkill %s '(warp|shim)(ping|inetd)'; \
                 pgrep "(warp|shim)(ping|inetd)"; \
                 [ "$?" == 1 ] && break; \
                 sleep 1; \
