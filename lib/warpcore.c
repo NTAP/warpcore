@@ -371,8 +371,7 @@ struct w_engine * w_init(const char * const ifname, const uint32_t rip)
         for (const struct ifaddrs * i = ifap; i; i = i->ifa_next) {
             if (strcmp(i->ifa_name, ifname) != 0)
                 continue;
-            else
-                found = true;
+            found = true;
 
             switch (i->ifa_addr->sa_family) {
             case AF_LINK:
