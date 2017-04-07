@@ -138,7 +138,7 @@ def start_server(test, busywait, cksum, kind):
         log = "../%sinetd-%s%s%s.log" % (kind, test["speed"], busywait, cksum)
         if not env.keeplog:
             log = "/dev/null"
-        sudo("/usr/bin/nice -20 /usr/bin/nohup "
+        sudo("/usr/bin/nice -20 /usr/bin/nohup /usr/bin/taskset -c 3 "
              "bin/%sinetd -i %s %s %s 2>&1 > %s &" %
              (kind, test["iface"], busywait, cksum, log))
 
@@ -170,7 +170,7 @@ def start_client(test, busywait, cksum, kind):
         log = prefix + ".log"
         if not env.keeplog:
             log = "/dev/null"
-        sudo("nice -20 "
+        sudo("nice -20 /usr/bin/taskset -c 3 "
              "bin/%sping -i %s -d %s %s %s -l 50 -c 0 -e 512000 > %s 2> %s" %
              (kind, test["iface"], env.ip[test["server"]],
               busywait, cksum, file, log))
