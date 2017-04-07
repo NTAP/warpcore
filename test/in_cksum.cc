@@ -34,7 +34,7 @@ extern "C" {
 
 static void BM_in_cksum(benchmark::State & state)
 {
-    const uint16_t len = uint16_t(state.range(0));
+    const auto len = uint16_t(state.range(0));
     auto * buf = new char[len];
     memset(buf, 'x', len);
     while (state.KeepRunning())
