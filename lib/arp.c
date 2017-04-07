@@ -133,7 +133,7 @@ arp_is_at(struct w_engine * const w, void * const buf)
     reply->tpa = req->spa;
 
     warn(notice, "ARP reply %s is at %s",
-         inet_ntoa(*(const struct in_addr * const) & reply->spa),
+         inet_ntoa(*(struct in_addr *)(void *)&reply->spa),
          ether_ntoa((const struct ether_addr * const)reply->sha));
 
     // send the Ethernet packet
@@ -269,7 +269,7 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 
     case ARP_OP_REPLY: {
         warn(notice, "ARP reply %s is at %s",
-             inet_ntoa(*(const struct in_addr * const) & arp->spa),
+             inet_ntoa(*(const struct in_addr * const)(const void *)&arp->spa),
              ether_ntoa((const struct ether_addr * const)arp->sha));
 
         arp_cache_update(w, arp->spa, arp->sha);
@@ -286,7 +286,8 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
                 (s->w->rip && (s->w->rip == arp->spa))) {
                 warn(notice, "updating socket with %s for %s",
                      ether_ntoa((const struct ether_addr * const)arp->sha),
-                     inet_ntoa(*(const struct in_addr * const) & arp->spa));
+                     inet_ntoa(*(const struct in_addr * const)(
+                                    const void *)&arp->spa));
                 memcpy(&s->hdr->eth.dst, arp->sha, ETH_ADDR_LEN);
             }
         }
