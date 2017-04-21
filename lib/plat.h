@@ -28,12 +28,12 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/socket.h>
 
 struct ifaddrs;
 
 
 #ifdef __linux__
+#include <sys/socket.h>
 #define AF_LINK AF_PACKET
 #define PLAT_MMFLAGS MAP_POPULATE | MAP_LOCKED
 
