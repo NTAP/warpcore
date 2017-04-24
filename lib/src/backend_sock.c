@@ -63,7 +63,7 @@
 
 /// The backend name.
 ///
-static char backend_name[] = "socket";
+static const char backend_name[] = "socket";
 
 
 /// Initialize the warpcore socket backend for engine @p w. Sets up the extra
@@ -79,6 +79,9 @@ void backend_init(struct w_engine * const w,
                   const bool is_lo __attribute__((unused)),
                   const bool is_left __attribute__((unused)))
 {
+    ensure((w->flags & W_CHKSUM) == 0,
+           "%s: checksum offloading requested but not supported", backend_name);
+
     // lower the MTU to account for IP and UPD headers
     w->mtu -= sizeof(struct ip_hdr) + sizeof(struct udp_hdr);
 
@@ -151,11 +154,12 @@ void backend_bind(struct w_sock * const s)
     ensure(setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, &(int){1},
                       sizeof(int)) >= 0,
            "cannot setsockopt SO_REUSEADDR");
+    struct w_hdr * wh = get_w_hdr(s->w, s);
     struct sockaddr_in addr = {.sin_family = AF_INET,
-                               .sin_port = s->hdr->udp.sport,
-                               .sin_addr = {.s_addr = s->hdr->ip.src}};
+                               .sin_port = wh->udp.sport,
+                               .sin_addr = {.s_addr = wh->ip.src}};
     ensure(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
-           "bind failed on port %u", ntohs(s->hdr->udp.sport));
+           "bind failed on port %u", ntohs(wh->udp.sport));
 
     // enable ECN
     ensure(setsockopt(s->fd, IPPROTO_IP, IP_RECVTOS, &(int){1}, sizeof(int)) >=
@@ -166,11 +170,11 @@ void backend_bind(struct w_sock * const s)
            "cannot setsockopt IP_TOS");
 
     // if we're binding to a random port, find out what it is
-    if (s->hdr->udp.sport == 0) {
+    if (wh->udp.sport == 0) {
         socklen_t len = sizeof(addr);
         ensure(getsockname(s->fd, (struct sockaddr *)&addr, &len) >= 0,
                "getsockname");
-        s->hdr->udp.sport = addr.sin_port;
+        wh->udp.sport = addr.sin_port;
     }
 
 #if defined(HAVE_KQUEUE)
@@ -246,6 +250,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #endif
     o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
 
+    const struct w_hdr * const wh = get_w_hdr(s->w, s);
     const struct w_iov * v = sq_first(o);
     do {
         size_t i;
@@ -259,8 +264,8 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
             // instead of the one in the template header
             dst[i] = (struct sockaddr_in){
                 .sin_family = AF_INET,
-                .sin_port = w_connected(s) ? s->hdr->udp.dport : v->port,
-                .sin_addr = {w_connected(s) ? s->hdr->ip.dst : v->ip}};
+                .sin_port = w_connected(s) ? wh->udp.dport : v->port,
+                .sin_addr = {w_connected(s) ? wh->ip.dst : v->ip}};
 #ifdef HAVE_SENDMMSG
             msgvec[i].msg_hdr =
 #else

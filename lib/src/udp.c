@@ -77,11 +77,12 @@
 /// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
+void udp_rx(struct w_engine * const w, struct netmap_ring * const r,
+    bool csum_valid)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    const struct ip_hdr * const ip = (const void *)eth_data(buf);
-    struct udp_hdr * const udp = (void *)ip_data(buf);
+    const struct ip_hdr * const ip = (const void *)eth_data(w, buf);
+    struct udp_hdr * const udp = (void *)ip_data(w, buf);
     const uint16_t udp_len =
         MIN(ntohs(udp->len), r->slot[r->cur].len - sizeof(struct eth_hdr) -
                                  sizeof(struct ip_hdr));
@@ -92,7 +93,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
         return;
     }
 
-    if (udp->cksum) {
+    if (unlikely(csum_valid == false && udp->cksum != 0)) {
         // validate the checksum
         const uint16_t cksum = udp_cksum(ip, udp_len + sizeof(*ip));
         if (unlikely(udp->cksum != cksum)) {
@@ -129,7 +130,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     const uint32_t tmp_idx = i->idx;
 
     // adjust the buffer offset to the received data into the iov
-    i->buf = ip_data(buf) + sizeof(*udp);
+    i->buf = (void *)((char *)ip_data(w, buf) + sizeof(*udp));
     i->len = udp_len - sizeof(*udp);
     i->idx = rxs->buf_idx;
 
@@ -161,25 +162,34 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     // copy template header into buffer and fill in remaining fields
     uint8_t * const buf = IDX2BUF(s->w, v->idx);
-    memcpy(buf, s->hdr, sizeof(*s->hdr));
+    const struct w_engine * const w = s->w;
+    memcpy(buf, s->hdr, sizeof(struct w_hdr) + w->vnet_hdr_len);
 
-    struct ip_hdr * const ip = (void *)eth_data(buf);
-    struct udp_hdr * const udp = (void *)ip_data(buf);
+    struct ip_hdr * const ip = (void *)eth_data(w, buf);
+    struct udp_hdr * const udp = (void *)ip_data(w, buf);
     const uint16_t len = v->len + sizeof(*udp);
     udp->len = htons(len);
 
     // if w_sock is disconnected, use destination IP and port from w_iov
     // instead of the one in the template header
     if (!w_connected(s)) {
-        struct eth_hdr * const e = (void *)buf;
+        struct eth_hdr * const e = (void *)((char *)buf + w->vnet_hdr_len);
         e->dst = arp_who_has(s->w, v->ip);
         ip->dst = v->ip;
         udp->dport = v->port;
     }
 
     // compute the checksum, unless disabled by a socket option
-    if ((s->flags & W_ZERO_CHKSUM) == 0)
-        udp->cksum = udp_cksum(ip, len + sizeof(*ip));
+    if (likely((s->flags & W_ZERO_CHKSUM) == 0)) {
+#ifdef NR_OFFLOAD_CSUM_MASK
+        // due to possible use of IP options or extension headers, most MACs
+        // require at least the IP pseudo checksum for L4 checksum offloading
+        if (likely((w->flags & W_TX_L4_CHKSUM) != 0))
+            udp->cksum = ip_pseudo(ip);
+        else
+#endif
+            udp->cksum = udp_cksum(ip, len + sizeof(*ip));
+    }
 
     udp_log(udp);
 

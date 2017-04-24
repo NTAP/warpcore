@@ -33,10 +33,10 @@ env.tests = [
     # {"speed": 40, "client": "mora1", "server": "mora2", "iface": "ixl0"},
 
     # mora Linux
-    {"speed": 1, "iter": 10, "client": "mora1", "server": "mora2",
-     "client_iface": "eno3", "server_iface": "eno3"},
-    {"speed": 10, "iter": 50, "client": "mora1", "server": "mora2",
-     "client_iface": "enp2s0f1", "server_iface": "enp8s0f1"},
+    # {"speed": 1, "iter": 10, "client": "mora1", "server": "mora2",
+    #  "client_iface": "eno3", "server_iface": "eno3"},
+    # {"speed": 10, "iter": 50, "client": "mora1", "server": "mora2",
+    #  "client_iface": "enp2s0f1", "server_iface": "enp8s0f1"},
     {"speed": 40, "iter": 100, "client": "mora1", "server": "mora2",
      "client_iface": "enp4s0f0", "server_iface": "enp4s0f0"},
 ]
@@ -232,11 +232,14 @@ def bench():
             execute(ip_config, t)
 
             # XXX need to test sock before warp, otherwise 40G sock perf sucks?
-            for k in ["warp", "sock"]:
+            #for k in ["warp", "sock"]:
+            for k in ["warp"]:
                 if k == "warp":
                     execute(netmap_config, t)
-                for c in ["", "-z"]:
-                    for w in ["-b", ""]:
+                #for c in ["", "-z"]:
+                for c in ["", "-z", "-4", "-34", "-x", "-34x"]:
+                    #for w in ["-b", ""]:
+                    for w in ["-b"]:
                         execute(start_server, t, w, c, k)
                         execute(start_client, t, w, c, k)
                         execute(stop)

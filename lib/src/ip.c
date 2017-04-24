@@ -87,7 +87,7 @@
 void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    const struct ip_hdr * const ip = (const void *)eth_data(buf);
+    const struct ip_hdr * const ip = (const void *)eth_data(w, buf);
     ip_log(ip);
 
     // make sure the packet is for us (or broadcast)
@@ -104,11 +104,19 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
     }
 
     // validate the IP checksum
-    if (unlikely(ip_cksum(ip, sizeof(*ip)) != 0)) {
-        warn(WRN, "invalid IP checksum, received 0x%04x != 0x%04x",
-             ntohs(ip->cksum), ip_cksum(ip, sizeof(*ip)));
-        return;
+    bool csum_valid = false;
+#ifdef NR_OFFLOAD_CSUM_MASK
+    if (likely((w->flags & W_RX_CHKSUM) != 0)) {
+        const struct nm_vnet_hdr * const vh = (const void *)buf;
+        csum_valid = (vh->flags & VIRTIO_NET_HDR_F_DATA_VALID) != 0;
     }
+    if (unlikely(csum_valid == false))
+#endif
+        if (unlikely(ip_cksum(ip, sizeof(*ip)) != 0)) {
+            warn(WRN, "invalid IP checksum, received 0x%04x != 0x%04x",
+                 ntohs(ip->cksum), ip_cksum(ip, sizeof(*ip)));
+            return;
+        }
 
     // TODO: handle IP options
     ensure(ip_hl(ip) == 20, "no support for IP options");
@@ -117,7 +125,7 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
     ensure((ntohs(ip->off) & IP_OFF_MASK) == 0, "no support for IP fragments");
 
     if (likely(ip->p == IP_P_UDP))
-        udp_rx(w, r);
+        udp_rx(w, r, csum_valid);
     else if (ip->p == IP_P_ICMP)
         icmp_rx(w, r);
     else {
@@ -148,7 +156,7 @@ bool ip_tx(struct w_engine * const w,
            struct w_iov * const v,
            const uint16_t len)
 {
-    struct ip_hdr * const ip = (void *)eth_data(IDX2BUF(w, v->idx));
+    struct ip_hdr * const ip = (void *)eth_data(w, IDX2BUF(w, v->idx));
     const uint16_t l = len + sizeof(*ip);
 
     // fill in remaining header fields
@@ -158,7 +166,10 @@ bool ip_tx(struct w_engine * const w,
     if (v->flags)
         ip->tos = v->flags; // app-specified DSCP + ECN
     // IP checksum is over header only (TODO: adjust instead of recompute)
-    ip->cksum = ip_cksum(ip, sizeof(*ip));
+#ifdef NR_OFFLOAD_CSUM_MASK
+    if (unlikely((w->flags & W_TX_L3_CHKSUM) == 0))
+#endif
+        ip->cksum = ip_cksum(ip, sizeof(*ip));
 
     ip_log(ip);
 

@@ -111,10 +111,10 @@ arp_is_at(struct w_engine * const w, const uint8_t * const buf)
         warn(CRT, "no more bufs; ARP reply not sent");
         return;
     }
-    struct arp_hdr * const reply = (void *)eth_data(v->buf);
+    struct arp_hdr * const reply = (void *)eth_data(w, v->buf);
 
     // construct ARP header
-    const struct arp_hdr * const req = (const void *)eth_data(buf);
+    const struct arp_hdr * const req = (const void *)eth_data(w, buf);
 
     reply->hrd = htons(ARP_HRD_ETHER);
     reply->pro = ETH_TYPE_IP;
@@ -134,10 +134,18 @@ arp_is_at(struct w_engine * const w, const uint8_t * const buf)
 #endif
 
     // send the Ethernet packet
-    struct eth_hdr * const eth = (void *)v->buf;
+    struct eth_hdr * const eth = (void *)((char *)v->buf + w->vnet_hdr_len);
     eth->dst = req->sha;
     eth->src = w->mac;
     eth->type = ETH_TYPE_ARP;
+
+#ifdef NR_OFFLOAD_CSUM_MASK
+    // set virtio network header fields (if used)
+    if (w->vnet_hdr_len > 0) {
+        memset(v->buf, 0, w->vnet_hdr_len);
+        ((struct w_hdr_vnet *)v->buf)->vh.gso_type = VIRTIO_NET_HDR_GSO_NONE;
+    }
+#endif
 
     // now send the packet, and make sure it went out before returning it
     const uint32_t orig_idx = v->idx;
@@ -178,8 +186,17 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
         }
 
         // pointers to the start of the various headers
-        struct eth_hdr * const eth = (void *)v->buf;
-        struct arp_hdr * const arp = (void *)eth_data(v->buf);
+        void * const buf = IDX2BUF(w, v->idx);
+        struct eth_hdr * const eth = (void *)((char *)buf + w->vnet_hdr_len);
+        struct arp_hdr * const arp = (void *)eth_data(w, buf);
+
+#ifdef NR_OFFLOAD_CSUM_MASK
+        // set virtio network header fields (if used)
+        if (w->vnet_hdr_len > 0) {
+            memset(buf, 0, w->vnet_hdr_len);
+            ((struct w_hdr_vnet *)buf)->vh.gso_type = VIRTIO_NET_HDR_GSO_NONE;
+        }
+#endif
 
         // set Ethernet header fields
         eth->dst = (struct ether_addr){{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}};
@@ -238,7 +255,7 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
 void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    const struct arp_hdr * const arp = (const void *)eth_data(buf);
+    const struct arp_hdr * const arp = (const void *)eth_data(w, buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
     if (hrd != ARP_HRD_ETHER || arp->hln != ETHER_ADDR_LEN)
@@ -282,16 +299,16 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
         // reply, and if so, change its destination MAC
         struct w_sock * s;
         splay_foreach (s, sock, &w->sock) {
+            struct w_hdr * wh = get_w_hdr(w, s);
             if ( // is local-net socket and ARP src IP matches its dst
-                ((mk_net(s->w->ip, s->w->mask) ==
-                      mk_net(s->hdr->ip.dst, s->w->mask) &&
-                  arp->spa == s->hdr->ip.dst)) ||
+                ((mk_net(wh->ip.src, w->mask) == mk_net(wh->ip.dst, w->mask) &&
+                  arp->spa == wh->ip.dst)) ||
                 // or non-local socket and ARP src IP matches router
-                (s->w->rip && (s->w->rip == arp->spa))) {
+                (w->rip && (w->rip == arp->spa))) {
                 warn(NTE, "updating socket on local port %u with %s for %s",
-                     ntohs(s->hdr->udp.sport), ether_ntoa(&arp->sha),
+                     ntohs(wh->udp.sport), ether_ntoa(&arp->sha),
                      inet_ntop(AF_INET, &arp->spa, ip_str, INET_ADDRSTRLEN));
-                s->hdr->eth.dst = arp->sha;
+                wh->eth.dst = arp->sha;
             }
         }
         break;

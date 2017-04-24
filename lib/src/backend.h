@@ -106,11 +106,38 @@ struct w_hdr {
 };
 
 
+#ifdef NR_OFFLOAD_CSUM_MASK
+/// A warpcore template packet header structure including a virtio network
+/// header.
+///
+struct w_hdr_vnet {
+    struct nm_vnet_hdr vh;                    ///< Virtio network header.
+    struct w_hdr wh;                          ///< Regular template header.
+};
+#endif
+
+
+/// Get a pointer to the w_hdr template of a @p socket.
+///
+/// @param      w     Backend engine.
+/// @param[in]  s     The socket.
+///
+/// @return     The w_hdr template of @p socket.
+///
+static inline struct w_hdr * __attribute__((nonnull))
+get_w_hdr(const struct w_engine * const w, const struct w_sock * const s)
+{
+    return (struct w_hdr *)(void *)((char *)s->hdr + w->vnet_hdr_len);
+}
+
+
 static inline int8_t w_sock_cmp(const struct w_sock * const a,
                                 const struct w_sock * const b)
 {
-    return (a->hdr->udp.sport > b->hdr->udp.sport) -
-           (a->hdr->udp.sport < b->hdr->udp.sport);
+    const struct w_hdr * const wha = get_w_hdr(a->w, a);
+    const struct w_hdr * const whb = get_w_hdr(b->w, b);
+    return (wha->udp.sport > whb->udp.sport) -
+           (wha->udp.sport < whb->udp.sport);
 }
 
 
@@ -146,7 +173,7 @@ extern sl_head(w_engines, w_engine) engines;
     do {                                                                       \
         (v)->w = (ww);                                                         \
         (v)->buf = IDX2BUF((ww), (v)->idx);                                    \
-        (v)->len = (ww)->mtu;                                                  \
+        (v)->len = (ww)->mtu + (ww)->vnet_hdr_len;                             \
         (v)->o = 0;                                                            \
     } while (0)
 

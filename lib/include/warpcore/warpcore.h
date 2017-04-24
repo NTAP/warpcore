@@ -74,6 +74,8 @@ struct w_engine {
     uint32_t mask;        ///< IPv4 netmask of this interface.
     uint32_t rip;         ///< Our default IPv4 router IP address.
     uint16_t mtu;         ///< MTU of this interface.
+    uint8_t flags;        ///< Flags for this interface.
+    uint8_t vnet_hdr_len; ///< Length of the virtio network header.
     struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
     struct sock sock;      ///< List of open (bound) w_sock sockets.
     struct w_iov_sq iov;   ///< Tail queue of w_iov buffers available.
@@ -101,7 +103,12 @@ sl_head(w_sock_slist, w_sock);
 /// Do not compute a UDP checksum for outgoing packets. Has no effect for the
 /// socket engine.
 ///
-#define W_ZERO_CHKSUM 1
+#define W_ZERO_CHKSUM   0x1
+#define W_RX_CHKSUM     0x2
+#define W_TX_L3_CHKSUM  0x4
+#define W_TX_L4_CHKSUM  0x8
+#define W_TX_CHKSUM     (W_TX_L3_CHKSUM | W_TX_L4_CHKSUM)
+#define W_CHKSUM        (W_RX_CHKSUM | W_TX_CHKSUM)
 
 
 /// A warpcore socket.
@@ -115,7 +122,7 @@ struct w_sock {
 
     /// The template header to be used for outbound packets on this
     /// w_sock.
-    struct w_hdr * hdr;
+    void * hdr;
 
     sl_entry(w_sock) next_rx; ///< Next socket with unread data.
     uint8_t flags;            ///< Socket flags.
@@ -190,7 +197,8 @@ struct w_iov {
 
 
 extern struct w_engine * __attribute__((nonnull))
-w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs);
+w_init(const char * const ifname, const uint32_t rip, const uint8_t flags,
+       const uint32_t nbufs);
 
 extern void __attribute__((nonnull)) w_cleanup(struct w_engine * const w);
 

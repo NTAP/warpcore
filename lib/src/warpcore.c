@@ -51,6 +51,10 @@
 #include <net/netmap_user.h> // IWYU pragma: keep
 #endif
 
+#ifdef NR_OFFLOAD_CSUM_MASK
+#include <stddef.h>
+#endif
+
 #ifdef HAVE_ASAN
 #include <sanitizer/asan_interface.h>
 #endif
@@ -82,8 +86,16 @@ struct w_engines engines = sl_head_initializer(engines);
 ///
 struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 {
+#ifdef NR_OFFLOAD_CSUM_MASK
+    struct w_hdr_vnet whv;
+    memset(&whv, 0, sizeof(whv));
+    ((struct w_hdr *)((char *)&whv + w->vnet_hdr_len))->udp.sport = port;
+    struct w_hdr * hp = (void *)&whv;
+#else
     struct w_hdr h = {.udp.sport = port};
-    struct w_sock s = {.hdr = &h};
+    struct w_hdr * hp = &h;
+#endif
+    struct w_sock s = {.w = w, .hdr = hp};
     return splay_find(sock, &w->sock, &s);
 }
 
@@ -103,7 +115,8 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
     struct w_iov * const v = w_alloc_iov_base(w);
     if (likely(v)) {
 #ifdef WITH_NETMAP
-        v->buf += sizeof(struct w_hdr);
+        v->buf += sizeof(struct w_hdr) + w->vnet_hdr_len;
+        // init_iov() has already taken vnet_hdr_len into account for the length
         v->len -= sizeof(struct w_hdr);
 #endif
         ensure(off == 0 || off <= v->len, "off %u > v->len %u", off, v->len);
@@ -210,8 +223,9 @@ uint32_t w_iov_sq_len(const struct w_iov_sq * const q)
 ///
 void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 {
-    s->hdr->ip.dst = ip;
-    s->hdr->udp.dport = port;
+    struct w_hdr * wh = get_w_hdr(s->w, s);
+    wh->ip.dst = ip;
+    wh->udp.dport = port;
     backend_connect(s);
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
@@ -224,8 +238,9 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 
 void w_disconnect(struct w_sock * const s)
 {
-    s->hdr->ip.dst = 0;
-    s->hdr->udp.dport = 0;
+    struct w_hdr * wh = get_w_hdr(s->w, s);
+    wh->ip.dst = 0;
+    wh->udp.dport = 0;
 
     warn(DBG, "socket disconnected");
 }
@@ -250,20 +265,48 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
     }
 
     ensure((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");
-    ensure((s->hdr = calloc(1, sizeof(*s->hdr))) != 0, "cannot allocate w_hdr");
+
+    struct w_hdr *wh;
+#ifdef NR_OFFLOAD_CSUM_MASK
+    struct w_hdr_vnet *whv;
+    if ((flags & W_CHKSUM) != 0) {
+        ensure((s->hdr = calloc(1, sizeof(*whv))) != 0,
+               "cannot allocate w_hdr_vnet");
+        whv = s->hdr;
+        wh = &whv->wh;
+    } else
+#endif
+    {
+        ensure((s->hdr = calloc(1, sizeof(*wh))) != 0, "cannot allocate w_hdr");
+        wh = s->hdr;
+    }
 
     // initialize flags
     s->flags = flags;
 
     // initialize the non-zero fields of outgoing template header
-    s->hdr->eth.type = ETH_TYPE_IP;
-    s->hdr->eth.src = w->mac;
-    // s->hdr->eth.dst is set on w_connect()
+#ifdef NR_OFFLOAD_CSUM_MASK
+    if ((flags & W_CHKSUM) != 0) {
+      whv->vh.flags = 0;
+      if ((flags & W_TX_CHKSUM) != 0)
+          whv->vh.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
+      whv->vh.gso_type = VIRTIO_NET_HDR_GSO_NONE;
+      whv->vh.hdr_len = sizeof(struct eth_hdr) + sizeof(struct ip_hdr) +
+        sizeof(struct udp_hdr);
+      whv->vh.gso_size = 0;
+      whv->vh.csum_start = sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
+      whv->vh.csum_offset = offsetof(struct udp_hdr, cksum);
+    }
+#endif
 
-    ip_hdr_init(&s->hdr->ip);
-    s->hdr->ip.src = w->ip;
-    s->hdr->udp.sport = port;
-    // s->hdr->ip.dst is set on w_connect()
+    wh->eth.type = ETH_TYPE_IP;
+    wh->eth.src = w->mac;
+    // wh->eth.dst is set on w_connect()
+
+    ip_hdr_init(&wh->ip);
+    wh->ip.src = w->ip;
+    wh->udp.sport = port;
+    // wh->ip.dst is set on w_connect()
 
     s->w = w;
     splay_insert(sock, &w->sock, s);
@@ -271,7 +314,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 
     backend_bind(s);
 
-    warn(NTE, "socket bound to port %d", ntohs(s->hdr->udp.sport));
+    warn(NTE, "socket bound to port %d", ntohs(wh->udp.sport));
 
     return s;
 }
@@ -339,11 +382,23 @@ void w_cleanup(struct w_engine * const w)
 /// @return     Initialized warpcore engine.
 ///
 struct w_engine *
-w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
+w_init(const char * const ifname, const uint32_t rip, const uint8_t flags,
+       const uint32_t nbufs)
 {
     // allocate engine struct
     struct w_engine * w;
     ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
+
+    // store flags
+    w->flags = flags;
+
+    // set virtio network header length (if used)
+#ifdef NR_OFFLOAD_CSUM_MASK
+    if ((flags & W_CHKSUM) != 0)
+        w->vnet_hdr_len = sizeof(struct nm_vnet_hdr);
+    else
+#endif
+        w->vnet_hdr_len = 0;
 
     // initialize lists of sockets and iovs
     splay_init(&w->sock);
@@ -466,7 +521,7 @@ uint16_t w_iov_max_len(const struct w_iov * const v)
 {
     const uint16_t offset = (const uint16_t)(
         (const uint8_t *)v->buf - (const uint8_t *)IDX2BUF(v->w, v->idx));
-    return v->w->mtu - offset;
+    return v->w->mtu - v->w->vnet_hdr_len - offset;
 }
 
 
@@ -479,7 +534,7 @@ uint16_t w_iov_max_len(const struct w_iov * const v)
 ///
 bool w_connected(const struct w_sock * const s)
 {
-    return s->hdr->ip.dst;
+    return get_w_hdr(s->w, s)->ip.dst;
 }
 
 
@@ -496,7 +551,7 @@ void w_free(struct w_iov_sq * const q)
     sq_concat(&w->iov, q);
     struct w_iov * v;
     sq_foreach (v, q, next)
-        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
+        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu + w->vnet_hdr_len);
 }
 
 
@@ -508,5 +563,6 @@ void w_free(struct w_iov_sq * const q)
 void w_free_iov(struct w_iov * const v)
 {
     sq_insert_head(&v->w->iov, v, next);
-    ASAN_POISON_MEMORY_REGION(IDX2BUF(v->w, v->idx), v->w->mtu);
+    ASAN_POISON_MEMORY_REGION(IDX2BUF(v->w, v->idx), v->w->mtu +
+                              v->w->vnet_hdr_len);
 }

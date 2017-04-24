@@ -48,7 +48,8 @@ struct udp_hdr {
 
 
 extern void __attribute__((nonnull))
-udp_rx(struct w_engine * const w, struct netmap_ring * const r);
+udp_rx(struct w_engine * const w, struct netmap_ring * const r,
+       bool csum_valid);
 
 extern bool __attribute__((nonnull))
 udp_tx(const struct w_sock * const s, struct w_iov * const v);

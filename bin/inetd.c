@@ -42,8 +42,11 @@ static void usage(const char * const name, const uint32_t nbufs)
 {
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
+    printf("\t[-3]                    optional, TX L3 checksum offloading\n");
+    printf("\t[-4]                    optional, TX L4 checksum offloading\n");
     printf("\t[-b]                    optional, busy-wait\n");
     printf("\t[-z]                    optional, turn off UDP checksums\n");
+    printf("\t[-x]                    optional, RX checksum offloading\n");
     printf("\t[-n buffers]            packet buffers to allocate "
            "(default %u)\n",
            nbufs);
@@ -87,11 +90,17 @@ int main(const int argc, char * const argv[])
     // handle arguments
     int ch;
 #ifndef NDEBUG
-    while ((ch = getopt(argc, argv, "hi:bzn:v:")) != -1) {
+    while ((ch = getopt(argc, argv, "34hi:bzxn:v:")) != -1) {
 #else
-    while ((ch = getopt(argc, argv, "hi:bzn:")) != -1) {
+    while ((ch = getopt(argc, argv, "34hi:bzxn:")) != -1) {
 #endif
         switch (ch) {
+        case '3':
+            flags |= W_TX_L3_CHKSUM;
+            break;
+        case '4':
+            flags |= W_TX_L4_CHKSUM;
+            break;
         case 'i':
             ifname = optarg;
             break;
@@ -100,6 +109,9 @@ int main(const int argc, char * const argv[])
             break;
         case 'z':
             flags |= W_ZERO_CHKSUM;
+            break;
+        case 'x':
+            flags |= W_RX_CHKSUM;
             break;
         case 'n':
             nbufs = (uint32_t)MIN(900000, MAX(1, strtoul(optarg, 0, 10)));
@@ -123,7 +135,7 @@ int main(const int argc, char * const argv[])
     }
 
     // initialize a warpcore engine on the given network interface
-    struct w_engine * w = w_init(ifname, 0, nbufs);
+    struct w_engine * w = w_init(ifname, 0, flags, nbufs);
 
     // install a signal handler to clean up after interrupt
     ensure(signal(SIGTERM, &terminate) != SIG_ERR, "signal");

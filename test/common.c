@@ -110,8 +110,8 @@ void init(const uint32_t len)
 #endif
         ;
 
-    w_serv = w_init(i, 0, len);
-    w_clnt = w_init(i, 0, len);
+    w_serv = w_init(i, 0, 0, len);
+    w_clnt = w_init(i, 0, 0, len);
 
     // bind server socket
     s_serv = w_bind(w_serv, htons(55555), 0);

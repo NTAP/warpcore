@@ -60,6 +60,8 @@ static void usage(const char * const name,
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
     printf("\t -d destination IP      peer to connect to\n");
+    printf("\t[-3]                    TX L3 checksum offloading\n");
+    printf("\t[-4]                    TX L4 checksum offloading\n");
     printf("\t[-r router IP]          router to use for non-local peers\n");
     printf("\t[-n buffers]            packet buffers to allocate "
            "(default %u)\n",
@@ -76,6 +78,7 @@ static void usage(const char * const name,
     printf("\t[-c connections]        parallel connections (default %u)\n",
            conns);
     printf("\t[-z]                    turn off UDP checksums\n");
+    printf("\t[-x]                    RX checksum offloading\n");
     printf("\t[-b]                    busy-wait\n");
 #ifndef NDEBUG
     printf("\t[-v verbosity]          verbosity level (0-%d, default %d)\n",
@@ -125,11 +128,17 @@ int main(const int argc, char * const argv[])
     // handle arguments
     int ch;
 #ifndef NDEBUG
-    while ((ch = getopt(argc, argv, "hzbi:d:l:r:s:c:e:p:n:v:")) != -1) {
+    while ((ch = getopt(argc, argv, "34hzxbi:d:l:r:s:c:e:p:n:v:")) != -1) {
 #else
-    while ((ch = getopt(argc, argv, "hzbi:d:l:r:s:c:e:p:n:")) != -1) {
+    while ((ch = getopt(argc, argv, "34hzxbi:d:l:r:s:c:e:p:n:")) != -1) {
 #endif
         switch (ch) {
+        case '3':
+            flags |= W_TX_L3_CHKSUM;
+            break;
+        case '4':
+            flags |= W_TX_L4_CHKSUM;
+            break;
         case 'i':
             ifname = optarg;
             break;
@@ -164,6 +173,9 @@ int main(const int argc, char * const argv[])
         case 'z':
             flags |= W_ZERO_CHKSUM;
             break;
+        case 'x':
+            flags |= W_RX_CHKSUM;
+            break;
 #ifndef NDEBUG
         case 'v':
             util_dlevel = (short)MIN(DLEVEL, strtoul(optarg, 0, 10));
@@ -196,7 +208,7 @@ int main(const int argc, char * const argv[])
     }
 
     // initialize a warpcore engine on the given network interface
-    struct w_engine * w = w_init(ifname, rip, nbufs);
+    struct w_engine * w = w_init(ifname, rip, flags, nbufs);
 
     struct w_sock ** s = calloc(conns, sizeof(*s));
     ensure(s, "got sockets");

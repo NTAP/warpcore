@@ -86,7 +86,7 @@ csum_oc16_reduce(uint32_t sum)
 {
     while (sum >> 16)
         sum = (sum & 0xFFFF) + (sum >> 16);
-    return (uint16_t)(~sum);
+    return (uint16_t)sum;
 }
 
 
@@ -101,7 +101,7 @@ csum_oc16_reduce(uint32_t sum)
 uint16_t ip_cksum(const void * const buf, const uint16_t len)
 {
     const uint32_t sum = csum_oc16(buf, len);
-    return csum_oc16_reduce(sum);
+    return ~csum_oc16_reduce(sum);
 }
 
 
@@ -113,7 +113,7 @@ ip_cksum_update32(uint16_t old_check, uint32_t old_data, uint32_t new_data)
     const uint32_t l = (uint32_t)old_check + (old_data >> 16) +
                        (old_data & 0xffff) + (new_data >> 16) +
                        (new_data & 0xffff);
-    return csum_oc16_reduce(l);
+    return ~csum_oc16_reduce(l);
 }
 
 
@@ -123,7 +123,29 @@ ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data)
     old_check = ~old_check;
     old_data = ~old_data;
     const uint32_t l = (uint32_t)(old_check + ~old_data + new_data);
-    return csum_oc16_reduce(l);
+    return ~csum_oc16_reduce(l);
+}
+
+
+static inline uint32_t __attribute__((always_inline))
+ip_pseudo32(const void * const buf)
+{
+    const struct ip_hdr * const ip = (const struct ip_hdr *)buf;
+    const struct udp_hdr * const udp =
+        (const struct udp_hdr *)(const void *)((const uint8_t *)buf +
+                                               sizeof(*ip));
+    uint32_t sum = ((uint32_t)ip->p) << 8;
+    sum += csum_oc16((const uint8_t *)&ip->src, sizeof(ip->src));
+    sum += csum_oc16((const uint8_t *)&ip->dst, sizeof(ip->dst));
+    sum += csum_oc16((const uint8_t *)&udp->len, sizeof(udp->len));
+    return sum;
+}
+
+
+uint16_t ip_pseudo(const void * const buf)
+{
+    const uint32_t sum = ip_pseudo32(buf);
+    return csum_oc16_reduce(sum);
 }
 
 
@@ -135,10 +157,7 @@ uint16_t udp_cksum(const void * const buf, const uint16_t len)
                                                sizeof(*ip));
 
     // IPv4 pseudo header
-    uint32_t sum = ((uint32_t)ip->p) << 8;
-    sum += csum_oc16((const uint8_t *)&ip->src, sizeof(ip->src));
-    sum += csum_oc16((const uint8_t *)&ip->dst, sizeof(ip->dst));
-    sum += csum_oc16((const uint8_t *)&udp->len, sizeof(udp->len));
+    uint32_t sum = ip_pseudo32(buf);
 
     // UDP header without checksum.
     sum += csum_oc16((const uint8_t *)udp, sizeof(*udp) - sizeof(uint16_t));
@@ -147,7 +166,7 @@ uint16_t udp_cksum(const void * const buf, const uint16_t len)
     sum += csum_oc16((const uint8_t *)udp + sizeof(*udp),
                      len - sizeof(*ip) - sizeof(*udp));
 
-    return csum_oc16_reduce(sum);
+    return ~csum_oc16_reduce(sum);
 }
 
 
@@ -259,7 +278,7 @@ uint16_t ip_cksum_sse(const void * const buf, const uint16_t len)
     const uint32_t sum =
         csum_oc16_sse(buf, len, _mm_setzero_si128(), _mm_setzero_si128());
 
-    return htons(csum_oc16_reduce(sum));
+    return htons(~csum_oc16_reduce(sum));
 }
 
 
@@ -297,5 +316,5 @@ uint16_t udp_cksum_sse(const void * const buf, const uint16_t len)
                         sum32a, sum32b) +
           ((uint32_t)ip->p);
 
-    return htons(csum_oc16_reduce(sum));
+    return htons(~csum_oc16_reduce(sum));
 }

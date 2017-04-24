@@ -68,7 +68,9 @@ char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
 ///
 void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
-    struct eth_hdr * const eth = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
+    struct eth_hdr * const eth =
+      (void *)((char *)NETMAP_BUF(r, r->slot[r->cur].buf_idx) +
+      w->vnet_hdr_len);
 #ifndef NDEBUG
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];

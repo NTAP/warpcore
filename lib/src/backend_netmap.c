@@ -56,7 +56,7 @@
 
 /// The backend name.
 ///
-static char backend_name[] = "netmap";
+static const char backend_name[] = "netmap";
 
 
 /// Initialize the warpcore netmap backend for engine @p w. This switches the
@@ -86,12 +86,12 @@ void backend_init(struct w_engine * const w,
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");
     b->req->nr_name[sizeof b->req->nr_name - 1] = '\0';
     b->req->nr_version = NETMAP_API;
-    b->req->nr_ringid &= ~NETMAP_RING_MASK;
-    b->req->nr_ringid |= NETMAP_NO_TX_POLL; // don't always transmit on poll
-    b->req->nr_flags = NR_REG_ALL_NIC;
 
     // if the interface is a netmap pipe, restore its name
     if (is_lo) {
+        ensure((w->flags & W_CHKSUM) == 0,
+               "%s: checksum offloading requested but not supported",
+               w->ifname);
         warn(NTE, "%s is a loopback, using %s netmap pipe", w->ifname,
              is_left ? "left" : "right");
 
@@ -110,6 +110,38 @@ void backend_init(struct w_engine * const w,
                    "can only have one warpcore engine active on %s", w->ifname);
 
         strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);
+
+#ifdef NR_OFFLOAD_CSUM_MASK
+        ensure(ioctl(b->fd, NIOCGINFO, b->req) != -1,
+               "%s: cannot obtain interface information", w->ifname);
+        if ((w->flags & W_CHKSUM) != 0) {
+            ensure((w->flags & W_TX_CHKSUM) != W_TX_L3_CHKSUM,
+                   "%s: L3 checksuming without L4 checksuming not supported",
+                   w->ifname);
+            ensure((b->req->nr_flags & NR_OFFLOAD_CSUM_IPV4) != 0,
+                   "%s: checksum offloading requested but not supported",
+                   w->ifname);
+            b->req->nr_cmd = NETMAP_OFFLOAD_TOGGLE;
+            b->req->nr_arg1 = w->vnet_hdr_len;
+            ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,
+                   "%s: cannot enable checksum offloading", w->ifname);
+        } else if ((b->req->nr_flags & NR_OFFLOAD_CSUM_MASK) != 0) {
+            b->req->nr_cmd = NETMAP_OFFLOAD_TOGGLE;
+            b->req->nr_arg1 = 0;
+            ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,
+                   "%s: cannot disable checksum offloading", w->ifname);
+        }
+        b->req->nr_cmd = 0;
+        b->req->nr_arg1 = 0;
+        b->req->nr_flags = NR_ACCEPT_VNET_HDR;
+#else
+        ensure((w->flags & W_CHKSUM) == 0,
+               "%s: checksum offloading requested but not supported",
+               w->ifname);
+#endif
+        b->req->nr_ringid &= ~NETMAP_RING_MASK;
+        b->req->nr_ringid |= NETMAP_NO_TX_POLL; // don't always transmit on poll
+        b->req->nr_flags |= NR_REG_ALL_NIC;
     }
 
     b->req->nr_arg3 = nbufs; // request extra buffers
@@ -159,7 +191,7 @@ void backend_init(struct w_engine * const w,
         init_iov(w, &w->bufs[n]);
         sq_insert_head(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
-        ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, w->mtu);
+        ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, w->mtu + w->vnet_hdr_len);
     }
 
     if (b->req->nr_arg3 != nbufs)
@@ -188,7 +220,7 @@ void backend_cleanup(struct w_engine * const w)
     // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
         uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
-        ASAN_UNPOISON_MEMORY_REGION(buf, w->mtu);
+        ASAN_UNPOISON_MEMORY_REGION(buf, w->mtu + w->vnet_hdr_len);
         if (likely(n < sq_len(&w->iov) - 1))
             *buf = w->bufs[n + 1].idx;
         else
@@ -204,6 +236,15 @@ void backend_cleanup(struct w_engine * const w)
     ensure(munmap(w->mem, w->b->req->nr_memsize) != -1,
            "cannot munmap netmap memory");
 
+#ifdef NR_OFFLOAD_CSUM_MASK
+    if ((w->flags & W_CHKSUM) != 0) {
+        w->b->req->nr_cmd = NETMAP_OFFLOAD_TOGGLE;
+        w->b->req->nr_arg1 = 0;
+        ensure(ioctl(w->b->fd, NIOCREGIF, w->b->req) != -1,
+               "%s: cannot disable checksum offloading", w->ifname);
+    }
+#endif
+
     ensure(close(w->b->fd) != -1, "cannot close /dev/netmap");
     free(w->bufs);
     free(w->b->req);
@@ -218,7 +259,9 @@ void backend_cleanup(struct w_engine * const w)
 ///
 void backend_bind(struct w_sock * s)
 {
-    if (s->hdr->udp.sport)
+    struct w_hdr * wh = get_w_hdr(s->w, s);
+
+    if (wh->udp.sport)
         return;
 
     // compute a random local port number per RFC 6056, Section 3.3.5
@@ -231,7 +274,7 @@ void backend_bind(struct w_sock * s)
         s->w->b->next_eph += (w_rand() % N) + 1;
         const uint16_t port = htons(min_eph + (s->w->b->next_eph % num_eph));
         if (get_sock(s->w, port) == 0) {
-            s->hdr->udp.sport = port;
+            wh->udp.sport = port;
             return;
         }
     } while (--count > 0);
@@ -255,13 +298,15 @@ void backend_close(struct w_sock * const s __attribute__((unused))) {}
 ///
 void backend_connect(struct w_sock * const s)
 {
+    struct w_hdr * wh = get_w_hdr(s->w, s);
+
     // find the Ethernet MAC address of the destination or the default router,
     // and update the template header
-    const uint32_t ip = s->w->rip && (mk_net(s->hdr->ip.dst, s->w->mask) !=
-                                      mk_net(s->hdr->ip.src, s->w->mask))
+    const uint32_t ip = s->w->rip && (mk_net(wh->ip.dst, s->w->mask) !=
+                                      mk_net(wh->ip.src, s->w->mask))
                             ? s->w->rip
-                            : s->hdr->ip.dst;
-    s->hdr->eth.dst = arp_who_has(s->w, ip);
+                            : wh->ip.dst;
+    wh->eth.dst = arp_who_has(s->w, ip);
 }
 
 

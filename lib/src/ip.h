@@ -126,7 +126,11 @@ struct ip_hdr {
 ///
 /// @return     Pointer to the first payload byte.
 ///
-#define ip_data(buf) (eth_data(buf) + ip_hl((buf) + sizeof(struct eth_hdr)))
+#define ip_data(w, buf) __extension__ ({                                       \
+    void * data = eth_data(w, buf);                                            \
+    data = (void *)((char *)data + ip_hl(data));                               \
+    data;                                                                      \
+})
 
 
 /// Calculates the length of the payload data for the given IPv4 header @p ip.

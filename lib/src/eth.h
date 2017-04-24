@@ -61,7 +61,8 @@ struct eth_hdr {
 ///
 /// @return     Pointer to the first data byte inside @p buf.
 ///
-#define eth_data(buf) ((buf) + sizeof(struct eth_hdr))
+#define eth_data(w, buf)                                                       \
+    (void *)((char *)(buf) + (w)->vnet_hdr_len + sizeof(struct eth_hdr))
 
 
 extern void __attribute__((nonnull))
@@ -118,7 +119,7 @@ eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
     struct netmap_slot * const s = &txr->slot[txr->cur];
     w->b->slot_buf[txr->ringid][txr->cur] = v;
     s->flags = NS_BUF_CHANGED;
-    s->len = len + sizeof(struct eth_hdr);
+    s->len = len + sizeof(struct eth_hdr) + w->vnet_hdr_len;
     warn(DBG, "%s iov idx %u into tx ring %u slot %d (%s %u)",
          is_pipe(w) ? "copying" : "placing", v->idx, w->b->cur_txr, txr->cur,
          is_pipe(w) ? "idx" : "swap with", s->buf_idx);
@@ -135,7 +136,8 @@ eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
 #if !defined(NDEBUG) && DLEVEL >= DBG
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
-    const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, s->buf_idx);
+    const struct eth_hdr * const eth =
+      (void *)((char *)NETMAP_BUF(txr, s->buf_idx) + w->vnet_hdr_len);
     warn(DBG, "Eth %s -> %s, type %d, len %lu", ether_ntoa_r(&eth->src, src),
          ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), len + sizeof(*eth));
 #endif
