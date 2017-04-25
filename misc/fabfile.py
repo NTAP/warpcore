@@ -49,11 +49,12 @@ def ip_config(iface):
                     "sysctl -w net.core.wmem_default=26214400; "
                     "ifconfig %s down; "
                     "ethtool -C %s adaptive-rx off adaptive-tx off "
-                    "rx-usecs 0 tx-usecs 0; "
+                    "rx-frames-irq 1 tx-frames-irq 1 rx-usecs 0 tx-usecs 0; "
                     "ethtool -G %s rx 2048 tx 2048; "
                     "ethtool -A %s autoneg off rx off tx off ; "
                     "ethtool -L %s combined 2; "
-                    "ifconfig %s up; " % ((iface, ) * 6))
+                    "ethtool --set-eee %s eee off; "
+                    "ifconfig %s up; " % ((iface, ) * 7))
         else:
             cmd += ("pkill -f 'dhclient: %s'; " % iface)
         cmd += ("ifconfig %s %s/24 up; " % (iface, env.ip[env.host_string]))
@@ -143,9 +144,9 @@ def start_server(test, busywait, cksum, kind):
         log = "../%sinetd-%s%s%s.log" % (kind, test["speed"], busywait, cksum)
         if not env.keeplog:
             log = "/dev/null"
-        sudo("/usr/bin/nohup "
+        sudo("/usr/bin/nohup %s 3 "
              "%s/bin/%sinetd -i %s %s %s 2>&1 > %s &" %
-             (env.builddir, kind, test["iface"], busywait, cksum, log))
+             (pin, env.builddir, kind, test["iface"], busywait, cksum, log))
 
 
 @task
@@ -180,9 +181,9 @@ def start_client(test, busywait, cksum, kind):
         log = prefix + ".log"
         if not env.keeplog:
             log = "/dev/null"
-        sudo(""
+        sudo("%s 3 "
              "%s/bin/%sping -i %s -d %s %s %s -l 50 -c 0 -e 512000 > %s 2> %s" %
-             (env.builddir, kind, test["iface"], env.ip[test["server"]],
+             (pin, env.builddir, kind, test["iface"], env.ip[test["server"]],
               busywait, cksum, file, log))
 
 
