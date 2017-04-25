@@ -134,13 +134,18 @@ def build():
 @parallel
 @roles("server")
 def start_server(test, busywait, cksum, kind):
+    pin = ""
+    if env.uname[env.host_string] == "Linux":
+        pin = "/usr/bin/taskset -c"
+    else:
+        pin = "/usr/bin/cpuset -l"
     with cd(env.builddir):
         log = "../%sinetd-%s%s%s.log" % (kind, test["speed"], busywait, cksum)
         if not env.keeplog:
             log = "/dev/null"
-        sudo("/usr/bin/nice -20 /usr/bin/nohup /usr/bin/taskset -c 3 "
-             "bin/%sinetd -i %s %s %s 2>&1 > %s &" %
-             (kind, test["iface"], busywait, cksum, log))
+        sudo("/usr/bin/nohup "
+             "%s/bin/%sinetd -i %s %s %s 2>&1 > %s &" %
+             (env.builddir, kind, test["iface"], busywait, cksum, log))
 
 
 @task
@@ -148,11 +153,11 @@ def start_server(test, busywait, cksum, kind):
 @roles("client", "server")
 def stop(flag=""):
     with settings(warn_only=True):
-        sudo('''pkill %s -f inetd ; while : ; do \
+        sudo('''pkill %s inetd ; while : ; do \
                 pkill %s '(warp|shim)(ping|inetd)'; \
                 pgrep "(warp|shim)(ping|inetd)"; \
                 [ "$?" == 1 ] && break; \
-                sleep 1; \
+                sleep 3; \
             done''' % (flag, flag))
 
 
@@ -164,15 +169,20 @@ def uname():
 
 @roles("client")
 def start_client(test, busywait, cksum, kind):
+    pin = ""
+    if env.uname[env.host_string] == "Linux":
+        pin = "/usr/bin/taskset -c"
+    else:
+        pin = "/usr/bin/cpuset -l"
     with cd(env.builddir):
         prefix = "../%sping-%s%s%s" % (kind, test["speed"], busywait, cksum)
         file = prefix + ".txt"
         log = prefix + ".log"
         if not env.keeplog:
             log = "/dev/null"
-        sudo("nice -20 /usr/bin/taskset -c 3 "
-             "bin/%sping -i %s -d %s %s %s -l 50 -c 0 -e 512000 > %s 2> %s" %
-             (kind, test["iface"], env.ip[test["server"]],
+        sudo(""
+             "%s/bin/%sping -i %s -d %s %s %s -l 50 -c 0 -e 512000 > %s 2> %s" %
+             (env.builddir, kind, test["iface"], env.ip[test["server"]],
               busywait, cksum, file, log))
 
 
