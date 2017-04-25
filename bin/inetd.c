@@ -53,10 +53,16 @@ static void usage(const char * const name)
 static bool done = false;
 
 
-// set the global termination flag
+// set the global termination flag; pass signal through after second time
 static void terminate(int signum __attribute__((unused)))
 {
-    done = true;
+    if (done) {
+        // we've been here before, restore the default signal handlers
+        warn(warn, "got repeated signal, passing through");
+        ensure(signal(SIGTERM, SIG_DFL) != SIG_ERR, "signal");
+        ensure(signal(SIGINT, SIG_DFL) != SIG_ERR, "signal");
+    } else
+        done = true;
 }
 
 
