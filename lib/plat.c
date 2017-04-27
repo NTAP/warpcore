@@ -105,7 +105,7 @@ uint16_t plat_get_mtu(const struct ifaddrs * i
     ensure(s >= 0, "%s socket", i->ifa_name);
 
     struct ifreq ifr = {0};
-    strcpy(ifr.ifr_name, i->ifa_name);
+    strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
 
     ensure(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
 
@@ -142,7 +142,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i
     ensure(s >= 0, "%s socket", i->ifa_name);
 
     struct ifreq ifr = {0};
-    strcpy(ifr.ifr_name, i->ifa_name);
+    strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
 
     // if this is loopback interface, SIOCETHTOOL will fail, so just return a
     // placeholder value
@@ -188,7 +188,7 @@ bool plat_get_link(const struct ifaddrs * i
     ensure(s >= 0, "%s socket", i->ifa_name);
 
     struct ifreq ifr = {0};
-    strcpy(ifr.ifr_name, i->ifa_name);
+    strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
 
     ensure(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
 
