@@ -52,7 +52,7 @@
 #include <string.h>
 #endif
 
-#include <warpcore.h>
+#include <warpcore.h> // IWYU pragma: keep
 
 #include "eth.h"
 
