@@ -54,14 +54,51 @@
 #include "ip.h"
 #include "udp.h"
 
-extern struct w_iov * alloc_iov(struct w_engine * w);
-extern struct w_sock * get_sock(struct w_engine * w, uint16_t port);
-
-
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
 ///
 struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
+
+
+/// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
+/// returned to w->iov via STAILQ_INSERT_HEAD() or STAILQ_CONCAT().
+///
+/// @param      w     Backend engine.
+///
+/// @return     Spare w_iov.
+///
+struct w_iov * __attribute__((nonnull))
+alloc_iov(struct w_engine * const w)
+{
+    struct w_iov * const v = STAILQ_FIRST(&w->iov);
+    ensure(v != 0, "out of spare iovs");
+    STAILQ_REMOVE_HEAD(&w->iov, next);
+    // warn(debug, "allocating spare iov %u", v->idx);
+    v->buf = IDX2BUF(w, v->idx);
+    v->len = w->mtu;
+#ifdef WITH_NETMAP
+    v->o = 0;
+#endif
+    return v;
+}
+
+
+/// Get the socket bound to local port @p port.
+///
+/// @param      w     Backend engine.
+/// @param[in]  port  The port number.
+///
+/// @return     The w_sock bound to @p port.
+///
+struct w_sock * __attribute__((nonnull))
+get_sock(struct w_engine * const w, const uint16_t port)
+{
+    struct w_sock * s;
+    SLIST_FOREACH (s, &w->sock, next)
+        if (s->hdr->udp.sport == port)
+            return s;
+    return 0;
+}
 
 
 /// Helper function for w_alloc_size and w_alloc_cnt. Really only needed,
