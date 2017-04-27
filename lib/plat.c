@@ -182,8 +182,7 @@ bool plat_get_link(const struct ifaddrs * i
 #if defined(__FreeBSD__)
     if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
         return true;
-    return (((uint8_t)((struct if_data *)(i->ifa_data))->ifi_link_state) &
-            LINK_STATE_UP);
+    return (((struct if_data *)(i->ifa_data))->ifi_link_state) & LINK_STATE_UP;
 #elif defined(__linux__)
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
