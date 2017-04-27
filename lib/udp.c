@@ -54,8 +54,9 @@
 ///
 #define udp_log(udp)                                                           \
     do {                                                                       \
-        warn(debug, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs(udp->sport), \
-             ntohs(udp->dport), ntohs(udp->cksum), ntohs(udp->len));           \
+        warn(debug, "UDP :%d -> :%d, cksum 0x%04x, len %u",                    \
+             ntohs((udp)->sport), ntohs((udp)->dport), ntohs((udp)->cksum),    \
+             ntohs((udp)->len));                                               \
     } while (0)
 #else
 #define udp_log(udp)                                                           \

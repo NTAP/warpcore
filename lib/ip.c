@@ -52,12 +52,12 @@
         char dst[INET_ADDRSTRLEN];                                             \
         warn(debug, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "           \
                     "flags [%s%s], proto %d, hlen/tot %d/%d",                  \
-             inet_ntop(AF_INET, &ip->src, src, INET_ADDRSTRLEN),               \
-             inet_ntop(AF_INET, &ip->dst, dst, INET_ADDRSTRLEN), ip_dscp(ip),  \
-             ip_ecn(ip), ip->ttl, ntohs(ip->id),                               \
-             (ntohs(ip->off) & IP_MF) ? "MF" : "",                             \
-             (ntohs(ip->off) & IP_DF) ? "DF" : "", ip->p, ip_hl(ip),           \
-             ntohs(ip->len));                                                  \
+             inet_ntop(AF_INET, &(ip)->src, src, INET_ADDRSTRLEN),             \
+             inet_ntop(AF_INET, &(ip)->dst, dst, INET_ADDRSTRLEN),             \
+             ip_dscp(ip), ip_ecn(ip), (ip)->ttl, ntohs((ip)->id),              \
+             (ntohs((ip)->off) & IP_MF) ? "MF" : "",                           \
+             (ntohs((ip)->off) & IP_DF) ? "DF" : "", (ip)->p, ip_hl(ip),       \
+             ntohs((ip)->len));                                                \
     } while (0)
 #else
 #define ip_log(ip)                                                             \
