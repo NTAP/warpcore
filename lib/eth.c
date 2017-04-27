@@ -70,8 +70,8 @@ void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
 #endif
 
     // make sure the packet is for us (or broadcast)
-    if (unlikely(memcmp(eth->dst, w->mac, ETH_ADDR_LEN) &&
-                 memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN))) {
+    if (unlikely((memcmp(eth->dst, w->mac, ETH_ADDR_LEN) != 0) &&
+                 (memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN) != 0))) {
         warn(info, "Ethernet packet not destined to us; ignoring");
         return;
     }
