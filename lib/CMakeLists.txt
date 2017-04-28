@@ -8,7 +8,7 @@ configure_file(src/config.c.in src/config.c)
 
 include(GNUInstallDirs)
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 set(SOURCES ${SOURCES} src/plat.c src/util.c src/warpcore.c
     ${CMAKE_CURRENT_BINARY_DIR}/src/config.c)

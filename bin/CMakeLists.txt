@@ -1,5 +1,6 @@
 include(GNUInstallDirs)
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 if(HAVE_NETMAP_H)
   add_executable(warpping ping.c)
