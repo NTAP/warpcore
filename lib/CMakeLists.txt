@@ -37,6 +37,7 @@ add_library(shimcore_static STATIC ${SHIMSOURCES})
 set_target_properties(shimcore_static
                       PROPERTIES
                         INTERPROCEDURAL_OPTIMIZATION True
+                        OUTPUT_NAME shimcore
                         VERSION ${PROJECT_VERSION}
                         SOVERSION ${PROJECT_VERSION_MAJOR})
 target_include_directories(shimcore_static
@@ -62,18 +63,25 @@ if(HAVE_NETMAP_H)
       ${SOURCES} src/arp.c src/eth.c src/icmp.c src/in_cksum.c src/ip.c
       src/udp.c src/backend_netmap.c)
   add_library(warpcore SHARED ${WARPSOURCES})
+  set_target_properties(warpcore
+                        PROPERTIES
+                          INTERPROCEDURAL_OPTIMIZATION True
+                          OUTPUT_NAME warpcore
+                          VERSION ${PROJECT_VERSION}
+                          SOVERSION ${PROJECT_VERSION_MAJOR})
   target_compile_definitions(warpcore PRIVATE -DWITH_NETMAP)
-  set_property(TARGET warpcore
-               PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   target_include_directories(warpcore
                              PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
                              PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include
                              PRIVATE src)
   add_library(warpcore_static STATIC ${WARPSOURCES})
-  set_target_properties(warpcore_static PROPERTIES OUTPUT_NAME warpcore)
+  set_target_properties(warpcore_static
+                        PROPERTIES
+                          INTERPROCEDURAL_OPTIMIZATION True
+                          OUTPUT_NAME warpcore
+                          VERSION ${PROJECT_VERSION}
+                          SOVERSION ${PROJECT_VERSION_MAJOR})
   target_compile_definitions(warpcore_static PRIVATE -DWITH_NETMAP)
-  set_property(TARGET warpcore_static
-               PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   target_include_directories(warpcore_static
                              PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
                              PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include
