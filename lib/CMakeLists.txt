@@ -15,36 +15,45 @@ set(SOURCES ${SOURCES} src/plat.c src/util.c src/warpcore.c
 
 set(SHIMSOURCES ${SOURCES} src/backend_shim.c)
 add_library(shimcore SHARED ${SHIMSOURCES})
-set_property(TARGET shimcore
-             PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+set_target_properties(shimcore
+                      PROPERTIES
+                        INTERPROCEDURAL_OPTIMIZATION True
+                        OUTPUT_NAME shimcore
+                        VERSION ${PROJECT_VERSION}
+                        SOVERSION ${PROJECT_VERSION_MAJOR})
 target_include_directories(shimcore
                            PUBLIC
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
                              $<INSTALL_INTERFACE:include>
                            PRIVATE src)
+install(TARGETS shimcore EXPORT shimcore_config
+        ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+
 add_library(shimcore_static STATIC ${SHIMSOURCES})
-set_target_properties(shimcore_static PROPERTIES OUTPUT_NAME shimcore)
-set_property(TARGET shimcore_static
-             PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+set_target_properties(shimcore_static
+                      PROPERTIES
+                        INTERPROCEDURAL_OPTIMIZATION True
+                        VERSION ${PROJECT_VERSION}
+                        SOVERSION ${PROJECT_VERSION_MAJOR})
 target_include_directories(shimcore_static
                            PUBLIC
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
                              $<INSTALL_INTERFACE:include>
                            PRIVATE src)
-
-install(TARGETS shimcore EXPORT shimcore_config
-        ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(TARGETS shimcore_static EXPORT shimcore_static_config
         ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 install(DIRECTORY include/warpcore
         DESTINATION include
         FILES_MATCHING PATTERN "*.h")
+
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/warpcore/config.h
         DESTINATION include/warpcore)
 
