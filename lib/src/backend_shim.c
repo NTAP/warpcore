@@ -38,7 +38,7 @@
 #include <warpcore/warpcore.h>
 
 #if defined(HAVE_SENDMMSG) || defined(HAVE_RECVMMSG)
-// IWYU pragma: no_include "config.h"
+// IWYU pragma: no_include "warpcore/config.h"
 #include <limits.h>
 #include <sys/param.h>
 #endif
@@ -46,7 +46,6 @@
 #include "backend.h"
 #include "ip.h"
 #include "udp.h"
-#include "warpcore/config.h"
 
 
 /// The backend name.
