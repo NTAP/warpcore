@@ -32,7 +32,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include <warpcore.h>
+#include <warpcore/warpcore.h>
 
 #include "backend.h"
 #include "eth.h"

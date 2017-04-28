@@ -37,7 +37,7 @@
 #include <netinet/in.h>
 #endif
 
-#include <warpcore.h>
+#include <warpcore/warpcore.h>
 
 #include "arp.h"
 #include "backend.h"

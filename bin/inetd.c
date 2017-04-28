@@ -38,7 +38,7 @@
 #include <string.h>
 #endif
 
-#include <warpcore.h>
+#include <warpcore/warpcore.h>
 
 
 static void usage(const char * const name)

@@ -1,4 +1,4 @@
-#include "config.h"
+#include "warpcore/config.h"
 
 const char @PROJECT_NAME@_name[] = "@PROJECT_NAME@";
 

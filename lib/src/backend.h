@@ -32,7 +32,7 @@
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
-#include "warpcore.h"
+#include "warpcore/warpcore.h"
 
 
 #ifndef WITH_NETMAP

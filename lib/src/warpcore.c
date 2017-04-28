@@ -46,13 +46,13 @@
 #include <net/ethernet.h>
 #endif
 
-#include <warpcore.h>
+#include <warpcore/warpcore.h>
 
 #include "backend.h"
-#include "config.h"
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
+#include "warpcore/config.h"
 
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
@@ -67,8 +67,7 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 ///
 /// @return     Spare w_iov.
 ///
-struct w_iov * __attribute__((nonnull))
-alloc_iov(struct w_engine * const w)
+struct w_iov * __attribute__((nonnull)) alloc_iov(struct w_engine * const w)
 {
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
     ensure(v != 0, "out of spare iovs");

@@ -30,9 +30,9 @@
 #include <sys/time.h>
 
 // IWYU pragma: begin_exports
-#include <config.h>
-#include <plat.h>
-#include <util.h>
+#include <warpcore/config.h>
+#include <warpcore/plat.h>
+#include <warpcore/util.h>
 // IWYU pragma: end_exports
 
 struct w_engine;
