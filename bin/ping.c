@@ -224,7 +224,7 @@ int main(const int argc, char * const argv[])
 
             // wait for a reply; loop until timeout or we have received all data
             struct w_iov_stailq i = STAILQ_HEAD_INITIALIZER(i);
-            while (likely(w_iov_stailq_len(&i, 0) < len && done == false)) {
+            while (likely(w_iov_stailq_len(&i) < len && done == false)) {
                 if (unlikely(busywait == false))
                     // poll for new data
                     if (poll(&fds, 1, -1) == -1)
@@ -245,7 +245,7 @@ int main(const int argc, char * const argv[])
             const struct itimerval stop = {0};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            const uint32_t i_len = w_iov_stailq_len(&i, 0);
+            const uint32_t i_len = w_iov_stailq_len(&i);
             if (i_len != len) {
                 warn(warn, "received %u/%u byte%s", i_len, len, plural(i_len));
                 continue;
