@@ -190,19 +190,15 @@ void w_free(struct w_engine * const w, struct w_iov_stailq * const q)
 /// Return the total payload length of w_iov tail queue @p c.
 ///
 /// @param[in]  q     The w_iov tail queue to compute the payload length of.
-/// @param[in]  off   Additional offset in each @p buf.
 ///
 /// @return     Sum of the payload lengths of the w_iov structs in @p q.
 ///
-uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q,
-                          const uint16_t off)
+uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q)
 {
     uint32_t l = 0;
-    if (likely(q)) {
-        const struct w_iov * v;
-        STAILQ_FOREACH (v, q, next)
-            l += (v->len - off);
-    }
+    const struct w_iov * v;
+    STAILQ_FOREACH (v, q, next)
+        l += v->len;
     return l;
 }
 
