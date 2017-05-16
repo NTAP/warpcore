@@ -348,11 +348,10 @@ void w_cleanup(struct w_engine * const w)
     warn(notice, "warpcore shutting down");
 
     // close all sockets
-    while (!SLIST_EMPTY(&w->sock)) {
-        struct w_sock * s = SLIST_FIRST(&w->sock);
-        SLIST_REMOVE_HEAD(&w->sock, next);
+    struct w_sock * s;
+    SLIST_FOREACH (s, &w->sock, next)
         w_close(s);
-    }
+
     backend_cleanup(w);
     free(w->bufs);
     SLIST_REMOVE(&engines, w, w_engine, next);
