@@ -77,14 +77,12 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   endif()
 
   # Set some additional flags for Debug builds
-  set(FLAGS -fsanitize=address -fsanitize=memory -fsanitize-memory-track-origins
-          -fsanitize=thread -fno-omit-frame-pointer)
-  if(NOT CMAKE_SYSTEM_NAME MATCHES FreeBSD)
+  set(FLAGS -fno-omit-frame-pointer -fsanitize=leak -fsanitize=address
+      -fsanitize=memory -fsanitize-memory-track-origins -fsanitize=thread
+      -fsanitize=undefined -fno-sanitize=alignment)
+  if(CMAKE_SYSTEM_NAME MATCHES FreeBSD)
     # -fsanitize=leak does not work on FreeBSD
-    set(FLAGS ${FLAGS} -fsanitize=leak)
-  elseif(NOT CMAKE_SYSTEM_NAME MATCHES Darwin)
-    # -fsanitize=undefined -fno-sanitize=alignment does not work on Darwin
-    set(FLAGS ${FLAGS} -fsanitize=undefined -fno-sanitize=alignment)
+    list(REMOVE_ITEM FLAGS -fsanitize=leak)
   endif()
   foreach(FLAG ${FLAGS})
     string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
