@@ -52,8 +52,14 @@ static void __attribute__((constructor)) premain()
     // Get the current time
     gettimeofday(&_epoch, 0);
 
-    // Initialize lock
-    ensure(pthread_mutex_init(&_lock, 0) == 0, "could not initialize mutex");
+    // Initialize a recursive logging lock
+    pthread_mutexattr_t attr;
+    ensure(pthread_mutexattr_init(&attr) == 0,
+           "could not initialize mutex attr");
+    ensure(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE) == 0,
+           "coul dnot set mutex attr");
+    ensure(pthread_mutex_init(&_lock, &attr) == 0,
+           "could not initialize mutex");
 
     // Remember the ID of the main thread
     _master = pthread_self();
