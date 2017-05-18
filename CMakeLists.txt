@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(warpcore VERSION 0.5.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.6.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 

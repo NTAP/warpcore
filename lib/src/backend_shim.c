@@ -31,7 +31,6 @@
 #include <string.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 
@@ -246,8 +245,6 @@ void w_nic_rx(struct w_engine * const w)
             ensure(n != -1 || errno == EAGAIN, "recvmsg");
 #endif
             if (n > 0) {
-                struct timeval ts;
-                ensure(gettimeofday(&ts, 0) == 0, "gettimeofday");
                 for (ssize_t i = 0; likely(i < n); i++) {
 #ifdef HAVE_RECVMMSG
                     v[i]->len = (uint16_t)msgvec[i].msg_len;
@@ -260,7 +257,6 @@ void w_nic_rx(struct w_engine * const w)
                     v[i]->ip = peer[i].sin_addr.s_addr;
                     v[i]->port = peer[i].sin_port;
                     v[i]->flags = 0;
-                    v[i]->ts = ts;
                     // add the iov to the tail of the result
                     STAILQ_INSERT_TAIL(&s->iv, v[i], next);
                 }

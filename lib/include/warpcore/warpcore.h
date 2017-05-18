@@ -120,8 +120,6 @@ struct w_iov {
     uint8_t _unused[3]; ///< @internal Padding.
     /// @endcond
 
-    struct timeval ts; ///< Receive time of the data. Only valid on RX.
-
 #ifdef WITH_NETMAP
     ///< Pointer to the w_iov_stailq this w_iov resides in. Only valid on TX.
     struct w_iov_stailq * o;
