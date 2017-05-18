@@ -201,7 +201,8 @@ int main(const int argc, char * const argv[])
             // stamp the data
             struct w_iov * v;
             STAILQ_FOREACH (v, &o, next) {
-                struct payload * const p = v->buf;
+                struct payload * const p =
+                    (struct payload * const)(void *)v->buf;
                 p->len = htonl(len);
                 p->ts = before_tx;
             }

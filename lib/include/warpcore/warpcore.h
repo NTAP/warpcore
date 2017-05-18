@@ -99,7 +99,7 @@ struct w_sock {
 /// w_tx().
 ///
 struct w_iov {
-    void * buf;               ///< Start of payload data.
+    uint8_t * buf;            ///< Start of payload data.
     STAILQ_ENTRY(w_iov) next; ///< Next w_iov in a w_iov_stailq.
     uint32_t idx;             ///< Index of netmap buffer. (Internal use.)
     uint16_t len;             ///< Length of payload data.

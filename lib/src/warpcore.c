@@ -119,7 +119,7 @@ static inline void alloc_cnt(struct w_engine * const w,
     struct w_iov * v = 0;
     for (uint32_t i = 0; i < count; i++) {
         v = alloc_iov(w);
-        v->buf = (uint8_t *)v->buf + sizeof(struct w_hdr) + off;
+        v->buf = v->buf + sizeof(struct w_hdr) + off;
         v->len -= (sizeof(struct w_hdr) + off);
         STAILQ_INSERT_TAIL(q, v, next);
     }

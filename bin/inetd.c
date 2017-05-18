@@ -189,7 +189,8 @@ int main(const int argc, char * const argv[])
                 // incoming tail queue; otherwise, it's in the first buf of o
                 const struct w_iov * const head =
                     STAILQ_FIRST(STAILQ_EMPTY(&o) ? &i : &o);
-                const uint32_t len = ntohl(((struct payload *)head->buf)->len);
+                const uint32_t len =
+                    ntohl(((struct payload *)(void *)head->buf)->len);
 
                 while (!STAILQ_EMPTY(&i)) {
                     static struct w_iov_stailq tmp =
