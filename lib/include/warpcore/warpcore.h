@@ -120,6 +120,8 @@ struct w_iov {
     uint8_t _unused[3]; ///< @internal Padding.
     /// @endcond
 
+    void * data; ///< Arbitrary data, for use by callers. Ignored by warpcore.
+
 #ifdef WITH_NETMAP
     ///< Pointer to the w_iov_stailq this w_iov resides in. Only valid on TX.
     struct w_iov_stailq * o;
