@@ -283,7 +283,7 @@ void w_nic_tx(struct w_engine * const w)
         for (uint32_t j = nm_ring_next(r, w->tail[i]);
              likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
-            struct w_iov * const v = (struct w_iov * const) s->ptr;
+            struct w_iov * const v = (struct w_iov *)s->ptr;
             if (likely(v)) {
                 warn(debug, "moving idx %u from ring %u slot %u back into "
                             "w_iov after tx (swap with %u)",

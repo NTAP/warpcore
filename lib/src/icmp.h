@@ -53,7 +53,7 @@ struct icmp_hdr {
 extern void __attribute__((nonnull)) icmp_tx(struct w_engine * w,
                                              const uint8_t type,
                                              const uint8_t code,
-                                             void * const buf);
+                                             uint8_t * const buf);
 
 extern void __attribute__((nonnull))
 icmp_rx(struct w_engine * w, struct netmap_ring * const r);

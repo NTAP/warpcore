@@ -55,23 +55,24 @@
 void icmp_tx(struct w_engine * const w,
              const uint8_t type,
              const uint8_t code,
-             void * const buf)
+             uint8_t * const buf)
 {
     struct w_iov * const v = alloc_iov(w);
 
     // construct an ICMP header and set the fields
-    struct icmp_hdr * const dst_icmp = ip_data(v->buf);
+    struct icmp_hdr * const dst_icmp = (struct icmp_hdr *)ip_data(v->buf);
     dst_icmp->type = type;
     dst_icmp->code = code;
     warn(notice, "ICMP type %d, code %d", type, code);
 
-    const struct ip_hdr * const src_ip = eth_data(buf);
+    const struct ip_hdr * const src_ip = (const struct ip_hdr *)eth_data(buf);
     uint8_t * data = eth_data(buf);
     uint16_t data_len = ntohs(src_ip->len);
 
     switch (type) {
     case ICMP_TYPE_ECHOREPLY: {
-        const struct icmp_hdr * const src_icmp = ip_data(buf);
+        const struct icmp_hdr * const src_icmp =
+            (const struct icmp_hdr *)ip_data(buf);
         dst_icmp->id = src_icmp->id;
         dst_icmp->seq = src_icmp->seq;
 
@@ -102,15 +103,15 @@ void icmp_tx(struct w_engine * const w,
     dst_icmp->cksum = in_cksum(dst_icmp, sizeof(*dst_icmp) + data_len);
 
     // construct an IPv4 header
-    struct ip_hdr * const dst_ip = eth_data(v->buf);
+    struct ip_hdr * const dst_ip = (struct ip_hdr *)eth_data(v->buf);
     ip_hdr_init(dst_ip);
     dst_ip->src = w->ip;
     dst_ip->dst = src_ip->src;
     dst_ip->p = IP_P_ICMP;
 
     // set the Ethernet header
-    const struct eth_hdr * const src_eth = buf;
-    struct eth_hdr * const dst_eth = v->buf;
+    const struct eth_hdr * const src_eth = (const struct eth_hdr *)buf;
+    struct eth_hdr * const dst_eth = (struct eth_hdr *)v->buf;
     memcpy(dst_eth->dst, src_eth->src, ETH_ADDR_LEN);
     memcpy(dst_eth->src, w->mac, ETH_ADDR_LEN);
     dst_eth->type = ETH_TYPE_IP;
@@ -139,8 +140,8 @@ void icmp_tx(struct w_engine * const w,
 ///
 void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
-    void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    struct icmp_hdr * const icmp = ip_data(buf);
+    uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
+    struct icmp_hdr * const icmp = (struct icmp_hdr *)ip_data(buf);
     warn(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
 
     // validate the ICMP checksum

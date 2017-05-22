@@ -30,7 +30,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/queue.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 #ifndef __linux__
@@ -79,9 +78,9 @@
 ///
 void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
-    void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    const struct ip_hdr * const ip = eth_data(buf);
-    struct udp_hdr * const udp = ip_data(buf);
+    uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
+    const struct ip_hdr * const ip = (const struct ip_hdr *)eth_data(buf);
+    struct udp_hdr * const udp = (struct udp_hdr *)ip_data(buf);
     const uint16_t udp_len = ntohs(udp->len);
 
     udp_log(udp);
@@ -122,7 +121,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     const uint32_t tmp_idx = i->idx;
 
     // adjust the buffer offset to the received data into the iov
-    i->buf = (char *)ip_data(buf) + sizeof(*udp);
+    i->buf = ip_data(buf) + sizeof(*udp);
     i->len = udp_len - sizeof(*udp);
     i->idx = rxs->buf_idx;
 
@@ -130,7 +129,6 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     i->ip = ip->src;
     i->port = udp->sport;
     i->flags = ip->tos;
-    memcpy(&i->ts, &r->ts, sizeof(i->ts));
 
     // append the iov to the socket
     STAILQ_INSERT_TAIL(&s->iv, i, next);
@@ -154,18 +152,18 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     // copy template header into buffer and fill in remaining fields
-    void * const buf = IDX2BUF(s->w, v->idx);
+    uint8_t * const buf = IDX2BUF(s->w, v->idx);
     memcpy(buf, s->hdr, sizeof(*s->hdr));
 
-    struct ip_hdr * const ip = eth_data(buf);
-    struct udp_hdr * const udp = ip_data(buf);
+    struct ip_hdr * const ip = (struct ip_hdr *)eth_data(buf);
+    struct udp_hdr * const udp = (struct udp_hdr *)ip_data(buf);
     const uint16_t len = v->len + sizeof(*udp);
     udp->len = htons(len);
 
     // if w_sock is disconnected, use destination IP and port from w_iov
     // instead of the one in the template header
     if (s->hdr->ip.dst == 0) {
-        struct eth_hdr * const e = buf;
+        struct eth_hdr * const e = (struct eth_hdr *)buf;
         memcpy(&e->dst, arp_who_has(s->w, v->ip), ETH_ADDR_LEN);
         ip->dst = v->ip;
         udp->dport = v->port;

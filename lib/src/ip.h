@@ -82,8 +82,7 @@ struct ip_hdr {
 ///
 /// @return     IP version number.
 ///
-#define ip_v(ip)                                                               \
-    (uint8_t)((((const struct ip_hdr * const)(ip))->vhl & 0xf0) >> 4)
+#define ip_v(ip) (uint8_t)((((const struct ip_hdr *)(ip))->vhl & 0xf0) >> 4)
 
 
 /// Extract the IP header length out of an ip_hdr::vhl field.
@@ -92,8 +91,7 @@ struct ip_hdr {
 ///
 /// @return     IP header length in bytes.
 ///
-#define ip_hl(ip)                                                              \
-    (uint8_t)((((const struct ip_hdr * const)(ip))->vhl & 0x0f) * 4)
+#define ip_hl(ip) (uint8_t)((((const struct ip_hdr *)(ip))->vhl & 0x0f) * 4)
 
 
 /// Extract the DSCP out of an ip_hdr::tos field.
@@ -102,8 +100,7 @@ struct ip_hdr {
 ///
 /// @return     DSCP.
 ///
-#define ip_dscp(ip)                                                            \
-    (uint8_t)((((const struct ip_hdr * const)(ip))->tos & 0xfc) >> 2)
+#define ip_dscp(ip) (uint8_t)((((const struct ip_hdr *)(ip))->tos & 0xfc) >> 2)
 
 
 /// Extract the ECN bits out of an ip_hdr::tos field.
@@ -112,7 +109,7 @@ struct ip_hdr {
 ///
 /// @return     ECN bits.
 ///
-#define ip_ecn(ip) (uint8_t)(((const struct ip_hdr * const)(ip))->tos & 0x02)
+#define ip_ecn(ip) (uint8_t)(((const struct ip_hdr *)(ip))->tos & 0x02)
 
 
 /// Return a pointer to the payload data of the IPv4 packet in a buffer. It is
@@ -123,9 +120,7 @@ struct ip_hdr {
 ///
 /// @return     Pointer to the first payload byte.
 ///
-#define ip_data(buf)                                                           \
-    (void *)((char *)eth_data(buf) +                                           \
-             (int)ip_hl((void *)((char *)buf + sizeof(struct eth_hdr))))
+#define ip_data(buf) (eth_data(buf) + ip_hl((buf) + sizeof(struct eth_hdr)))
 
 
 /// Calculates the length of the payload data for the given IPv4 header @p ip.

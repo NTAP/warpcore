@@ -64,7 +64,7 @@ struct eth_hdr {
 ///
 /// @return     Pointer to the first data byte inside @p buf.
 ///
-#define eth_data(buf) (void *)((char *)(buf) + sizeof(struct eth_hdr))
+#define eth_data(buf) ((buf) + sizeof(struct eth_hdr))
 
 
 extern void __attribute__((nonnull))

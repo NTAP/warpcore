@@ -53,7 +53,7 @@
 /// @return     Memory region associated with buffer @p i.
 ///
 #ifdef WITH_NETMAP
-#define IDX2BUF(w, i) NETMAP_BUF(NETMAP_TXRING((w)->nif, 0), (i))
+#define IDX2BUF(w, i) ((uint8_t *)NETMAP_BUF(NETMAP_TXRING((w)->nif, 0), (i)))
 #else
 #define IDX2BUF(w, i) (((uint8_t *)w->mem + (i * IOV_BUF_LEN)))
 #endif

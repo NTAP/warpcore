@@ -100,8 +100,8 @@ arp_cache_update(struct w_engine * w,
     memcpy(a->mac, mac, ETH_ADDR_LEN);
     SLIST_INSERT_HEAD(&w->arp_cache, a, next);
     warn(info, "ARP cache entry: %s is at %s",
-         inet_ntoa(*(const struct in_addr * const) & ip),
-         ether_ntoa((const struct ether_addr * const)mac));
+         inet_ntoa(*(const struct in_addr *)&ip),
+         ether_ntoa((const struct ether_addr *)mac));
 }
 
 
@@ -113,14 +113,14 @@ arp_cache_update(struct w_engine * w,
 ///                   Ethernet frame
 ///
 static void __attribute__((nonnull))
-arp_is_at(struct w_engine * const w, void * const buf)
+arp_is_at(struct w_engine * const w, const uint8_t * const buf)
 {
     // grab iov for reply
     struct w_iov * v = alloc_iov(w);
-    struct arp_hdr * const reply = eth_data(v->buf);
+    struct arp_hdr * const reply = (struct arp_hdr *)eth_data(v->buf);
 
     // construct ARP header
-    const struct arp_hdr * const req = eth_data(buf);
+    const struct arp_hdr * const req = (struct arp_hdr *)eth_data(buf);
 
     reply->hrd = htons(ARP_HRD_ETHER);
     reply->pro = ETH_TYPE_IP;
@@ -134,10 +134,10 @@ arp_is_at(struct w_engine * const w, void * const buf)
 
     warn(notice, "ARP reply %s is at %s",
          inet_ntoa(*(struct in_addr *)(void *)&reply->spa),
-         ether_ntoa((const struct ether_addr * const)reply->sha));
+         ether_ntoa((const struct ether_addr *)reply->sha));
 
     // send the Ethernet packet
-    struct eth_hdr * const eth = v->buf;
+    struct eth_hdr * const eth = (struct eth_hdr *)v->buf;
     memcpy(eth->dst, req->sha, ETH_ADDR_LEN);
     memcpy(eth->src, w->mac, ETH_ADDR_LEN);
     eth->type = ETH_TYPE_ARP;
@@ -169,14 +169,14 @@ uint8_t * arp_who_has(struct w_engine * const w, const uint32_t dip)
     struct arp_entry * a = arp_cache_find(w, dip);
     while (a == 0) {
         warn(warn, "no ARP entry for %s, sending query",
-             inet_ntoa(*(const struct in_addr * const) & dip));
+             inet_ntoa(*(const struct in_addr *)&dip));
 
         // grab a spare buffer
         struct w_iov * const v = alloc_iov(w);
 
         // pointers to the start of the various headers
-        struct eth_hdr * const eth = v->buf;
-        struct arp_hdr * const arp = eth_data(v->buf);
+        struct eth_hdr * const eth = (struct eth_hdr *)v->buf;
+        struct arp_hdr * const arp = (struct arp_hdr *)eth_data(v->buf);
 
         // set Ethernet header fields
         memcpy(eth->dst, ETH_BCAST, ETH_ADDR_LEN);
@@ -236,8 +236,8 @@ uint8_t * arp_who_has(struct w_engine * const w, const uint32_t dip)
 ///
 void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
-    void * const buf = NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    const struct arp_hdr * const arp = eth_data(buf);
+    uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
+    const struct arp_hdr * const arp = (const struct arp_hdr *)eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
     ensure(hrd == ARP_HRD_ETHER && arp->hln == ETH_ADDR_LEN,
@@ -269,8 +269,8 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 
     case ARP_OP_REPLY: {
         warn(notice, "ARP reply %s is at %s",
-             inet_ntoa(*(const struct in_addr * const)(const void *)&arp->spa),
-             ether_ntoa((const struct ether_addr * const)arp->sha));
+             inet_ntoa(*(const struct in_addr *)(const void *)&arp->spa),
+             ether_ntoa((const struct ether_addr *)arp->sha));
 
         arp_cache_update(w, arp->spa, arp->sha);
 
@@ -285,9 +285,9 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
                 // or non-local socket and ARP src IP matches router
                 (s->w->rip && (s->w->rip == arp->spa))) {
                 warn(notice, "updating socket with %s for %s",
-                     ether_ntoa((const struct ether_addr * const)arp->sha),
-                     inet_ntoa(*(const struct in_addr * const)(
-                                    const void *)&arp->spa));
+                     ether_ntoa((const struct ether_addr *)arp->sha),
+                     inet_ntoa(
+                         *(const struct in_addr *)(const void *)&arp->spa));
                 memcpy(&s->hdr->eth.dst, arp->sha, ETH_ADDR_LEN);
             }
         }
