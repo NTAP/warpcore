@@ -23,6 +23,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <arpa/inet.h>
 #include <errno.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -100,12 +101,15 @@ void backend_cleanup(struct w_engine * const w)
 ///
 void backend_bind(struct w_sock * s)
 {
-    ensure(s->fd = socket(AF_INET, SOCK_DGRAM, 0), "socket");
+    ensure((s->fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0, "socket");
+    ensure(setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, &(int){1},
+                      sizeof(int)) >= 0,
+           "cannot setsockopt SO_REUSEADDR");
     const struct sockaddr_in addr = {.sin_family = AF_INET,
                                      .sin_port = s->hdr->udp.sport,
                                      .sin_addr = {.s_addr = s->hdr->ip.src}};
     ensure(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
-           "bind");
+           "bind failed on port %u", ntohs(s->hdr->udp.sport));
 }
 
 
