@@ -47,8 +47,8 @@
 // IWYU pragma: no_include "warpcore/config.h"
 #include <sys/event.h>
 #include <time.h>
-#else
-#error
+#elif defined(HAVE_EPOLL)
+#include <sys/epoll.h>
 #endif
 
 #include "backend.h"
@@ -90,8 +90,8 @@ void backend_init(struct w_engine * w, const char * const ifname)
     w->backend = backend_name;
 #if defined(HAVE_KQUEUE)
     w->kq = kqueue();
-#else
-#error
+#elif defined(HAVE_EPOLL)
+    w->ep = epoll_create1(0);
 #endif
 }
 
@@ -128,8 +128,9 @@ void backend_bind(struct w_sock * s)
     struct kevent ev;
     EV_SET(&ev, s->fd, EVFILT_READ, EV_ADD, 0, 0, s);
     ensure(kevent(s->w->kq, &ev, 1, 0, 0, 0) != -1, "kevent");
-#else
-#error
+#elif defined(HAVE_EPOLL)
+    struct epoll_event ev = {.events = EPOLLIN, .data.ptr = s};
+    ensure(epoll_ctl(s->w->ep, EPOLL_CTL_ADD, s->fd, &ev) != -1, "epoll_ctl");
 #endif
 }
 
@@ -338,8 +339,16 @@ struct w_sock_slist * w_rx_ready(const struct w_engine * w)
     // ensure(n >= 0, "kevent");
     for (int i = 0; i < n; i++)
         SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].udata, next_rx);
+
+#elif defined(HAVE_EPOLL)
+#define EV_SIZE 10
+    struct epoll_event ev[EV_SIZE];
+    const int n = epoll_wait(w->ep, &ev[0], EV_SIZE, 0);
+    // ensure(n >= 0, "kevent");
+    for (int i = 0; i < n; i++)
+        SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].data.ptr, next_rx);
 #else
-#error
+#error "TODO: standard poll() implementation"
 #endif
     return sl;
 }

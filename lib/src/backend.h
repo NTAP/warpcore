@@ -103,8 +103,8 @@ struct w_engine {
 #else
 #if defined(HAVE_KQUEUE)
     int kq;
-#else
-#error "Need epoll or kqueue"
+#elif defined(HAVE_EPOLL)
+    int ep;
 #endif
     char * ifname; ///< Name of the interface of this engine.
 #endif
