@@ -210,6 +210,20 @@ int w_fd(const struct w_sock * const s)
 }
 
 
+/// Return any new data that has been received on a socket by appending it to
+/// the w_iov tail queue @p i. The tail queue must eventually be returned to
+/// warpcore via w_free().
+///
+/// @param      s     w_sock for which the application would like to receive new
+///                   data.
+/// @param      i     w_iov tail queue to append new data to.
+///
+void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
+{
+    STAILQ_CONCAT(i, &s->iv);
+}
+
+
 /// Loops over the w_iov structures in the w_iov_stailq @p o, sending them all
 /// over w_sock @p s. Places the payloads into IPv4 UDP packets, and attempts to
 /// move them into TX rings. Will force a NIC TX if all rings are full, retry
@@ -305,3 +319,30 @@ void w_nic_tx(struct w_engine * const w)
         w->tail[i] = r->tail;
     }
 }
+
+
+/// Return a w_sock_slist containing all sockets with pending inbound data.
+/// Caller needs to free() the returned value before the next call to
+/// w_rx_ready(). Data can be obtained via w_rx() on each w_sock in the list.
+///
+/// @param[in]  w     Backend engine.
+///
+/// @return     List of w_sock sockets that have incoming data pending.
+///
+struct w_sock_slist * w_rx_ready(const struct w_engine * w)
+{
+    // make a new w_sock_slist
+    struct w_sock_slist * sl = calloc(1, sizeof(*sl));
+    ensure(sl, "calloc w_sock_slist");
+    SLIST_INIT(sl);
+
+    // insert all sockets with pending inbound data
+    struct w_sock * s;
+    SLIST_FOREACH (s, &w->sock, next)
+        if (!STAILQ_EMPTY(&s->iv))
+            SLIST_INSERT_HEAD(sl, s, next_rx);
+
+    return sl;
+}
+
+

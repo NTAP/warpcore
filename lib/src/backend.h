@@ -101,10 +101,14 @@ struct w_engine {
     /// @endcond
     uint32_t * tail; ///< TX ring tails after last NIOCTXSYNC call.
 #else
-    /// @cond
-    /// @internal Padding.
-    uint8_t _unused1[4];
-    /// @endcond
+#if defined(HAVE_KQUEUE)
+    int kq;
+    struct kevent * ev;
+    uint32_t ev_len;
+    uint32_t _unused;
+#else
+#error "Need epoll or kqueue"
+#endif
     char * ifname; ///< Name of the interface of this engine.
 #endif
     const char * backend; ///< Name of the warpcore backend used by the engine.

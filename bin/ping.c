@@ -46,18 +46,24 @@ static void usage(const char * const name,
                   const uint32_t start,
                   const uint32_t inc,
                   const uint32_t end,
-                  const uint32_t loops)
+                  const uint32_t loops,
+                  const uint32_t conns)
 {
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
     printf("\t -d destination IP      peer to connect to\n");
     printf("\t[-r router IP]          router to use for non-local peers\n");
-    printf("\t[-s start packet len]   optional, default %u\n", start);
-    printf("\t[-c increment]          optional (0 = exponential), default %u\n",
+    printf("\t[-s start packet len]   starting packet length (default %u)\n",
+           start);
+    printf("\t[-p increment]          packet length increment; 0 = exponential "
+           "(default %u)\n",
            inc);
-    printf("\t[-e end packet len]     optional, default %u\n", end);
-    printf("\t[-l loop iterations]    optional, default %u\n", loops);
-    printf("\t[-z]                    optional, turn off UDP checksums\n");
+    printf("\t[-e end packet len]     largest packet length (default %u)\n",
+           end);
+    printf("\t[-l loop iterations]    repeat iterations (default %u)\n", loops);
+    printf("\t[-c connections]        parallel connections (default %u)\n",
+           conns);
+    printf("\t[-z]                    turn off UDP checksums\n");
     printf("\t[-b]                    busy-wait\n");
 }
 
@@ -101,12 +107,13 @@ int main(const int argc, char * const argv[])
     uint32_t start = sizeof(struct payload);
     uint32_t inc = 102;
     uint32_t end = 1458;
+    uint32_t conns = 1;
     bool busywait = false;
     uint8_t flags = 0;
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv, "hzi:d:l:r:s:c:e:b")) != -1) {
+    while ((ch = getopt(argc, argv, "hzbi:d:l:r:s:c:e:p:")) != -1) {
         switch (ch) {
         case 'i':
             ifname = optarg;
@@ -123,11 +130,14 @@ int main(const int argc, char * const argv[])
         case 's':
             start = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
             break;
-        case 'c':
+        case 'p':
             inc = MIN(UINT32_MAX, MAX(0, (uint32_t)strtoul(optarg, 0, 10)));
             break;
         case 'e':
             end = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
+            break;
+        case 'c':
+            conns = MIN(50000, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
             break;
         case 'b':
             busywait = true;
@@ -138,13 +148,13 @@ int main(const int argc, char * const argv[])
         case 'h':
         case '?':
         default:
-            usage(basename(argv[0]), start, inc, end, loops);
+            usage(basename(argv[0]), start, inc, end, loops, conns);
             return 0;
         }
     }
 
     if (ifname == 0 || dst == 0) {
-        usage(basename(argv[0]), start, inc, end, loops);
+        usage(basename(argv[0]), start, inc, end, loops, conns);
         return 0;
     }
 
@@ -164,16 +174,32 @@ int main(const int argc, char * const argv[])
     // initialize a warpcore engine on the given network interface
     struct w_engine * w = w_init(ifname, rip);
 
-    // bind a new socket to a random local source port
-    struct w_sock * s = w_bind(w, (uint16_t)plat_random(), flags);
+    struct w_sock ** s = calloc(conns, sizeof(*s));
+    ensure(s, "got sockets");
+    struct pollfd * fds = calloc(conns, sizeof(*fds));
+    ensure(fds, "got poll structure");
 
     // look up the peer IP address and our benchmark port
     struct addrinfo * peer;
     ensure(getaddrinfo(dst, "55555", &hints, &peer) == 0, "getaddrinfo peer");
 
-    // connect to the peer
-    w_connect(s, ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
-              ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
+    for (uint32_t c = 0; c < conns; c++) {
+        // bind a new socket to a random local source port; make sure we don't
+        // bind the same port twice if we draw the same random number
+        do {
+            const uint16_t port = htons(plat_random() % 50000 + 10000);
+            s[c] = w_bind(w, port, flags);
+        } while (s[c] == 0);
+
+        // initialize poll descriptors
+        fds[c] = (struct pollfd){.fd = w_fd(s[c]), .events = POLLIN};
+
+        // connect to the peer
+        w_connect(
+            s[c],
+            ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
+            ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
+    }
 
     // free the getaddrinfo
     freeaddrinfo(peer);
@@ -186,7 +212,6 @@ int main(const int argc, char * const argv[])
     puts("byte\tpkts\ttx\trx");
 
     // send "loops" number of payloads of len "len" and wait for reply
-    struct pollfd fds = {.fd = w_fd(s), .events = POLLIN};
     for (uint32_t len = start; len <= end; len += (inc ? inc : .483 * len)) {
         // allocate tx tail queue
         struct w_iov_stailq o;
@@ -207,8 +232,11 @@ int main(const int argc, char * const argv[])
                 p->ts = before_tx;
             }
 
+            // pick a random connection for output
+            const uint32_t c = plat_random() % conns;
+
             // send the data, and wait until it is out
-            w_tx(s, &o);
+            w_tx(s[c], &o);
             while (w_tx_pending(&o))
                 w_nic_tx(w);
 
@@ -228,13 +256,13 @@ int main(const int argc, char * const argv[])
             while (likely(w_iov_stailq_len(&i) < len && done == false)) {
                 if (unlikely(busywait == false))
                     // poll for new data
-                    if (poll(&fds, 1, -1) == -1)
+                    if (poll(fds, conns, -1) == -1)
                         // if the poll was interrupted, move on
                         continue;
 
                 // receive new data (there may not be any if busy-waiting)
                 w_nic_rx(w);
-                w_rx(s, &i);
+                w_rx(s[c], &i);
             }
 
             // get the current time
@@ -270,7 +298,9 @@ int main(const int argc, char * const argv[])
         }
         w_free(w, &o);
     }
-    w_close(s);
+
+    for (uint32_t c = 0; c < conns; c++)
+        w_close(s[c]);
     w_cleanup(w);
     return 0;
 }

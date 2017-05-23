@@ -43,6 +43,15 @@
 #include <sys/param.h>
 #endif
 
+#if defined(HAVE_KQUEUE)
+// IWYU pragma: no_include "warpcore/config.h"
+#define EV_SIZE 1000
+#include <sys/event.h>
+#include <time.h>
+#else
+#error
+#endif
+
 #include "backend.h"
 #include "ip.h"
 #include "udp.h"
@@ -80,6 +89,12 @@ void backend_init(struct w_engine * w, const char * const ifname)
     w->ifname = strndup(ifname, IFNAMSIZ);
     ensure(w->ifname, "could not strndup");
     w->backend = backend_name;
+#if defined(HAVE_KQUEUE)
+    w->kq = kqueue();
+    w->ev = calloc(EV_SIZE, sizeof(*w->ev));
+#else
+#error
+#endif
 }
 
 
@@ -110,6 +125,14 @@ void backend_bind(struct w_sock * s)
                                      .sin_addr = {.s_addr = s->hdr->ip.src}};
     ensure(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
            "bind failed on port %u", ntohs(s->hdr->udp.sport));
+
+#if defined(HAVE_KQUEUE)
+    struct kevent ev;
+    EV_SET(&ev, s->fd, EVFILT_READ, EV_ADD, 0, 0, s);
+    ensure(kevent(s->w->kq, &ev, 1, 0, 0, 0) != -1, "kevent");
+#else
+#error
+#endif
 }
 
 
@@ -201,9 +224,11 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
 /// emulating the operation of netmap backend_rx() function. Appends all data to
 /// the w_sock::iv socket buffers of the respective w_sock structures.
 ///
-/// @param[in]  w     Backend engine.
+/// @param      s     w_sock for which the application would like to receive new
+///                   data.
+/// @param      i     w_iov tail queue to append new data to.
 ///
-void w_nic_rx(struct w_engine * const w)
+void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 {
 #ifdef HAVE_RECVMMSG
 // There is a tradeoff here in terms of how many messages we should try and
@@ -214,65 +239,62 @@ void w_nic_rx(struct w_engine * const w)
 #else
 #define RECV_SIZE 1
 #endif
-    struct w_sock * s;
-    SLIST_FOREACH (s, &w->sock, next) {
-        ssize_t n = 0;
-        do {
-            struct sockaddr_in peer[RECV_SIZE];
-            struct w_iov * v[RECV_SIZE];
-            struct iovec msg[RECV_SIZE];
+    ssize_t n = 0;
+    do {
+        struct sockaddr_in peer[RECV_SIZE];
+        struct w_iov * v[RECV_SIZE];
+        struct iovec msg[RECV_SIZE];
 #ifdef HAVE_RECVMMSG
-            struct mmsghdr msgvec[RECV_SIZE];
+        struct mmsghdr msgvec[RECV_SIZE];
 #else
-            struct msghdr msgvec[RECV_SIZE];
+        struct msghdr msgvec[RECV_SIZE];
 #endif
-            for (int i = 0; likely(i < RECV_SIZE); i++) {
-                v[i] = alloc_iov(w);
-                msg[i] =
-                    (struct iovec){.iov_base = v[i]->buf, .iov_len = v[i]->len};
+        for (int j = 0; likely(j < RECV_SIZE); j++) {
+            v[j] = alloc_iov(s->w);
+            msg[j] =
+                (struct iovec){.iov_base = v[j]->buf, .iov_len = v[j]->len};
 #ifdef HAVE_RECVMMSG
-                msgvec[i].msg_hdr =
+            msgvec[j].msg_hdr =
 #else
-                msgvec[i] =
+            msgvec[j] =
 #endif
-                    (struct msghdr){.msg_name = &peer[i],
-                                    .msg_namelen = sizeof(peer[i]),
-                                    .msg_iov = &msg[i],
-                                    .msg_iovlen = 1};
+                (struct msghdr){.msg_name = &peer[j],
+                                .msg_namelen = sizeof(peer[j]),
+                                .msg_iov = &msg[j],
+                                .msg_iovlen = 1};
+        }
+#ifdef HAVE_RECVMMSG
+        n = recvmmsg(s->fd, msgvec, RECV_SIZE, MSG_DONTWAIT, 0);
+        ensure(n != -1 || errno == EAGAIN, "recvmmsg");
+#else
+
+        n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
+        ensure(n != -1 || errno == EAGAIN, "recvmsg");
+#endif
+        if (n > 0) {
+            for (ssize_t j = 0; likely(j < n); j++) {
+#ifdef HAVE_RECVMMSG
+                v[j]->len = (uint16_t)msgvec[j].msg_len;
+#else
+                v[j]->len = (uint16_t)n;
+                // recvmsg returns number of bytes, we need number of
+                // messages for the return loop below
+                n = 1;
+#endif
+                v[j]->ip = peer[j].sin_addr.s_addr;
+                v[j]->port = peer[j].sin_port;
+                v[j]->flags = 0;
+                // add the iov to the tail of the result
+                STAILQ_INSERT_TAIL(i, v[j], next);
             }
-#ifdef HAVE_RECVMMSG
-            n = recvmmsg(s->fd, msgvec, RECV_SIZE, MSG_DONTWAIT, 0);
-            ensure(n != -1 || errno == EAGAIN, "recvmmsg");
-#else
+        } else
+            // in case EAGAIN was returned (n == -1)
+            n = 0;
 
-            n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
-            ensure(n != -1 || errno == EAGAIN, "recvmsg");
-#endif
-            if (n > 0) {
-                for (ssize_t i = 0; likely(i < n); i++) {
-#ifdef HAVE_RECVMMSG
-                    v[i]->len = (uint16_t)msgvec[i].msg_len;
-#else
-                    v[i]->len = (uint16_t)n;
-                    // recvmsg returns number of bytes, we need number of
-                    // messages for the return loop below
-                    n = 1;
-#endif
-                    v[i]->ip = peer[i].sin_addr.s_addr;
-                    v[i]->port = peer[i].sin_port;
-                    v[i]->flags = 0;
-                    // add the iov to the tail of the result
-                    STAILQ_INSERT_TAIL(&s->iv, v[i], next);
-                }
-            } else
-                // in case EAGAIN was returned (n == -1)
-                n = 0;
-
-            // return any unused buffers
-            for (ssize_t i = n; likely(i < RECV_SIZE); i++)
-                STAILQ_INSERT_HEAD(&s->w->iov, v[i], next);
-        } while (n > 0);
-    }
+        // return any unused buffers
+        for (ssize_t j = n; likely(j < RECV_SIZE); j++)
+            STAILQ_INSERT_HEAD(&s->w->iov, v[j], next);
+    } while (n > 0);
 }
 
 
@@ -282,4 +304,48 @@ void w_nic_rx(struct w_engine * const w)
 ///
 void w_nic_tx(struct w_engine * const w __attribute__((unused)))
 {
+}
+
+
+/// The shim backend performs no operation here.
+///
+/// @param[in]  w     Backend engine.
+///
+void w_nic_rx(struct w_engine * const w __attribute__((unused)))
+{
+}
+
+
+/// Return a w_sock_slist containing all sockets with pending inbound data.
+/// Caller needs to free() the returned value before the next call to
+/// w_rx_ready(). Data can be obtained via w_rx() on each w_sock in the list.
+///
+/// @param[in]  w     Backend engine.
+///
+/// @return     List of w_sock sockets that have incoming data pending.
+///
+struct w_sock_slist * w_rx_ready(const struct w_engine * w)
+{
+    // make a new w_sock_slist
+    struct w_sock_slist * sl = calloc(1, sizeof(*sl));
+    ensure(sl, "calloc w_sock_slist");
+    SLIST_INIT(sl);
+
+    // insert all sockets with pending inbound data
+#if defined(HAVE_KQUEUE)
+    const struct timespec timeout = {2, 0};
+    struct kevent ev[10];
+    const int n = kevent(w->kq, 0, 0, &ev[0], 10, &timeout);
+    // ensure(n >= 0, "kevent");
+    warn(debug, "got %u conns", n);
+    for (int i = 0; i < n; i++) {
+        warn(debug, "adding connection");
+        struct w_sock * const s = w->ev[i].udata;
+        SLIST_INSERT_HEAD(sl, s, next_rx);
+    }
+
+#else
+#error
+#endif
+    return sl;
 }

@@ -137,6 +137,7 @@ int main(const int argc, char * const argv[])
         if (busywait == false)
             // if we aren't supposed to busy-wait, poll for new data
             poll(fds, n, -1);
+        warn(debug, "poll done");
 
         // receive new data (there may not be any if busy-waiting)
         w_nic_rx(w);
@@ -150,6 +151,7 @@ int main(const int argc, char * const argv[])
             w_rx(s, &i);
             if (STAILQ_EMPTY(&i))
                 continue;
+            warn(debug, "received %u bytes", w_iov_stailq_len(&i));
 
             struct w_iov_stailq o = STAILQ_HEAD_INITIALIZER(o);
             uint16_t t = 0;
