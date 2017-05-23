@@ -302,5 +302,7 @@ int main(const int argc, char * const argv[])
     for (uint32_t c = 0; c < conns; c++)
         w_close(s[c]);
     w_cleanup(w);
+    free(fds);
+    free(s);
     return 0;
 }

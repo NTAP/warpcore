@@ -11,13 +11,11 @@ if("${isSystemDir}" STREQUAL "-1")
    set(CMAKE_INSTALL_RPATH ${LIB})
 endif()
 
-if(HAVE_NETMAP_H)
+if(HAVE_NETMAP)
   add_executable(warpping ping.c)
-  target_compile_definitions(warpping PRIVATE -DWITH_NETMAP)
   target_link_libraries(warpping PUBLIC warpcore)
 
   add_executable(warpinetd inetd.c)
-  target_compile_definitions(warpinetd PRIVATE -DWITH_NETMAP)
   target_link_libraries(warpinetd PUBLIC warpcore)
 
   install(TARGETS warpping warpinetd DESTINATION bin)
