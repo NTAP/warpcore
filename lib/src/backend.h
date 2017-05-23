@@ -97,7 +97,7 @@ struct w_engine {
     uint32_t cur_txr; ///< Index of the TX ring currently active.
     /// @cond
     /// @internal Padding.
-    uint8_t _unused2[4];
+    uint8_t _unused[4];
     /// @endcond
     uint32_t * tail; ///< TX ring tails after last NIOCTXSYNC call.
 #else
@@ -105,6 +105,11 @@ struct w_engine {
     int kq;
 #elif defined(HAVE_EPOLL)
     int ep;
+#else
+    /// @cond
+    /// @internal Padding.
+    uint8_t _unused[4];
+    /// @endcond
 #endif
     char * ifname; ///< Name of the interface of this engine.
 #endif

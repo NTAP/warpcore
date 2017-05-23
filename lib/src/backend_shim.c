@@ -44,11 +44,12 @@
 #endif
 
 #if defined(HAVE_KQUEUE)
-// IWYU pragma: no_include "warpcore/config.h"
 #include <sys/event.h>
 #include <time.h>
 #elif defined(HAVE_EPOLL)
 #include <sys/epoll.h>
+#else
+#include <poll.h>
 #endif
 
 #include "backend.h"
@@ -92,6 +93,8 @@ void backend_init(struct w_engine * w, const char * const ifname)
     w->kq = kqueue();
 #elif defined(HAVE_EPOLL)
     w->ep = epoll_create1(0);
+#else
+    warn(warn, "will use poll(); neither epoll not kqueue are available");
 #endif
 }
 
@@ -331,24 +334,64 @@ struct w_sock_slist * w_rx_ready(const struct w_engine * w)
     SLIST_INIT(sl);
 
     // insert all sockets with pending inbound data
+
 #if defined(HAVE_KQUEUE)
-#define EV_SIZE 10
+#define EV_SIZE 16
     const struct timespec timeout = {0, 0};
-    struct kevent ev[EV_SIZE];
-    const int n = kevent(w->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
-    // ensure(n >= 0, "kevent");
-    for (int i = 0; i < n; i++)
-        SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].udata, next_rx);
+    int n = 0;
+    do {
+        struct kevent ev[EV_SIZE];
+        n = kevent(w->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
+        for (int i = 0; i < n; i++)
+            SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].udata, next_rx);
+    } while (n == EV_SIZE);
 
 #elif defined(HAVE_EPOLL)
-#define EV_SIZE 10
-    struct epoll_event ev[EV_SIZE];
-    const int n = epoll_wait(w->ep, &ev[0], EV_SIZE, 0);
-    // ensure(n >= 0, "kevent");
-    for (int i = 0; i < n; i++)
-        SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].data.ptr, next_rx);
+#define EV_SIZE 16
+    int n = 0;
+    do {
+        struct epoll_event ev[EV_SIZE];
+        n = epoll_wait(w->ep, &ev[0], EV_SIZE, 0);
+        for (int i = 0; i < n; i++)
+            SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].data.ptr, next_rx);
+    } while (n == EV_SIZE);
+
 #else
-#error "TODO: standard poll() implementation"
+    // XXX: this is super-duper inefficient, but just a fallback
+
+    // count sockets
+    nfds_t n = 0;
+    struct w_sock * s = 0;
+    SLIST_FOREACH (s, &w->sock, next)
+        n++;
+    if (n == 0)
+        return sl;
+
+    // allocate and fill pollfd
+    struct pollfd * fds = calloc(n, sizeof(*fds));
+    struct w_sock ** ss = calloc(n, sizeof(*ss));
+    ensure(fds && ss, "could not calloc");
+    s = SLIST_FIRST(&w->sock);
+    for (nfds_t i = 0; i < n; i++) {
+        fds[i] = (struct pollfd){.fd = s->fd, .events = POLLIN};
+        ss[i] = s;
+        s = SLIST_NEXT(s, next);
+    }
+
+    // poll
+    ensure(poll(fds, n, 0) != -1, "poll");
+
+    // find ready descriptors
+    for (nfds_t i = 0; i < n; i++) {
+        if (fds[i].revents & POLLIN) {
+            warn(debug, "have ready");
+            SLIST_INSERT_HEAD(sl, ss[i], next_rx);
+        }
+    }
+
+    free(ss);
+    free(fds);
 #endif
+
     return sl;
 }
