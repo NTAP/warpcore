@@ -103,9 +103,6 @@ struct w_engine {
 #else
 #if defined(HAVE_KQUEUE)
     int kq;
-    struct kevent * ev;
-    uint32_t ev_len;
-    uint32_t _unused;
 #else
 #error "Need epoll or kqueue"
 #endif

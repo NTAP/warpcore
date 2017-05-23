@@ -45,7 +45,6 @@
 
 #if defined(HAVE_KQUEUE)
 // IWYU pragma: no_include "warpcore/config.h"
-#define EV_SIZE 1000
 #include <sys/event.h>
 #include <time.h>
 #else
@@ -91,7 +90,6 @@ void backend_init(struct w_engine * w, const char * const ifname)
     w->backend = backend_name;
 #if defined(HAVE_KQUEUE)
     w->kq = kqueue();
-    w->ev = calloc(EV_SIZE, sizeof(*w->ev));
 #else
 #error
 #endif
@@ -333,17 +331,13 @@ struct w_sock_slist * w_rx_ready(const struct w_engine * w)
 
     // insert all sockets with pending inbound data
 #if defined(HAVE_KQUEUE)
-    const struct timespec timeout = {2, 0};
-    struct kevent ev[10];
-    const int n = kevent(w->kq, 0, 0, &ev[0], 10, &timeout);
+#define EV_SIZE 10
+    const struct timespec timeout = {0, 0};
+    struct kevent ev[EV_SIZE];
+    const int n = kevent(w->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
     // ensure(n >= 0, "kevent");
-    warn(debug, "got %u conns", n);
-    for (int i = 0; i < n; i++) {
-        warn(debug, "adding connection");
-        struct w_sock * const s = w->ev[i].udata;
-        SLIST_INSERT_HEAD(sl, s, next_rx);
-    }
-
+    for (int i = 0; i < n; i++)
+        SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].udata, next_rx);
 #else
 #error
 #endif
