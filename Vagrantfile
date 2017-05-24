@@ -8,7 +8,7 @@ Vagrant.configure("2") do |config|
 
       # OS to use for the VM
       if i <= 2 then
-        node.vm.box = "ubuntu/yakkety64"
+        node.vm.box = "ubuntu/zesty64"
       else
         node.vm.box = "freebsd/FreeBSD-11.0-STABLE"
         node.vm.base_mac = "DECAFBAD00"
@@ -30,7 +30,7 @@ Vagrant.configure("2") do |config|
       node.vm.provider "virtualbox" do |vb|
         # general settings
         vb.gui = false
-        vb.memory = "1024"
+        vb.memory = "2044"
         vb.cpus = 2
         vb.linked_clone = true
         vb.name = node.vm.hostname
@@ -72,27 +72,21 @@ Vagrant.configure("2") do |config|
           apt-get update
 
           # do a dist-upgrade and clean up
-          apt-get -y dist-upgrade
-          apt-get -y autoremove
-          apt-get -y autoclean
+          # apt-get -y dist-upgrade
+          # apt-get -y autoremove
+          # apt-get -y autoclean
 
-          # install some tools that are needed
-          apt-get -y install cmake cmake-curses-gui git dpkg-dev xinetd \
-            doxygen graphviz iwyu clang-tidy clang-3.8 ninja-build
+          # install some needed tools (libclang-common-3.9-dev for iwyu)
+          apt-get -y install cmake git clang clang-tidy ninja-build dpkg-dev \
+            iwyu libclang-common-3.9-dev
 
           # and some that I often use
-          apt-get -y install htop silversearcher-ag linux-tools-common \
-            linux-tools-generic gdb nmap fish dwarves
-
-          # enable xinetd and remove rate limits
-          find /etc/xinetd.d -type f -and -exec \
-            sed -i -e 's/disable.*/disable\t\t= no/g' \{\} \;
-          sed -i -e 's/{/{\ninstances = UNLIMITED\ncps = 0 0/' /etc/xinetd.conf
+          apt-get -y install htop silversearcher-ag gdb fish dwarves
 
           # change shell to fish
           chsh -s /usr/bin/fish ubuntu
 
-          # get Linux kernel sources, for building netmap
+          # # get Linux kernel sources, for building netmap
           apt-get source linux-image-$(uname -r)
 
           # compile and install netmap
@@ -100,16 +94,16 @@ Vagrant.configure("2") do |config|
             cd ~/netmap && git pull
           # now, build and install netmap
           cd /home/ubuntu/netmap
-          ./configure --driver-suffix=-netmap \
+          ./configure --driver-suffix=-netmap --no-ext-drivers \
             --kernel-sources=/home/ubuntu/linux-$(uname -r | cut -d- -f1)
-          make
+          make -j8
           make install
 
           # enable netmap at boot, and make sure the netmap e1000 driver is used
-          echo 'netmap' > /etc/modules-load.d/netmap.conf
-          echo 'e1000-netmap' >> /etc/modules-load.d/netmap.conf
-          echo 'blacklist e1000' > /etc/modprobe.d/blacklist-netmap.conf
-          echo 'blacklist virtio' >> /etc/modprobe.d/blacklist-netmap.conf
+          echo 'netmap' >> /etc/modules-load.d/modules.conf
+          echo 'e1000-netmap' >> /etc/modules-load.d/modules.conf
+          echo 'blacklist e1000' >> /etc/modprobe.d/blacklist-netmap.conf
+          # echo 'blacklist virtio' >> /etc/modprobe.d/blacklist-netmap.conf
 
           # various changes to /etc to let normal users use netmap
           echo 'KERNEL=="netmap", MODE="0666"' > /etc/udev/rules.d/netmap.rules
@@ -123,13 +117,15 @@ Vagrant.configure("2") do |config|
           update-initramfs -u
 
           # XXX is there a way to automate this (reboot doesn't mount /vagrant)
-          echo 'IMPORTANT: You need to "vagrant reload #{node.vm.hostname}"' \
-            'for netmap support!'
+          echo 'IMPORTANT: You need to "vagrant halt #{node.vm.hostname}"; ' \
+            'vagrant up #{node.vm.hostname}" for netmap support!'
         SHELL
 
       else # FreeBSD
         node.vm.provision "shell", inline: <<-SHELL
-          pkg install sudo cmake nano git include-what-you-use
+          pkg update
+          pkg upgrade
+          pkg install sudo cmake nano git include-what-you-use ninja
         SHELL
       end
     end
