@@ -108,7 +108,7 @@ uint16_t plat_get_mtu(const struct ifaddrs * i
     strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
 
     ensure(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
-    const uint16_t mtu = MIN(UINT16_MAX, ifr.ifr_ifru.ifru_mtu);
+    const uint16_t mtu = (uint16_t)MIN(UINT16_MAX, ifr.ifr_ifru.ifru_mtu);
 
     close(s);
     return mtu;
