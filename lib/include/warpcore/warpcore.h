@@ -176,8 +176,8 @@ extern void __attribute__((nonnull)) w_nic_rx(struct w_engine * const w);
 extern struct w_engine * __attribute__((nonnull))
 w_engine(const struct w_sock * const s);
 
-extern struct w_sock_slist * __attribute__((nonnull))
-w_rx_ready(const struct w_engine * w);
+extern uint32_t __attribute__((nonnull))
+w_rx_ready(const struct w_engine * w, struct w_sock_slist * sl);
 
 extern uint16_t __attribute__((nonnull))
 w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);

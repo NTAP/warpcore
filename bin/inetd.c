@@ -30,7 +30,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/queue.h>
 #include <time.h>
 
@@ -143,9 +142,10 @@ int main(const int argc, char * const argv[])
         w_nic_rx(w);
 
         // for each of the small services that have received data...
-        struct w_sock_slist * sl = w_rx_ready(w);
+        struct w_sock_slist sl = SLIST_HEAD_INITIALIZER(sl);
+        w_rx_ready(w, &sl);
         struct w_sock * s;
-        SLIST_FOREACH (s, sl, next_rx) {
+        SLIST_FOREACH (s, &sl, next_rx) {
             // ...check if any new data has arrived on the socket
             struct w_iov_stailq i = STAILQ_HEAD_INITIALIZER(i);
             w_rx(s, &i);
@@ -228,7 +228,6 @@ int main(const int argc, char * const argv[])
             // we are done serving the received data
             w_free(w, &i);
         }
-        free(sl);
     }
 
     // we only get here after an interrupt; clean up

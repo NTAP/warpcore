@@ -321,28 +321,26 @@ void w_nic_tx(struct w_engine * const w)
 }
 
 
-/// Return a w_sock_slist containing all sockets with pending inbound data.
-/// Caller needs to free() the returned value before the next call to
-/// w_rx_ready(). Data can be obtained via w_rx() on each w_sock in the list.
+/// Fill a w_sock_slist with pointers to all sockets with pending inbound data.
+/// Data can be obtained via w_rx() on each w_sock in the list.
 ///
 /// @param[in]  w     Backend engine.
+/// @param      sl    Empty and initialized w_sock_slist.
 ///
-/// @return     List of w_sock sockets that have incoming data pending.
+/// @return     Number of connections that are ready for reading.
 ///
-struct w_sock_slist * w_rx_ready(const struct w_engine * w)
+uint32_t w_rx_ready(const struct w_engine * w, struct w_sock_slist * const sl)
 {
-    // make a new w_sock_slist
-    struct w_sock_slist * sl = calloc(1, sizeof(*sl));
-    ensure(sl, "calloc w_sock_slist");
-    SLIST_INIT(sl);
-
     // insert all sockets with pending inbound data
     struct w_sock * s;
+    uint32_t n = 0;
     SLIST_FOREACH (s, &w->sock, next)
-        if (!STAILQ_EMPTY(&s->iv))
+        if (!STAILQ_EMPTY(&s->iv)) {
             SLIST_INSERT_HEAD(sl, s, next_rx);
+            n++;
+        }
 
-    return sl;
+    return n;
 }
 
 

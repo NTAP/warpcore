@@ -44,6 +44,7 @@
 #endif
 
 #if defined(HAVE_KQUEUE)
+// IWYU pragma: no_include "warpcore/config.h"
 #include <sys/event.h>
 #include <time.h>
 #elif defined(HAVE_EPOLL)
@@ -318,23 +319,17 @@ void w_nic_rx(struct w_engine * const w __attribute__((unused)))
 }
 
 
-/// Return a w_sock_slist containing all sockets with pending inbound data.
-/// Caller needs to free() the returned value before the next call to
-/// w_rx_ready(). Data can be obtained via w_rx() on each w_sock in the list.
+/// Fill a w_sock_slist with pointers to all sockets with pending inbound data.
+/// Data can be obtained via w_rx() on each w_sock in the list.
 ///
 /// @param[in]  w     Backend engine.
+/// @param      sl    Empty and initialized w_sock_slist.
 ///
-/// @return     List of w_sock sockets that have incoming data pending.
+/// @return     Number of connections that are ready for reading.
 ///
-struct w_sock_slist * w_rx_ready(const struct w_engine * w)
+uint32_t w_rx_ready(const struct w_engine * w, struct w_sock_slist * const sl)
 {
-    // make a new w_sock_slist
-    struct w_sock_slist * sl = calloc(1, sizeof(*sl));
-    ensure(sl, "calloc w_sock_slist");
-    SLIST_INIT(sl);
-
-    // insert all sockets with pending inbound data
-
+    uint32_t ready = 0;
 #if defined(HAVE_KQUEUE)
 #define EV_SIZE 16
     const struct timespec timeout = {0, 0};
@@ -344,6 +339,7 @@ struct w_sock_slist * w_rx_ready(const struct w_engine * w)
         n = kevent(w->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
         for (int i = 0; i < n; i++)
             SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].udata, next_rx);
+        ready += (uint32_t)n;
     } while (n == EV_SIZE);
 
 #elif defined(HAVE_EPOLL)
@@ -354,6 +350,7 @@ struct w_sock_slist * w_rx_ready(const struct w_engine * w)
         n = epoll_wait(w->ep, &ev[0], EV_SIZE, 0);
         for (int i = 0; i < n; i++)
             SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].data.ptr, next_rx);
+        ready += (uint32_t)n;
     } while (n == EV_SIZE);
 
 #else
@@ -388,10 +385,11 @@ struct w_sock_slist * w_rx_ready(const struct w_engine * w)
             SLIST_INSERT_HEAD(sl, ss[i], next_rx);
         }
     }
+    ready = n;
 
     free(ss);
     free(fds);
 #endif
 
-    return sl;
+    return ready;
 }
