@@ -1,9 +1,3 @@
-include(CheckFunctionExists)
-check_function_exists(recvmmsg HAVE_RECVMMSG)
-check_function_exists(sendmmsg HAVE_SENDMMSG)
-check_function_exists(kqueue HAVE_KQUEUE)
-check_function_exists(epoll_create HAVE_EPOLL)
-
 string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_UC)
 configure_file(include/warpcore/config.h.in include/warpcore/config.h)
 configure_file(src/config.c.in src/config.c)

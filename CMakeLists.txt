@@ -3,6 +3,11 @@ cmake_minimum_required(VERSION 3.0)
 project(warpcore VERSION 0.7.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
+include(CheckFunctionExists)
+check_function_exists(recvmmsg HAVE_RECVMMSG)
+check_function_exists(sendmmsg HAVE_SENDMMSG)
+check_function_exists(kqueue HAVE_KQUEUE)
+check_function_exists(epoll_create HAVE_EPOLL)
 
 # See if we can enable testing
 include(CheckCXXSymbolExists)
