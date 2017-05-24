@@ -27,7 +27,6 @@
 #include <getopt.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -176,8 +175,6 @@ int main(const int argc, char * const argv[])
 
     struct w_sock ** s = calloc(conns, sizeof(*s));
     ensure(s, "got sockets");
-    struct pollfd * fds = calloc(conns, sizeof(*fds));
-    ensure(fds, "got poll structure");
 
     // look up the peer IP address and our benchmark port
     struct addrinfo * peer;
@@ -190,9 +187,6 @@ int main(const int argc, char * const argv[])
             const uint16_t port = htons(plat_random() % 50000 + 10000);
             s[c] = w_bind(w, port, flags);
         } while (s[c] == 0);
-
-        // initialize poll descriptors
-        fds[c] = (struct pollfd){.fd = w_fd(s[c]), .events = POLLIN};
 
         // connect to the peer
         w_connect(
@@ -254,14 +248,9 @@ int main(const int argc, char * const argv[])
             // wait for a reply; loop until timeout or we have received all data
             struct w_iov_stailq i = STAILQ_HEAD_INITIALIZER(i);
             while (likely(w_iov_stailq_len(&i) < len && done == false)) {
-                if (unlikely(busywait == false))
-                    // poll for new data
-                    if (poll(fds, conns, -1) == -1)
-                        // if the poll was interrupted, move on
-                        continue;
-
                 // receive new data (there may not be any if busy-waiting)
-                w_nic_rx(w);
+                if (w_nic_rx(w, busywait ? 0 : -1) == false)
+                    continue;
                 w_rx(s[c], &i);
             }
 
@@ -302,7 +291,6 @@ int main(const int argc, char * const argv[])
     for (uint32_t c = 0; c < conns; c++)
         w_close(s[c]);
     w_cleanup(w);
-    free(fds);
     free(s);
     return 0;
 }

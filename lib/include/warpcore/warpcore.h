@@ -171,7 +171,8 @@ w_rx(struct w_sock * const s, struct w_iov_stailq * const i);
 
 extern void __attribute__((nonnull)) w_nic_tx(struct w_engine * const w);
 
-extern void __attribute__((nonnull)) w_nic_rx(struct w_engine * const w);
+extern bool __attribute__((nonnull))
+w_nic_rx(struct w_engine * const w, const int32_t msec);
 
 extern struct w_engine * __attribute__((nonnull))
 w_engine(const struct w_sock * const s);

@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,10 +93,18 @@ void backend_init(struct w_engine * w, const char * const ifname)
     w->backend = backend_name;
 #if defined(HAVE_KQUEUE)
     w->kq = kqueue();
+    warn(debug, "kqueue available");
 #elif defined(HAVE_EPOLL)
     w->ep = epoll_create1(0);
+    warn(debug, "epoll available");
 #else
     warn(warn, "will use poll(); neither epoll not kqueue are available");
+#endif
+#if defined(HAVE_SENDMMSG)
+    warn(debug, "sendmmsg available");
+#endif
+#if defined(HAVE_RECVMMSG)
+    warn(debug, "recvmmsg available");
 #endif
 }
 
@@ -203,7 +212,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
                                             .msg_iovlen = 1};
         if (unlikely(++i == SEND_SIZE || STAILQ_NEXT(v, next) == 0)) {
             // the iov is full, or we are at the last w_iov, so send
-            const ssize_t r = sendmmsg(s->fd, msgvec, i, 0);
+            const ssize_t r = sendmmsg(s->fd, msgvec, (unsigned int)i, 0);
             ensure(r == (ssize_t)i, "sendmmsg %zu %zu", i, r);
             // reuse the iov structure for the next batch
             i = 0;
@@ -310,17 +319,60 @@ void w_nic_tx(struct w_engine * const w __attribute__((unused)))
 }
 
 
-/// The shim backend performs no operation here.
+/// Check/wait until any data has been received.
 ///
 /// @param[in]  w     Backend engine.
+/// @param[in]  msec  Timeout in milliseconds. Pass zero for immediate return,
+///                   -1 for infinite wait.
 ///
-void w_nic_rx(struct w_engine * const w __attribute__((unused)))
+/// @return     Whether any data is ready for reading.
+///
+bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 {
+    int n = 0;
+
+#if defined(HAVE_KQUEUE)
+    const struct timespec timeout = {msec / 1000000, (msec % 1000000) * 1000};
+    struct kevent ev;
+    n = kevent(w->kq, 0, 0, &ev, 1, msec == -1 ? 0 : &timeout);
+
+#elif defined(HAVE_EPOLL)
+    struct epoll_event ev;
+    n = epoll_wait(w->ep, &ev, 1, msec);
+
+#else
+    // XXX: this is super-duper inefficient, but just a fallback
+
+    // count sockets
+    struct w_sock * s = 0;
+    SLIST_FOREACH (s, &w->sock, next)
+        n++;
+    if (n == 0)
+        return false;
+
+    // allocate and fill pollfd
+    struct pollfd * fds = calloc((unsigned long)n, sizeof(*fds));
+    ensure(fds, "could not calloc");
+    s = SLIST_FIRST(&w->sock);
+    for (int i = 0; i < n; i++) {
+        fds[i] = (struct pollfd){.fd = s->fd, .events = POLLIN};
+        s = SLIST_NEXT(s, next);
+    }
+
+    // poll
+    n = poll(fds, (nfds_t)n, msec);
+    free(fds);
+#endif
+
+    return n > 0;
 }
 
 
-/// Fill a w_sock_slist with pointers to all sockets with pending inbound data.
-/// Data can be obtained via w_rx() on each w_sock in the list.
+/// Fill a w_sock_slist with pointers to some sockets with pending inbound data.
+/// Data can be obtained via w_rx() on each w_sock in the list. Call can
+/// optionally block to wait for at least one ready connection. Will return the
+/// number of ready connections, or zero if none are ready. When the return
+/// value is not zero, a repeated call may return additional ready sockets.
 ///
 /// @param[in]  w     Backend engine.
 /// @param      sl    Empty and initialized w_sock_slist.
@@ -329,67 +381,58 @@ void w_nic_rx(struct w_engine * const w __attribute__((unused)))
 ///
 uint32_t w_rx_ready(const struct w_engine * w, struct w_sock_slist * const sl)
 {
-    uint32_t ready = 0;
+    uint32_t n = 0;
+
 #if defined(HAVE_KQUEUE)
-#define EV_SIZE 16
+#define EV_SIZE 64
     const struct timespec timeout = {0, 0};
-    int n = 0;
-    do {
-        struct kevent ev[EV_SIZE];
-        n = kevent(w->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
-        for (int i = 0; i < n; i++)
-            SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].udata, next_rx);
-        ready += (uint32_t)n;
-    } while (n == EV_SIZE);
+    struct kevent ev[EV_SIZE];
+    const int r = kevent(w->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
+    n = r >= 0 ? (uint32_t)r : 0;
+    for (uint32_t i = 0; i < n; i++)
+        SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].udata, next_rx);
 
 #elif defined(HAVE_EPOLL)
-#define EV_SIZE 16
-    int n = 0;
-    do {
-        struct epoll_event ev[EV_SIZE];
-        n = epoll_wait(w->ep, &ev[0], EV_SIZE, 0);
-        for (int i = 0; i < n; i++)
-            SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].data.ptr, next_rx);
-        ready += (uint32_t)n;
-    } while (n == EV_SIZE);
+#define EV_SIZE 64
+    struct epoll_event ev[EV_SIZE];
+    const int r = epoll_wait(w->ep, &ev[0], EV_SIZE, 0);
+    n = r >= 0 ? (uint32_t)r : 0;
+    for (uint32_t i = 0; i < n; i++)
+        SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].data.ptr, next_rx);
 
 #else
     // XXX: this is super-duper inefficient, but just a fallback
 
     // count sockets
-    nfds_t n = 0;
+    unsigned long sock_cnt = 0;
     struct w_sock * s = 0;
     SLIST_FOREACH (s, &w->sock, next)
-        n++;
-    if (n == 0)
-        return sl;
+        sock_cnt++;
+    if (sock_cnt == 0)
+        return 0;
 
     // allocate and fill pollfd
-    struct pollfd * fds = calloc(n, sizeof(*fds));
-    struct w_sock ** ss = calloc(n, sizeof(*ss));
+    struct pollfd * fds = calloc(sock_cnt, sizeof(*fds));
+    struct w_sock ** ss = calloc(sock_cnt, sizeof(*ss));
     ensure(fds && ss, "could not calloc");
     s = SLIST_FIRST(&w->sock);
-    for (nfds_t i = 0; i < n; i++) {
+    for (uint32_t i = 0; i < sock_cnt; i++) {
         fds[i] = (struct pollfd){.fd = s->fd, .events = POLLIN};
         ss[i] = s;
         s = SLIST_NEXT(s, next);
     }
 
-    // poll
-    ensure(poll(fds, n, 0) != -1, "poll");
-
     // find ready descriptors
-    for (nfds_t i = 0; i < n; i++) {
+    poll(fds, (nfds_t)sock_cnt, 0);
+    for (uint32_t i = 0; i < sock_cnt; i++) {
         if (fds[i].revents & POLLIN) {
-            warn(debug, "have ready");
             SLIST_INSERT_HEAD(sl, ss[i], next_rx);
+            n++;
         }
     }
-    ready = n;
-
     free(ss);
     free(fds);
 #endif
 
-    return ready;
+    return n;
 }

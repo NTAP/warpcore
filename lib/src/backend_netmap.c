@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <net/if.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
+#include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -36,10 +37,6 @@
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <unistd.h>
-
-#ifdef __FreeBSD__
-#include <sys/types.h>
-#endif
 
 #include <warpcore/warpcore.h>
 
@@ -253,10 +250,17 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
 /// any new data in the RX rings, calling eth_rx() for each.
 ///
 /// @param[in]  w     Backend engine.
+/// @param[in]  msec  Timeout in milliseconds. Pass zero for immediate return,
+///                   -1 for infinite wait.
 ///
-void w_nic_rx(struct w_engine * const w)
+/// @return     Whether any data is ready for reading.
+///
+bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 {
-    ensure(ioctl(w->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
+    struct pollfd fds = {.fd = w->fd, .events = POLLIN};
+    const int n = poll(&fds, 1, msec) > 0;
+    if (n <= 0)
+        return false;
 
     // loop over all rx rings starting with cur_rxr and wrapping around
     for (uint32_t i = 0; likely(i < w->nif->ni_rx_rings); i++) {
@@ -273,6 +277,7 @@ void w_nic_rx(struct w_engine * const w)
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
     }
+    return true;
 }
 
 
@@ -321,8 +326,11 @@ void w_nic_tx(struct w_engine * const w)
 }
 
 
-/// Fill a w_sock_slist with pointers to all sockets with pending inbound data.
-/// Data can be obtained via w_rx() on each w_sock in the list.
+/// Fill a w_sock_slist with pointers to some sockets with pending inbound data.
+/// Data can be obtained via w_rx() on each w_sock in the list. Call can
+/// optionally block to wait for at least one ready connection. Will return the
+/// number of ready connections, or zero if none are ready. When the return
+/// value is not zero, a repeated call may return additional ready sockets.
 ///
 /// @param[in]  w     Backend engine.
 /// @param      sl    Empty and initialized w_sock_slist.
@@ -342,5 +350,3 @@ uint32_t w_rx_ready(const struct w_engine * w, struct w_sock_slist * const sl)
 
     return n;
 }
-
-

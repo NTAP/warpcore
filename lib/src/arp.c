@@ -27,7 +27,6 @@
 #include <arpa/inet.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <netinet/in.h>
-#include <poll.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -120,7 +119,7 @@ arp_is_at(struct w_engine * const w, const uint8_t * const buf)
     struct arp_hdr * const reply = (struct arp_hdr *)eth_data(v->buf);
 
     // construct ARP header
-    const struct arp_hdr * const req = (struct arp_hdr *)eth_data(buf);
+    const struct arp_hdr * const req = (const struct arp_hdr *)eth_data(buf);
 
     reply->hrd = htons(ARP_HRD_ETHER);
     reply->pro = ETH_TYPE_IP;
@@ -212,9 +211,7 @@ uint8_t * arp_who_has(struct w_engine * const w, const uint32_t dip)
         STAILQ_INSERT_HEAD(&w->iov, v, next);
 
         // wait until packets have been received, then handle them
-        struct pollfd fds = {.fd = w->fd, .events = POLLIN};
-        poll(&fds, 1, 1000);
-        w_nic_rx(w);
+        w_nic_rx(w, 1000);
 
         // check if we can now resolve dip
         a = arp_cache_find(w, dip);

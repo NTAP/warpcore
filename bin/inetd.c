@@ -25,17 +25,12 @@
 
 #include <arpa/inet.h>
 #include <getopt.h>
-#include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/queue.h>
 #include <time.h>
-
-#if 0
-#include <string.h>
-#endif
 
 #include <warpcore/warpcore.h>
 
@@ -121,25 +116,12 @@ int main(const int argc, char * const argv[])
         w_bind(w, htons(55555), flags)
     };
     uint16_t n = 0;
-    struct pollfd fds[] = {
-#if 0
-        {.fd = w_fd(srv[n++]), .events = POLLIN},
-        {.fd = w_fd(srv[n++]), .events = POLLIN},
-        {.fd = w_fd(srv[n++]), .events = POLLIN},
-        {.fd = w_fd(srv[n++]), .events = POLLIN}
-#endif
-        {.fd = w_fd(srv[n++]), .events = POLLIN}
-    };
 
     // serve requests on the four sockets until an interrupt occurs
     while (done == false) {
-        if (busywait == false)
-            // if we aren't supposed to busy-wait, poll for new data
-            poll(fds, n, -1);
-        warn(debug, "poll done");
-
         // receive new data (there may not be any if busy-waiting)
-        w_nic_rx(w);
+        if (w_nic_rx(w, busywait ? 0 : -1) == false)
+            continue;
 
         // for each of the small services that have received data...
         struct w_sock_slist sl = SLIST_HEAD_INITIALIZER(sl);
