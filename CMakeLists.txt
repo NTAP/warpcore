@@ -58,7 +58,8 @@ foreach(FLAG -Wno-c++11-extensions -Wno-c++98-compat -Wno-global-constructors)
 endforeach()
 
 # Set C flags
-foreach(FLAG -Wno-missing-field-initializers -Wno-missing-braces)
+foreach(FLAG -Wno-missing-field-initializers -Wno-missing-braces
+        -Wno-disabled-macro-expansion -Wno-cast-align)
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})
   if(${F})
