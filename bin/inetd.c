@@ -209,6 +209,8 @@ int main(const int argc, char * const argv[])
 
             // we are done serving the received data
             w_free(w, &i);
+            if (!STAILQ_EMPTY(&o))
+                w_free(w, &o);
         }
     }
 
