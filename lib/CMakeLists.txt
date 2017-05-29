@@ -23,6 +23,7 @@ target_include_directories(shimcore
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
                              $<INSTALL_INTERFACE:include>
                            PRIVATE src)
+target_link_libraries(shimcore Threads::Threads)
 install(TARGETS shimcore EXPORT shimcore_config
         ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -36,6 +37,7 @@ set_target_properties(shimcore_static
                         OUTPUT_NAME shimcore
                         VERSION ${PROJECT_VERSION}
                         SOVERSION ${PROJECT_VERSION_MAJOR})
+target_link_libraries(shimcore_static Threads::Threads)
 target_include_directories(shimcore_static
                            PUBLIC
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -59,6 +61,7 @@ if(HAVE_NETMAP_H)
       ${SOURCES} src/arp.c src/eth.c src/icmp.c src/in_cksum.c src/ip.c
       src/udp.c src/backend_netmap.c)
   add_library(warpcore SHARED ${WARPSOURCES})
+  target_link_libraries(warpcore Threads::Threads)
   set_target_properties(warpcore
                         PROPERTIES
                           INTERPROCEDURAL_OPTIMIZATION True
@@ -71,6 +74,7 @@ if(HAVE_NETMAP_H)
                              PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include
                              PRIVATE src)
   add_library(warpcore_static STATIC ${WARPSOURCES})
+  target_link_libraries(warpcore_static Threads::Threads)
   set_target_properties(warpcore_static
                         PROPERTIES
                           INTERPROCEDURAL_OPTIMIZATION True
