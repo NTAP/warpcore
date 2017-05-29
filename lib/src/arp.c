@@ -95,9 +95,9 @@ arp_cache_update(struct w_engine * w,
         a = calloc(1, sizeof(*a));
         ensure(a, "cannot allocate arp_entry");
         a->ip = ip;
+        SLIST_INSERT_HEAD(&w->arp_cache, a, next);
     }
     memcpy(a->mac, mac, ETH_ADDR_LEN);
-    SLIST_INSERT_HEAD(&w->arp_cache, a, next);
     warn(info, "ARP cache entry: %s is at %s",
          inet_ntoa(*(const struct in_addr *)&ip),
          ether_ntoa((const struct ether_addr *)mac));
@@ -305,7 +305,7 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 void free_arp_cache(struct w_engine * const w)
 {
     while (!SLIST_EMPTY(&w->arp_cache)) {
-        struct arp_entry * a = SLIST_FIRST(&w->arp_cache);
+        struct arp_entry * const a = SLIST_FIRST(&w->arp_cache);
         SLIST_REMOVE_HEAD(&w->arp_cache, next);
         free(a);
     }
