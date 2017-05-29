@@ -109,8 +109,8 @@ in_cksumdata(const void * const buf, int len)
         }
     }
 
-    // access prefilling to start load of next cache line. then add current
-    // cache line save result of prefilling for loop iteration.
+    // Access prefilling to start load of next cache line. Then add current
+    // cache line. Save result of prefilling for loop iteration.
 
     uint64_t prefilled = lw[0];
     while ((len -= 32) >= 4) {
