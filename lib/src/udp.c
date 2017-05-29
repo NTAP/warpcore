@@ -89,7 +89,8 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
         // validate the checksum
         const uint16_t orig = udp->cksum;
         udp->cksum = in_pseudo(ip->src, ip->dst, htons(udp_len + ip->p));
-        const uint16_t cksum = in_cksum(udp, udp_len);
+        uint16_t cksum = in_cksum(udp, udp_len);
+        cksum = cksum ? cksum : 0xffff; // make all ones; see RFC786
         udp->cksum = orig;
         if (unlikely(orig != cksum)) {
             warn(warn, "invalid UDP checksum, received 0x%04x != 0x%04x",
