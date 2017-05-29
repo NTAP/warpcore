@@ -64,7 +64,7 @@
 /// for the warpcore w_sock::iv and w_sock::ov socket buffers, as well as for
 /// maintaining packetized data inside an application using warpcore.
 ///
-#define NUM_BUFS 100000 // XXX this should become configurable
+#define NUM_BUFS 900000 // XXX this should become configurable
 
 
 /// A warpcore template packet header structure.
