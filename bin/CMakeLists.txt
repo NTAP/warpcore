@@ -17,7 +17,7 @@ if(HAVE_NETMAP_H)
   target_link_libraries(warpping PUBLIC warpcore)
 
   add_executable(warpinetd inetd.c)
-  target_compile_definitions(warpping PRIVATE -DWITH_NETMAP)
+  target_compile_definitions(warpinetd PRIVATE -DWITH_NETMAP)
   target_link_libraries(warpinetd PUBLIC warpcore)
 
   install(TARGETS warpping warpinetd DESTINATION bin)
