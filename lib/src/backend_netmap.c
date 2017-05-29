@@ -103,7 +103,7 @@ void backend_init(struct w_engine * w, const char * const ifname)
         warn(info, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
-#ifndef NDBUEG
+#ifndef NDEBUG
     for (uint32_t ri = 0; likely(ri < w->nif->ni_rx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_RXRING(w->nif, ri);
         warn(info, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
