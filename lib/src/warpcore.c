@@ -335,7 +335,7 @@ void w_cleanup(struct w_engine * const w)
 
     // close all sockets
     struct w_sock * s;
-    SLIST_FOREACH (s, &w->sock, next)
+    while (s = SLIST_FIRST(&w->sock))
         w_close(s);
 
     backend_cleanup(w);
