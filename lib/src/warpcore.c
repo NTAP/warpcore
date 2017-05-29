@@ -335,7 +335,8 @@ void w_cleanup(struct w_engine * const w)
 
     // close all sockets
     struct w_sock * s;
-    while (s = SLIST_FIRST(&w->sock))
+    while ((s = SLIST_FIRST(&w->sock)) != 0)
+        // XXX: clang-analyzer reports a bogus use-after free here
         w_close(s);
 
     backend_cleanup(w);
