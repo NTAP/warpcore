@@ -88,8 +88,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       -fsanitize=memory -fsanitize-memory-track-origins -fsanitize=thread
       -fsanitize=undefined -fno-sanitize=alignment)
   if(CMAKE_C_COMPILER_ID MATCHES Clang)
-    # -fsanitize=leak does not work on clang
-    list(REMOVE_ITEM FLAGS -fsanitize=leak)
+    # -fsanitize=undefined does not work on clang
+    list(REMOVE_ITEM FLAGS -fsanitize=undefined)
   endif()
   foreach(FLAG ${FLAGS})
     string(REGEX REPLACE "[-=+]" "_" F ${FLAG})

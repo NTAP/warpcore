@@ -25,9 +25,12 @@
 
 #pragma once
 
-#include <arpa/inet.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+#ifndef __linux__
+#include <arpa/inet.h>
+#endif
 
 #include "eth.h"
 
