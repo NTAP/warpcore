@@ -91,6 +91,10 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     # -fsanitize=undefined does not work on clang
     list(REMOVE_ITEM FLAGS -fsanitize=undefined)
   endif()
+  if(CMAKE_SYSTEM_NAME MATCHES FreeBSD)
+    # -fsanitize=leak does not work on clang
+    list(REMOVE_ITEM FLAGS -fsanitize=leak)
+  endif()
   foreach(FLAG ${FLAGS})
     string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
     check_c_compiler_flag(${FLAG} ${F})
@@ -117,6 +121,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   if(CLANGTIDY)
     message(STATUS "Found clang-tidy: ${CLANGTIDY}")
     set(CLANG_TIDY_CHECKS *
+        -clang-analyzer-alpha.deadcode.UnreachableCode
+        -clang-analyzer-alpha.core.CastToStruct
         -google-readability-braces-around-statements
         -readability-braces-around-statements
         -google-readability-todo
