@@ -131,7 +131,7 @@ void backend_init(struct w_engine * w, const char * const ifname)
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 
     w->backend = backend_name;
-    SLIST_INIT(&w->arp_cache);
+    SPLAY_INIT(&w->arp_cache);
 }
 
 

@@ -50,7 +50,7 @@
 /// ARP cache entry.
 ///
 struct arp_entry {
-    SLIST_ENTRY(arp_entry) next; ///< Pointer to next cache entry.
+    SPLAY_ENTRY(arp_entry) next; ///< Pointer to next cache entry.
     uint32_t ip;                 ///< IPv4 address.
     uint8_t mac[ETH_ADDR_LEN];   ///< Ethernet MAC address.
     /// @cond
@@ -58,6 +58,17 @@ struct arp_entry {
     uint8_t _unused[6];
     /// @endcond
 };
+
+
+static int64_t __attribute__((nonnull))
+arp_cache_cmp(const struct arp_entry * const a,
+              const struct arp_entry * const b)
+{
+    return (int64_t)a->ip - (int64_t)b->ip;
+}
+
+SPLAY_PROTOTYPE(arp_cache, arp_entry, next, arp_cache_cmp)
+SPLAY_GENERATE(arp_cache, arp_entry, next, arp_cache_cmp)
 
 
 /// Find the ARP cache entry associated with IPv4 address @p ip.
@@ -70,11 +81,8 @@ struct arp_entry {
 static struct arp_entry * __attribute__((nonnull))
 arp_cache_find(struct w_engine * w, const uint32_t ip)
 {
-    struct arp_entry * a;
-    SLIST_FOREACH (a, &w->arp_cache, next)
-        if (a->ip == ip)
-            return a;
-    return 0;
+    struct arp_entry a = {.ip = ip};
+    return SPLAY_FIND(arp_cache, &w->arp_cache, &a);
 }
 
 
@@ -94,7 +102,7 @@ arp_cache_update(struct w_engine * w,
         a = calloc(1, sizeof(*a));
         ensure(a, "cannot allocate arp_entry");
         a->ip = ip;
-        SLIST_INSERT_HEAD(&w->arp_cache, a, next);
+        SPLAY_INSERT(arp_cache, &w->arp_cache, a);
     }
     memcpy(a->mac, mac, ETH_ADDR_LEN);
     warn(info, "ARP cache entry: %s is at %s",
@@ -303,9 +311,10 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 ///
 void free_arp_cache(struct w_engine * const w)
 {
-    while (!SLIST_EMPTY(&w->arp_cache)) {
-        struct arp_entry * const a = SLIST_FIRST(&w->arp_cache);
-        SLIST_REMOVE_HEAD(&w->arp_cache, next);
+    struct arp_entry *a, *n;
+    for (a = SPLAY_MIN(arp_cache, &w->arp_cache); a; a = n) {
+        n = SPLAY_NEXT(arp_cache, &w->arp_cache, a);
+        SPLAY_REMOVE(arp_cache, &w->arp_cache, a);
         free(a);
     }
 }

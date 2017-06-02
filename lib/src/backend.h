@@ -87,10 +87,10 @@ struct w_engine {
     void * mem;   ///< Pointer to netmap or shim buffer memory region.
     uint32_t rip; ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP
-    int fd;                            ///< Netmap file descriptor.
-    struct netmap_if * nif;            ///< Netmap interface.
-    struct nmreq * req;                ///< Netmap request structure.
-    SLIST_HEAD(, arp_entry) arp_cache; ///< The ARP cache.
+    int fd;                                     ///< Netmap file descriptor.
+    struct netmap_if * nif;                     ///< Netmap interface.
+    struct nmreq * req;                         ///< Netmap request structure.
+    SPLAY_HEAD(arp_cache, arp_entry) arp_cache; ///< The ARP cache.
     uint32_t cur_txr; ///< Index of the TX ring currently active.
     /// @cond
     /// @internal Padding.
