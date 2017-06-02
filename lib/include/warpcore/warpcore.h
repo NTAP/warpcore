@@ -26,14 +26,13 @@
 #pragma once
 
 #include <stdint.h>
-#include <sys/queue.h>
 #include <sys/time.h>
 
-// IWYU pragma: begin_exports
-#include <warpcore/config.h>
-#include <warpcore/plat.h>
-#include <warpcore/util.h>
-// IWYU pragma: end_exports
+#include <warpcore/config.h> // IWYU pragma: export
+#include <warpcore/plat.h>   // IWYU pragma: export
+#include <warpcore/queue.h>  // IWYU pragma: export
+#include <warpcore/tree.h>   // IWYU pragma: export
+#include <warpcore/util.h>   // IWYU pragma: export
 
 struct w_engine;
 
