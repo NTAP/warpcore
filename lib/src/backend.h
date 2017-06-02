@@ -25,14 +25,11 @@
 
 #pragma once
 
-#ifdef WITH_NETMAP
-#include <net/netmap_user.h> // IWYU pragma: export
-#endif
+#include <warpcore/warpcore.h>
 
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
-#include "warpcore/warpcore.h"
 
 
 #ifndef WITH_NETMAP

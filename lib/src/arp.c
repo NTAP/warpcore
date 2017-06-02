@@ -30,7 +30,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
 #include <unistd.h>
 

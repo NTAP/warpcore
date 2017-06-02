@@ -25,16 +25,14 @@
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
+#ifndef __linux__
+#include <netinet/in.h>
+#endif
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/queue.h>
-#include <unistd.h>
-
-#ifndef __linux__
-#include <netinet/in.h>
-#endif
+#include <sys/types.h>
 
 #include <warpcore/warpcore.h>
 

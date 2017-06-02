@@ -33,7 +33,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
@@ -220,8 +219,7 @@ int main(const int argc, char * const argv[])
             // stamp the data
             struct w_iov * v;
             STAILQ_FOREACH (v, &o, next) {
-                struct payload * const p =
-                    (struct payload * const)(void *)v->buf;
+                struct payload * const p = (struct payload * const) v->buf;
                 p->len = htonl(len);
                 p->ts = before_tx;
             }

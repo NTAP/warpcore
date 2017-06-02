@@ -29,7 +29,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <sys/queue.h>
 #include <time.h>
 
 #include <warpcore/warpcore.h>

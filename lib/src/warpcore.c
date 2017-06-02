@@ -35,7 +35,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -52,7 +51,7 @@
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
-#include "warpcore/config.h"
+
 
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
@@ -334,9 +333,8 @@ void w_cleanup(struct w_engine * const w)
     warn(notice, "warpcore shutting down");
 
     // close all sockets
-    struct w_sock * s;
-    while ((s = SLIST_FIRST(&w->sock)) != 0)
-        // XXX: clang-analyzer reports a bogus use-after free here
+    struct w_sock *s, *tmp;
+    SLIST_FOREACH_SAFE (s, &w->sock, next, tmp)
         w_close(s);
 
     backend_cleanup(w);

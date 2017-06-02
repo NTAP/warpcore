@@ -31,21 +31,19 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 
+// IWYU pragma: no_include <sys/queue.h>
 #include <warpcore/warpcore.h>
 
 #if defined(HAVE_SENDMMSG) || defined(HAVE_RECVMMSG)
-// IWYU pragma: no_include "warpcore/config.h"
 #include <limits.h>
 #include <sys/param.h>
 #endif
 
 #if defined(HAVE_KQUEUE)
-// IWYU pragma: no_include "warpcore/config.h"
 #include <sys/event.h>
 #include <time.h>
 #elif defined(HAVE_EPOLL)

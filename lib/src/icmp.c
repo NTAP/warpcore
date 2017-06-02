@@ -28,7 +28,6 @@
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <stdint.h>
 #include <string.h>
-#include <sys/queue.h>
 #include <unistd.h>
 
 #ifndef __linux__
