@@ -49,12 +49,13 @@ def ip_config(iface):
                     "sysctl -w net.core.wmem_default=26214400; "
                     "ifconfig %s down; "
                     "ethtool -C %s adaptive-rx off adaptive-tx off "
-                    "rx-frames-irq 1 tx-frames-irq 1 rx-usecs 0 tx-usecs 0; "
+                    "rx-usecs 0 tx-usecs 0; "
+                    "ethtool -C %s rx-frames-irq 1 tx-frames-irq 1 "
                     "ethtool -G %s rx 2048 tx 2048; "
-                    "ethtool -A %s autoneg off rx off tx off ; "
+                    "ethtool -A %s rx off tx off ; "
                     "ethtool -L %s combined 2; "
                     "ethtool --set-eee %s eee off; "
-                    "ifconfig %s up; " % ((iface, ) * 7))
+                    "ifconfig %s up; " % ((iface, ) * 8))
         else:
             cmd += ("pkill -f 'dhclient: %s'; " % iface)
         cmd += ("ifconfig %s %s/24 up; " % (iface, env.ip[env.host_string]))
