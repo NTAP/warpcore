@@ -18,7 +18,7 @@ set_target_properties(shimcore
                         VERSION ${PROJECT_VERSION}
                         SOVERSION ${PROJECT_VERSION_MAJOR})
 target_include_directories(shimcore
-                           PUBLIC
+                           SYSTEM PUBLIC
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
                              $<INSTALL_INTERFACE:include>
@@ -39,7 +39,7 @@ set_target_properties(shimcore_static
                         SOVERSION ${PROJECT_VERSION_MAJOR})
 target_link_libraries(shimcore_static Threads::Threads)
 target_include_directories(shimcore_static
-                           PUBLIC
+                           SYSTEM PUBLIC
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
                              $<INSTALL_INTERFACE:include>
@@ -70,8 +70,9 @@ if(HAVE_NETMAP_H)
                           SOVERSION ${PROJECT_VERSION_MAJOR})
   target_compile_definitions(warpcore PRIVATE -DWITH_NETMAP)
   target_include_directories(warpcore
-                             PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-                             PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include
+                             SYSTEM PUBLIC
+                               ${CMAKE_CURRENT_SOURCE_DIR}/include
+                               ${CMAKE_CURRENT_BINARY_DIR}/include
                              PRIVATE src)
   add_library(warpcore_static STATIC ${WARPSOURCES})
   target_link_libraries(warpcore_static Threads::Threads)
@@ -83,8 +84,9 @@ if(HAVE_NETMAP_H)
                           SOVERSION ${PROJECT_VERSION_MAJOR})
   target_compile_definitions(warpcore_static PRIVATE -DWITH_NETMAP)
   target_include_directories(warpcore_static
-                             PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-                             PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include
+                             SYSTEM PUBLIC
+                               ${CMAKE_CURRENT_SOURCE_DIR}/include
+                               ${CMAKE_CURRENT_BINARY_DIR}/include
                              PRIVATE src)
   install(TARGETS warpcore EXPORT warpcore_config
           ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
