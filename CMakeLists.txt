@@ -119,9 +119,6 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(CLANG_TIDY_CHECKS *
         -google-readability-braces-around-statements
         -readability-braces-around-statements
-        -google-runtime-references
-        -clang-analyzer-alpha.deadcode.UnreachableCode
-        -cert-err58-cpp
         -google-readability-todo
     )
     string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")

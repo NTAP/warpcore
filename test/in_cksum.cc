@@ -32,7 +32,7 @@ extern "C" {
 }
 
 
-static void BM_in_cksum(benchmark::State & state)
+static void BM_in_cksum(benchmark::State & state) // NOLINT
 {
     const auto len = uint16_t(state.range(0));
     auto * buf = new char[len];
@@ -44,7 +44,7 @@ static void BM_in_cksum(benchmark::State & state)
 }
 
 
-BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 2048);
+BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 2048); // NOLINT
 
 
 BENCHMARK_MAIN()
