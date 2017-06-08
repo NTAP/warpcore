@@ -281,7 +281,7 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
         // check if any socket has an IP address matching this ARP
         // reply, and if so, change its destination MAC
         struct w_sock * s;
-        SLIST_FOREACH (s, &w->sock, next) {
+        SPLAY_FOREACH (s, sock, &w->sock) {
             if ( // is local-net socket and ARP src IP matches its dst
                 ((mk_net(s->w->ip, s->w->mask) ==
                       mk_net(s->hdr->ip.dst, s->w->mask) &&

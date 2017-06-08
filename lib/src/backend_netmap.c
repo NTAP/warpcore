@@ -336,12 +336,12 @@ void w_nic_tx(struct w_engine * const w)
 ///
 /// @return     Number of connections that are ready for reading.
 ///
-uint32_t w_rx_ready(const struct w_engine * w, struct w_sock_slist * const sl)
+uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
 {
     // insert all sockets with pending inbound data
     struct w_sock * s;
     uint32_t n = 0;
-    SLIST_FOREACH (s, &w->sock, next)
+    SPLAY_FOREACH (s, sock, &w->sock)
         if (!STAILQ_EMPTY(&s->iv)) {
             SLIST_INSERT_HEAD(sl, s, next_rx);
             n++;

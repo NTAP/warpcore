@@ -377,7 +377,7 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 ///
 /// @return     Number of connections that are ready for reading.
 ///
-uint32_t w_rx_ready(const struct w_engine * w, struct w_sock_slist * const sl)
+uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
 {
     uint32_t n = 0;
 

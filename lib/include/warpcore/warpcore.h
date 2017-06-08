@@ -67,7 +67,7 @@ struct w_sock {
     ///
     struct w_engine * w;
     STAILQ_HEAD(, w_iov) iv;  ///< Tail queue containing incoming unread data.
-    SLIST_ENTRY(w_sock) next; ///< Next socket associated with this engine.
+    SPLAY_ENTRY(w_sock) next; ///< Next socket associated with this engine.
     /// The template header to be used for outbound packets on this
     /// w_sock.
     struct w_hdr * hdr;
@@ -178,7 +178,7 @@ extern struct w_engine * __attribute__((nonnull))
 w_engine(const struct w_sock * const s);
 
 extern uint32_t __attribute__((nonnull))
-w_rx_ready(const struct w_engine * w, struct w_sock_slist * sl);
+w_rx_ready(struct w_engine * const w, struct w_sock_slist * sl);
 
 extern uint16_t __attribute__((nonnull))
 w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);

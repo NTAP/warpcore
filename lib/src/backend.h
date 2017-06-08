@@ -73,12 +73,17 @@ struct w_hdr {
 };
 
 
-struct arp_entry;
+extern int64_t __attribute__((nonnull))
+w_sock_cmp(const struct w_sock * const a, const struct w_sock * const b);
+
+SPLAY_HEAD(sock, w_sock);
+SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
+
 
 /// A warpcore backend engine.
 ///
 struct w_engine {
-    SLIST_HEAD(, w_sock) sock; ///< List of open (bound) w_sock sockets.
+    struct sock sock; ///< List of open (bound) w_sock sockets.
     STAILQ_HEAD(, w_iov) iov;  ///< Tail queue of w_iov buffers available.
     uint32_t ip;               ///< Local IPv4 address used on this interface.
     uint32_t mask;             ///< IPv4 netmask of this interface.

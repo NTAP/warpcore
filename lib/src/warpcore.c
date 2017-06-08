@@ -53,6 +53,15 @@
 #include "udp.h"
 
 
+int64_t w_sock_cmp(const struct w_sock * const a, const struct w_sock * const b)
+{
+    return (int64_t)a->hdr->udp.sport - (int64_t)b->hdr->udp.sport;
+}
+
+
+SPLAY_GENERATE(sock, w_sock, next, w_sock_cmp)
+
+
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
 ///
@@ -91,11 +100,9 @@ struct w_iov * __attribute__((nonnull)) alloc_iov(struct w_engine * const w)
 struct w_sock * __attribute__((nonnull))
 get_sock(struct w_engine * const w, const uint16_t port)
 {
-    struct w_sock * s;
-    SLIST_FOREACH (s, &w->sock, next)
-        if (s->hdr->udp.sport == port)
-            return s;
-    return 0;
+    struct w_hdr h = {.udp.sport = port};
+    struct w_sock s = {.hdr = &h};
+    return SPLAY_FIND(sock, &w->sock, &s);
 }
 
 
@@ -289,7 +296,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
     // s->hdr->ip.dst is set on w_connect()
 
     s->w = w;
-    SLIST_INSERT_HEAD(&w->sock, s, next);
+    SPLAY_INSERT(sock, &w->sock, s);
     STAILQ_INIT(&s->iv);
 
     backend_bind(s);
@@ -312,7 +319,7 @@ void w_close(struct w_sock * const s)
     STAILQ_CONCAT(&s->w->iov, &s->iv);
 
     // remove the socket from list of sockets
-    SLIST_REMOVE(&s->w->sock, s, w_sock, next);
+    SPLAY_REMOVE(sock, &s->w->sock, s);
 
     // free the template header
     free(s->hdr);
@@ -334,8 +341,10 @@ void w_cleanup(struct w_engine * const w)
 
     // close all sockets
     struct w_sock *s, *tmp;
-    SLIST_FOREACH_SAFE (s, &w->sock, next, tmp)
+    for (s = SPLAY_MIN(sock, &w->sock); s != 0; s = tmp) {
+        tmp = SPLAY_NEXT(sock, &w->sock, s);
         w_close(s);
+    }
 
     backend_cleanup(w);
     free(w->bufs);
@@ -369,7 +378,7 @@ struct w_engine * w_init(const char * const ifname, const uint32_t rip)
     ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
 
     // initialize lists of sockets and iovs
-    SLIST_INIT(&w->sock);
+    SPLAY_INIT(&w->sock);
     STAILQ_INIT(&w->iov);
 
     // backend-specific init
