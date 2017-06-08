@@ -28,6 +28,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 
+#include <warpcore/cdefs.h>  // IWYU pragma: export
 #include <warpcore/config.h> // IWYU pragma: export
 #include <warpcore/plat.h>   // IWYU pragma: export
 #include <warpcore/queue.h>  // IWYU pragma: export
