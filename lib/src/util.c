@@ -42,6 +42,7 @@ struct timeval _epoch;
 
 const char * const _col[] = {MAG, RED, YEL, CYN, BLU, GRN};
 regex_t _comp;
+enum dlevel _dlevel = DLEVEL;
 
 
 /// Constructor function to initialize the debug framework before main()

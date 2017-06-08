@@ -29,6 +29,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/param.h>
 #include <time.h>
 
 #include <warpcore/warpcore.h>
@@ -40,6 +42,8 @@ static void usage(const char * const name)
     printf("\t -i interface           interface to run over\n");
     printf("\t[-b]                    optional, busy-wait\n");
     printf("\t[-z]                    optional, turn off UDP checksums\n");
+    printf("\t[-v verbosity]          verbosity level (0-%u, default %u)\n",
+           DLEVEL, _dlevel);
 }
 
 // global termination flag
@@ -83,6 +87,9 @@ int main(const int argc, char * const argv[])
             break;
         case 'z':
             flags |= W_ZERO_CHKSUM;
+            break;
+        case 'v':
+            _dlevel = MIN(DLEVEL, MAX(0, (uint32_t)strtoul(optarg, 0, 10)));
             break;
         case 'h':
         case '?':

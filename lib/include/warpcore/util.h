@@ -127,12 +127,18 @@ enum dlevel {
     debug = 5   ///< Debug
 };
 
-// Set DLEVEL to the level of debug output you want to see in the Makefile
+// Set DLEVEL to the level of debug output you want to compile in support for
 #ifndef DLEVEL
 /// Default debug level. Can be overridden by setting the DLEVEL define in
 /// CFLAGS.
 #define DLEVEL debug
 #endif
+
+/// Dynamically adjust _dlevel from your code to show or suppress debug messages
+/// at runtime. Increasing this past what was compiled in by setting DLEVEL is
+/// obviously not going to have any effect.
+extern enum dlevel _dlevel;
+
 
 #ifndef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
@@ -167,7 +173,8 @@ extern regex_t _comp;
 ///
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
-        if (DLEVEL >= dlevel && !regexec(&_comp, __FILE__, 0, 0, 0)) {         \
+        if (DLEVEL >= dlevel && _dlevel >= dlevel &&                           \
+            !regexec(&_comp, __FILE__, 0, 0, 0)) {                             \
             if (pthread_mutex_lock(&_lock))                                    \
                 abort();                                                       \
             struct timeval _now, _elapsed;                                     \
