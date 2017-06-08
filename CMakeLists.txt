@@ -65,6 +65,7 @@ endforeach()
 
 # Set C flags
 foreach(FLAG -Wno-missing-field-initializers -Wno-missing-braces
+        -Wno-gnu-statement-expression -Wno-extended-offsetof
         -Wno-disabled-macro-expansion -Wno-cast-align)
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})
