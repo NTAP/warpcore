@@ -129,11 +129,19 @@ void backend_bind(struct w_sock * s)
     ensure(setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, &(int){1},
                       sizeof(int)) >= 0,
            "cannot setsockopt SO_REUSEADDR");
-    const struct sockaddr_in addr = {.sin_family = AF_INET,
-                                     .sin_port = s->hdr->udp.sport,
-                                     .sin_addr = {.s_addr = s->hdr->ip.src}};
+    struct sockaddr_in addr = {.sin_family = AF_INET,
+                               .sin_port = s->hdr->udp.sport,
+                               .sin_addr = {.s_addr = s->hdr->ip.src}};
     ensure(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
            "bind failed on port %u", ntohs(s->hdr->udp.sport));
+
+    // if we're binding to a random port, find out what it is
+    if (s->hdr->udp.sport == 0) {
+        socklen_t len = sizeof(addr);
+        ensure(getsockname(s->fd, (struct sockaddr *)&addr, &len) >= 0,
+               "getsockname");
+        s->hdr->udp.sport = addr.sin_port;
+    }
 
 #if defined(HAVE_KQUEUE)
     struct kevent ev;

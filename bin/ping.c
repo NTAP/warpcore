@@ -185,14 +185,8 @@ int main(const int argc, char * const argv[])
     ensure(getaddrinfo(dst, "55555", &hints, &peer) == 0, "getaddrinfo peer");
 
     for (uint32_t c = 0; c < conns; c++) {
-        // bind a new socket to a random local source port; make sure we don't
-        // bind the same port twice if we draw the same random number
-        do {
-            const uint16_t port = htons(plat_random() % 50000 + 10000);
-            s[c] = w_bind(w, port, flags);
-        } while (s[c] == 0);
-
         // connect to the peer
+        s[c] = w_bind(w, 0, flags);
         w_connect(
             s[c],
             ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,

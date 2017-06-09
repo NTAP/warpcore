@@ -130,6 +130,9 @@ void backend_init(struct w_engine * w, const char * const ifname)
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 
+    // initialize random port number generation state
+    w->next_eph = plat_random();
+
     w->backend = backend_name;
     SPLAY_INIT(&w->arp_cache);
 }
@@ -164,12 +167,32 @@ void backend_cleanup(struct w_engine * const w)
 }
 
 
-/// Netmap-specific code to bind a warpcore socket. Does nothing currently.
+/// Netmap-specific code to bind a warpcore socket. Only computes a random port
+/// number per RFC 6056, if the socket is not binding to a specific port.
 ///
 /// @param      s     The w_sock to bind.
 ///
-void backend_bind(struct w_sock * s __attribute__((unused)))
+void backend_bind(struct w_sock * s)
 {
+    if (s->hdr->udp.sport)
+        return;
+
+    // compute a random local port number per RFC 6056, Section 3.3.5
+    const uint16_t N = 500;
+    const uint16_t min_eph = 1024;
+    const uint16_t max_eph = UINT16_MAX;
+    uint16_t num_eph = max_eph - min_eph + 1;
+    uint16_t count = num_eph;
+    do {
+        next_eph = next_eph + (plat_random() % N) + 1;
+        const uint16_t port = htons(min_eph + (next_eph % num_eph));
+        if (get_sock(w, port) == 0) {
+            s->hdr->udp.sport = port;
+            return;
+        }
+    } while (--count > 0);
+
+    die("could not allocate suitable random local port");
 }
 
 

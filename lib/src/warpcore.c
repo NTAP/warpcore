@@ -266,6 +266,7 @@ void w_disconnect(struct w_sock * const s)
 ///
 /// @param      w      The w_sock to bind.
 /// @param[in]  port   The local port number to bind to, in network byte order.
+///                    If port is zero, a random local port will be chosen.
 /// @param[in]  flags  Flags for this socket.
 ///
 /// @return     Pointer to a bound w_sock.
@@ -302,7 +303,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
     backend_bind(s);
 
     warn(notice, "IP proto %d socket bound to port %d", s->hdr->ip.p,
-         ntohs(port));
+         ntohs(s->hdr->udp.sport));
 
     return s;
 }

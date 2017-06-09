@@ -83,7 +83,7 @@ SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
 /// A warpcore backend engine.
 ///
 struct w_engine {
-    struct sock sock; ///< List of open (bound) w_sock sockets.
+    struct sock sock;          ///< List of open (bound) w_sock sockets.
     STAILQ_HEAD(, w_iov) iov;  ///< Tail queue of w_iov buffers available.
     uint32_t ip;               ///< Local IPv4 address used on this interface.
     uint32_t mask;             ///< IPv4 netmask of this interface.
@@ -96,10 +96,11 @@ struct w_engine {
     struct netmap_if * nif;                     ///< Netmap interface.
     struct nmreq * req;                         ///< Netmap request structure.
     SPLAY_HEAD(arp_cache, arp_entry) arp_cache; ///< The ARP cache.
-    uint32_t cur_txr; ///< Index of the TX ring currently active.
+    uint32_t cur_txr;  ///< Index of the TX ring currently active.
+    uint16_t next_eph; ///< State for random port number generation.
     /// @cond
     /// @internal Padding.
-    uint8_t _unused[4];
+    uint8_t _unused[2];
     /// @endcond
     uint32_t * tail; ///< TX ring tails after last NIOCTXSYNC call.
 #else
