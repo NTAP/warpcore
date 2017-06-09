@@ -36,15 +36,16 @@ struct ifaddrs;
 #include <sys/socket.h>
 #define AF_LINK AF_PACKET
 #define PLAT_MMFLAGS MAP_POPULATE | MAP_LOCKED
-
-#define plat_random() random()
-
 #else
-
 /// Platform-dependent flags to pass to mmap().
 #define PLAT_MMFLAGS MAP_PREFAULT_READ | MAP_NOSYNC | MAP_ALIGNED_SUPER
+#endif
 
+
+#ifdef HAVE_ARC4RANDOM
 #define plat_random(x) arc4random(x)
+#else
+#define plat_random() random()
 #endif
 
 
