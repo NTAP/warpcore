@@ -42,8 +42,10 @@ static void usage(const char * const name)
     printf("\t -i interface           interface to run over\n");
     printf("\t[-b]                    optional, busy-wait\n");
     printf("\t[-z]                    optional, turn off UDP checksums\n");
+#ifndef NDEBUG
     printf("\t[-v verbosity]          verbosity level (0-%u, default %u)\n",
            DLEVEL, _dlevel);
+#endif
 }
 
 // global termination flag
@@ -77,7 +79,12 @@ int main(const int argc, char * const argv[])
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv, "hi:bz")) != -1) {
+    while ((ch = getopt(argc, argv, "hi:bz"
+#ifndef NDEBUG
+                                    "v:"
+#endif
+
+                        )) != -1) {
         switch (ch) {
         case 'i':
             ifname = optarg;
@@ -88,9 +95,11 @@ int main(const int argc, char * const argv[])
         case 'z':
             flags |= W_ZERO_CHKSUM;
             break;
+#ifndef NDEBUG
         case 'v':
             _dlevel = MIN(DLEVEL, MAX(0, (uint32_t)strtoul(optarg, 0, 10)));
             break;
+#endif
         case 'h':
         case '?':
         default:
