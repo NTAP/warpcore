@@ -41,8 +41,8 @@
 
 /// For a given buffer index, get a pointer to its beginning.
 ///
-/// Since netmap uses a macro for this, we also need to use a macro for the shim
-/// backend.
+/// Since netmap uses a macro for this, we also need to use a macro for the
+/// socket backend.
 ///
 /// @param      w     Backend engine.
 /// @param      i     Buffer index.
@@ -89,7 +89,7 @@ struct w_engine {
     uint32_t mask;             ///< IPv4 netmask of this interface.
     uint16_t mtu;              ///< MTU of this interface.
     uint8_t mac[ETH_ADDR_LEN]; ///< Local Ethernet MAC address of the interface.
-    void * mem;   ///< Pointer to netmap or shim buffer memory region.
+    void * mem;   ///< Pointer to netmap or socket buffer memory region.
     uint32_t rip; ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP
     int fd;                                     ///< Netmap file descriptor.

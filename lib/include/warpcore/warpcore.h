@@ -55,7 +55,7 @@ struct w_iov_stailq {
 
 
 /// Do not compute a UDP checksum for outgoing packets. Has no effect for the
-/// shim backend.
+/// socket backend.
 ///
 #define W_ZERO_CHKSUM 1
 
@@ -77,11 +77,11 @@ struct w_sock {
     uint8_t _unused[3]; ///< @internal Padding.
 /// @endcond
 #ifndef WITH_NETMAP
-    int fd; ///< Socket descriptor underlying the engine, if the shim is in use.
+    int fd; ///< Socket descriptor underlying the engine.
 #else
     /// @cond
     uint8_t _unused2[4]; ///< @internal Padding.
-                         /// @endcond
+    /// @endcond
 #endif
 };
 

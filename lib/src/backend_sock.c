@@ -59,10 +59,10 @@
 
 /// The backend name.
 ///
-static char backend_name[] = "shim";
+static char backend_name[] = "socket";
 
 
-/// Initialize the warpcore shim backend for engine @p w. Sets up the extra
+/// Initialize the warpcore socket backend for engine @p w. Sets up the extra
 /// buffers.
 ///
 /// @param      w       Backend engine.
@@ -107,7 +107,7 @@ void backend_init(struct w_engine * w, const char * const ifname)
 }
 
 
-/// Shut a warpcore shim engine down cleanly. Does nothing, at the moment.
+/// Shut a warpcore socket engine down cleanly. Does nothing, at the moment.
 ///
 /// @param      w     Backend engine.
 ///
@@ -119,7 +119,7 @@ void backend_cleanup(struct w_engine * const w)
 }
 
 
-/// Bind a warpcore shim socket. Calls the underlying Socket API.
+/// Bind a warpcore socket-backend socket. Calls the underlying Socket API.
 ///
 /// @param      s     The w_sock to bind.
 ///
@@ -154,7 +154,7 @@ void backend_bind(struct w_sock * s)
 }
 
 
-/// The shim backend performs no operation here.
+/// The socket backend performs no operation here.
 ///
 /// @param      s     The w_sock to connect.
 ///
@@ -163,7 +163,7 @@ void backend_connect(struct w_sock * const s __attribute__((unused)))
 }
 
 
-/// Return the file descriptor associated with a w_sock. For the shim backend,
+/// Return the file descriptor associated with a w_sock. For the socket backend,
 /// this an OS file descriptor of the underlying socket. It can be used for
 /// poll() or with event-loop libraries in the application.
 ///
@@ -178,8 +178,7 @@ int w_fd(const struct w_sock * const s)
 
 
 /// Loops over the w_iov structures in the tail queue @p o, sending them all
-/// over
-/// w_sock @p s. This backend uses the Socket API.
+/// over w_sock @p s. This backend uses the Socket API.
 ///
 /// @param      s     w_sock socket to transmit over.
 /// @param      o     w_iov_stailq to send.
@@ -316,7 +315,7 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 }
 
 
-/// The shim backend performs no operation here.
+/// The sock backend performs no operation here.
 ///
 /// @param[in]  w     Backend engine.
 ///

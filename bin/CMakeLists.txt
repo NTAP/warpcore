@@ -23,10 +23,10 @@ if(HAVE_NETMAP_H)
   install(TARGETS warpping warpinetd DESTINATION bin)
 endif()
 
-add_executable(shimping ping.c)
-target_link_libraries(shimping PUBLIC shimcore)
+add_executable(sockping ping.c)
+target_link_libraries(sockping PUBLIC sockcore)
 
-add_executable(shiminetd inetd.c)
-target_link_libraries(shiminetd PUBLIC shimcore)
+add_executable(sockinetd inetd.c)
+target_link_libraries(sockinetd PUBLIC sockcore)
 
-install(TARGETS shimping shiminetd DESTINATION bin)
+install(TARGETS sockping sockinetd DESTINATION bin)

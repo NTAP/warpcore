@@ -117,7 +117,7 @@ def netmap_unconfig(iface):
 def clear_logs():
     with cd("~/warpcore"):
         with settings(warn_only=True):
-            sudo("rm warp*.log shim*.log warp*.txt shim*.txt 2> /dev/null")
+            sudo("rm warp*.log sock*.log warp*.txt sock*.txt 2> /dev/null")
 
 
 @roles("client", "server")
@@ -157,8 +157,8 @@ def start_server(test, busywait, cksum, kind):
 def stop(flag=""):
     with settings(warn_only=True):
         sudo('''pkill %s inetd ; while : ; do \
-                pkill %s '(warp|shim)(ping|inetd)'; \
-                pgrep "(warp|shim)(ping|inetd)"; \
+                pkill %s '(warp|sock)(ping|inetd)'; \
+                pgrep "(warp|sock)(ping|inetd)"; \
                 [ "$?" == 1 ] && break; \
                 sleep 3; \
             done''' % (flag, flag))
@@ -204,8 +204,8 @@ def bench():
             execute(ip_unconfig, t["iface"])
             execute(ip_config, t["iface"])
 
-            # XXX need to test shim before warp, otherwise 40G shim perf sucks?
-            for k in ["shim", "warp"]:
+            # XXX need to test sock before warp, otherwise 40G sock perf sucks?
+            for k in ["sock", "warp"]:
                 if k == "warp":
                     execute(netmap_config, t["iface"])
                 for c in ["", "-z"]:

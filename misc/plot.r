@@ -25,7 +25,7 @@ dt = rbindlist(lapply(list.files(pattern=".*ping.*.txt"), my_fread))
 speed_lab = function(string) { paste0(string, "G Ethernet") }
 
 method_lab = function(string) {
-  ifelse(string == "shimping", "Kernel Stack", "Warpcore")
+  ifelse(string == "sockping", "Kernel Stack", "Warpcore")
 }
 
 gbps = function(bytepnsec) { comma(bytepnsec*8) }

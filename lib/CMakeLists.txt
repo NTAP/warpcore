@@ -9,42 +9,42 @@ SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(SOURCES ${SOURCES} src/plat.c src/util.c src/warpcore.c
     ${CMAKE_CURRENT_BINARY_DIR}/src/config.c)
 
-set(SHIMSOURCES ${SOURCES} src/backend_shim.c)
-add_library(shimcore SHARED ${SHIMSOURCES})
-set_target_properties(shimcore
+set(SOCKSOURCES ${SOURCES} src/backend_sock.c)
+add_library(sockcore SHARED ${SOCKSOURCES})
+set_target_properties(sockcore
                       PROPERTIES
                         INTERPROCEDURAL_OPTIMIZATION True
-                        OUTPUT_NAME shimcore
+                        OUTPUT_NAME sockcore
                         VERSION ${PROJECT_VERSION}
                         SOVERSION ${PROJECT_VERSION_MAJOR})
-target_include_directories(shimcore
+target_include_directories(sockcore
                            SYSTEM PUBLIC
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
                              $<INSTALL_INTERFACE:include>
                            PRIVATE src)
-target_link_libraries(shimcore Threads::Threads)
-install(TARGETS shimcore EXPORT shimcore_config
+target_link_libraries(sockcore Threads::Threads)
+install(TARGETS sockcore EXPORT sockcore_config
         ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 
-add_library(shimcore_static STATIC ${SHIMSOURCES})
-set_target_properties(shimcore_static
+add_library(sockcore_static STATIC ${SOCKSOURCES})
+set_target_properties(sockcore_static
                       PROPERTIES
                         INTERPROCEDURAL_OPTIMIZATION True
-                        OUTPUT_NAME shimcore
+                        OUTPUT_NAME sockcore
                         VERSION ${PROJECT_VERSION}
                         SOVERSION ${PROJECT_VERSION_MAJOR})
-target_link_libraries(shimcore_static Threads::Threads)
-target_include_directories(shimcore_static
+target_link_libraries(sockcore_static Threads::Threads)
+target_include_directories(sockcore_static
                            SYSTEM PUBLIC
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
                              $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
                              $<INSTALL_INTERFACE:include>
                            PRIVATE src)
-install(TARGETS shimcore_static EXPORT shimcore_static_config
+install(TARGETS sockcore_static EXPORT sockcore_static_config
         ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
