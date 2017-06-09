@@ -25,6 +25,7 @@
 
 
 // IWYU pragma: no_include <net/netmap.h>
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <net/if.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
@@ -131,7 +132,7 @@ void backend_init(struct w_engine * w, const char * const ifname)
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 
     // initialize random port number generation state
-    w->next_eph = plat_random();
+    w->next_eph = (uint16_t)plat_random();
 
     w->backend = backend_name;
     SPLAY_INIT(&w->arp_cache);
@@ -184,9 +185,9 @@ void backend_bind(struct w_sock * s)
     uint16_t num_eph = max_eph - min_eph + 1;
     uint16_t count = num_eph;
     do {
-        next_eph = next_eph + (plat_random() % N) + 1;
-        const uint16_t port = htons(min_eph + (next_eph % num_eph));
-        if (get_sock(w, port) == 0) {
+        s->w->next_eph += (plat_random() % N) + 1;
+        const uint16_t port = htons(min_eph + (s->w->next_eph % num_eph));
+        if (get_sock(s->w, port) == 0) {
             s->hdr->udp.sport = port;
             return;
         }
