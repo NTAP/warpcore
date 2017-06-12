@@ -358,7 +358,8 @@ void w_cleanup(struct w_engine * const w)
 /// source addresses and related information, such as the netmask, are taken
 /// from the active OS configuration of the interface. A default router,
 /// however, needs to be specified with @p rip, if communication over a WAN is
-/// desired.
+/// desired. @p nbufs controls how many packet buffers the engine will attempt
+/// to allocate.
 ///
 /// Since warpcore relies on random() to generate random values, the caller
 /// should also set an initial seed with srandom() or srandomdev(). Warpcore
@@ -367,10 +368,12 @@ void w_cleanup(struct w_engine * const w)
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
 /// @param[in]  rip     The default router to be used for non-local
 ///                     destinations. Can be zero.
+/// @param[in]  nbufs   Number of packet buffers to allocate.
 ///
 /// @return     Initialized warpcore engine.
 ///
-struct w_engine * w_init(const char * const ifname, const uint32_t rip)
+struct w_engine *
+w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 {
     struct w_engine * w;
     bool link_up = false;
@@ -383,7 +386,7 @@ struct w_engine * w_init(const char * const ifname, const uint32_t rip)
     STAILQ_INIT(&w->iov);
 
     // backend-specific init
-    backend_init(w, ifname);
+    backend_init(w, ifname, nbufs);
 
     // get interface config
     // we mostly loop here because the link may be down

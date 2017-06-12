@@ -56,14 +56,6 @@
 #endif
 
 
-/// The number of extra buffers to allocate from netmap. Extra buffers are
-/// buffers that are not used to support TX or RX rings, but instead are used
-/// for the warpcore w_sock::iv and w_sock::ov socket buffers, as well as for
-/// maintaining packetized data inside an application using warpcore.
-///
-#define NUM_BUFS 900000 // XXX this should become configurable
-
-
 /// A warpcore template packet header structure.
 ///
 struct w_hdr {
@@ -99,8 +91,7 @@ struct w_engine {
     uint32_t cur_txr;  ///< Index of the TX ring currently active.
     uint16_t next_eph; ///< State for random port number generation.
     /// @cond
-    /// @internal Padding.
-    uint8_t _unused[2];
+    uint8_t _unused[2]; ///< @internal Padding.
     /// @endcond
     uint32_t * tail; ///< TX ring tails after last NIOCTXSYNC call.
 #else
@@ -108,11 +99,6 @@ struct w_engine {
     int kq;
 #elif defined(HAVE_EPOLL)
     int ep;
-#else
-    /// @cond
-    /// @internal Padding.
-    uint8_t _unused[4];
-    /// @endcond
 #endif
     char * ifname; ///< Name of the interface of this engine.
 #endif
@@ -156,7 +142,8 @@ extern void __attribute__((nonnull)) backend_bind(struct w_sock * s);
 
 extern void __attribute__((nonnull)) backend_connect(struct w_sock * const s);
 
-extern void __attribute__((nonnull))
-backend_init(struct w_engine * w, const char * const ifname);
+extern void __attribute__((nonnull)) backend_init(struct w_engine * w,
+                                                  const char * const ifname,
+                                                  const uint32_t nbufs);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);

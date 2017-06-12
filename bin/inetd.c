@@ -36,12 +36,15 @@
 #include <warpcore/warpcore.h>
 
 
-static void usage(const char * const name)
+static void usage(const char * const name, const uint32_t nbufs)
 {
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
     printf("\t[-b]                    optional, busy-wait\n");
     printf("\t[-z]                    optional, turn off UDP checksums\n");
+    printf("\t[-n buffers]            packet buffers to allocate "
+           "(default %u)\n",
+           nbufs);
 #ifndef NDEBUG
     printf("\t[-v verbosity]          verbosity level (0-%u, default %u)\n",
            DLEVEL, _dlevel);
@@ -76,10 +79,11 @@ int main(const int argc, char * const argv[])
     const char * ifname = 0;
     bool busywait = false;
     uint8_t flags = 0;
+    uint32_t nbufs = 500000;
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv, "hi:bz"
+    while ((ch = getopt(argc, argv, "hi:bzn:"
 #ifndef NDEBUG
                                     "v:"
 #endif
@@ -95,6 +99,9 @@ int main(const int argc, char * const argv[])
         case 'z':
             flags |= W_ZERO_CHKSUM;
             break;
+        case 'n':
+            nbufs = MIN(900000, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
+            break;
 #ifndef NDEBUG
         case 'v':
             _dlevel = MIN(DLEVEL, MAX(0, (uint32_t)strtoul(optarg, 0, 10)));
@@ -103,18 +110,18 @@ int main(const int argc, char * const argv[])
         case 'h':
         case '?':
         default:
-            usage(basename(argv[0]));
+            usage(basename(argv[0]), nbufs);
             return 0;
         }
     }
 
     if (ifname == 0) {
-        usage(basename(argv[0]));
+        usage(basename(argv[0]), nbufs);
         return 0;
     }
 
     // initialize a warpcore engine on the given network interface
-    struct w_engine * w = w_init(ifname, 0);
+    struct w_engine * w = w_init(ifname, 0, nbufs);
 
     // install a signal handler to clean up after interrupt
     ensure(signal(SIGTERM, &terminate) != SIG_ERR, "signal");

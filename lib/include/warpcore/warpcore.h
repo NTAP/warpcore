@@ -48,9 +48,6 @@ SLIST_HEAD(w_sock_slist, w_sock);
 struct w_iov_stailq {
     STAILQ_HEAD(, w_iov); ///< Head of the w_iov tail queue.
     uint32_t tx_pending; ///< Counter of untransmitted w_iovs. Only valid on TX.
-    /// @cond
-    uint8_t _unused2[4]; ///< @internal Padding.
-    /// @endcond
 };
 
 
@@ -73,15 +70,8 @@ struct w_sock {
     struct w_hdr * hdr;
     SLIST_ENTRY(w_sock) next_rx; ///< Next socket with unread data.
     uint8_t flags;
-    /// @cond
-    uint8_t _unused[3]; ///< @internal Padding.
-/// @endcond
 #ifndef WITH_NETMAP
     int fd; ///< Socket descriptor underlying the engine.
-#else
-    /// @cond
-    uint8_t _unused2[4]; ///< @internal Padding.
-    /// @endcond
 #endif
 };
 
@@ -101,7 +91,7 @@ struct w_sock {
 struct w_iov {
     uint8_t * buf;            ///< Start of payload data.
     STAILQ_ENTRY(w_iov) next; ///< Next w_iov in a w_iov_stailq.
-    uint32_t idx;             ///< Index of netmap buffer. (Internal use.)
+    uint32_t idx;             ///< Index of buffer, starting at zero.
     uint16_t len;             ///< Length of payload data.
 
     /// Sender port on RX. Destination port on TX on a disconnected
@@ -116,12 +106,6 @@ struct w_iov {
     /// to-be-transmitted IPv4 packet on TX.
     uint8_t flags;
 
-    /// @cond
-    uint8_t _unused[3]; ///< @internal Padding.
-    /// @endcond
-
-    void * data; ///< Arbitrary data, for use by callers. Ignored by warpcore.
-
 #ifdef WITH_NETMAP
     ///< Pointer to the w_iov_stailq this w_iov resides in. Only valid on TX.
     struct w_iov_stailq * o;
@@ -130,7 +114,7 @@ struct w_iov {
 
 
 extern struct w_engine * __attribute__((nonnull))
-w_init(const char * const ifname, const uint32_t rip);
+w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs);
 
 extern void __attribute__((nonnull)) w_cleanup(struct w_engine * const w);
 

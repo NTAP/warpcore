@@ -58,8 +58,11 @@ static char backend_name[] = "netmap";
 ///
 /// @param      w       Backend engine.
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
+/// @param[in]  nbufs   Number of packet buffers to allocate.
 ///
-void backend_init(struct w_engine * w, const char * const ifname)
+void backend_init(struct w_engine * w,
+                  const char * const ifname,
+                  const uint32_t nbufs)
 {
     struct w_engine * ww;
     SLIST_FOREACH (ww, &engines, next)
@@ -79,7 +82,7 @@ void backend_init(struct w_engine * w, const char * const ifname)
     // don't always transmit on poll
     w->req->nr_ringid |= NETMAP_NO_TX_POLL;
     w->req->nr_flags = NR_REG_ALL_NIC;
-    w->req->nr_arg3 = NUM_BUFS; // request extra buffers
+    w->req->nr_arg3 = nbufs; // request extra buffers
     ensure(ioctl(w->fd, NIOCREGIF, w->req) != -1,
            "%s: cannot put interface into netmap mode", ifname);
 
@@ -123,8 +126,8 @@ void backend_init(struct w_engine * w, const char * const ifname)
         i = *(uint32_t *)w->bufs[n].buf;
     }
 
-    if (w->req->nr_arg3 != NUM_BUFS)
-        die("can only allocate %d/%d extra buffers", w->req->nr_arg3, NUM_BUFS);
+    if (w->req->nr_arg3 != nbufs)
+        die("can only allocate %d/%d extra buffers", w->req->nr_arg3, nbufs);
     else
         warn(notice, "allocated %d extra buffers", w->req->nr_arg3);
 

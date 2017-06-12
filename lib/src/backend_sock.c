@@ -67,20 +67,22 @@ static char backend_name[] = "socket";
 ///
 /// @param      w       Backend engine.
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
+/// @param[in]  nbufs   Number of packet buffers to allocate.
 ///
-void backend_init(struct w_engine * w, const char * const ifname)
+void backend_init(struct w_engine * w,
+                  const char * const ifname,
+                  const uint32_t nbufs)
 {
     struct w_engine * ww;
     SLIST_FOREACH (ww, &engines, next)
         ensure(strncmp(ifname, ww->ifname, IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
 
-    ensure((w->mem = calloc(NUM_BUFS, IOV_BUF_LEN)) != 0,
-           "cannot alloc buf mem");
-    ensure((w->bufs = calloc(NUM_BUFS, sizeof(*w->bufs))) != 0,
+    ensure((w->mem = calloc(nbufs, IOV_BUF_LEN)) != 0, "cannot alloc buf mem");
+    ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
            "cannot alloc bufs");
 
-    for (uint32_t i = 0; i < NUM_BUFS; i++) {
+    for (uint32_t i = 0; i < nbufs; i++) {
         w->bufs[i].buf = IDX2BUF(w, i);
         w->bufs[i].idx = i;
         STAILQ_INSERT_HEAD(&w->iov, &w->bufs[i], next);

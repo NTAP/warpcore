@@ -54,8 +54,7 @@ struct arp_entry {
     uint32_t ip;                 ///< IPv4 address.
     uint8_t mac[ETH_ADDR_LEN];   ///< Ethernet MAC address.
     /// @cond
-    /// @internal Padding.
-    uint8_t _unused[6];
+    uint8_t _unused[6]; ///< @internal Padding.
     /// @endcond
 };
 

@@ -45,12 +45,16 @@ static void usage(const char * const name,
                   const uint32_t inc,
                   const uint32_t end,
                   const uint32_t loops,
-                  const uint32_t conns)
+                  const uint32_t conns,
+                  const uint32_t nbufs)
 {
     printf("%s\n", name);
     printf("\t -i interface           interface to run over\n");
     printf("\t -d destination IP      peer to connect to\n");
     printf("\t[-r router IP]          router to use for non-local peers\n");
+    printf("\t[-n buffers]            packet buffers to allocate "
+           "(default %u)\n",
+           nbufs);
     printf("\t[-s start packet len]   starting packet length (default %u)\n",
            start);
     printf("\t[-p increment]          packet length increment; 0 = exponential "
@@ -112,10 +116,11 @@ int main(const int argc, char * const argv[])
     uint32_t conns = 1;
     bool busywait = false;
     uint8_t flags = 0;
+    uint32_t nbufs = 500000;
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv, "hzbi:d:l:r:s:c:e:p:"
+    while ((ch = getopt(argc, argv, "hzbi:d:l:r:s:c:e:p:n:"
 #ifndef NDEBUG
                                     "v:"
 #endif
@@ -145,6 +150,9 @@ int main(const int argc, char * const argv[])
         case 'c':
             conns = MIN(50000, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
             break;
+        case 'n':
+            nbufs = MIN(900000, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
+            break;
         case 'b':
             busywait = true;
             break;
@@ -159,13 +167,13 @@ int main(const int argc, char * const argv[])
         case 'h':
         case '?':
         default:
-            usage(basename(argv[0]), start, inc, end, loops, conns);
+            usage(basename(argv[0]), start, inc, end, loops, conns, nbufs);
             return 0;
         }
     }
 
     if (ifname == 0 || dst == 0) {
-        usage(basename(argv[0]), start, inc, end, loops, conns);
+        usage(basename(argv[0]), start, inc, end, loops, conns, nbufs);
         return 0;
     }
 
@@ -183,7 +191,7 @@ int main(const int argc, char * const argv[])
     }
 
     // initialize a warpcore engine on the given network interface
-    struct w_engine * w = w_init(ifname, rip);
+    struct w_engine * w = w_init(ifname, rip, nbufs);
 
     struct w_sock ** s = calloc(conns, sizeof(*s));
     ensure(s, "got sockets");
