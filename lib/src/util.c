@@ -102,7 +102,7 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
     gettimeofday(&_now, 0);
     timersub(&_now, &_epoch, &_elapsed);
 
-    fprintf(stderr, REV "%s " NRM " %ld.%04lld " REV WHT " " NRM MAG " %s" BLK
+    fprintf(stderr, REV "%s " NRM " %ld.%03lld " REV WHT " " NRM MAG " %s" BLK
                         " " BLU "%s:%d " NRM "hex-dumping %zu byte%s of %s\n",
             (pthread_self() == _master ? BLK : WHT), _elapsed.tv_sec % 1000,
             (long long)(_elapsed.tv_usec / 1000), func, basename(file), line,
@@ -110,7 +110,7 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
 
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
-        fprintf(stderr, REV "%s " NRM " %ld.%04lld " REV WHT " " NRM " " BLU
+        fprintf(stderr, REV "%s " NRM " %ld.%03lld " REV WHT " " NRM " " BLU
                             "0x%04lx:  " NRM,
                 (pthread_self() == _master ? BLK : WHT), _elapsed.tv_sec % 1000,
                 (long long)(_elapsed.tv_usec / 1000), i);
