@@ -28,6 +28,10 @@
 #include <stdint.h>
 #include <sys/time.h>
 
+#ifdef __linux__
+typedef uintptr_t __uintptr_t;
+#endif
+
 #include <warpcore/cdefs.h>  // IWYU pragma: export
 #include <warpcore/config.h> // IWYU pragma: export
 #include <warpcore/plat.h>   // IWYU pragma: export
