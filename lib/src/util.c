@@ -96,8 +96,7 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
                                               const char * const file,
                                               const int line)
 {
-    if (pthread_mutex_lock(&_lock))
-        abort();
+    ensure(pthread_mutex_lock(&_lock) == 0, "pthread_mutex_lock");
     struct timeval _now, _elapsed;
     gettimeofday(&_now, 0);
     timersub(&_now, &_epoch, &_elapsed);
@@ -130,6 +129,5 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
     }
 
     fflush(stderr);
-    if (pthread_mutex_unlock(&_lock))
-        abort();
+    ensure(pthread_mutex_unlock(&_lock) == 0, "pthread_mutex_unlock");
 }
