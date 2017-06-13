@@ -28,7 +28,6 @@
 #include <regex.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/time.h>
 
 #include <warpcore/warpcore.h>
@@ -39,10 +38,10 @@ struct timeval _epoch;
 
 
 #ifndef NDEBUG
-
 const char * const _col[] = {MAG, RED, YEL, CYN, BLU, GRN};
 regex_t _comp;
 enum dlevel _dlevel = DLEVEL;
+#endif
 
 
 /// Constructor function to initialize the debug framework before main()
@@ -65,10 +64,12 @@ static void __attribute__((constructor)) premain()
     // Remember the ID of the main thread
     _master = pthread_self();
 
+#ifndef NDEBUG
     // Initialize the regular expression used for restricting debug output
     ensure(regcomp(&_comp, DCOMPONENT, REG_EXTENDED | REG_ICASE | REG_NOSUB) ==
                0,
            "may not be a valid regexp: %s", DCOMPONENT);
+#endif
 }
 
 
@@ -77,14 +78,15 @@ static void __attribute__((constructor)) premain()
 ///
 static void __attribute__((destructor)) postmain()
 {
+#ifndef NDEBUG
     // Free the regular expression used for restricting debug output
     regfree(&_comp);
+#endif
 
     // Free the lock
     pthread_mutex_destroy(&_lock);
 }
 
-#endif
 
 
 // See the hexdump() macro.
