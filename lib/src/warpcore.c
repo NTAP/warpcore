@@ -378,6 +378,13 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     struct w_engine * w;
     bool link_up = false;
 
+#ifndef HAVE_ARC4RANDOM
+    // initialize random number generator
+    struct timeval seed;
+    gettimeofday(&seed, 0);
+    srandom((seed.tv_sec * 1000) + (seed.tv_usec / 1000));
+#endif
+
     // allocate engine struct
     ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
 
