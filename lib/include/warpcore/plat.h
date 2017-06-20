@@ -58,3 +58,5 @@ extern uint32_t __attribute__((nonnull))
 plat_get_mbps(const struct ifaddrs * i);
 
 extern bool __attribute__((nonnull)) plat_get_link(const struct ifaddrs * i);
+
+extern void plat_initrandom(void);

@@ -198,3 +198,14 @@ bool plat_get_link(const struct ifaddrs * i
     return true;
 #endif
 }
+
+
+void plat_initrandom(void)
+{
+#ifndef HAVE_ARC4RANDOM
+    // initialize random number generator
+    struct timeval seed;
+    gettimeofday(&seed, 0);
+    srandom((seed.tv_sec * 1000) + (seed.tv_usec / 1000));
+#endif
+}
