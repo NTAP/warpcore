@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(warpcore VERSION 0.9.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.9.1 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
