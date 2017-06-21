@@ -52,12 +52,12 @@
 #include <string.h>
 #endif
 
+#include <warpcore/warpcore.h> // IWYU pragma: keep
+
 #ifndef HAVE_ARC4RANDOM
 #include <stdlib.h>
 #include <sys/time.h>
 #endif
-
-#include <warpcore/warpcore.h> // IWYU pragma: keep
 
 #include "eth.h"
 
