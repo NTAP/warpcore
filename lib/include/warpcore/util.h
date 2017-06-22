@@ -243,8 +243,8 @@ extern regex_t _comp;
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (__builtin_expect(!(e), 0))                                         \
-            die("assertion failed \n           " #e                            \
-                " \n           " __VA_ARGS__);                                 \
+            die("assertion failed \n          " #e                             \
+                " \n          " __VA_ARGS__);                                  \
     } while (0)
 
 
