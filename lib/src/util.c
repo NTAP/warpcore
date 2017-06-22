@@ -57,7 +57,7 @@ static void __attribute__((constructor)) premain()
     ensure(pthread_mutexattr_init(&attr) == 0,
            "could not initialize mutex attr");
     ensure(pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE) == 0,
-           "coul dnot set mutex attr");
+           "could not set mutex attr");
     ensure(pthread_mutex_init(&_lock, &attr) == 0,
            "could not initialize mutex");
 
@@ -98,7 +98,7 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
                                               const char * const file,
                                               const int line)
 {
-    ensure(pthread_mutex_lock(&_lock) == 0, "pthread_mutex_lock");
+    pthread_mutex_lock(&_lock);
     struct timeval _now, _elapsed;
     gettimeofday(&_now, 0);
     timersub(&_now, &_epoch, &_elapsed);
@@ -131,5 +131,5 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
     }
 
     fflush(stderr);
-    ensure(pthread_mutex_unlock(&_lock) == 0, "pthread_mutex_unlock");
+    pthread_mutex_unlock(&_lock);
 }
