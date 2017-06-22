@@ -60,6 +60,8 @@ static void __attribute__((constructor)) premain()
            "could not set mutex attr");
     ensure(pthread_mutex_init(&_lock, &attr) == 0,
            "could not initialize mutex");
+    ensure(pthread_mutexattr_destroy(&attr) == 0,
+           "could not destroy mutex attr");
 
     // Remember the ID of the main thread
     _master = pthread_self();
@@ -86,7 +88,6 @@ static void __attribute__((destructor)) postmain()
     // Free the lock
     pthread_mutex_destroy(&_lock);
 }
-
 
 
 // See the hexdump() macro.
