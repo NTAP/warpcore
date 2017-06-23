@@ -23,10 +23,12 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__APPLE__)
 #include <ifaddrs.h>
 #include <net/if.h>
+#if defined(__FreeBSD__)
 #include <net/if_dl.h>
+#endif
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -61,7 +63,7 @@
 
 #include "eth.h"
 
-#if !defined(__FreeBSD__) && !defined(__linux__)
+#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__linux__)
 struct ifaddrs;
 #endif
 
@@ -98,12 +100,12 @@ void plat_get_mac(uint8_t * mac,
 /// @return     The MTU of @p i.
 ///
 uint16_t plat_get_mtu(const struct ifaddrs * i
-#if !defined(__FreeBSD__) && !defined(__linux__)
+#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__linux__)
                       __attribute__((unused))
 #endif
                       )
 {
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__APPLE__)
     return (uint16_t)((struct if_data *)(i->ifa_data))->ifi_mtu;
 #elif defined(__linux__)
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
