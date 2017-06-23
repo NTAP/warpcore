@@ -14,19 +14,19 @@ endif()
 if(HAVE_NETMAP_H)
   add_executable(warpping ping.c)
   target_compile_definitions(warpping PRIVATE -DWITH_NETMAP)
-  target_link_libraries(warpping PUBLIC warpcore)
+  target_link_libraries(warpping PUBLIC warp_dyn)
 
   add_executable(warpinetd inetd.c)
   target_compile_definitions(warpinetd PRIVATE -DWITH_NETMAP)
-  target_link_libraries(warpinetd PUBLIC warpcore)
+  target_link_libraries(warpinetd PUBLIC warp_dyn)
 
   install(TARGETS warpping warpinetd DESTINATION bin)
 endif()
 
 add_executable(sockping ping.c)
-target_link_libraries(sockping PUBLIC sockcore)
+target_link_libraries(sockping PUBLIC sock_dyn)
 
 add_executable(sockinetd inetd.c)
-target_link_libraries(sockinetd PUBLIC sockcore)
+target_link_libraries(sockinetd PUBLIC sock_dyn)
 
 install(TARGETS sockping sockinetd DESTINATION bin)
