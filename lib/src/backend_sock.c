@@ -91,20 +91,30 @@ void backend_init(struct w_engine * w,
     w->ifname = strndup(ifname, IFNAMSIZ);
     ensure(w->ifname, "could not strndup");
     w->backend = backend_name;
+
 #if defined(HAVE_KQUEUE)
     w->kq = kqueue();
-    warn(debug, "kqueue available");
+#ifndef NDEBUG
+    const char poll_meth[] = "kqueue";
+#endif
 #elif defined(HAVE_EPOLL)
     w->ep = epoll_create1(0);
-    warn(debug, "epoll available");
+    const char poll_meth[] = "epoll";
 #else
-    warn(warn, "will use poll(); neither epoll not kqueue are available");
+    const char poll_meth[] = "poll";
 #endif
+#ifndef NDEBUG
 #if defined(HAVE_SENDMMSG)
-    warn(debug, "sendmmsg available");
+    const char send_meth[] = "sendmmsg";
+#else
+    const char send_meth[] = "sendmsg";
 #endif
 #if defined(HAVE_RECVMMSG)
-    warn(debug, "recvmmsg available");
+    const char recv_meth[] = "recvmmsg";
+#else
+    const char recv_meth[] = "recvmsg";
+#endif
+    warn(debug, "backend using %s, %s, %s", poll_meth, send_meth, recv_meth);
 #endif
 }
 

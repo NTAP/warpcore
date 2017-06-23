@@ -464,8 +464,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // store the initialized engine in our global list
     SLIST_INSERT_HEAD(&engines, w, next);
 
-    warn(info, "%s %s with %s backend on %s ready", warpcore_name,
-         warpcore_version, w->backend, ifname);
+    warn(info, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
+         w->backend, warpcore_version, nbufs, w->mtu, ifname);
     return w;
 }
 
