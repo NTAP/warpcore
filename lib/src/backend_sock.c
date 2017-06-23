@@ -78,7 +78,8 @@ void backend_init(struct w_engine * w,
         ensure(strncmp(ifname, ww->ifname, IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
 
-    ensure((w->mem = calloc(nbufs, IOV_BUF_LEN)) != 0, "cannot alloc buf mem");
+    ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
+           "cannot alloc %u * %u buf mem", nbufs, w->mtu);
     ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
            "cannot alloc bufs");
 

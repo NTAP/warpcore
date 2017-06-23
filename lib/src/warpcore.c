@@ -35,6 +35,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -385,9 +386,6 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     SPLAY_INIT(&w->sock);
     STAILQ_INIT(&w->iov);
 
-    // backend-specific init
-    backend_init(w, ifname, nbufs);
-
     // get interface config
     // we mostly loop here because the link may be down
     do {
@@ -460,6 +458,12 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
          rip ? ", router " : "",
          rip ? inet_ntop(AF_INET, &w->rip, rip_str, INET_ADDRSTRLEN) : "");
 #endif
+
+    // loopback interfaces can have huge MTUs, so cap to something more sensible
+    w->mtu = MIN(w->mtu, (uint16_t)getpagesize()/2);
+
+    // backend-specific init
+    backend_init(w, ifname, nbufs);
 
     // store the initialized engine in our global list
     SLIST_INSERT_HEAD(&engines, w, next);
