@@ -47,7 +47,6 @@ if(HAVE_NETMAP_H)
   set(TARGETS ${TARGETS} obj_warp warp_dyn warp_stat)
 endif()
 foreach(TARGET ${TARGETS})
-  message(STATUS "set ${TARGET}")
   target_include_directories(${TARGET}
     SYSTEM PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -55,11 +54,12 @@ foreach(TARGET ${TARGETS})
       $<INSTALL_INTERFACE:include>
     PRIVATE src
   )
+  string(REGEX REPLACE "_dyn|_stat" "core" OUTPUT ${TARGET})
   set_target_properties(${TARGET}
     PROPERTIES
       POSITION_INDEPENDENT_CODE ON
       INTERPROCEDURAL_OPTIMIZATION True
-      OUTPUT_NAME ${TARGET}
+      OUTPUT_NAME ${OUTPUT}
       VERSION ${PROJECT_VERSION}
       SOVERSION ${PROJECT_VERSION_MAJOR}
   )
