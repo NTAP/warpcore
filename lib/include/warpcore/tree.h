@@ -4,6 +4,7 @@
 
 /*-
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2016-2017, NetApp, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,7 +89,7 @@ struct {								\
 	SPLAY_RIGHT(tmp, field) = (head)->sph_root;			\
 	(head)->sph_root = tmp;						\
 } while (/*CONSTCOND*/ 0)
-	
+
 #define SPLAY_ROTATE_LEFT(head, tmp, field) do {			\
 	SPLAY_RIGHT((head)->sph_root, field) = SPLAY_LEFT(tmp, field);	\
 	SPLAY_LEFT(tmp, field) = (head)->sph_root;			\
@@ -148,6 +149,20 @@ name##_SPLAY_NEXT(struct name *head, struct type *elm)			\
 	return (elm);							\
 }									\
 									\
+static __inline struct type *                       \
+name##_SPLAY_PREV(struct name *head, struct type *elm)          \
+{                                   \
+    name##_SPLAY(head, elm);                    \
+    if (SPLAY_LEFT(elm, field) != NULL) {              \
+        elm = SPLAY_LEFT(elm, field);              \
+        while (SPLAY_RIGHT(elm, field) != NULL) {        \
+            elm = SPLAY_RIGHT(elm, field);           \
+        }                           \
+    } else                              \
+        elm = NULL;                     \
+    return (elm);                           \
+}                                   \
+                                    \
 static __inline struct type *						\
 name##_SPLAY_MIN_MAX(struct name *head, int val)			\
 {									\
@@ -282,6 +297,7 @@ void name##_SPLAY_MINMAX(struct name *head, int __comp) \
 #define SPLAY_REMOVE(name, x, y)	name##_SPLAY_REMOVE(x, y)
 #define SPLAY_FIND(name, x, y)		name##_SPLAY_FIND(x, y)
 #define SPLAY_NEXT(name, x, y)		name##_SPLAY_NEXT(x, y)
+#define SPLAY_PREV(name, x, y)      name##_SPLAY_PREV(x, y)
 #define SPLAY_MIN(name, x)		(SPLAY_EMPTY(x) ? NULL	\
 					: name##_SPLAY_MIN_MAX(x, SPLAY_NEGINF))
 #define SPLAY_MAX(name, x)		(SPLAY_EMPTY(x) ? NULL	\
@@ -291,6 +307,11 @@ void name##_SPLAY_MINMAX(struct name *head, int __comp) \
 	for ((x) = SPLAY_MIN(name, head);				\
 	     (x) != NULL;						\
 	     (x) = SPLAY_NEXT(name, head, x))
+
+#define SPLAY_FOREACH_REV(x, name, head)                    \
+    for ((x) = SPLAY_MAX(name, head);               \
+         (x) != NULL;                       \
+         (x) = SPLAY_PREV(name, head, x))
 
 /* Macros that define a red-black tree */
 #define RB_HEAD(name, type)						\
