@@ -27,6 +27,7 @@
 
 #include <warpcore/warpcore.h>
 
+#include "arp.h"
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
