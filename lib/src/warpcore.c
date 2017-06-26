@@ -460,7 +460,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 #endif
 
     // loopback interfaces can have huge MTUs, so cap to something more sensible
-    w->mtu = MIN(w->mtu, (uint16_t)getpagesize()/2);
+    w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
 
     // backend-specific init
     backend_init(w, ifname, nbufs);
@@ -501,4 +501,17 @@ uint16_t w_iov_max_len(const struct w_engine * const w,
     const uint16_t offset = (const uint16_t)(
         (const uint8_t *)v->buf - (const uint8_t *)IDX2BUF(w, v->idx));
     return w->mtu - offset;
+}
+
+
+/// Return whether a socket is connected (i.e., w_connect() has been called on
+/// it) or not.
+///
+/// @param[in]  s     Connection.
+///
+/// @return     True when connected, zero otherwise.
+///
+bool w_connected(const struct w_sock * const s)
+{
+    return s->hdr->ip.dst;
 }
