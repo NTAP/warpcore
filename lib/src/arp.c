@@ -47,26 +47,14 @@
 #include "ip.h"
 
 
-/// ARP cache entry.
-///
-struct arp_entry {
-    SPLAY_ENTRY(arp_entry) next; ///< Pointer to next cache entry.
-    uint32_t ip;                 ///< IPv4 address.
-    uint8_t mac[ETH_ADDR_LEN];   ///< Ethernet MAC address.
-    /// @cond
-    uint8_t _unused[6]; ///< @internal Padding.
-    /// @endcond
-};
 
-
-static int64_t __attribute__((nonnull))
+int64_t __attribute__((nonnull))
 arp_cache_cmp(const struct arp_entry * const a,
               const struct arp_entry * const b)
 {
     return (int64_t)a->ip - (int64_t)b->ip;
 }
 
-SPLAY_PROTOTYPE(arp_cache, arp_entry, next, arp_cache_cmp)
 SPLAY_GENERATE(arp_cache, arp_entry, next, arp_cache_cmp)
 
 

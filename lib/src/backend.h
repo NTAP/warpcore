@@ -77,12 +77,12 @@ struct w_engine {
     void * mem;   ///< Pointer to netmap or socket buffer memory region.
     uint32_t rip; ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP
-    int fd;                                     ///< Netmap file descriptor.
-    struct netmap_if * nif;                     ///< Netmap interface.
-    struct nmreq * req;                         ///< Netmap request structure.
-    SPLAY_HEAD(arp_cache, arp_entry) arp_cache; ///< The ARP cache.
-    uint32_t cur_txr;  ///< Index of the TX ring currently active.
-    uint16_t next_eph; ///< State for random port number generation.
+    int fd;                     ///< Netmap file descriptor.
+    struct netmap_if * nif;     ///< Netmap interface.
+    struct nmreq * req;         ///< Netmap request structure.
+    struct arp_cache arp_cache; ///< The ARP cache.
+    uint32_t cur_txr;           ///< Index of the TX ring currently active.
+    uint16_t next_eph;          ///< State for random port number generation.
     /// @cond
     uint8_t _unused[2]; ///< @internal Padding.
     /// @endcond
