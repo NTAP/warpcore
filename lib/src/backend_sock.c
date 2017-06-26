@@ -213,7 +213,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
     o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
     const struct w_iov * v;
     STAILQ_FOREACH (v, o, next) {
-        ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
+        ensure(w_connected(s) || v->ip && v->port,
                "no destination information");
 #ifdef HAVE_SENDMMSG
         // for sendmmsg, we populate the parameters
@@ -222,8 +222,8 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
         // instead of the one in the template header
         dst[i] = (struct sockaddr_in){
             .sin_family = AF_INET,
-            .sin_port = s->hdr->ip.dst ? s->hdr->udp.dport : v->port,
-            .sin_addr = {s->hdr->ip.dst ? s->hdr->ip.dst : v->ip}};
+            .sin_port = w_connected(s) ? s->hdr->udp.dport : v->port,
+            .sin_addr = {w_connected(s) ? s->hdr->ip.dst : v->ip}};
         msgvec[i].msg_hdr = (struct msghdr){.msg_name = &dst[i],
                                             .msg_namelen = sizeof(dst[i]),
                                             .msg_iov = &msg[i],
@@ -241,8 +241,8 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
         // instead of the one in the template header
         const struct sockaddr_in dst = {
             .sin_family = AF_INET,
-            .sin_port = s->hdr->ip.dst ? s->hdr->udp.dport : v->port,
-            .sin_addr = {s->hdr->ip.dst ? s->hdr->ip.dst : v->ip}};
+            .sin_port = w_connected(s) ? s->hdr->udp.dport : v->port,
+            .sin_addr = {w_connected(s) ? s->hdr->ip.dst : v->ip}};
         sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&dst,
                sizeof(dst));
 #endif

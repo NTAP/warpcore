@@ -179,3 +179,12 @@ w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);
 /// @return     Number of w_iov structs not yet transmitted.
 ///
 #define w_tx_pending(q) (q)->tx_pending
+
+/// Return whether a socket is connected (i.e., w_connect() has been called on
+/// it) or not.
+///
+/// @param      c     Connection.
+///
+/// @return     Zero when disconnected, non-zero otherwise.
+///
+#define w_connected(c) (c)->hdr->ip.dst

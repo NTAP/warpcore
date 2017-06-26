@@ -264,7 +264,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
     STAILQ_FOREACH (v, o, next) {
         o->tx_pending++;
         v->o = o;
-        ensure(s->hdr->ip.dst && s->hdr->udp.dport || v->ip && v->port,
+        ensure(w_connected(s) || v->ip && v->port,
                "no destination information");
         while (unlikely(udp_tx(s, v) == false))
             w_nic_tx(s->w);

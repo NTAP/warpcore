@@ -161,7 +161,7 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 
     // if w_sock is disconnected, use destination IP and port from w_iov
     // instead of the one in the template header
-    if (s->hdr->ip.dst == 0) {
+    if (!w_connected(s)) {
         struct eth_hdr * const e = (struct eth_hdr *)buf;
         memcpy(&e->dst, arp_who_has(s->w, v->ip), ETH_ADDR_LEN);
         ip->dst = v->ip;
