@@ -76,8 +76,8 @@ foreach(FLAG -Wno-missing-field-initializers -Wno-missing-braces
 endforeach()
 
 # flags for "Debug" and "None" builds
-set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
+set(CMAKE_C_FLAGS_DEBUG "-O0 -g3")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Default debug logging level
