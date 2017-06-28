@@ -126,17 +126,18 @@ static inline void alloc_cnt(struct w_engine * const w,
     struct w_iov * v = 0;
     for (uint32_t i = 0; i < count; i++) {
         v = alloc_iov(w);
-        v->buf = v->buf + sizeof(struct w_hdr) + off;
-        v->len -= (sizeof(struct w_hdr) + off);
+#ifdef WITH_NETMAP
+        off += sizeof(struct w_hdr);
+#endif
+        v->buf += off;
+        v->len -= off;
         STAILQ_INSERT_TAIL(q, v, next);
     }
     if (v)
         v->len -= adj_last;
-    warn(debug,
-         "allocated w_iov_stailq of len %zu byte%s (%d w_iov%s, offset %d)",
-         count * (w->mtu - sizeof(struct w_hdr) - off) - adj_last,
-         plural(count * (w->mtu - sizeof(struct w_hdr) - off) - adj_last),
-         count, plural(count), off);
+    warn(debug, "allocated w_iov_stailq of len %u byte%s (%d w_iov%s)",
+         count * (w->mtu - off) - adj_last,
+         plural(count * (w->mtu - off) - adj_last), count, plural(count));
 }
 
 
@@ -156,7 +157,11 @@ void w_alloc_len(struct w_engine * const w,
                  const uint32_t len,
                  const uint16_t off)
 {
-    const uint32_t space = w->mtu - sizeof(struct w_hdr) - off;
+    const uint32_t space = w->mtu - off
+#ifdef WITH_NETMAP
+                           - sizeof(struct w_hdr)
+#endif
+        ;
     const uint32_t count = len / space + (len % space != 0);
     alloc_cnt(w, q, count, off, (uint16_t)(space * count - len));
 }
