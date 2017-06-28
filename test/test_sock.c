@@ -51,7 +51,6 @@ int main()
     // send something
     struct w_iov_stailq o = STAILQ_HEAD_INITIALIZER(o);
     w_alloc_cnt(w, &o, 1, 0);
-    warn(debug, "%u", STAILQ_FIRST(&o)->len);
     STAILQ_FIRST(&o)->len = (uint16_t)snprintf(
         (char *)STAILQ_FIRST(&o)->buf, STAILQ_FIRST(&o)->len, "Hello, world!");
     w_tx(cs, &o);
@@ -62,10 +61,11 @@ int main()
     struct w_iov_stailq i = STAILQ_HEAD_INITIALIZER(i);
     w_nic_rx(w, -1);
     w_rx(ss, &i);
-    warn(warn, "%s", STAILQ_FIRST(&i)->buf);
+    if (!STAILQ_EMPTY(&i))
+        warn(warn, "%s", STAILQ_FIRST(&i)->buf);
 
     // close down
     w_close(cs);
     w_close(ss);
-     w_cleanup(w);
+    w_cleanup(w);
 }

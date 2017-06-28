@@ -59,7 +59,7 @@ struct w_hdr {
 };
 
 
-extern int64_t __attribute__((nonnull))
+extern int16_t __attribute__((nonnull))
 w_sock_cmp(const struct w_sock * const a, const struct w_sock * const b);
 
 SPLAY_HEAD(sock, w_sock);

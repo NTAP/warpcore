@@ -54,9 +54,9 @@
 #include "udp.h"
 
 
-int64_t w_sock_cmp(const struct w_sock * const a, const struct w_sock * const b)
+int16_t w_sock_cmp(const struct w_sock * const a, const struct w_sock * const b)
 {
-    return (int64_t)a->hdr->udp.sport - (int64_t)b->hdr->udp.sport;
+    return (int16_t)a->hdr->udp.sport - (int16_t)b->hdr->udp.sport;
 }
 
 

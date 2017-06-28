@@ -95,7 +95,6 @@ void backend_init(struct w_engine * w,
     // direct pointer to the netmap interface struct for convenience
     w->nif = NETMAP_IF(w->mem, w->req->nr_offset);
 
-
     // allocate space for tails
     ensure((w->tail = calloc(w->nif->ni_tx_rings, sizeof(*w->tail))) != 0,
            "cannot allocate tail");
