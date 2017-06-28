@@ -8,14 +8,17 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 add_library(obj_all
   OBJECT
-    src/plat.c src/util.c src/warpcore.c
-    ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
+    src/plat.c src/util.c ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
 )
 
-add_library(obj_sock OBJECT src/backend_sock.c)
+add_library(obj_sock OBJECT src/backend_sock.c src/warpcore.c)
 
-add_library(sock_dyn SHARED $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>)
-add_library(sock_stat STATIC $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>)
+add_library(sock_dyn SHARED
+  $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>
+)
+add_library(sock_stat STATIC
+  $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>
+)
 
 install(DIRECTORY include/warpcore
   DESTINATION include
@@ -30,14 +33,18 @@ if(HAVE_NETMAP_H)
   add_library(obj_warp
     OBJECT
       src/arp.c src/eth.c src/icmp.c src/in_cksum.c src/ip.c
-      src/udp.c src/backend_netmap.c
+      src/udp.c src/backend_netmap.c src/warpcore.c
   )
   target_compile_definitions(obj_warp PRIVATE -DWITH_NETMAP)
 
-  add_library(warp_dyn SHARED $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>)
+  add_library(warp_dyn SHARED
+    $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>
+  )
   target_compile_definitions(warp_dyn PRIVATE -DWITH_NETMAP)
 
-  add_library(warp_stat STATIC $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>)
+  add_library(warp_stat STATIC
+    $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>
+  )
   target_compile_definitions(warp_stat PRIVATE -DWITH_NETMAP)
 endif()
 
