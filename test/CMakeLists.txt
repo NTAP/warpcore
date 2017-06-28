@@ -14,6 +14,7 @@ add_test(test_sock test_sock)
 
 if(HAVE_NETMAP_H)
   add_executable(test_warp test_sock.c)
+  target_compile_definitions(test_warp PRIVATE -DWITH_NETMAP)
   target_link_libraries(test_warp PUBLIC warp_dyn)
   add_test(test_warp test_warp)
 endif()
