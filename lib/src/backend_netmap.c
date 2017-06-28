@@ -120,7 +120,7 @@ void backend_init(struct w_engine * w,
          n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
-        w_free_iov(w, &w->bufs[n]); // since we have a macro...
+        STAILQ_INSERT_HEAD(&w->iov, &w->bufs[n], next);
         i = *(uint32_t *)w->bufs[n].buf;
     }
 

@@ -199,6 +199,18 @@ void w_free(struct w_engine * const w, struct w_iov_stailq * const q)
 }
 
 
+/// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
+/// back to warpcore.
+///
+/// @param      w     Backend engine.
+/// @param      v     w_iov struct to return.
+///
+void w_free_iov(struct w_engine * const w, struct w_iov * const v)
+{
+    STAILQ_INSERT_HEAD(&w->iov, v, next);
+}
+
+
 /// Return the total payload length of w_iov tail queue @p c.
 ///
 /// @param[in]  q     The w_iov tail queue to compute the payload length of.
@@ -475,18 +487,6 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     warn(info, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
          w->backend, warpcore_version, nbufs, w->mtu, ifname);
     return w;
-}
-
-
-/// Return warpcore engine serving w_sock @p s.
-///
-/// @param[in]  s     A w_sock.
-///
-/// @return     The warpcore engine for w_sock @p s.
-///
-struct w_engine * w_engine(const struct w_sock * const s)
-{
-    return s->w;
 }
 
 

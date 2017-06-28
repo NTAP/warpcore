@@ -122,7 +122,7 @@ void icmp_tx(struct w_engine * const w,
         usleep(100);
         w_nic_tx(w);
     }
-    w_free_iov(w, v);
+    STAILQ_INSERT_HEAD(&w->iov, v, next);
 }
 
 

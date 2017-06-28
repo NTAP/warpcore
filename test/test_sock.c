@@ -43,10 +43,12 @@ int main()
 
     // bind server socket
     struct w_sock * ss = w_bind(w, htons(55555), 0);
+    ensure(w_engine(ss) == w, "same engine");
 
     // connect to server
     struct w_sock * cs = w_bind(w, 0, 0);
     w_connect(cs, inet_addr("127.0.0.1"), htons(55555));
+    ensure(w_connected(cs), "not connected");
 
     // send something
     struct w_iov_stailq o = STAILQ_HEAD_INITIALIZER(o);

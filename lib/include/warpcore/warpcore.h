@@ -145,7 +145,8 @@ w_tx(const struct w_sock * const s, struct w_iov_stailq * const o);
 extern void __attribute__((nonnull))
 w_free(struct w_engine * const w, struct w_iov_stailq * const q);
 
-#define w_free_iov(w, v) STAILQ_INSERT_HEAD(&(w)->iov, (v), next);
+extern void __attribute__((nonnull))
+w_free_iov(struct w_engine * const w, struct w_iov * const v);
 
 extern uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q);
 
@@ -161,14 +162,14 @@ extern void __attribute__((nonnull)) w_nic_tx(struct w_engine * const w);
 extern bool __attribute__((nonnull))
 w_nic_rx(struct w_engine * const w, const int32_t msec);
 
-extern struct w_engine * __attribute__((nonnull))
-w_engine(const struct w_sock * const s);
-
 extern uint32_t __attribute__((nonnull))
 w_rx_ready(struct w_engine * const w, struct w_sock_slist * sl);
 
 extern uint16_t __attribute__((nonnull))
 w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);
+
+extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
+
 
 /// Return the number of w_iov structs in @p q that are still waiting for
 /// transmission. Only valid after w_tx() has been called on @p p.
@@ -179,4 +180,11 @@ w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);
 ///
 #define w_tx_pending(q) (q)->tx_pending
 
-extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
+/// Return warpcore engine serving w_sock @p s.
+///
+/// @param[in]  s     A w_sock.
+///
+/// @return     The warpcore engine for w_sock @p s.
+///
+#define w_engine(s) (s)->w
+
