@@ -74,9 +74,8 @@ struct w_sock {
     struct w_hdr * hdr;
     SLIST_ENTRY(w_sock) next_rx; ///< Next socket with unread data.
     uint8_t flags;
-#ifndef WITH_NETMAP
+
     int fd; ///< Socket descriptor underlying the engine.
-#endif
 };
 
 
@@ -110,10 +109,8 @@ struct w_iov {
     /// to-be-transmitted IPv4 packet on TX.
     uint8_t flags;
 
-#ifdef WITH_NETMAP
     ///< Pointer to the w_iov_stailq this w_iov resides in. Only valid on TX.
     struct w_iov_stailq * o;
-#endif
 };
 
 
@@ -148,7 +145,10 @@ w_tx(const struct w_sock * const s, struct w_iov_stailq * const o);
 extern void __attribute__((nonnull))
 w_free(struct w_engine * const w, struct w_iov_stailq * const q);
 
-extern uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q);
+extern void __attribute__((nonnull))
+w_free_iov(struct w_engine * const w, struct w_iov * const v);
+
+    extern uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q);
 
 extern uint32_t w_iov_stailq_cnt(const struct w_iov_stailq * const q);
 
