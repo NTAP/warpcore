@@ -253,7 +253,7 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 
 #ifndef NDEBUG
     char str[INET_ADDRSTRLEN];
-    warn(notice, "IP proto %d socket connected to %s port %d", s->hdr->ip.p,
+    warn(notice, "socket connected to %s port %d",
          inet_ntop(AF_INET, &ip, str, INET_ADDRSTRLEN), ntohs(port));
 #endif
 }
@@ -264,7 +264,7 @@ void w_disconnect(struct w_sock * const s)
     s->hdr->ip.dst = 0;
     s->hdr->udp.dport = 0;
 
-    warn(notice, "IP proto %d socket disconnected", s->hdr->ip.p);
+    warn(notice, "socket disconnected");
 }
 
 
@@ -308,8 +308,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 
     backend_bind(s);
 
-    warn(notice, "IP proto %d socket bound to port %d", s->hdr->ip.p,
-         ntohs(s->hdr->udp.sport));
+    warn(notice, "socket bound to port %d", ntohs(s->hdr->udp.sport));
 
     return s;
 }
