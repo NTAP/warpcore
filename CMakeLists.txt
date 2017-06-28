@@ -174,10 +174,6 @@ add_subdirectory(doc)
 add_subdirectory(bin)
 add_subdirectory(lib)
 
-if(HAVE_BENCHMARK_H)
-  add_subdirectory(test)
-  enable_testing()
-else()
-  message(STATUS "Google Benchmark not found; not enabling tests")
-endif()
+add_subdirectory(test)
+enable_testing()
 
