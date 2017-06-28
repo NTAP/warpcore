@@ -119,7 +119,7 @@ get_sock(struct w_engine * const w, const uint16_t port)
 static inline void alloc_cnt(struct w_engine * const w,
                              struct w_iov_stailq * const q,
                              const uint32_t count,
-                             const uint16_t off,
+                             uint16_t off,
                              const uint16_t adj_last)
 {
     STAILQ_INIT(q);
