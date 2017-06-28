@@ -199,6 +199,18 @@ void w_free(struct w_engine * const w, struct w_iov_stailq * const q)
 }
 
 
+/// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
+/// back to warpcore.
+///
+/// @param      w     Backend engine.
+/// @param      v     w_iov struct to return.
+///
+void w_free_iov(struct w_engine * const w, struct w_iov * const v)
+{
+    STAILQ_INSERT_TAIL(&w->iov, v, next);
+}
+
+
 /// Return the total payload length of w_iov tail queue @p c.
 ///
 /// @param[in]  q     The w_iov tail queue to compute the payload length of.
