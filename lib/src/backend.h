@@ -127,9 +127,7 @@ extern SLIST_HEAD(w_engines, w_engine) engines;
 #define mk_net(ip, mask) ((ip) & (mask))
 
 
-struct w_iov * __attribute__((nonnull)) alloc_iov(struct w_engine * const w);
-
-struct w_sock * __attribute__((nonnull))
+extern struct w_sock * __attribute__((nonnull))
 get_sock(struct w_engine * const w, const uint16_t port);
 
 extern void __attribute__((nonnull)) backend_bind(struct w_sock * s);

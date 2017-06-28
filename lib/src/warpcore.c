@@ -76,7 +76,7 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 ///
 /// @return     Spare w_iov.
 ///
-struct w_iov * __attribute__((nonnull)) alloc_iov(struct w_engine * const w)
+struct w_iov * w_alloc_iov(struct w_engine * const w)
 {
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
     ensure(v != 0, "out of spare iovs");
@@ -98,8 +98,7 @@ struct w_iov * __attribute__((nonnull)) alloc_iov(struct w_engine * const w)
 ///
 /// @return     The w_sock bound to @p port.
 ///
-struct w_sock * __attribute__((nonnull))
-get_sock(struct w_engine * const w, const uint16_t port)
+struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 {
     struct w_hdr h = {.udp.sport = port};
     struct w_sock s = {.hdr = &h};
@@ -125,7 +124,7 @@ static inline void alloc_cnt(struct w_engine * const w,
     STAILQ_INIT(q);
     struct w_iov * v = 0;
     for (uint32_t i = 0; i < count; i++) {
-        v = alloc_iov(w);
+        v = w_alloc_iov(w);
 #ifdef WITH_NETMAP
         off += sizeof(struct w_hdr);
 #endif

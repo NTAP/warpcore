@@ -279,7 +279,7 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
         struct msghdr msgvec[RECV_SIZE];
 #endif
         for (int j = 0; likely(j < RECV_SIZE); j++) {
-            v[j] = alloc_iov(s->w);
+            v[j] = w_alloc_iov(s->w);
             msg[j] =
                 (struct iovec){.iov_base = v[j]->buf, .iov_len = v[j]->len};
 #ifdef HAVE_RECVMMSG

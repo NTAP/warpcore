@@ -139,6 +139,9 @@ extern void __attribute__((nonnull)) w_alloc_cnt(struct w_engine * const w,
                                                  const uint32_t count,
                                                  const uint16_t off);
 
+extern struct w_iov * __attribute__((nonnull))
+w_alloc_iov(struct w_engine * const w);
+
 extern void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov_stailq * const o);
 
@@ -187,4 +190,3 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 /// @return     The warpcore engine for w_sock @p s.
 ///
 #define w_engine(s) (s)->w
-
