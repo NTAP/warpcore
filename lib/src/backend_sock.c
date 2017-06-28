@@ -86,7 +86,7 @@ void backend_init(struct w_engine * w,
     for (uint32_t i = 0; i < nbufs; i++) {
         w->bufs[i].buf = IDX2BUF(w, i);
         w->bufs[i].idx = i;
-        STAILQ_INSERT_HEAD(&w->iov, &w->bufs[i], next);
+        w_free_iov(w, &w->bufs[i]); // since we have a macro...
     }
 
     w->ifname = strndup(ifname, IFNAMSIZ);
@@ -126,7 +126,6 @@ void backend_init(struct w_engine * w,
 ///
 void backend_cleanup(struct w_engine * const w)
 {
-    STAILQ_INIT(&w->iov);
     free(w->mem);
     free(w->ifname);
 }
@@ -323,7 +322,7 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 
         // return any unused buffers
         for (ssize_t j = n; likely(j < RECV_SIZE); j++)
-            STAILQ_INSERT_HEAD(&s->w->iov, v[j], next);
+            w_free_iov(s->w, v[j]);
     } while (n > 0);
 }
 

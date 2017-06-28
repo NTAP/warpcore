@@ -114,14 +114,13 @@ void backend_init(struct w_engine * w,
 #endif
 
     // save the indices of the extra buffers in the warpcore structure
-    STAILQ_INIT(&w->iov);
     w->bufs = calloc(w->req->nr_arg3, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
     for (uint32_t n = 0, i = w->nif->ni_bufs_head; likely(n < w->req->nr_arg3);
          n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
-        STAILQ_INSERT_HEAD(&w->iov, &w->bufs[n], next);
+        w_free_iov(w, &w->bufs[n]); // since we have a macro...
         i = *(uint32_t *)w->bufs[n].buf;
     }
 

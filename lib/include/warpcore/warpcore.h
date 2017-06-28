@@ -145,10 +145,9 @@ w_tx(const struct w_sock * const s, struct w_iov_stailq * const o);
 extern void __attribute__((nonnull))
 w_free(struct w_engine * const w, struct w_iov_stailq * const q);
 
-extern void __attribute__((nonnull))
-w_free_iov(struct w_engine * const w, struct w_iov * const v);
+#define w_free_iov(w, v) STAILQ_INSERT_HEAD(&(w)->iov, (v), next);
 
-    extern uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q);
+extern uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q);
 
 extern uint32_t w_iov_stailq_cnt(const struct w_iov_stailq * const q);
 
