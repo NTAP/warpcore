@@ -85,26 +85,26 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(DLEVEL "debug")
   endif()
 
-  # Set some additional flags for Debug builds
-  set(FLAGS -fno-omit-frame-pointer -fsanitize=leak -fsanitize=address
-      -fsanitize=memory -fsanitize-memory-track-origins -fsanitize=thread
-      -fsanitize=undefined -fno-sanitize=alignment)
-  if(CMAKE_C_COMPILER_ID MATCHES Clang)
-    # -fsanitize=undefined does not work on clang
-    list(REMOVE_ITEM FLAGS -fsanitize=undefined)
-  endif()
-  if(CMAKE_SYSTEM_NAME MATCHES FreeBSD)
-    # -fsanitize=leak does not work on clang
-    list(REMOVE_ITEM FLAGS -fsanitize=leak)
-  endif()
-  foreach(FLAG ${FLAGS})
-    string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
-    check_c_compiler_flag(${FLAG} ${F})
-    if(${F})
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
-      set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
-    endif()
-  endforeach()
+  # # Set some additional flags for Debug builds
+  # set(FLAGS -fno-omit-frame-pointer -fsanitize=leak -fsanitize=address
+  #     -fsanitize=memory -fsanitize-memory-track-origins -fsanitize=thread
+  #     -fsanitize=undefined -fno-sanitize=alignment)
+  # if(CMAKE_C_COMPILER_ID MATCHES Clang)
+  #   # -fsanitize=undefined does not work on clang
+  #   list(REMOVE_ITEM FLAGS -fsanitize=undefined)
+  # endif()
+  # if(CMAKE_SYSTEM_NAME MATCHES FreeBSD)
+  #   # -fsanitize=leak does not work on clang
+  #   list(REMOVE_ITEM FLAGS -fsanitize=leak)
+  # endif()
+  # foreach(FLAG ${FLAGS})
+  #   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
+  #   check_c_compiler_flag(${FLAG} ${F})
+  #   if(${F})
+  #     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
+  #     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
+  #   endif()
+  # endforeach()
 
   # Use include-what-you-use to check #includes, if it's installed
   find_program(IWYU NAMES include-what-you-use iwyu)
