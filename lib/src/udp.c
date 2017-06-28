@@ -110,7 +110,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     //
     // XXX w_alloc_iov() does some (in this case) unneeded initialization;
     // determine if that overhead is a problem
-    struct w_iov * const i = w_alloc_iov(w);
+    struct w_iov * const i = w_alloc_iov(w, 0);
     struct netmap_slot * const rxs = &r->slot[r->cur];
 
     warn(debug, "swapping rx ring %u slot %d (buf %d) and spare buf %u",

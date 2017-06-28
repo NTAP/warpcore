@@ -73,17 +73,18 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 /// returned to w->iov via STAILQ_INSERT_HEAD() or STAILQ_CONCAT().
 ///
 /// @param      w     Backend engine.
+/// @param[in]  off   Additional offset into the buffer.
 ///
 /// @return     Spare w_iov.
 ///
-struct w_iov * w_alloc_iov(struct w_engine * const w)
+struct w_iov * w_alloc_iov(struct w_engine * const w, const uint16_t off)
 {
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
     ensure(v != 0, "out of spare iovs");
     STAILQ_REMOVE_HEAD(&w->iov, next);
     // warn(debug, "allocating spare iov %u", v->idx);
-    v->buf = IDX2BUF(w, v->idx);
-    v->len = w->mtu;
+    v->buf = IDX2BUF(w, v->idx) + off;
+    v->len = w->mtu - off;
 #ifdef WITH_NETMAP
     v->o = 0;
 #endif
@@ -124,12 +125,10 @@ static inline void alloc_cnt(struct w_engine * const w,
     STAILQ_INIT(q);
     struct w_iov * v = 0;
     for (uint32_t i = 0; i < count; i++) {
-        v = w_alloc_iov(w);
 #ifdef WITH_NETMAP
         off += sizeof(struct w_hdr);
 #endif
-        v->buf += off;
-        v->len -= off;
+        v = w_alloc_iov(w, off);
         STAILQ_INSERT_TAIL(q, v, next);
     }
     if (v)

@@ -56,7 +56,7 @@ void icmp_tx(struct w_engine * const w,
              const uint8_t code,
              uint8_t * const buf)
 {
-    struct w_iov * const v = w_alloc_iov(w);
+    struct w_iov * const v = w_alloc_iov(w, 0);
 
     // construct an ICMP header and set the fields
     struct icmp_hdr * const dst_icmp = (struct icmp_hdr *)ip_data(v->buf);

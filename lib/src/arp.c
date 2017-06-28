@@ -109,7 +109,7 @@ static void __attribute__((nonnull))
 arp_is_at(struct w_engine * const w, const uint8_t * const buf)
 {
     // grab iov for reply
-    struct w_iov * const v = w_alloc_iov(w);
+    struct w_iov * const v = w_alloc_iov(w, 0);
     struct arp_hdr * const reply = (struct arp_hdr *)eth_data(v->buf);
 
     // construct ARP header
@@ -165,7 +165,7 @@ uint8_t * arp_who_has(struct w_engine * const w, const uint32_t dip)
              inet_ntoa(*(const struct in_addr *)&dip));
 
         // grab a spare buffer
-        struct w_iov * const v = w_alloc_iov(w);
+        struct w_iov * const v = w_alloc_iov(w, 0);
 
         // pointers to the start of the various headers
         struct eth_hdr * const eth = (struct eth_hdr *)v->buf;

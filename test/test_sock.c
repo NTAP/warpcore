@@ -53,8 +53,8 @@ int main()
     // send something
     struct w_iov_stailq o = STAILQ_HEAD_INITIALIZER(o);
     w_alloc_cnt(w, &o, 1, 0);
-    STAILQ_FIRST(&o)->len = (uint16_t)snprintf(
-        (char *)STAILQ_FIRST(&o)->buf, STAILQ_FIRST(&o)->len, "Hello, world!");
+    struct w_iov * const ov = STAILQ_FIRST(&o);
+    ov->len = (uint16_t)snprintf((char *)ov->buf, ov->len, "Hello, world!");
     w_tx(cs, &o);
     while (w_tx_pending(&o))
         w_nic_tx(w);
