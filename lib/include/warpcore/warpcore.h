@@ -28,6 +28,31 @@
 #include <stdint.h>
 #include <sys/time.h>
 
+
+// Add some defines that FreeBSD has in cdefs.h which tree.h and queue.h
+// require.
+
+#ifdef __linux__
+typedef uintptr_t __uintptr_t;
+#endif
+
+#ifndef __offsetof
+#define __offsetof(type, field) __builtin_offsetof(type, field)
+#endif
+
+#ifndef __DEQUALIFY
+#define __DEQUALIFY(type, var) ((type)(__uintptr_t)(const volatile void *)(var))
+#endif
+
+#ifndef __containerof
+#define __containerof(x, s, m)                                                 \
+    ({                                                                         \
+        const volatile __typeof(((s *)0)->m) * __x = (x);                      \
+        __DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));       \
+    })
+#endif
+
+
 #include <warpcore/config.h> // IWYU pragma: export
 #include <warpcore/plat.h>   // IWYU pragma: export
 #include <warpcore/queue.h>  // IWYU pragma: export
