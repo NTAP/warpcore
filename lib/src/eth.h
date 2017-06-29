@@ -30,6 +30,7 @@
 #include <stdint.h>
 
 #ifdef __linux__
+#include <net/ethernet.h>
 #include <netinet/ether.h>
 #else
 #include <net/ethernet.h>
