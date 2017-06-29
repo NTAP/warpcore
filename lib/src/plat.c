@@ -23,20 +23,11 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#if defined(__FreeBSD__) || defined(__APPLE__)
-#include <ifaddrs.h>
-#include <net/if.h>
-#if defined(__FreeBSD__)
-#include <net/if_dl.h>
-#endif
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-
-#elif defined(__linux__)
+#ifdef __linux__
 #include <ifaddrs.h>
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <netpacket/packet.h>
 #include <stdbool.h>
@@ -49,9 +40,25 @@
 #include <unistd.h>
 
 #else
+
+// needs to come before net/ethernet.h
+#include <sys/types.h> // IWYU pragma: keep
+
+#include <ifaddrs.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_dl.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+
+#ifdef __APPLE__
+#include <net/if_media.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <unistd.h>
+#endif
 #endif
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
@@ -61,34 +68,20 @@
 #include <sys/time.h>
 #endif
 
-#include "eth.h"
-
-#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__linux__)
-struct ifaddrs;
-#endif
-
 
 /// Return the Ethernet MAC address of network interface @p i.
 ///
 /// @param[out] mac   A buffer of at least ETH_ADDR_LEN bytes.
 /// @param[in]  i     A network interface.
 ///
-void plat_get_mac(uint8_t * mac,
-                  const struct ifaddrs * i
-#if !defined(__FreeBSD__) && !defined(__linux__)
-                  __attribute__((unused))
-#endif
-                  )
+void plat_get_mac(struct ether_addr * const mac, const struct ifaddrs * const i)
 {
-#if defined(__FreeBSD__)
-    memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr),
-           ETH_ADDR_LEN);
-#elif defined(__linux__)
+#ifdef __linux__
     memcpy(mac, ((struct sockaddr_ll *)(void *)i->ifa_addr)->sll_addr,
-           ETH_ADDR_LEN);
+           ETHER_ADDR_LEN);
 #else
-    warn(warn, "MAC address queries not supported on this platform");
-    memcpy(mac, "\xde\xad\xde\xad\xde\xad", ETH_ADDR_LEN);
+    memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr),
+           ETHER_ADDR_LEN);
 #endif
 }
 
@@ -99,19 +92,17 @@ void plat_get_mac(uint8_t * mac,
 ///
 /// @return     The MTU of @p i.
 ///
-uint16_t plat_get_mtu(const struct ifaddrs * i
-#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__linux__)
-                      __attribute__((unused))
-#endif
-                      )
+uint16_t plat_get_mtu(const struct ifaddrs * i)
 {
-#if defined(__FreeBSD__) || defined(__APPLE__)
-    return (uint16_t)((struct if_data *)(i->ifa_data))->ifi_mtu;
-#elif defined(__linux__)
+#ifndef __linux__
+    const struct if_data * const ifa_data = i->ifa_data;
+    return (uint16_t)ifa_data->ifi_mtu;
+#else
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
-    struct ifreq ifr = {0};
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
 
     ensure(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
@@ -119,9 +110,6 @@ uint16_t plat_get_mtu(const struct ifaddrs * i
 
     close(s);
     return mtu;
-#else
-    warn(warn, "MTU queries not supported on this platform");
-    return 1500;
 #endif
 }
 
@@ -132,20 +120,23 @@ uint16_t plat_get_mtu(const struct ifaddrs * i
 ///
 /// @return     Link speed of interface @p i.
 ///
-uint32_t plat_get_mbps(const struct ifaddrs * i
-#if !defined(__FreeBSD__) && !defined(__linux__)
-                       __attribute__((unused))
-#endif
-                       )
+uint32_t plat_get_mbps(const struct ifaddrs * i)
 {
 #if defined(__FreeBSD__)
-    return (uint32_t)(((struct if_data *)(i->ifa_data))->ifi_baudrate /
-                      1000000);
-#elif defined(__linux__)
+    const struct if_data * const ifa_data = i->ifa_data;
+    if ((ifa_data->ifi_link_state & LINK_STATE_UP) != LINK_STATE_UP)
+        return 0;
+    return (uint32_t)(ifa_data->ifi_baudrate / 1000000);
+#elif defined(__APPLE__)
+    const struct if_data * const ifa_data = i->ifa_data;
+    // XXX this seems to contain garbage?
+    return ifa_data->ifi_baudrate / 1000000;
+#else
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
-    struct ifreq ifr = {0};
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
 
     // if this is loopback interface, SIOCETHTOOL will fail, so just return a
@@ -164,9 +155,6 @@ uint32_t plat_get_mbps(const struct ifaddrs * i
     close(s);
     const uint32_t speed = ethtool_cmd_speed(&edata);
     return speed != (uint32_t)SPEED_UNKNOWN ? speed : 0;
-#else
-    warn(warn, "link speed queries not supported on this platform");
-    return UINT32_MAX;
 #endif
 }
 
@@ -177,33 +165,36 @@ uint32_t plat_get_mbps(const struct ifaddrs * i
 ///
 /// @return     Link status of interface @p i. True means link is up.
 ///
-bool plat_get_link(const struct ifaddrs * i
-#if !defined(__FreeBSD__) && !defined(__linux__)
-                   __attribute__((unused))
-#endif
-                   )
+bool plat_get_link(const struct ifaddrs * i)
 {
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__APPLE__)
     if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
         return true;
-    return (((struct if_data *)(i->ifa_data))->ifi_link_state) & LINK_STATE_UP;
-#elif defined(__linux__)
+#endif
+    bool link = false;
+#ifdef __FreeBSD__
+    const struct if_data * const ifa_data = i->ifa_data;
+    link = ((ifa_data->ifi_link_state & LINK_STATE_UP) == LINK_STATE_UP);
+#else
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
-    struct ifreq ifr = {0};
-    strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
-
-    ensure(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
-
-    const bool link = (ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING);
-
-    close(s);
-    return link;
+#ifdef __APPLE__
+    struct ifmediareq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifm_name, i->ifa_name, IFNAMSIZ);
+    ensure(ioctl(s, SIOCGIFMEDIA, &ifr) >= 0, "%s ioctl", i->ifa_name);
+    link = (ifr.ifm_status & IFM_AVALID) && (ifr.ifm_status & IFM_ACTIVE);
 #else
-    warn(warn, "link state queries not supported on this platform");
-    return true;
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
+    ensure(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
+    link = (ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING);
 #endif
+    close(s);
+#endif
+    return link;
 }
 
 

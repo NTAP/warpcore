@@ -77,8 +77,8 @@
 void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    const struct ip_hdr * const ip = (const struct ip_hdr *)eth_data(buf);
-    struct udp_hdr * const udp = (struct udp_hdr *)ip_data(buf);
+    const struct ip_hdr * const ip = (const void *)eth_data(buf);
+    struct udp_hdr * const udp = (void *)ip_data(buf);
     const uint16_t udp_len = ntohs(udp->len);
 
     udp_log(udp);
@@ -154,16 +154,16 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
     uint8_t * const buf = IDX2BUF(s->w, v->idx);
     memcpy(buf, s->hdr, sizeof(*s->hdr));
 
-    struct ip_hdr * const ip = (struct ip_hdr *)eth_data(buf);
-    struct udp_hdr * const udp = (struct udp_hdr *)ip_data(buf);
+    struct ip_hdr * const ip = (void *)eth_data(buf);
+    struct udp_hdr * const udp = (void *)ip_data(buf);
     const uint16_t len = v->len + sizeof(*udp);
     udp->len = htons(len);
 
     // if w_sock is disconnected, use destination IP and port from w_iov
     // instead of the one in the template header
     if (!w_connected(s)) {
-        struct eth_hdr * const e = (struct eth_hdr *)buf;
-        memcpy(&e->dst, arp_who_has(s->w, v->ip), ETH_ADDR_LEN);
+        struct eth_hdr * const e = (void *)buf;
+        e->dst = arp_who_has(s->w, v->ip);
         ip->dst = v->ip;
         udp->dport = v->port;
     }

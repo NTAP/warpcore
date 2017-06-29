@@ -121,7 +121,7 @@ void backend_init(struct w_engine * w,
         w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
         STAILQ_INSERT_HEAD(&w->iov, &w->bufs[n], next);
-        i = *(uint32_t *)w->bufs[n].buf;
+        memcpy(&i, w->bufs[n].buf, sizeof(i));
     }
 
     if (w->req->nr_arg3 != nbufs)
@@ -212,8 +212,7 @@ void backend_connect(struct w_sock * const s)
                                       mk_net(s->hdr->ip.src, s->w->mask))
                             ? s->w->rip
                             : s->hdr->ip.dst;
-    const uint8_t * const mac = arp_who_has(s->w, ip);
-    memcpy(s->hdr->eth.dst, mac, ETH_ADDR_LEN);
+    s->hdr->eth.dst = arp_who_has(s->w, ip);
 }
 
 

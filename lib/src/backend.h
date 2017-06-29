@@ -69,12 +69,12 @@ SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
 /// A warpcore backend engine.
 ///
 struct w_engine {
-    struct sock sock;          ///< List of open (bound) w_sock sockets.
-    STAILQ_HEAD(, w_iov) iov;  ///< Tail queue of w_iov buffers available.
-    uint32_t ip;               ///< Local IPv4 address used on this interface.
-    uint32_t mask;             ///< IPv4 netmask of this interface.
-    uint16_t mtu;              ///< MTU of this interface.
-    uint8_t mac[ETH_ADDR_LEN]; ///< Local Ethernet MAC address of the interface.
+    struct sock sock;         ///< List of open (bound) w_sock sockets.
+    STAILQ_HEAD(, w_iov) iov; ///< Tail queue of w_iov buffers available.
+    uint32_t ip;              ///< Local IPv4 address used on this interface.
+    uint32_t mask;            ///< IPv4 netmask of this interface.
+    uint16_t mtu;             ///< MTU of this interface.
+    struct ether_addr mac;    ///< Local Ethernet MAC address of the interface.
     void * mem;   ///< Pointer to netmap or socket buffer memory region.
     uint32_t rip; ///< Our default IPv4 router IP address.
 #ifdef WITH_NETMAP

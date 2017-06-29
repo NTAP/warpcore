@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(warpcore VERSION 0.12.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.13.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
@@ -56,22 +56,11 @@ foreach(FLAG -march=native -Wextra -Wpedantic -Weverything -Werror
 endforeach()
 
 # Set CXX flags
-foreach(FLAG -Wno-c++11-extensions -Wno-c++98-compat -Wno-global-constructors)
+foreach(FLAG -Wno-c++98-compat -Wno-global-constructors)
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_cxx_compiler_flag(${FLAG} ${F})
   if(${F})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
-  endif()
-endforeach()
-
-# Set C flags
-foreach(FLAG -Wno-missing-field-initializers -Wno-missing-braces
-        -Wno-gnu-statement-expression -Wno-extended-offsetof
-        -Wno-disabled-macro-expansion -Wno-cast-align)
-  string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
-  check_c_compiler_flag(${FLAG} ${F})
-  if(${F})
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
   endif()
 endforeach()
 
@@ -123,8 +112,6 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   if(CLANGTIDY)
     message(STATUS "Found clang-tidy: ${CLANGTIDY}")
     set(CLANG_TIDY_CHECKS *
-        -clang-analyzer-alpha.deadcode.UnreachableCode
-        -clang-analyzer-alpha.core.CastToStruct
         -google-readability-braces-around-statements
         -readability-braces-around-statements
         -google-readability-todo
@@ -158,15 +145,11 @@ endif()
 
 # flags for "Release" builds
 set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Ofast")
-set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -Ofast")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
 
 # flags for "RelWithDebInfo" builds
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELEASE} -g3")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g3")
-
-# Extract compile options into variable, for doxygen's CLANG_ASSISTED_PARSING
-get_property(COMPILE_OPTIONS DIRECTORY PROPERTY COMPILE_OPTIONS)
-string(REPLACE ";" " " COMPILE_OPTIONS "${COMPILE_OPTIONS}")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
 
 add_definitions(-DDLEVEL=${DLEVEL})
 

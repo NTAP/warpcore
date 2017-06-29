@@ -40,7 +40,6 @@
 #include <unistd.h>
 
 #ifdef __linux__
-#include <net/ethernet.h>
 #include <netinet/ether.h>
 #else
 #include <net/ethernet.h>
@@ -304,7 +303,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 
     // initialize the non-zero fields of outgoing template header
     s->hdr->eth.type = ETH_TYPE_IP;
-    memcpy(&s->hdr->eth.src, w->mac, ETH_ADDR_LEN);
+    s->hdr->eth.src = w->mac;
     // s->hdr->eth.dst is set on w_connect()
 
     ip_hdr_init(&s->hdr->ip);
@@ -416,16 +415,14 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 
             switch (i->ifa_addr->sa_family) {
             case AF_LINK:
-                plat_get_mac(w->mac, i);
+                plat_get_mac(&w->mac, i);
                 w->mtu = plat_get_mtu(i);
                 link_up = plat_get_link(i);
 #ifndef NDEBUG
                 // mpbs can be zero on generic platforms and loopback interfaces
                 const uint32_t mbps = plat_get_mbps(i);
-                struct ether_addr a;
-                memcpy(&a, w->mac, ETH_ADDR_LEN);
                 warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
-                     i->ifa_name, ether_ntoa(&a), w->mtu, mbps / 1000,
+                     i->ifa_name, ether_ntoa(&w->mac), w->mtu, mbps / 1000,
                      link_up ? "up" : "down");
 #endif
                 break;

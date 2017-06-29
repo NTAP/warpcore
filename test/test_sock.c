@@ -51,7 +51,7 @@ int main()
     ensure(w_connected(cs), "not connected");
 
     // send something
-    struct w_iov_stailq o = STAILQ_HEAD_INITIALIZER(o);
+    struct w_iov_stailq o = w_iov_stailq_initializer(o);
     w_alloc_cnt(w, &o, 1, 0);
     struct w_iov * const ov = STAILQ_FIRST(&o);
     ov->len = (uint16_t)snprintf((char *)ov->buf, ov->len, "Hello, world!");
@@ -60,7 +60,7 @@ int main()
         w_nic_tx(w);
 
     // read something
-    struct w_iov_stailq i = STAILQ_HEAD_INITIALIZER(i);
+    struct w_iov_stailq i = w_iov_stailq_initializer(i);
     w_nic_rx(w, -1);
     w_rx(ss, &i);
     if (!STAILQ_EMPTY(&i))

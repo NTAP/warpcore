@@ -59,19 +59,18 @@ void icmp_tx(struct w_engine * const w,
     struct w_iov * const v = w_alloc_iov(w, 0);
 
     // construct an ICMP header and set the fields
-    struct icmp_hdr * const dst_icmp = (struct icmp_hdr *)ip_data(v->buf);
+    struct icmp_hdr * const dst_icmp = (void *)ip_data(v->buf);
     dst_icmp->type = type;
     dst_icmp->code = code;
     warn(notice, "ICMP type %d, code %d", type, code);
 
-    const struct ip_hdr * const src_ip = (const struct ip_hdr *)eth_data(buf);
+    const struct ip_hdr * const src_ip = (const void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
     uint16_t data_len = ntohs(src_ip->len);
 
     switch (type) {
     case ICMP_TYPE_ECHOREPLY: {
-        const struct icmp_hdr * const src_icmp =
-            (const struct icmp_hdr *)ip_data(buf);
+        const struct icmp_hdr * const src_icmp = (const void *)ip_data(buf);
         dst_icmp->id = src_icmp->id;
         dst_icmp->seq = src_icmp->seq;
 
@@ -102,17 +101,17 @@ void icmp_tx(struct w_engine * const w,
     dst_icmp->cksum = in_cksum(dst_icmp, sizeof(*dst_icmp) + data_len);
 
     // construct an IPv4 header
-    struct ip_hdr * const dst_ip = (struct ip_hdr *)eth_data(v->buf);
+    struct ip_hdr * const dst_ip = (void *)eth_data(v->buf);
     ip_hdr_init(dst_ip);
     dst_ip->src = w->ip;
     dst_ip->dst = src_ip->src;
     dst_ip->p = IP_P_ICMP;
 
     // set the Ethernet header
-    const struct eth_hdr * const src_eth = (const struct eth_hdr *)buf;
-    struct eth_hdr * const dst_eth = (struct eth_hdr *)v->buf;
-    memcpy(dst_eth->dst, src_eth->src, ETH_ADDR_LEN);
-    memcpy(dst_eth->src, w->mac, ETH_ADDR_LEN);
+    const struct eth_hdr * const src_eth = (const void *)buf;
+    struct eth_hdr * const dst_eth = (void *)v->buf;
+    dst_eth->dst = src_eth->src;
+    dst_eth->src = w->mac;
     dst_eth->type = ETH_TYPE_IP;
 
     // now send the packet, and make sure it went out before returning it
@@ -139,12 +138,13 @@ void icmp_tx(struct w_engine * const w,
 ///
 void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
-    uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    struct icmp_hdr * const icmp = (struct icmp_hdr *)ip_data(buf);
+    uint8_t * const buf = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
+    struct icmp_hdr * const icmp = (void *)ip_data(buf);
     warn(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
 
     // validate the ICMP checksum
-    const uint16_t icmp_len = ip_data_len((struct ip_hdr *)eth_data(buf));
+    const struct ip_hdr * const ip = (const void *)eth_data(buf);
+    const uint16_t icmp_len = ip_data_len(ip);
     if (in_cksum(icmp, icmp_len) != 0) {
         warn(warn, "invalid ICMP checksum, received 0x%04x",
              ntohs(icmp->cksum));
@@ -158,18 +158,19 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
         break;
     case ICMP_TYPE_UNREACH: {
 #ifndef NDEBUG
-        struct ip_hdr * const ip =
-            (void *)((char *)ip_data(buf) + sizeof(*icmp) + 4);
+        const struct ip_hdr * const payload_ip =
+            (const void *)(ip_data(buf) + sizeof(*icmp) + 4);
 #endif
         switch (icmp->code) {
         case ICMP_UNREACH_PROTOCOL:
-            warn(warn, "ICMP protocol %d unreachable", ip->p);
+            warn(warn, "ICMP protocol %d unreachable", payload_ip->p);
             break;
         case ICMP_UNREACH_PORT: {
 #ifndef NDEBUG
-            struct udp_hdr * const udp = (void *)((char *)ip + ip_hl(ip));
-            warn(warn, "ICMP IP proto %d port %d unreachable", ip->p,
-                 ntohs(udp->dport));
+            const struct udp_hdr * const payload_udp =
+                (const void *)((const uint8_t *)ip + ip_hl(ip));
+            warn(warn, "ICMP IP proto %d port %d unreachable", payload_ip->p,
+                 ntohs(payload_udp->dport));
 #endif
             break;
         }

@@ -27,9 +27,13 @@
 
 #include <stdint.h>
 
-#include <warpcore/warpcore.h>
+#ifdef __linux__
+#include <netinet/ether.h>
+#else
+#include <net/ethernet.h>
+#endif
 
-#include "eth.h"
+#include <warpcore/warpcore.h>
 
 struct w_engine;
 struct netmap_ring;
@@ -49,7 +53,7 @@ struct arp_hdr {
     /// in warpcore.
     uint16_t pro;
 
-    /// Length of the hardware address. Will always be ETH_ADDR_LEN for
+    /// Length of the hardware address. Will always be ETHER_ADDR_LEN for
     /// Ethernet.
     uint8_t hln;
 
@@ -62,7 +66,7 @@ struct arp_hdr {
 
     /// The sender hardware (i.e., Ethernet) address of the ARP operation.
     ///
-    uint8_t sha[ETH_ADDR_LEN];
+    struct ether_addr sha;
 
     /// The sender protocol (i.e., IPv4) address of the ARP operation.
     ///
@@ -70,7 +74,7 @@ struct arp_hdr {
 
     /// The target hardware (i.e., Ethernet) address of the ARP operation.
     ///
-    uint8_t tha[ETH_ADDR_LEN];
+    struct ether_addr tha;
 
     /// The target protocol (i.e., IPv4) address of the ARP operation.
     ///
@@ -86,7 +90,7 @@ struct arp_hdr {
 extern void __attribute__((nonnull))
 arp_rx(struct w_engine * w, struct netmap_ring * const r);
 
-extern uint8_t * __attribute__((nonnull))
+extern struct ether_addr __attribute__((nonnull))
 arp_who_has(struct w_engine * const w, const uint32_t dip);
 
 extern void __attribute__((nonnull)) free_arp_cache(struct w_engine * const w);
@@ -97,7 +101,7 @@ extern void __attribute__((nonnull)) free_arp_cache(struct w_engine * const w);
 struct arp_entry {
     SPLAY_ENTRY(arp_entry) next; ///< Pointer to next cache entry.
     uint32_t ip;                 ///< IPv4 address.
-    uint8_t mac[ETH_ADDR_LEN];   ///< Ethernet MAC address.
+    struct ether_addr mac;       ///< Ethernet MAC address.
     /// @cond
     uint8_t _unused[6]; ///< @internal Padding.
     /// @endcond

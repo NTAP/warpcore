@@ -32,9 +32,9 @@
 #include <sys/types.h>
 
 #ifdef __linux__
+#include <net/ethernet.h>
 #include <netinet/ether.h>
 #else
-#include <net/ethernet.h>
 #include <netinet/in.h>
 #endif
 
@@ -59,19 +59,13 @@
 void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     struct eth_hdr * const eth = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-
-#ifndef NDEBUG
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
-    warn(debug, "Eth %s -> %s, type %d, len %d",
-         ether_ntoa_r((const struct ether_addr *)eth->src, src),
-         ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
-         ntohs(eth->type), r->slot[r->cur].len);
-#endif
+    warn(debug, "Eth %s -> %s, type %d, len %d", ether_ntoa(&eth->src),
+         ether_ntoa(&eth->dst), ntohs(eth->type), r->slot[r->cur].len);
 
     // make sure the packet is for us (or broadcast)
-    if (unlikely((memcmp(eth->dst, w->mac, ETH_ADDR_LEN) != 0) &&
-                 (memcmp(eth->dst, ETH_BCAST, ETH_ADDR_LEN) != 0))) {
+    if (unlikely((memcmp(&eth->dst, &w->mac, ETHER_ADDR_LEN) != 0) &&
+                 (memcmp(&eth->dst, "\xff\xff\xff\xff\xff\xff",
+                         ETHER_ADDR_LEN) != 0))) {
         warn(info, "Ethernet packet not destined to us; ignoring");
         return;
     }
@@ -130,13 +124,9 @@ bool eth_tx(struct w_engine * const w,
     s->ptr = (uint64_t)v;
 
 #ifndef NDEBUG
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
     const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, s->buf_idx);
-    warn(debug, "Eth %s -> %s, type %d, len %lu",
-         ether_ntoa_r((const struct ether_addr *)eth->src, src),
-         ether_ntoa_r((const struct ether_addr *)eth->dst, dst),
-         ntohs(eth->type), len + sizeof(*eth));
+    warn(debug, "Eth %s -> %s, type %d, len %lu", ether_ntoa(&eth->src),
+         ether_ntoa(&eth->dst), ntohs(eth->type), len + sizeof(*eth));
 #endif
 
     // advance tx ring

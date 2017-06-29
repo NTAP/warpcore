@@ -39,6 +39,10 @@
 
 #include <stdint.h>
 
+#ifdef __FreeBSD__
+#include <sys/types.h> // IWYU pragma: keep
+#endif
+
 #include "ip.h" // IWYU pragma: keep
 
 // IWYU pragma: no_forward_declare l_util

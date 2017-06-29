@@ -94,7 +94,8 @@ struct ip_hdr {
 ///
 /// @return     IP header length in bytes.
 ///
-#define ip_hl(ip) (uint8_t)((((const struct ip_hdr *)(ip))->vhl & 0x0f) * 4)
+#define ip_hl(ip)                                                              \
+    (uint8_t)((((const struct ip_hdr *)(const void *)(ip))->vhl & 0x0f) * 4)
 
 
 /// Extract the DSCP out of an ip_hdr::tos field.
