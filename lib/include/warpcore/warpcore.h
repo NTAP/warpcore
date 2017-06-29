@@ -28,22 +28,27 @@
 #include <stdint.h>
 #include <sys/time.h>
 
-#ifdef __linux__
-typedef uintptr_t __uintptr_t;
-#endif
-
-#include <warpcore/cdefs.h>  // IWYU pragma: export
 #include <warpcore/config.h> // IWYU pragma: export
 #include <warpcore/plat.h>   // IWYU pragma: export
 #include <warpcore/queue.h>  // IWYU pragma: export
 #include <warpcore/tree.h>   // IWYU pragma: export
 #include <warpcore/util.h>   // IWYU pragma: export
 
+
 struct w_engine;
 
 /// A chain of w_sock socket.
 ///
 SLIST_HEAD(w_sock_slist, w_sock);
+
+
+/// Initializer for struct w_sock_slist.
+///
+/// @param      l     A struct w_sock_slist.
+///
+/// @return     Empty w_sock_slist, to be assigned to @p l.
+///
+#define w_sock_slist_initializer(l) SLIST_HEAD_INITIALIZER(l)
 
 
 /// A tail queue of w_iov I/O vectors. Also contains a counter that (on TX)
@@ -55,8 +60,20 @@ struct w_iov_stailq {
 };
 
 
+/// Initializer for struct w_iov_stailq.
+///
+/// @param      q     A struct w_iov_stailq.
+///
+/// @return     Empty w_iov_stailq, to be assigned to @p q.
+///
+#define w_iov_stailq_initializer(q)                                            \
+    {                                                                          \
+        STAILQ_HEAD_INITIALIZER(q), 0                                          \
+    }
+
+
 /// Do not compute a UDP checksum for outgoing packets. Has no effect for the
-/// socket backend.
+/// socket engine.
 ///
 #define W_ZERO_CHKSUM 1
 
@@ -182,6 +199,7 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 /// @return     Number of w_iov structs not yet transmitted.
 ///
 #define w_tx_pending(q) (q)->tx_pending
+
 
 /// Return warpcore engine serving w_sock @p s.
 ///
