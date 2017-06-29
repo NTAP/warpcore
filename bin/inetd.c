@@ -146,18 +146,18 @@ int main(const int argc, char * const argv[])
             continue;
 
         // for each of the small services that have received data...
-        struct w_sock_slist sl = SLIST_HEAD_INITIALIZER(sl);
+        struct w_sock_slist sl = w_sock_slist_initializer(sl);
         w_rx_ready(w, &sl);
         struct w_sock * s;
         SLIST_FOREACH (s, &sl, next_rx) {
             // ...check if any new data has arrived on the socket
-            struct w_iov_stailq i = STAILQ_HEAD_INITIALIZER(i);
+            struct w_iov_stailq i = w_iov_stailq_initializer(i);
             w_rx(s, &i);
             if (STAILQ_EMPTY(&i))
                 continue;
             warn(debug, "received %u bytes", w_iov_stailq_len(&i));
 
-            struct w_iov_stailq o = STAILQ_HEAD_INITIALIZER(o);
+            struct w_iov_stailq o = w_iov_stailq_initializer(o);
             uint16_t t = 0;
 #if 0
             if (s == srv[t++]) {
@@ -200,7 +200,7 @@ int main(const int argc, char * const argv[])
 
                 while (!STAILQ_EMPTY(&i)) {
                     static struct w_iov_stailq tmp =
-                        STAILQ_HEAD_INITIALIZER(tmp);
+                        w_iov_stailq_initializer(tmp);
                     static uint32_t tmp_len = 0;
 
                     while (tmp_len < len && !STAILQ_EMPTY(&i)) {

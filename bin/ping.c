@@ -234,7 +234,7 @@ int main(const int argc, char * const argv[])
             // stamp the data
             struct w_iov * v;
             STAILQ_FOREACH (v, &o, next) {
-                struct payload * const p = (struct payload * const) v->buf;
+                struct payload * const p = (void *)v->buf;
                 p->len = htonl(len);
                 p->ts = before_tx;
             }
@@ -259,7 +259,7 @@ int main(const int argc, char * const argv[])
             warn(info, "sent %u byte%s", len, plural(len));
 
             // wait for a reply; loop until timeout or we have received all data
-            struct w_iov_stailq i = STAILQ_HEAD_INITIALIZER(i);
+            struct w_iov_stailq i = w_iov_stailq_initializer(i);
             while (likely(w_iov_stailq_len(&i) < len && done == false)) {
                 // receive new data (there may not be any if busy-waiting)
                 if (w_nic_rx(w, busywait ? 0 : -1) == false)
@@ -273,7 +273,7 @@ int main(const int argc, char * const argv[])
                    "clock_gettime");
 
             // stop the timeout
-            const struct itimerval stop = {0};
+            const struct itimerval stop = {{0, 0}, {0, 0}};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
             const uint32_t i_len = w_iov_stailq_len(&i);
