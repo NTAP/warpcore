@@ -109,7 +109,7 @@ extern pthread_t _master;
         fflush(stderr);                                                        \
         pthread_mutex_unlock(&_lock);                                          \
         abort();                                                               \
-    } while (0)
+    } while (0) // NOLINT
 
 
 #ifndef NDEBUG
