@@ -23,42 +23,36 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef __linux__
-#include <ifaddrs.h>
-#include <linux/ethtool.h>
-#include <linux/sockios.h>
-#include <net/ethernet.h>
-#include <net/if.h>
-#include <netpacket/packet.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-#else
-
 // needs to come before net/ethernet.h
 #include <sys/types.h> // IWYU pragma: keep
 
 #include <ifaddrs.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_dl.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#ifdef __APPLE__
+
+#if defined(__linux__)
+#include <linux/ethtool.h>
+#include <linux/sockios.h>
+#include <netpacket/packet.h>
+#include <sys/ioctl.h>
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#elif defined(__FreeBSD__)
+#include <net/if_dl.h>
+
+#elif defined(__APPLE__)
+#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <unistd.h>
-#endif
 #endif
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep

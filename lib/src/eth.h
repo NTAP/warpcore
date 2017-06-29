@@ -26,16 +26,9 @@
 #pragma once
 
 #include <arpa/inet.h>
+#include <net/ethernet.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-#ifdef __linux__
-#include <net/ethernet.h>
-#include <netinet/ether.h>
-#else
-#include <net/ethernet.h>
-#endif
-
 
 struct w_iov;
 struct w_engine;

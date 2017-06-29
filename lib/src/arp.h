@@ -25,13 +25,8 @@
 
 #pragma once
 
-#include <stdint.h>
-
-#ifdef __linux__
-#include <netinet/ether.h>
-#else
 #include <net/ethernet.h>
-#endif
+#include <stdint.h>
 
 #include <warpcore/warpcore.h>
 
