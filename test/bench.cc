@@ -38,7 +38,10 @@ static void BM_io(benchmark::State & state) // NOLINT
 {
     const auto len = uint32_t(state.range(0));
     while (state.KeepRunning())
-        io(len);
+        if (!io(len)) {
+            state.SkipWithError("probably ran out of bufs");
+            break;
+        }
     state.SetBytesProcessed(state.iterations() * len * w_mtu(w));
 }
 
@@ -55,7 +58,7 @@ static void BM_in_cksum(benchmark::State & state) // NOLINT
 }
 
 
-BENCHMARK(BM_io)->RangeMultiplier(2)->Range(1, 512); // NOLINT
+BENCHMARK(BM_io)->RangeMultiplier(2)->Range(1, 512);        // NOLINT
 BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 8192); // NOLINT
 
 

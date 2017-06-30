@@ -29,6 +29,7 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <stdint.h>
 
 
@@ -36,7 +37,7 @@ extern struct w_engine * w;
 extern struct w_sock * ss;
 extern struct w_sock * cs;
 
-extern void io(const uint32_t len);
+extern bool io(const uint32_t len);
 extern void init(void);
 extern void cleanup(void);
 

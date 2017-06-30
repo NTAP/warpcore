@@ -24,6 +24,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -37,7 +38,7 @@ struct w_sock * ss;
 struct w_sock * cs;
 
 
-void io(const uint32_t len)
+bool io(const uint32_t len)
 {
     // allocate a w_iov chain for tx
     struct w_iov_stailq o = w_iov_stailq_initializer(o);
@@ -58,11 +59,19 @@ void io(const uint32_t len)
 
     // read the chain back
     struct w_iov_stailq i = w_iov_stailq_initializer(i);
-    uint32_t ilen;
-    while ((ilen = w_iov_stailq_len(&i)) < olen) {
+    uint32_t ilen = 0;
+    do {
         w_nic_rx(w, -1);
         w_rx(ss, &i);
-    }
+        const uint32_t new_ilen = w_iov_stailq_len(&i);
+        if (ilen == new_ilen) {
+            // we ran out of buffers, can't test further
+            w_free(w, &o);
+            w_free(w, &i);
+            return false;
+        }
+        ilen = new_ilen;
+    } while (ilen < olen);
     ensure(ilen == olen, "wrong length");
 
     // validate data
@@ -78,6 +87,7 @@ void io(const uint32_t len)
 
     w_free(w, &o);
     w_free(w, &i);
+    return true;
 }
 
 
