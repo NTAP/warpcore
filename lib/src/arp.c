@@ -44,12 +44,13 @@
 #include "backend.h"
 #include "eth.h"
 #include "ip.h"
+#include "udp.h"
 
 
-int64_t __attribute__((nonnull)) arp_cache_cmp(const struct arp_entry * const a,
+int32_t __attribute__((nonnull)) arp_cache_cmp(const struct arp_entry * const a,
                                                const struct arp_entry * const b)
 {
-    return (int64_t)a->ip - (int64_t)b->ip;
+    return (int32_t)a->ip - (int32_t)b->ip;
 }
 
 SPLAY_GENERATE(arp_cache, arp_entry, next, arp_cache_cmp)
@@ -281,8 +282,8 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
                   arp->spa == s->hdr->ip.dst)) ||
                 // or non-local socket and ARP src IP matches router
                 (s->w->rip && (s->w->rip == arp->spa))) {
-                warn(notice, "updating socket with %s for %s",
-                     ether_ntoa(&arp->sha),
+                warn(notice, "updating socket on local port %u with %s for %s",
+                     ntohs(s->hdr->udp.sport), ether_ntoa(&arp->sha),
                      inet_ntop(AF_INET, &arp->spa, ip_str, INET_ADDRSTRLEN));
                 s->hdr->eth.dst = arp->sha;
             }
