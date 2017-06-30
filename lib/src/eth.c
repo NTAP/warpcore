@@ -95,14 +95,14 @@ bool eth_tx(struct w_engine * const w,
 {
     // find a tx ring with space
     struct netmap_ring * txr = 0;
-    for (uint32_t r = 0; r < w->nif->ni_tx_rings; r++) {
-        txr = NETMAP_TXRING(w->nif, w->cur_txr);
+    for (uint32_t r = 0; r < w->b->nif->ni_tx_rings; r++) {
+        txr = NETMAP_TXRING(w->b->nif, w->b->cur_txr);
         if (likely(nm_ring_space(txr)))
             // we have space in this ring
             break;
 
-        warn(info, "tx ring %u full; moving to next", w->cur_txr);
-        w->cur_txr = (w->cur_txr + 1) % w->nif->ni_tx_rings;
+        warn(info, "tx ring %u full; moving to next", w->b->cur_txr);
+        w->b->cur_txr = (w->b->cur_txr + 1) % w->b->nif->ni_tx_rings;
         txr = 0;
     }
 
@@ -116,7 +116,7 @@ bool eth_tx(struct w_engine * const w,
     struct netmap_slot * const s = &txr->slot[txr->cur];
     const uint32_t slot_idx = s->buf_idx;
     warn(debug, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
-         v->idx, w->cur_txr, txr->cur, slot_idx);
+         v->idx, w->b->cur_txr, txr->cur, slot_idx);
     s->buf_idx = v->idx;
     v->idx = slot_idx;
     s->flags = NS_BUF_CHANGED;

@@ -32,6 +32,7 @@
 #include "ip.h"
 #include "udp.h"
 
+struct backend;
 
 /// For a given buffer index, get a pointer to its beginning.
 ///
@@ -44,7 +45,8 @@
 /// @return     Memory region associated with buffer @p i.
 ///
 #ifdef WITH_NETMAP
-#define IDX2BUF(w, i) ((uint8_t *)NETMAP_BUF(NETMAP_TXRING((w)->nif, 0), (i)))
+#define IDX2BUF(w, i)                                                          \
+    ((uint8_t *)NETMAP_BUF(NETMAP_TXRING((w)->b->nif, 0), (i)))
 #else
 #define IDX2BUF(w, i) (((uint8_t *)w->mem + (i * w->mtu)))
 #endif
@@ -62,21 +64,11 @@ struct w_hdr {
 extern int16_t __attribute__((nonnull))
 w_sock_cmp(const struct w_sock * const a, const struct w_sock * const b);
 
-SPLAY_HEAD(sock, w_sock);
 SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
 
 
-/// A warpcore backend engine.
-///
-struct w_engine {
-    struct sock sock;         ///< List of open (bound) w_sock sockets.
-    STAILQ_HEAD(, w_iov) iov; ///< Tail queue of w_iov buffers available.
-    uint32_t ip;              ///< Local IPv4 address used on this interface.
-    uint32_t mask;            ///< IPv4 netmask of this interface.
-    uint16_t mtu;             ///< MTU of this interface.
-    struct ether_addr mac;    ///< Local Ethernet MAC address of the interface.
-    void * mem;   ///< Pointer to netmap or socket buffer memory region.
-    uint32_t rip; ///< Our default IPv4 router IP address.
+struct w_backend {
+    char * ifname; ///< Name of the interface of this engine.
 #ifdef WITH_NETMAP
     int fd;                     ///< Netmap file descriptor.
     struct netmap_if * nif;     ///< Netmap interface.
@@ -96,13 +88,10 @@ struct w_engine {
 #else
     /// @cond
     uint8_t _unused_2[4]; ///< @internal Padding.
-    /// @endcond
+                          /// @endcond
 #endif
-    char * ifname; ///< Name of the interface of this engine.
+    uint8_t _unused_2[4]; ///< @internal Padding.
 #endif
-    const char * backend; ///< Name of the warpcore backend used by the engine.
-    SLIST_ENTRY(w_engine) next; ///< Pointer to next engine.
-    struct w_iov * bufs;
 };
 
 

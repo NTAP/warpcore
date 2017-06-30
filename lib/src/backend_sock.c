@@ -75,13 +75,14 @@ void backend_init(struct w_engine * const w,
 {
     struct w_engine * ww;
     SLIST_FOREACH (ww, &engines, next)
-        ensure(strncmp(ifname, ww->ifname, IFNAMSIZ),
+        ensure(strncmp(ifname, w_ifname(ww), IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
 
     ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
            "cannot alloc %u * %u buf mem", nbufs, w->mtu);
     ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
            "cannot alloc bufs");
+    ensure((w->b = calloc(1, sizeof(*w->b))) != 0, "cannot alloc backend");
 
     for (uint32_t i = 0; i < nbufs; i++) {
         w->bufs[i].buf = IDX2BUF(w, i);
@@ -89,17 +90,17 @@ void backend_init(struct w_engine * const w,
         STAILQ_INSERT_HEAD(&w->iov, &w->bufs[i], next);
     }
 
-    w->ifname = strndup(ifname, IFNAMSIZ);
-    ensure(w->ifname, "could not strndup");
+    w->b->ifname = strndup(ifname, IFNAMSIZ);
+    ensure(w->b->ifname, "could not strndup");
     w->backend = backend_name;
 
 #if defined(HAVE_KQUEUE)
-    w->kq = kqueue();
+    w->b->kq = kqueue();
 #ifndef NDEBUG
     const char poll_meth[] = "kqueue";
 #endif
 #elif defined(HAVE_EPOLL)
-    w->ep = epoll_create1(0);
+    w->b->ep = epoll_create1(0);
     const char poll_meth[] = "epoll";
 #else
     const char poll_meth[] = "poll";
@@ -127,7 +128,8 @@ void backend_init(struct w_engine * const w,
 void backend_cleanup(struct w_engine * const w)
 {
     free(w->mem);
-    free(w->ifname);
+    free(w->b->ifname);
+    free(w->b);
 }
 
 
@@ -158,10 +160,11 @@ void backend_bind(struct w_sock * const s)
 #if defined(HAVE_KQUEUE)
     struct kevent ev;
     EV_SET(&ev, s->fd, EVFILT_READ, EV_ADD, 0, 0, s);
-    ensure(kevent(s->w->kq, &ev, 1, 0, 0, 0) != -1, "kevent");
+    ensure(kevent(s->w->b->kq, &ev, 1, 0, 0, 0) != -1, "kevent");
 #elif defined(HAVE_EPOLL)
     struct epoll_event ev = {.events = EPOLLIN, .data.ptr = s};
-    ensure(epoll_ctl(s->w->ep, EPOLL_CTL_ADD, s->fd, &ev) != -1, "epoll_ctl");
+    ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_ADD, s->fd, &ev) != -1,
+           "epoll_ctl");
 #endif
 }
 
@@ -367,11 +370,11 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 #if defined(HAVE_KQUEUE)
     const struct timespec timeout = {msec / 1000000, (msec % 1000000) * 1000};
     struct kevent ev;
-    n = kevent(w->kq, 0, 0, &ev, 1, msec == -1 ? 0 : &timeout);
+    n = kevent(w->b->kq, 0, 0, &ev, 1, msec == -1 ? 0 : &timeout);
 
 #elif defined(HAVE_EPOLL)
     struct epoll_event ev;
-    n = epoll_wait(w->ep, &ev, 1, msec);
+    n = epoll_wait(w->b->ep, &ev, 1, msec);
 
 #else
     // XXX: this is super-duper inefficient, but just a fallback
@@ -420,7 +423,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
 #define EV_SIZE 64
     const struct timespec timeout = {0, 0};
     struct kevent ev[EV_SIZE];
-    const int r = kevent(w->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
+    const int r = kevent(w->b->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
     n = r >= 0 ? (uint32_t)r : 0;
     for (uint32_t i = 0; i < n; i++)
         SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].udata, next_rx);
@@ -428,7 +431,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
 #elif defined(HAVE_EPOLL)
 #define EV_SIZE 64
     struct epoll_event ev[EV_SIZE];
-    const int r = epoll_wait(w->ep, &ev[0], EV_SIZE, 0);
+    const int r = epoll_wait(w->b->ep, &ev[0], EV_SIZE, 0);
     n = r >= 0 ? (uint32_t)r : 0;
     for (uint32_t i = 0; i < n; i++)
         SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].data.ptr, next_rx);

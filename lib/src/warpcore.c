@@ -534,3 +534,9 @@ uint16_t w_mtu(const struct w_engine * const w)
 {
     return w->mtu;
 }
+
+
+const char * w_ifname(const struct w_engine * const w)
+{
+    return w->b->ifname;
+}

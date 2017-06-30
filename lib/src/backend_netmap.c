@@ -66,77 +66,79 @@ void backend_init(struct w_engine * w,
 {
     struct w_engine * ww;
     SLIST_FOREACH (ww, &engines, next)
-        ensure(strncmp(ifname, ww->nif->ni_name, IFNAMSIZ),
+        ensure(strncmp(ifname, ww->b->nif->ni_name, IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
 
     // open /dev/netmap
-    ensure((w->fd = open("/dev/netmap", O_RDWR)) != -1,
+    ensure((w->b->fd = open("/dev/netmap", O_RDWR)) != -1,
            "cannot open /dev/netmap");
 
     // switch interface to netmap mode
-    ensure((w->req = calloc(1, sizeof(*w->req))) != 0, "cannot allocate nmreq");
-    strncpy(w->req->nr_name, ifname, sizeof w->req->nr_name);
-    w->req->nr_name[sizeof w->req->nr_name - 1] = '\0';
-    w->req->nr_version = NETMAP_API;
-    w->req->nr_ringid &= ~NETMAP_RING_MASK;
+    ensure((w->b->req = calloc(1, sizeof(*w->b->req))) != 0,
+           "cannot allocate nmreq");
+    strncpy(w->b->req->nr_name, ifname, sizeof w->b->req->nr_name);
+    w->b->req->nr_name[sizeof w->b->req->nr_name - 1] = '\0';
+    w->b->req->nr_version = NETMAP_API;
+    w->b->req->nr_ringid &= ~NETMAP_RING_MASK;
     // don't always transmit on poll
-    w->req->nr_ringid |= NETMAP_NO_TX_POLL;
-    w->req->nr_flags = NR_REG_ALL_NIC;
-    w->req->nr_arg3 = nbufs; // request extra buffers
-    ensure(ioctl(w->fd, NIOCREGIF, w->req) != -1,
+    w->b->req->nr_ringid |= NETMAP_NO_TX_POLL;
+    w->b->req->nr_flags = NR_REG_ALL_NIC;
+    w->b->req->nr_arg3 = nbufs; // request extra buffers
+    ensure(ioctl(w->b->fd, NIOCREGIF, w->b->req) != -1,
            "%s: cannot put interface into netmap mode", ifname);
 
     // mmap the buffer region
     const int flags = PLAT_MMFLAGS;
-    ensure((w->mem = mmap(0, w->req->nr_memsize, PROT_WRITE | PROT_READ,
-                          MAP_SHARED | flags, w->fd, 0)) != MAP_FAILED,
+    ensure((w->mem = mmap(0, w->b->req->nr_memsize, PROT_WRITE | PROT_READ,
+                          MAP_SHARED | flags, w->b->fd, 0)) != MAP_FAILED,
            "cannot mmap netmap memory");
 
     // direct pointer to the netmap interface struct for convenience
-    w->nif = NETMAP_IF(w->mem, w->req->nr_offset);
+    w->b->nif = NETMAP_IF(w->mem, w->b->req->nr_offset);
 
     // allocate space for tails
-    ensure((w->tail = calloc(w->nif->ni_tx_rings, sizeof(*w->tail))) != 0,
+    ensure((w->b->tail = calloc(w->b->nif->ni_tx_rings, sizeof(*w->b->tail))) !=
+               0,
            "cannot allocate tail");
-    for (uint32_t ri = 0; likely(ri < w->nif->ni_tx_rings); ri++) {
-        const struct netmap_ring * const r = NETMAP_TXRING(w->nif, ri);
+    for (uint32_t ri = 0; likely(ri < w->b->nif->ni_tx_rings); ri++) {
+        const struct netmap_ring * const r = NETMAP_TXRING(w->b->nif, ri);
         // initialize tails
-        w->tail[ri] = r->tail;
+        w->b->tail[ri] = r->tail;
         warn(info, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 #ifndef NDEBUG
-    for (uint32_t ri = 0; likely(ri < w->nif->ni_rx_rings); ri++) {
-        const struct netmap_ring * const r = NETMAP_RXRING(w->nif, ri);
+    for (uint32_t ri = 0; likely(ri < w->b->nif->ni_rx_rings); ri++) {
+        const struct netmap_ring * const r = NETMAP_RXRING(w->b->nif, ri);
         warn(info, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 #endif
 
     // save the indices of the extra buffers in the warpcore structure
-    w->bufs = calloc(w->req->nr_arg3, sizeof(*w->bufs));
+    w->bufs = calloc(w->b->req->nr_arg3, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
-    for (uint32_t n = 0, i = w->nif->ni_bufs_head; likely(n < w->req->nr_arg3);
-         n++) {
+    for (uint32_t n = 0, i = w->b->nif->ni_bufs_head;
+         likely(n < w->b->req->nr_arg3); n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
         STAILQ_INSERT_HEAD(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
     }
 
-    if (w->req->nr_arg3 != nbufs)
-        die("can only allocate %d/%d extra buffers", w->req->nr_arg3, nbufs);
+    if (w->b->req->nr_arg3 != nbufs)
+        die("can only allocate %d/%d extra buffers", w->b->req->nr_arg3, nbufs);
     else
-        warn(notice, "allocated %d extra buffers", w->req->nr_arg3);
+        warn(notice, "allocated %d extra buffers", w->b->req->nr_arg3);
 
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 
     // initialize random port number generation state
-    w->next_eph = (uint16_t)plat_random();
+    w->b->next_eph = (uint16_t)plat_random();
 
     w->backend = backend_name;
-    SPLAY_INIT(&w->arp_cache);
+    SPLAY_INIT(&w->b->arp_cache);
 }
 
 
@@ -151,21 +153,21 @@ void backend_cleanup(struct w_engine * const w)
     free_arp_cache(w);
 
     // re-construct the extra bufs list, so netmap can free the memory
-    for (uint32_t n = 0; likely(n < w->req->nr_arg3); n++) {
+    for (uint32_t n = 0; likely(n < w->b->req->nr_arg3); n++) {
         uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
-        if (likely(n < w->req->nr_arg3 - 1))
+        if (likely(n < w->b->req->nr_arg3 - 1))
             *buf = w->bufs[n + 1].idx;
         else
             *buf = 0;
     }
-    w->nif->ni_bufs_head = w->bufs[0].idx;
+    w->b->nif->ni_bufs_head = w->bufs[0].idx;
 
-    ensure(munmap(w->mem, w->req->nr_memsize) != -1,
+    ensure(munmap(w->mem, w->b->req->nr_memsize) != -1,
            "cannot munmap netmap memory");
 
-    ensure(close(w->fd) != -1, "cannot close /dev/netmap");
-    free(w->req);
-    free(w->tail);
+    ensure(close(w->b->fd) != -1, "cannot close /dev/netmap");
+    free(w->b->req);
+    free(w->b->tail);
 }
 
 
@@ -186,8 +188,8 @@ void backend_bind(struct w_sock * s)
     uint16_t num_eph = max_eph - min_eph + 1;
     uint16_t count = num_eph;
     do {
-        s->w->next_eph += (plat_random() % N) + 1;
-        const uint16_t port = htons(min_eph + (s->w->next_eph % num_eph));
+        s->w->b->next_eph += (plat_random() % N) + 1;
+        const uint16_t port = htons(min_eph + (s->w->b->next_eph % num_eph));
         if (get_sock(s->w, port) == 0) {
             s->hdr->udp.sport = port;
             return;
@@ -235,7 +237,7 @@ void backend_connect(struct w_sock * const s)
 ///
 int w_fd(const struct w_sock * const s)
 {
-    return s->w->fd;
+    return s->w->b->fd;
 }
 
 
@@ -289,14 +291,14 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
 ///
 bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 {
-    struct pollfd fds = {.fd = w->fd, .events = POLLIN};
+    struct pollfd fds = {.fd = w->b->fd, .events = POLLIN};
     const int n = poll(&fds, 1, msec) > 0;
     if (n <= 0)
         return false;
 
     // loop over all rx rings starting with cur_rxr and wrapping around
-    for (uint32_t i = 0; likely(i < w->nif->ni_rx_rings); i++) {
-        struct netmap_ring * const r = NETMAP_RXRING(w->nif, i);
+    for (uint32_t i = 0; likely(i < w->b->nif->ni_rx_rings); i++) {
+        struct netmap_ring * const r = NETMAP_RXRING(w->b->nif, i);
         while (likely(!nm_ring_empty(r))) {
             // prefetch the next slot into the cache
             __builtin_prefetch(
@@ -320,18 +322,18 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 ///
 void w_nic_tx(struct w_engine * const w)
 {
-    ensure(ioctl(w->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
+    ensure(ioctl(w->b->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 
     // grab the transmitted data out of the NIC rings and place it back into
     // the original w_iov_stailqs, so it's not lost to the app
-    for (uint32_t i = 0; likely(i < w->nif->ni_tx_rings); i++) {
-        struct netmap_ring * const r = NETMAP_TXRING(w->nif, i);
+    for (uint32_t i = 0; likely(i < w->b->nif->ni_tx_rings); i++) {
+        struct netmap_ring * const r = NETMAP_TXRING(w->b->nif, i);
         // warn(warn, "tx ring %u: tail %u, cur %u, head %u", i, r->tail,
         //      r->cur, r->head);
 
         // XXX we need to abuse the netmap API here by touching tail until a fix
         // is included upstream
-        for (uint32_t j = nm_ring_next(r, w->tail[i]);
+        for (uint32_t j = nm_ring_next(r, w->b->tail[i]);
              likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
             struct w_iov * const v = (struct w_iov *)s->ptr;
@@ -353,7 +355,7 @@ void w_nic_tx(struct w_engine * const w)
         }
 
         // remember current tail
-        w->tail[i] = r->tail;
+        w->b->tail[i] = r->tail;
     }
 }
 

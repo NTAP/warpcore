@@ -64,7 +64,25 @@ typedef uintptr_t __uintptr_t;
 #include <warpcore/util.h>   // IWYU pragma: export
 
 
-struct w_engine;
+SPLAY_HEAD(sock, w_sock);
+
+/// A warpcore backend engine.
+///
+struct w_engine {
+    struct sock sock;         ///< List of open (bound) w_sock sockets.
+    STAILQ_HEAD(, w_iov) iov; ///< Tail queue of w_iov buffers available.
+    uint32_t ip;              ///< Local IPv4 address used on this interface.
+    uint32_t mask;            ///< IPv4 netmask of this interface.
+    uint16_t mtu;             ///< MTU of this interface.
+    struct ether_addr mac;    ///< Local Ethernet MAC address of the interface.
+    void * mem;   ///< Pointer to netmap or socket buffer memory region.
+    uint32_t rip; ///< Our default IPv4 router IP address.
+    SLIST_ENTRY(w_engine) next; ///< Pointer to next engine.
+    struct w_iov * bufs;
+    const char * backend;
+    struct w_backend * b;
+};
+
 
 /// A chain of w_sock socket.
 ///
@@ -220,6 +238,9 @@ w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);
 extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 
 extern uint16_t __attribute__((nonnull)) w_mtu(const struct w_engine * const w);
+
+extern const char * __attribute__((nonnull))
+w_ifname(const struct w_engine * const w);
 
 
 /// Return the number of w_iov structs in @p q that are still waiting for

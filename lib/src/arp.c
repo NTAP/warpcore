@@ -67,7 +67,7 @@ static struct arp_entry * __attribute__((nonnull))
 arp_cache_find(struct w_engine * w, const uint32_t ip)
 {
     struct arp_entry a = {.ip = ip};
-    return SPLAY_FIND(arp_cache, &w->arp_cache, &a);
+    return SPLAY_FIND(arp_cache, &w->b->arp_cache, &a);
 }
 
 
@@ -87,7 +87,7 @@ arp_cache_update(struct w_engine * w,
         a = calloc(1, sizeof(*a));
         ensure(a, "cannot allocate arp_entry");
         a->ip = ip;
-        SPLAY_INSERT(arp_cache, &w->arp_cache, a);
+        SPLAY_INSERT(arp_cache, &w->b->arp_cache, a);
     }
     a->mac = mac;
 #ifndef NDEBUG
@@ -313,9 +313,9 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 void free_arp_cache(struct w_engine * const w)
 {
     struct arp_entry *a, *n;
-    for (a = SPLAY_MIN(arp_cache, &w->arp_cache); a; a = n) {
-        n = SPLAY_NEXT(arp_cache, &w->arp_cache, a);
-        SPLAY_REMOVE(arp_cache, &w->arp_cache, a);
+    for (a = SPLAY_MIN(arp_cache, &w->b->arp_cache); a; a = n) {
+        n = SPLAY_NEXT(arp_cache, &w->b->arp_cache, a);
+        SPLAY_REMOVE(arp_cache, &w->b->arp_cache, a);
         free(a);
     }
 }

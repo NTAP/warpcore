@@ -36,7 +36,6 @@
 
 #include <warpcore/warpcore.h>
 
-#include "backend.h"
 #include "eth.h"
 #include "icmp.h"
 #include "ip.h"
