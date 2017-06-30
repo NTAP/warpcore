@@ -25,6 +25,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <sys/time.h>
 
@@ -233,3 +237,7 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 /// @return     The warpcore engine for w_sock @p s.
 ///
 #define w_engine(s) (s)->w
+
+#ifdef __cplusplus
+}
+#endif
