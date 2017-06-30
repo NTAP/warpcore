@@ -93,6 +93,10 @@ struct w_engine {
     int kq;
 #elif defined(HAVE_EPOLL)
     int ep;
+#else
+    /// @cond
+    uint8_t _unused_2[4]; ///< @internal Padding.
+    /// @endcond
 #endif
     char * ifname; ///< Name of the interface of this engine.
 #endif
