@@ -108,6 +108,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         -google-readability-braces-around-statements
         -readability-braces-around-statements
         -google-readability-todo
+        -cppcoreguidelines-pro-type-vararg
     )
     string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
     set(CMAKE_C_CLANG_TIDY ${CLANGTIDY} -checks=${CLANG_TIDY_CHECKS})
