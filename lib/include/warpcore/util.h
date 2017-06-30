@@ -57,7 +57,7 @@
 ///
 /// @return     The standalone file name (no path).
 ///
-#define basename(f) (strrchr((f), '/') ? strrchr((f), '/') + 1 : (f))
+#define basename(f) (strrchr((f), '/') ? strrchr((f), '/') + 1 : (f)) // NOLINT
 
 #ifndef plural
 /// Helper to pluralize output words.
@@ -95,14 +95,14 @@ extern pthread_t _master;
         if (pthread_mutex_lock(&_lock))                                        \
             abort();                                                           \
         const int _e = errno;                                                  \
-        struct timeval _now, _elapsed;                                         \
+        struct timeval _now = {0, 0}, _dur = {0, 0};                           \
         gettimeofday(&_now, 0);                                                \
-        timersub(&_now, &_epoch, &_elapsed);                                   \
-        fprintf(                                                               \
-            stderr, REV "%s " NRM MAG BLD REV " %ld.%03ld   %s %s:%d ABORT: ", \
-            (pthread_self() == _master ? BLK : WHT),                           \
-            (long)(_elapsed.tv_sec % 1000), (long)(_elapsed.tv_usec / 1000),   \
-            __func__, basename(__FILE__), __LINE__);                           \
+        timersub(&_now, &_epoch, &_dur); /* NOLINT */                          \
+        fprintf(stderr,                                                        \
+                REV "%s " NRM MAG BLD REV " %ld.%03ld   %s %s:%d ABORT: ",     \
+                (pthread_self() == _master ? BLK : WHT), /* NOLINT */          \
+                (long)(_dur.tv_sec % 1000), (long)(_dur.tv_usec / 1000),       \
+                __func__, basename(__FILE__), __LINE__); /* NOLINT */          \
         fprintf(stderr, __VA_ARGS__);                                          \
         fprintf(stderr, " %c%s%c\n" NRM, (_e ? '[' : 0),                       \
                 (_e ? strerror(_e) : ""), (_e ? ']' : 0));                     \
@@ -177,22 +177,22 @@ extern regex_t _comp;
             !regexec(&_comp, __FILE__, 0, 0, 0)) {                             \
             if (pthread_mutex_lock(&_lock))                                    \
                 abort();                                                       \
-            struct timeval _now, _elapsed;                                     \
+            struct timeval _now = {0, 0}, _dur = {0, 0};                       \
             gettimeofday(&_now, 0);                                            \
-            timersub(&_now, &_epoch, &_elapsed);                               \
+            timersub(&_now, &_epoch, &_dur); /* NOLINT */                      \
             fprintf(stderr, REV "%s " NRM " %ld.%03ld " REV "%s " NRM MAG      \
                                 " %s" BLK " " BLU "%s:%d " NRM,                \
-                    (pthread_self() == _master ? BLK : WHT),                   \
-                    (long)(_elapsed.tv_sec % 1000),                            \
-                    (long)(_elapsed.tv_usec / 1000), _col[dlevel], __func__,   \
-                    basename(__FILE__), __LINE__);                             \
+                    (pthread_self() == _master ? BLK : WHT), /* NOLINT */      \
+                    (long)(_dur.tv_sec % 1000), (long)(_dur.tv_usec / 1000),   \
+                    _col[dlevel], __func__, /* NOLINT */ basename(__FILE__),   \
+                    __LINE__);                                                 \
             fprintf(stderr, __VA_ARGS__);                                      \
             fprintf(stderr, "\n");                                             \
             fflush(stderr);                                                    \
             if (pthread_mutex_unlock(&_lock))                                  \
                 abort();                                                       \
         }                                                                      \
-    } while (0)
+    } while (0) // NOLINT
 
 
 /// Rate-limited variant of warn(), which repeats the message prints at most @p
@@ -209,7 +209,7 @@ extern regex_t _comp;
     do {                                                                       \
         if (DLEVEL >= dlevel && !regexec(&_comp, __FILE__, 0, 0, 0)) {         \
             static time_t _rt0, _rcnt;                                         \
-            struct timeval _rts;                                               \
+            struct timeval _rts = {0, 0};                                      \
             gettimeofday(&_rts, 0);                                            \
             if (_rt0 != _rts.tv_sec) {                                         \
                 _rt0 = _rts.tv_sec;                                            \
@@ -218,17 +218,17 @@ extern regex_t _comp;
             if (_rcnt++ < lps)                                                 \
                 warn(dlevel, __VA_ARGS__);                                     \
         }                                                                      \
-    } while (0)
+    } while (0) // NOLINT
 
 #else
 
 #define warn(...)                                                              \
     do {                                                                       \
-    } while (0)
+    } while (0) // NOLINT
 
 #define rwarn(...)                                                             \
     do {                                                                       \
-    } while (0)
+    } while (0) // NOLINT
 
 #endif
 
@@ -245,7 +245,7 @@ extern regex_t _comp;
         if (__builtin_expect(!(e), 0))                                         \
             die("assertion failed \n          " #e                             \
                 " \n          " __VA_ARGS__);                                  \
-    } while (0)
+    } while (0) // NOLINT
 
 
 /// Stores the timeval at the start of the program, used to print relative times
