@@ -20,6 +20,7 @@ if(NOT HAVE_BENCHMARK_H)
     CMAKE_ARGS
       -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}
       -DCMAKE_BUILD_TYPE=Release
+      -DBENCHMARK_ENABLE_LTO=true
     BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libbenchmark.a
   )
 
@@ -39,17 +40,25 @@ endif()
 include_directories(${CMAKE_SOURCE_DIR}/lib/src)
 
 if(HAVE_BENCHMARK_H)
-  add_executable(in_cksum in_cksum.cc ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
-  target_link_libraries(in_cksum PUBLIC benchmark Threads::Threads)
-  add_test(in_cksum in_cksum)
+  add_executable(bench_sock bench.cc common.c ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
+  target_link_libraries(bench_sock PUBLIC benchmark sock_dyn)
+  add_test(bench_sock bench_sock)
+
+  if(HAVE_NETMAP_H)
+    add_executable(bench_warp bench.cc common.c ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
+    target_compile_definitions(bench_warp PRIVATE -DWITH_NETMAP)
+    target_link_libraries(bench_warp PUBLIC benchmark warp_dyn)
+    add_test(bench_warp bench_warp)
+  endif()
 endif()
 
-add_executable(test_sock test_sock.c)
+
+add_executable(test_sock common.c test_sock.c)
 target_link_libraries(test_sock PUBLIC sock_dyn)
 add_test(test_sock test_sock)
 
 if(HAVE_NETMAP_H)
-  add_executable(test_warp test_sock.c)
+  add_executable(test_warp common.c test_sock.c)
   target_compile_definitions(test_warp PRIVATE -DWITH_NETMAP)
   target_link_libraries(test_warp PUBLIC warp_dyn)
   add_test(test_warp test_warp)
