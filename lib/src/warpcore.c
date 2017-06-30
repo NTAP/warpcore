@@ -123,10 +123,10 @@ static inline void alloc_cnt(struct w_engine * const w,
 {
     STAILQ_INIT(q);
     struct w_iov * v = 0;
-    for (uint32_t i = 0; i < count; i++) {
 #ifdef WITH_NETMAP
-        off += sizeof(struct w_hdr);
+    off += sizeof(struct w_hdr);
 #endif
+    for (uint32_t i = 0; i < count; i++) {
         v = w_alloc_iov(w, off);
         STAILQ_INSERT_TAIL(q, v, next);
     }
