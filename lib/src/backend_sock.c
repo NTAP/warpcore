@@ -31,6 +31,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -38,9 +39,8 @@
 // IWYU pragma: no_include <sys/queue.h>
 #include <warpcore/warpcore.h>
 
-#if defined(HAVE_SENDMMSG) || defined(HAVE_RECVMMSG)
+#if defined(__linux__) && (defined(HAVE_SENDMMSG) || defined(HAVE_RECVMMSG))
 #include <limits.h>
-#include <sys/param.h>
 #endif
 
 #if defined(HAVE_KQUEUE)
@@ -288,7 +288,7 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 #else
         struct msghdr msgvec[RECV_SIZE];
 #endif
-        int nbufs = 0;
+        ssize_t nbufs = 0;
         for (int j = 0; likely(j < RECV_SIZE); j++, nbufs++) {
             v[j] = w_alloc_iov(s->w, 0);
             if (unlikely(v[j] == 0))
@@ -310,14 +310,14 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
             return;
         }
 #ifdef HAVE_RECVMMSG
-        n = recvmmsg(s->fd, msgvec, nbufs, MSG_DONTWAIT, 0);
+        n = recvmmsg(s->fd, msgvec, (size_t)nbufs, MSG_DONTWAIT, 0);
         ensure(n != -1 || errno == EAGAIN, "recvmmsg");
 #else
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
         ensure(n != -1 || errno == EAGAIN, "recvmsg");
 #endif
         if (likely(n > 0)) {
-            for (int j = 0; likely(j < nbufs); j++) {
+            for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
 #ifdef HAVE_RECVMMSG
                 v[j]->len = (uint16_t)msgvec[j].msg_len;
 #else
@@ -378,7 +378,7 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 
     // count sockets
     struct w_sock * s = 0;
-    SLIST_FOREACH (s, &w->sock, next)
+    SPLAY_FOREACH (s, sock, &w->sock)
         n++;
     if (n == 0)
         return false;
@@ -386,10 +386,10 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
     // allocate and fill pollfd
     struct pollfd * fds = calloc((unsigned long)n, sizeof(*fds));
     ensure(fds, "could not calloc");
-    s = SLIST_FIRST(&w->sock);
-    for (int i = 0; i < n; i++) {
+    s = SPLAY_MIN(sock, &w->sock);
+    for (int i = 0; i < n && s; i++) {
         fds[i] = (struct pollfd){.fd = s->fd, .events = POLLIN};
-        s = SLIST_NEXT(s, next);
+        s = SPLAY_NEXT(sock, &w->sock, s);
     }
 
     // poll
@@ -439,7 +439,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     // count sockets
     unsigned long sock_cnt = 0;
     struct w_sock * s = 0;
-    SLIST_FOREACH (s, &w->sock, next)
+    SPLAY_FOREACH (s, sock, &w->sock)
         sock_cnt++;
     if (sock_cnt == 0)
         return 0;
@@ -448,17 +448,22 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     struct pollfd * fds = calloc(sock_cnt, sizeof(*fds));
     struct w_sock ** ss = calloc(sock_cnt, sizeof(*ss));
     ensure(fds && ss, "could not calloc");
-    s = SLIST_FIRST(&w->sock);
-    for (uint32_t i = 0; i < sock_cnt; i++) {
+    s = SPLAY_MIN(sock, &w->sock);
+    for (uint32_t i = 0; i < sock_cnt && s; i++) {
         fds[i] = (struct pollfd){.fd = s->fd, .events = POLLIN};
         ss[i] = s;
-        s = SLIST_NEXT(s, next);
+        s = SPLAY_NEXT(sock, &w->sock, s);
     }
 
     // find ready descriptors
-    poll(fds, (nfds_t)sock_cnt, 0);
+    poll(fds,
+#ifndef __linux__
+         (nfds_t)
+#endif
+             sock_cnt,
+         0);
     for (uint32_t i = 0; i < sock_cnt; i++) {
-        if (fds[i].revents & POLLIN) {
+        if (fds[i].revents & POLLIN && ss[i]) {
             SLIST_INSERT_HEAD(sl, ss[i], next_rx);
             n++;
         }
