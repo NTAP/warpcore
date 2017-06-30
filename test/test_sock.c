@@ -29,6 +29,6 @@
 int main(void)
 {
     init();
-    io(111111);
+    io(8);
     cleanup();
 }
