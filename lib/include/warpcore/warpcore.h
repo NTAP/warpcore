@@ -219,6 +219,8 @@ w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);
 
 extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 
+extern uint16_t __attribute__((nonnull)) w_mtu(const struct w_engine * const w);
+
 
 /// Return the number of w_iov structs in @p q that are still waiting for
 /// transmission. Only valid after w_tx() has been called on @p p.

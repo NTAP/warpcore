@@ -330,6 +330,8 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 ///
 void w_close(struct w_sock * const s)
 {
+    backend_close(s);
+
     // make iovs of the socket available again
     STAILQ_CONCAT(&s->w->iov, &s->iv);
 
@@ -513,4 +515,16 @@ uint16_t w_iov_max_len(const struct w_engine * const w,
 bool w_connected(const struct w_sock * const s)
 {
     return s->hdr->ip.dst;
+}
+
+
+/// Return MTU of w_engine @p w.
+///
+/// @param[in]  w     Backend engine.
+///
+/// @return     MTU value in use by engine @p w.
+///
+uint16_t w_mtu(const struct w_engine * const w)
+{
+    return w->mtu;
 }
