@@ -32,8 +32,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/uio.h>
+#include <unistd.h>
 
 // IWYU pragma: no_include <sys/queue.h>
 #include <warpcore/warpcore.h>
@@ -69,7 +69,7 @@ static char backend_name[] = "socket";
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
 /// @param[in]  nbufs   Number of packet buffers to allocate.
 ///
-void backend_init(struct w_engine * w,
+void backend_init(struct w_engine * const w,
                   const char * const ifname,
                   const uint32_t nbufs)
 {
@@ -135,7 +135,7 @@ void backend_cleanup(struct w_engine * const w)
 ///
 /// @param      s     The w_sock to bind.
 ///
-void backend_bind(struct w_sock * s)
+void backend_bind(struct w_sock * const s)
 {
     ensure((s->fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0, "socket");
     ensure(setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, &(int){1},
@@ -172,6 +172,16 @@ void backend_bind(struct w_sock * s)
 ///
 void backend_connect(struct w_sock * const s __attribute__((unused)))
 {
+}
+
+
+/// Close the socket.
+///
+/// @param      s     The w_sock to close.
+///
+void backend_close(struct w_sock * const s)
+{
+    ensure(close(s->fd) == 0, "close");
 }
 
 

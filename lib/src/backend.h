@@ -130,11 +130,13 @@ extern SLIST_HEAD(w_engines, w_engine) engines;
 extern struct w_sock * __attribute__((nonnull))
 get_sock(struct w_engine * const w, const uint16_t port);
 
-extern void __attribute__((nonnull)) backend_bind(struct w_sock * s);
+extern void __attribute__((nonnull)) backend_bind(struct w_sock * const s);
+
+extern void __attribute__((nonnull)) backend_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) backend_connect(struct w_sock * const s);
 
-extern void __attribute__((nonnull)) backend_init(struct w_engine * w,
+extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
                                                   const char * const ifname,
                                                   const uint32_t nbufs);
 

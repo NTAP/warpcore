@@ -198,6 +198,15 @@ void backend_bind(struct w_sock * s)
 }
 
 
+/// The netmap backend performs no operation here.
+///
+/// @param      s     The w_sock to close.
+///
+void backend_close(struct w_sock * const s __attribute__((unused)))
+{
+}
+
+
 /// Connect the given w_sock, using the netmap backend. If the Ethernet MAC
 /// address of the destination (or the default router towards it) is not known,
 /// it will block trying to look it up via ARP.
