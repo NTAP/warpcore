@@ -23,12 +23,49 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <benchmark/benchmark_api.h>
+#include <cstdint>
+#include <cstring>
+#include <warpcore/warpcore.h>
+
+extern "C" {
 #include "common.h"
+#include "ip.h"
+}
 
 
-int main(void)
+static void BM_io(benchmark::State & state) // NOLINT
 {
+    const auto len = uint32_t(state.range(0));
+    while (state.KeepRunning())
+        io(len);
+    state.SetBytesProcessed(state.iterations() * len * w_mtu(w));
+}
+
+
+static void BM_in_cksum(benchmark::State & state) // NOLINT
+{
+    const auto len = uint16_t(state.range(0));
+    auto * buf = new char[len];
+    memset(buf, 'x', len);
+    while (state.KeepRunning())
+        in_cksum(buf, len);
+    state.SetBytesProcessed(state.iterations() * len);
+    delete[] buf;
+}
+
+
+BENCHMARK(BM_io)->RangeMultiplier(2)->Range(1, 512); // NOLINT
+BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 8192); // NOLINT
+
+
+// BENCHMARK_MAIN()
+
+int main(int argc, char ** argv)
+{
+    benchmark::Initialize(&argc, argv);
+    _dlevel = warn;
     init();
-    io(111111);
+    benchmark::RunSpecifiedBenchmarks();
     cleanup();
 }

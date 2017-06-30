@@ -23,28 +23,23 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <benchmark/benchmark_api.h>
-#include <cstdint>
-#include <cstring>
+#pragma once
 
+#ifdef __cplusplus
 extern "C" {
-#include "ip.h"
+#endif
+
+#include <stdint.h>
+
+
+extern struct w_engine * w;
+extern struct w_sock * ss;
+extern struct w_sock * cs;
+
+extern void io(const uint32_t len);
+extern void init(void);
+extern void cleanup(void);
+
+#ifdef __cplusplus
 }
-
-
-static void BM_in_cksum(benchmark::State & state) // NOLINT
-{
-    const auto len = uint16_t(state.range(0));
-    auto * buf = new char[len];
-    memset(buf, 'x', len);
-    while (state.KeepRunning())
-        in_cksum(buf, len);
-    state.SetBytesProcessed(state.iterations() * len);
-    delete[] buf;
-}
-
-
-BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 2048); // NOLINT
-
-
-BENCHMARK_MAIN()
+#endif
