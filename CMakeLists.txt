@@ -11,18 +11,11 @@ check_function_exists(epoll_create HAVE_EPOLL)
 check_function_exists(arc4random HAVE_ARC4RANDOM)
 find_package(Threads REQUIRED)
 
-# See if we can enable testing
-include(CheckCXXSymbolExists)
-set(CMAKE_REQUIRED_LIBRARIES benchmark)
-check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
-                        HAVE_BENCHMARK_H)
-include(CMakePushCheckState)
-cmake_reset_check_state()
-
 # Look for netmap
 include(CheckIncludeFile)
 set(CMAKE_REQUIRED_INCLUDES "/usr/include /usr/local/include")
 check_include_file(net/netmap_user.h HAVE_NETMAP_H)
+include(CMakePushCheckState)
 cmake_reset_check_state()
 
 # Check if _GNU_SOURCE is available.
