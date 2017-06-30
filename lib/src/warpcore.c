@@ -79,9 +79,9 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 struct w_iov * w_alloc_iov(struct w_engine * const w, const uint16_t off)
 {
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
-    ensure(v != 0, "out of spare iovs");
+    if (unlikely(v == 0))
+        return 0;
     STAILQ_REMOVE_HEAD(&w->iov, next);
-    // warn(debug, "allocating spare iov %u", v->idx);
     v->buf = IDX2BUF(w, v->idx) + off;
     v->len = w->mtu - off;
 #ifdef WITH_NETMAP
@@ -126,8 +126,14 @@ static inline void alloc_cnt(struct w_engine * const w,
 #ifdef WITH_NETMAP
     off += sizeof(struct w_hdr);
 #endif
-    for (uint32_t i = 0; i < count; i++) {
+    for (uint32_t i = 0; likely(i < count); i++) {
         v = w_alloc_iov(w, off);
+        if (unlikely(v == 0)) {
+            // free partial allocation and return
+            STAILQ_CONCAT(&w->iov, q);
+            warn(crit, "ran out of w_iov bufs trying to allocate %u", count);
+            return;
+        }
         STAILQ_INSERT_TAIL(q, v, next);
     }
     if (v)

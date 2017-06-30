@@ -288,8 +288,11 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 #else
         struct msghdr msgvec[RECV_SIZE];
 #endif
-        for (int j = 0; likely(j < RECV_SIZE); j++) {
+        int nbufs = 0;
+        for (int j = 0; likely(j < RECV_SIZE); j++, nbufs++) {
             v[j] = w_alloc_iov(s->w, 0);
+            if (unlikely(v[j] == 0))
+                break;
             msg[j] =
                 (struct iovec){.iov_base = v[j]->buf, .iov_len = v[j]->len};
 #ifdef HAVE_RECVMMSG
@@ -302,16 +305,19 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
                                 .msg_iov = &msg[j],
                                 .msg_iovlen = 1};
         }
+        if (unlikely(nbufs == 0)) {
+            warn(crit, "no more bufs");
+            return;
+        }
 #ifdef HAVE_RECVMMSG
-        n = recvmmsg(s->fd, msgvec, RECV_SIZE, MSG_DONTWAIT, 0);
+        n = recvmmsg(s->fd, msgvec, nbufs, MSG_DONTWAIT, 0);
         ensure(n != -1 || errno == EAGAIN, "recvmmsg");
 #else
-
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
         ensure(n != -1 || errno == EAGAIN, "recvmsg");
 #endif
-        if (n > 0) {
-            for (ssize_t j = 0; likely(j < n); j++) {
+        if (likely(n > 0)) {
+            for (int j = 0; likely(j < nbufs); j++) {
 #ifdef HAVE_RECVMMSG
                 v[j]->len = (uint16_t)msgvec[j].msg_len;
 #else
@@ -331,9 +337,9 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
             n = 0;
 
         // return any unused buffers
-        for (ssize_t j = n; likely(j < RECV_SIZE); j++)
+        for (ssize_t j = n; likely(j < nbufs); j++)
             STAILQ_INSERT_HEAD(&s->w->iov, v[j], next);
-    } while (n > 0);
+    } while (n == RECV_SIZE);
 }
 
 

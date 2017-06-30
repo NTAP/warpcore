@@ -57,6 +57,11 @@ void icmp_tx(struct w_engine * const w,
              uint8_t * const buf)
 {
     struct w_iov * const v = w_alloc_iov(w, 0);
+    if (unlikely(v == 0)) {
+        warn(crit, "no more bufs; ICMP not sent (type %d, code %d)", type,
+             code);
+        return;
+    }
 
     // construct an ICMP header and set the fields
     struct icmp_hdr * const dst_icmp = (void *)ip_data(v->buf);

@@ -110,6 +110,10 @@ arp_is_at(struct w_engine * const w, const uint8_t * const buf)
 {
     // grab iov for reply
     struct w_iov * const v = w_alloc_iov(w, 0);
+    if (unlikely(v == 0)) {
+        warn(crit, "no more bufs; ARP reply not sent");
+        return;
+    }
     struct arp_hdr * const reply = (void *)eth_data(v->buf);
 
     // construct ARP header
@@ -171,6 +175,10 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
 
         // grab a spare buffer
         struct w_iov * const v = w_alloc_iov(w, 0);
+        if (unlikely(v == 0)) {
+            warn(crit, "no more bufs; ARP request not sent");
+            return (struct ether_addr){{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+        }
 
         // pointers to the start of the various headers
         struct eth_hdr * const eth = (void *)v->buf;
