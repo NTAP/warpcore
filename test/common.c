@@ -71,7 +71,6 @@ bool io(const uint32_t len)
             return false;
         }
         ilen = new_ilen;
-        warn(debug, "ilen %u olen %u", ilen, olen);
     } while (ilen < olen);
     ensure(ilen == olen, "wrong length");
 
