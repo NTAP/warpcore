@@ -39,7 +39,7 @@ static void BM_io(benchmark::State & state) // NOLINT
     const auto len = uint32_t(state.range(0));
     while (state.KeepRunning())
         if (!io(len)) {
-            state.SkipWithError("probably ran out of bufs");
+            state.SkipWithError("ran out of bufs or saw packet loss");
             break;
         }
     state.SetBytesProcessed(state.iterations() * len * w_mtu(w));
@@ -58,8 +58,8 @@ static void BM_in_cksum(benchmark::State & state) // NOLINT
 }
 
 
-BENCHMARK(BM_io)->RangeMultiplier(2)->Range(1, 512);        // NOLINT
-BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 8192); // NOLINT
+BENCHMARK(BM_io)->RangeMultiplier(2)->Range(16, 8192);      // NOLINT
+BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 2048); // NOLINT
 
 
 // BENCHMARK_MAIN()
@@ -67,7 +67,7 @@ BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 8192); // NOLINT
 int main(int argc, char ** argv)
 {
     benchmark::Initialize(&argc, argv);
-    _dlevel = warn;
+    // _dlevel = warn;
     init();
     benchmark::RunSpecifiedBenchmarks();
     cleanup();

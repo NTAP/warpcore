@@ -61,16 +61,17 @@ bool io(const uint32_t len)
     struct w_iov_stailq i = w_iov_stailq_initializer(i);
     uint32_t ilen = 0;
     do {
-        w_nic_rx(w, -1);
+        w_nic_rx(w, 1000);
         w_rx(ss, &i);
         const uint32_t new_ilen = w_iov_stailq_len(&i);
         if (ilen == new_ilen) {
-            // we ran out of buffers, can't test further
+            // we ran out of buffers or there was packet loss; abort
             w_free(w, &o);
             w_free(w, &i);
             return false;
         }
         ilen = new_ilen;
+        warn(debug, "ilen %u olen %u", ilen, olen);
     } while (ilen < olen);
     ensure(ilen == olen, "wrong length");
 
@@ -100,7 +101,7 @@ void init(void)
         "lo"
 #endif
         ,
-        0, 100);
+        0, 100000);
 
     // bind server socket
     ss = w_bind(w, htons(55555), 0);
