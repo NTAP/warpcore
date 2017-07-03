@@ -67,7 +67,9 @@ BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 2048); // NOLINT
 int main(int argc, char ** argv)
 {
     benchmark::Initialize(&argc, argv);
-    // _dlevel = warn;
+#ifndef NDEBUG
+    _dlevel = info;
+#endif
     init();
     benchmark::RunSpecifiedBenchmarks();
     cleanup();
