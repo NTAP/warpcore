@@ -31,6 +31,8 @@ if(NOT HAVE_BENCHMARK_H)
   set_target_properties(benchmark PROPERTIES
     IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/lib/libbenchmark.a
     INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_BINARY_DIR}/include
+    POSITION_INDEPENDENT_CODE ON
+    INTERPROCEDURAL_OPTIMIZATION True
   )
 
   add_dependencies(benchmark google-benchmark Threads)
@@ -42,12 +44,22 @@ include_directories(${CMAKE_SOURCE_DIR}/lib/src)
 if(HAVE_BENCHMARK_H)
   add_executable(bench_sock bench.cc common.c ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
   target_link_libraries(bench_sock PUBLIC benchmark sock_dyn)
+  set_target_properties(bench_sock
+    PROPERTIES
+      POSITION_INDEPENDENT_CODE ON
+      INTERPROCEDURAL_OPTIMIZATION True
+  )
   add_test(bench_sock bench_sock)
 
   if(HAVE_NETMAP_H)
     add_executable(bench_warp bench.cc common.c ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
     target_compile_definitions(bench_warp PRIVATE -DWITH_NETMAP)
     target_link_libraries(bench_warp PUBLIC benchmark warp_dyn)
+    set_target_properties(bench_warp
+      PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
+        INTERPROCEDURAL_OPTIMIZATION True
+    )
     add_test(bench_warp bench_warp)
   endif()
 endif()
@@ -55,11 +67,21 @@ endif()
 
 add_executable(test_sock common.c test_sock.c)
 target_link_libraries(test_sock PUBLIC sock_dyn)
+set_target_properties(test_sock
+  PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    INTERPROCEDURAL_OPTIMIZATION True
+)
 add_test(test_sock test_sock)
 
 if(HAVE_NETMAP_H)
   add_executable(test_warp common.c test_sock.c)
   target_compile_definitions(test_warp PRIVATE -DWITH_NETMAP)
   target_link_libraries(test_warp PUBLIC warp_dyn)
+  set_target_properties(test_warp
+    PROPERTIES
+      POSITION_INDEPENDENT_CODE ON
+      INTERPROCEDURAL_OPTIMIZATION True
+  )
   add_test(test_warp test_warp)
 endif()
