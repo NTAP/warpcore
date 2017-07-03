@@ -68,7 +68,6 @@ SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
 
 
 struct w_backend {
-    char * ifname; ///< Name of the interface of this engine.
 #ifdef WITH_NETMAP
     int fd;                     ///< Netmap file descriptor.
     struct netmap_if * nif;     ///< Netmap interface.
@@ -81,6 +80,7 @@ struct w_backend {
     /// @endcond
     uint32_t * tail; ///< TX ring tails after last NIOCTXSYNC call.
 #else
+
 #if defined(HAVE_KQUEUE)
     int kq;
 #elif defined(HAVE_EPOLL)
@@ -129,8 +129,7 @@ extern void __attribute__((nonnull)) backend_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) backend_connect(struct w_sock * const s);
 
-extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
-                                                  const char * const ifname,
-                                                  const uint32_t nbufs);
+extern void __attribute__((nonnull))
+backend_init(struct w_engine * const w, const uint32_t nbufs);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);

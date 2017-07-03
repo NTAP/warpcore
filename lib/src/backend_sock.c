@@ -25,12 +25,10 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
@@ -65,34 +63,23 @@ static char backend_name[] = "socket";
 /// Initialize the warpcore socket backend for engine @p w. Sets up the extra
 /// buffers.
 ///
-/// @param      w       Backend engine.
-/// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
-/// @param[in]  nbufs   Number of packet buffers to allocate.
+/// @param      w      Backend engine.
+/// @param[in]  nbufs  Number of packet buffers to allocate.
 ///
-void backend_init(struct w_engine * const w,
-                  const char * const ifname,
-                  const uint32_t nbufs)
+void backend_init(struct w_engine * const w, const uint32_t nbufs)
 {
-    struct w_engine * ww;
-    SLIST_FOREACH (ww, &engines, next)
-        ensure(strncmp(ifname, w_ifname(ww), IFNAMSIZ),
-               "can only have one warpcore engine active on %s", ifname);
-
     ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
            "cannot alloc %u * %u buf mem", nbufs, w->mtu);
     ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
            "cannot alloc bufs");
-    ensure((w->b = calloc(1, sizeof(*w->b))) != 0, "cannot alloc backend");
+    w->backend_name = backend_name;
+    w->nbufs = nbufs;
 
     for (uint32_t i = 0; i < nbufs; i++) {
         w->bufs[i].buf = IDX2BUF(w, i);
         w->bufs[i].idx = i;
         STAILQ_INSERT_HEAD(&w->iov, &w->bufs[i], next);
     }
-
-    w->b->ifname = strndup(ifname, IFNAMSIZ);
-    ensure(w->b->ifname, "could not strndup");
-    w->backend = backend_name;
 
 #if defined(HAVE_KQUEUE)
     w->b->kq = kqueue();
@@ -128,8 +115,7 @@ void backend_init(struct w_engine * const w,
 void backend_cleanup(struct w_engine * const w)
 {
     free(w->mem);
-    free(w->b->ifname);
-    free(w->b);
+    free(w->bufs);
 }
 
 

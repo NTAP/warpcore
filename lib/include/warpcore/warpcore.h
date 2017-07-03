@@ -69,18 +69,21 @@ SPLAY_HEAD(sock, w_sock);
 /// A warpcore backend engine.
 ///
 struct w_engine {
+    void * mem;           ///< Pointer to netmap or socket buffer memory region.
+    struct w_iov * bufs;  ///< Pointer to w_iov buffers.
+    struct w_backend * b; ///< Backend.
+    uint32_t ip;          ///< Local IPv4 address used on this interface.
+    uint32_t mask;        ///< IPv4 netmask of this interface.
+    uint32_t rip;         ///< Our default IPv4 router IP address.
+    uint16_t mtu;         ///< MTU of this interface.
+    struct ether_addr mac;    ///< Local Ethernet MAC address of the interface.
+    uint32_t nbufs;           ///< Number of w_iov buffers in @p bufs.
     struct sock sock;         ///< List of open (bound) w_sock sockets.
     STAILQ_HEAD(, w_iov) iov; ///< Tail queue of w_iov buffers available.
-    uint32_t ip;              ///< Local IPv4 address used on this interface.
-    uint32_t mask;            ///< IPv4 netmask of this interface.
-    uint16_t mtu;             ///< MTU of this interface.
-    struct ether_addr mac;    ///< Local Ethernet MAC address of the interface.
-    void * mem;   ///< Pointer to netmap or socket buffer memory region.
-    uint32_t rip; ///< Our default IPv4 router IP address.
+
     SLIST_ENTRY(w_engine) next; ///< Pointer to next engine.
-    struct w_iov * bufs;
-    const char * backend;
-    struct w_backend * b;
+    char * ifname;              ///< Name of the interface of this engine.
+    const char * backend_name;  ///< Name of the backend in @p b.
 };
 
 
@@ -129,15 +132,21 @@ struct w_iov_stailq {
 ///
 struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
-    ///
     struct w_engine * w;
+
     STAILQ_HEAD(, w_iov) iv;  ///< Tail queue containing incoming unread data.
     SPLAY_ENTRY(w_sock) next; ///< Next socket associated with this engine.
+
     /// The template header to be used for outbound packets on this
     /// w_sock.
     struct w_hdr * hdr;
+
     SLIST_ENTRY(w_sock) next_rx; ///< Next socket with unread data.
-    uint8_t flags;
+    uint8_t flags;               ///< Socket flags.
+
+    /// @cond
+    uint8_t _unused[3]; ///< @internal Padding.
+    /// @endcond
 
     int fd; ///< Socket descriptor underlying the engine.
 };
@@ -172,6 +181,10 @@ struct w_iov {
     /// DSCP + ECN of the received IPv4 packet on RX, DSCP + ECN to use for the
     /// to-be-transmitted IPv4 packet on TX.
     uint8_t flags;
+
+    /// @cond
+    uint8_t _unused[3]; ///< @internal Padding.
+    /// @endcond
 
     ///< Pointer to the w_iov_stailq this w_iov resides in. Only valid on TX.
     struct w_iov_stailq * o;
@@ -237,11 +250,6 @@ w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);
 
 extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 
-extern uint16_t __attribute__((nonnull)) w_mtu(const struct w_engine * const w);
-
-extern const char * __attribute__((nonnull))
-w_ifname(const struct w_engine * const w);
-
 
 /// Return the number of w_iov structs in @p q that are still waiting for
 /// transmission. Only valid after w_tx() has been called on @p p.
@@ -260,6 +268,46 @@ w_ifname(const struct w_engine * const w);
 /// @return     The warpcore engine for w_sock @p s.
 ///
 #define w_engine(s) (s)->w
+
+
+/// Return name of interface associated with warpcore engine. Must not be
+/// modified by caller.
+///
+/// @param      w     Backend engine.
+///
+/// @return     Interface name.
+///
+#define w_ifname(w) (w)->ifname
+
+
+/// Return MTU of w_engine @p w.
+///
+/// @param[in]  w     Backend engine.
+///
+/// @return     MTU value in use by engine @p w.
+///
+#define w_mtu(w) (w)->mtu
+
+
+/// Return a w_iov tail queue obtained via w_alloc_len(), w_alloc_cnt() or
+/// w_rx() back to warpcore.
+///
+/// @param      w     Backend engine.
+/// @param      q     Tail queue of w_iov structs to return.
+///
+#define w_free(w, q) STAILQ_CONCAT(&(w)->iov, (q))
+
+
+/// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
+/// back to warpcore.
+///
+/// @param      w     Backend engine.
+/// @param      v     w_iov struct to return.
+///
+/// @return     w_iov struct.
+///
+#define w_free_iov(w, v)  STAILQ_INSERT_HEAD(&(w)->iov, (v), next)
+
 
 #ifdef __cplusplus
 }

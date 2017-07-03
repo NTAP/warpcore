@@ -30,6 +30,7 @@
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -190,30 +191,6 @@ void w_alloc_cnt(struct w_engine * const w,
 }
 
 
-/// Return a w_iov tail queue obtained via w_alloc_len(), w_alloc_cnt() or
-/// w_rx() back to warpcore.
-///
-/// @param      w     Backend engine.
-/// @param      q     Tail queue of w_iov structs to return.
-///
-void w_free(struct w_engine * const w, struct w_iov_stailq * const q)
-{
-    STAILQ_CONCAT(&w->iov, q);
-}
-
-
-/// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
-/// back to warpcore.
-///
-/// @param      w     Backend engine.
-/// @param      v     w_iov struct to return.
-///
-void w_free_iov(struct w_engine * const w, struct w_iov * const v)
-{
-    STAILQ_INSERT_HEAD(&w->iov, v, next);
-}
-
-
 /// Return the total payload length of w_iov tail queue @p c.
 ///
 /// @param[in]  q     The w_iov tail queue to compute the payload length of.
@@ -370,8 +347,9 @@ void w_cleanup(struct w_engine * const w)
     }
 
     backend_cleanup(w);
-    free(w->bufs);
     SLIST_REMOVE(&engines, w, w_engine, next);
+    free(w->ifname);
+    free(w->b);
     free(w);
 }
 
@@ -398,7 +376,9 @@ struct w_engine *
 w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 {
     struct w_engine * w;
-    bool link_up = false;
+    SLIST_FOREACH (w, &engines, next)
+        ensure(strncmp(ifname, w_ifname(w), IFNAMSIZ),
+               "can only have one warpcore engine active on %s", ifname);
 
     // allocate engine struct
     ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
@@ -409,6 +389,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 
     // get interface config
     // we mostly loop here because the link may be down
+    bool link_up = false;
     do {
         // get interface information
         struct ifaddrs * ifap;
@@ -463,6 +444,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
         }
 
     } while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0);
+    w->ifname = strndup(ifname, IFNAMSIZ);
+    ensure(w->ifname, "could not strndup");
 
     // set the IP address of our default router
     w->rip = rip;
@@ -482,13 +465,15 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
 
     // backend-specific init
-    backend_init(w, ifname, nbufs);
+    w->b = calloc(1, sizeof(*w->b));
+    ensure(w->b, "cannot alloc backend");
+    backend_init(w, nbufs);
 
     // store the initialized engine in our global list
     SLIST_INSERT_HEAD(&engines, w, next);
 
     warn(info, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
-         w->backend, warpcore_version, nbufs, w->mtu, ifname);
+         w->backend_name, warpcore_version, nbufs, w->mtu, ifname);
     return w;
 }
 
@@ -521,22 +506,4 @@ uint16_t w_iov_max_len(const struct w_engine * const w,
 bool w_connected(const struct w_sock * const s)
 {
     return s->hdr->ip.dst;
-}
-
-
-/// Return MTU of w_engine @p w.
-///
-/// @param[in]  w     Backend engine.
-///
-/// @return     MTU value in use by engine @p w.
-///
-uint16_t w_mtu(const struct w_engine * const w)
-{
-    return w->mtu;
-}
-
-
-const char * w_ifname(const struct w_engine * const w)
-{
-    return w->b->ifname;
 }

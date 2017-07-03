@@ -27,7 +27,6 @@
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <net/if.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <poll.h>
 #include <stdbool.h>
@@ -56,89 +55,79 @@ static char backend_name[] = "netmap";
 /// interface to netmap mode, maps the underlying buffers into memory and locks
 /// it there, and sets up the extra buffers.
 ///
-/// @param      w       Backend engine.
-/// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
-/// @param[in]  nbufs   Number of packet buffers to allocate.
+/// @param      w      Backend engine.
+/// @param[in]  nbufs  Number of packet buffers to allocate.
 ///
-void backend_init(struct w_engine * w,
-                  const char * const ifname,
-                  const uint32_t nbufs)
+void backend_init(struct w_engine * const w, const uint32_t nbufs)
 {
-    struct w_engine * ww;
-    SLIST_FOREACH (ww, &engines, next)
-        ensure(strncmp(ifname, ww->b->nif->ni_name, IFNAMSIZ),
-               "can only have one warpcore engine active on %s", ifname);
+    struct w_backend * const b = w->b;
 
     // open /dev/netmap
-    ensure((w->b->fd = open("/dev/netmap", O_RDWR)) != -1,
+    ensure((b->fd = open("/dev/netmap", O_RDWR)) != -1,
            "cannot open /dev/netmap");
+    w->backend_name = backend_name;
 
     // switch interface to netmap mode
-    ensure((w->b->req = calloc(1, sizeof(*w->b->req))) != 0,
-           "cannot allocate nmreq");
-    strncpy(w->b->req->nr_name, ifname, sizeof w->b->req->nr_name);
-    w->b->req->nr_name[sizeof w->b->req->nr_name - 1] = '\0';
-    w->b->req->nr_version = NETMAP_API;
-    w->b->req->nr_ringid &= ~NETMAP_RING_MASK;
+    ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");
+    strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);
+    b->req->nr_name[sizeof b->req->nr_name - 1] = '\0';
+    b->req->nr_version = NETMAP_API;
+    b->req->nr_ringid &= ~NETMAP_RING_MASK;
     // don't always transmit on poll
-    w->b->req->nr_ringid |= NETMAP_NO_TX_POLL;
-    w->b->req->nr_flags = NR_REG_ALL_NIC;
-    w->b->req->nr_arg3 = nbufs; // request extra buffers
-    ensure(ioctl(w->b->fd, NIOCREGIF, w->b->req) != -1,
-           "%s: cannot put interface into netmap mode", ifname);
+    b->req->nr_ringid |= NETMAP_NO_TX_POLL;
+    b->req->nr_flags = NR_REG_ALL_NIC;
+    b->req->nr_arg3 = nbufs; // request extra buffers
+    ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,
+           "%s: cannot put interface into netmap mode", w->ifname);
 
     // mmap the buffer region
     const int flags = PLAT_MMFLAGS;
-    ensure((w->mem = mmap(0, w->b->req->nr_memsize, PROT_WRITE | PROT_READ,
-                          MAP_SHARED | flags, w->b->fd, 0)) != MAP_FAILED,
+    ensure((w->mem = mmap(0, b->req->nr_memsize, PROT_WRITE | PROT_READ,
+                          MAP_SHARED | flags, b->fd, 0)) != MAP_FAILED,
            "cannot mmap netmap memory");
 
     // direct pointer to the netmap interface struct for convenience
-    w->b->nif = NETMAP_IF(w->mem, w->b->req->nr_offset);
+    b->nif = NETMAP_IF(w->mem, b->req->nr_offset);
 
     // allocate space for tails
-    ensure((w->b->tail = calloc(w->b->nif->ni_tx_rings, sizeof(*w->b->tail))) !=
-               0,
+    ensure((b->tail = calloc(b->nif->ni_tx_rings, sizeof(*b->tail))) != 0,
            "cannot allocate tail");
-    for (uint32_t ri = 0; likely(ri < w->b->nif->ni_tx_rings); ri++) {
-        const struct netmap_ring * const r = NETMAP_TXRING(w->b->nif, ri);
+    for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
+        const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
         // initialize tails
-        w->b->tail[ri] = r->tail;
+        b->tail[ri] = r->tail;
         warn(info, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 #ifndef NDEBUG
-    for (uint32_t ri = 0; likely(ri < w->b->nif->ni_rx_rings); ri++) {
-        const struct netmap_ring * const r = NETMAP_RXRING(w->b->nif, ri);
+    for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
+        const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
         warn(info, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 #endif
 
     // save the indices of the extra buffers in the warpcore structure
-    w->bufs = calloc(w->b->req->nr_arg3, sizeof(*w->bufs));
+    w->nbufs = b->req->nr_arg3;
+    w->bufs = calloc(w->nbufs, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
-    for (uint32_t n = 0, i = w->b->nif->ni_bufs_head;
-         likely(n < w->b->req->nr_arg3); n++) {
+    for (uint32_t n = 0, i = b->nif->ni_bufs_head; likely(n < w->nbufs); n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
         STAILQ_INSERT_HEAD(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
     }
 
-    if (w->b->req->nr_arg3 != nbufs)
-        die("can only allocate %d/%d extra buffers", w->b->req->nr_arg3, nbufs);
-    else
-        warn(notice, "allocated %d extra buffers", w->b->req->nr_arg3);
+    if (w->nbufs != nbufs)
+        warn(warn, "can only allocate %d/%d extra buffers", w->nbufs, nbufs);
 
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 
     // initialize random port number generation state
-    w->b->next_eph = (uint16_t)plat_random();
+    b->next_eph = (uint16_t)plat_random();
 
-    w->backend = backend_name;
-    SPLAY_INIT(&w->b->arp_cache);
+    SPLAY_INIT(&b->arp_cache);
 }
 
 
@@ -153,9 +142,9 @@ void backend_cleanup(struct w_engine * const w)
     free_arp_cache(w);
 
     // re-construct the extra bufs list, so netmap can free the memory
-    for (uint32_t n = 0; likely(n < w->b->req->nr_arg3); n++) {
+    for (uint32_t n = 0; likely(n < w->nbufs); n++) {
         uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
-        if (likely(n < w->b->req->nr_arg3 - 1))
+        if (likely(n < w->nbufs - 1))
             *buf = w->bufs[n + 1].idx;
         else
             *buf = 0;
@@ -166,6 +155,7 @@ void backend_cleanup(struct w_engine * const w)
            "cannot munmap netmap memory");
 
     ensure(close(w->b->fd) != -1, "cannot close /dev/netmap");
+    free(w->bufs);
     free(w->b->req);
     free(w->b->tail);
 }
