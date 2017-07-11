@@ -46,8 +46,8 @@
 #include <net/ethernet.h>
 #endif
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <sys/queue.h>
+// IWYU pragma: no_include <sys/queue.h>
+#include <warpcore/warpcore.h>
 
 #include "backend.h"
 #include "eth.h"

@@ -30,7 +30,6 @@
 
 #include <warpcore/warpcore.h>
 
-struct w_engine;
 struct netmap_ring;
 
 

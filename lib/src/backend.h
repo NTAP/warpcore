@@ -70,15 +70,16 @@ SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
 struct w_backend {
 #ifdef WITH_NETMAP
     int fd;                     ///< Netmap file descriptor.
+    uint32_t cur_txr;           ///< Index of the TX ring currently active.
     struct netmap_if * nif;     ///< Netmap interface.
     struct nmreq * req;         ///< Netmap request structure.
     struct arp_cache arp_cache; ///< The ARP cache.
-    uint32_t cur_txr;           ///< Index of the TX ring currently active.
+    uint32_t * tail;            ///< TX ring tails after last NIOCTXSYNC call.
     uint16_t next_eph;          ///< State for random port number generation.
     /// @cond
-    uint8_t _unused[2]; ///< @internal Padding.
+    uint8_t _unused[6]; ///< @internal Padding.
     /// @endcond
-    uint32_t * tail; ///< TX ring tails after last NIOCTXSYNC call.
+
 #else
 
 #if defined(HAVE_KQUEUE)
