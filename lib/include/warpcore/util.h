@@ -140,11 +140,13 @@ enum dlevel {
 extern enum dlevel _dlevel;
 
 
-#ifndef DCOMPONENT
+#ifdef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
 /// the DCOMPONENT define to a regular expression matching the components
 /// (files) you want to see debug output from.
-#define DCOMPONENT ".*"
+#define DO_REGEXEC 1
+#else
+#define DO_REGEXEC 0
 #endif
 
 
@@ -174,7 +176,7 @@ extern regex_t _comp;
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
         if (DLEVEL >= dlevel && _dlevel >= dlevel &&                           \
-            !regexec(&_comp, __FILE__, 0, 0, 0)) {                             \
+            (DO_REGEXEC ? !regexec(&_comp, __FILE__, 0, 0, 0) : 1)) {          \
             if (pthread_mutex_lock(&_lock))                                    \
                 abort();                                                       \
             struct timeval _now = {0, 0}, _dur = {0, 0};                       \
@@ -207,7 +209,8 @@ extern regex_t _comp;
 ///
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
-        if (DLEVEL >= dlevel && !regexec(&_comp, __FILE__, 0, 0, 0)) {         \
+        if (DLEVEL >= dlevel &&                                                \
+            (DO_REGEXEC ? !regexec(&_comp, __FILE__, 0, 0, 0) : 1)) {          \
             static time_t _rt0, _rcnt;                                         \
             struct timeval _rts = {0, 0};                                      \
             gettimeofday(&_rts, 0);                                            \

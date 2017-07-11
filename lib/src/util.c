@@ -25,10 +25,13 @@
 
 #include <ctype.h>
 #include <pthread.h>
-#include <regex.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/time.h>
+
+#if !defined(NDEBUG) && defined(DCOMPONENT)
+#include <regex.h>
+#endif
 
 #include <warpcore/warpcore.h>
 
@@ -36,10 +39,12 @@ pthread_mutex_t _lock;
 pthread_t _master;
 struct timeval _epoch;
 
+#if !defined(NDEBUG) && defined(DCOMPONENT)
+regex_t _comp;
+#endif
 
 #ifndef NDEBUG
 const char * const _col[] = {MAG, RED, YEL, CYN, BLU, GRN};
-regex_t _comp;
 enum dlevel _dlevel = DLEVEL;
 #endif
 
@@ -66,7 +71,7 @@ static void __attribute__((constructor)) premain()
     // Remember the ID of the main thread
     _master = pthread_self();
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(DCOMPONENT)
     // Initialize the regular expression used for restricting debug output
     ensure(regcomp(&_comp, DCOMPONENT, REG_EXTENDED | REG_ICASE | REG_NOSUB) ==
                0,
@@ -80,7 +85,7 @@ static void __attribute__((constructor)) premain()
 ///
 static void __attribute__((destructor)) postmain()
 {
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(DCOMPONENT)
     // Free the regular expression used for restricting debug output
     regfree(&_comp);
 #endif
