@@ -24,7 +24,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <ctype.h>
-#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/time.h>
@@ -35,8 +34,12 @@
 
 #include <warpcore/warpcore.h>
 
+#ifdef DTHREADED
+#include <pthread.h>
 pthread_mutex_t _lock;
 pthread_t _master;
+#endif
+
 struct timeval _epoch;
 
 #if !defined(NDEBUG) && defined(DCOMPONENT)
@@ -57,6 +60,7 @@ static void __attribute__((constructor)) premain()
     // Get the current time
     gettimeofday(&_epoch, 0);
 
+#ifdef DTHREADED
     // Initialize a recursive logging lock
     pthread_mutexattr_t attr;
     ensure(pthread_mutexattr_init(&attr) == 0,
@@ -70,6 +74,7 @@ static void __attribute__((constructor)) premain()
 
     // Remember the ID of the main thread
     _master = pthread_self();
+#endif
 
 #if !defined(NDEBUG) && defined(DCOMPONENT)
     // Initialize the regular expression used for restricting debug output
@@ -90,8 +95,10 @@ static void __attribute__((destructor)) postmain()
     regfree(&_comp);
 #endif
 
+#ifdef DTHREADED
     // Free the lock
     pthread_mutex_destroy(&_lock);
+#endif
 }
 
 
@@ -104,14 +111,14 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
                                               const char * const file,
                                               const int line)
 {
-    pthread_mutex_lock(&_lock);
+    DLOCK;
     struct timeval _now, _elapsed;
     gettimeofday(&_now, 0);
     timersub(&_now, &_epoch, &_elapsed);
 
     fprintf(stderr, REV "%s " NRM " %ld.%03lld " REV WHT " " NRM MAG " %s" BLK
                         " " BLU "%s:%d " NRM "hex-dumping %zu byte%s of %s\n",
-            (pthread_self() == _master ? BLK : WHT), _elapsed.tv_sec % 1000,
+            (DMASTER ? BLK : WHT), _elapsed.tv_sec % 1000,
             (long long)(_elapsed.tv_usec / 1000), func, basename(file), line,
             len, plural(len), ptr_name);
 
@@ -119,7 +126,7 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
     for (size_t i = 0; i < len; i += 16) {
         fprintf(stderr, REV "%s " NRM " %ld.%03lld " REV WHT " " NRM " " BLU
                             "0x%04lx:  " NRM,
-                (pthread_self() == _master ? BLK : WHT), _elapsed.tv_sec % 1000,
+                (DMASTER ? BLK : WHT), _elapsed.tv_sec % 1000,
                 (long long)(_elapsed.tv_usec / 1000), i);
         for (size_t j = 0; j < 16; j += 2) {
             if (i + j < len)
@@ -137,5 +144,5 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
     }
 
     fflush(stderr);
-    pthread_mutex_unlock(&_lock);
+    DUNLOCK;
 }

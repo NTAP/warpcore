@@ -27,12 +27,14 @@
 // IWYU pragma: private, include <warpcore/warpcore.h>
 
 #include <errno.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 
+#ifdef DTHREADED
+#include <pthread.h>
+#endif
 
 #define NRM "\x1B[0m"  ///< ANSI escape sequence: reset all to normal
 #define BLD "\x1B[1m"  ///< ANSI escape sequence: bold
@@ -75,6 +77,7 @@
 #endif
 
 
+#ifdef DTHREADED
 /// Lock to prevent multiple threads from corrupting each others output.
 ///
 extern pthread_mutex_t _lock;
@@ -82,6 +85,28 @@ extern pthread_mutex_t _lock;
 /// Thread ID of the master thread.
 ///
 extern pthread_t _master;
+
+#define DLOCK                                                                  \
+    do {                                                                       \
+        if (pthread_mutex_lock(&_lock))                                        \
+            abort();                                                           \
+    } while (0) // NOLINT
+
+#define DUNLOCK                                                                \
+    do {                                                                       \
+        if (pthread_mutex_unlock(&_lock))                                      \
+            abort();                                                           \
+    } while (0) // NOLINT
+
+
+#define DMASTER (pthread_self() == _master)
+
+#else
+
+#define DLOCK
+#define DUNLOCK
+#define DMASTER 1
+#endif
 
 
 /// Abort execution with a message.
@@ -92,22 +117,21 @@ extern pthread_t _master;
 ///
 #define die(...)                                                               \
     do {                                                                       \
-        if (pthread_mutex_lock(&_lock))                                        \
-            abort();                                                           \
+        DLOCK;                                                                 \
         const int _e = errno;                                                  \
         struct timeval _now = {0, 0}, _dur = {0, 0};                           \
         gettimeofday(&_now, 0);                                                \
         timersub(&_now, &_epoch, &_dur); /* NOLINT */                          \
         fprintf(stderr,                                                        \
                 REV "%s " NRM MAG BLD REV " %ld.%03ld   %s %s:%d ABORT: ",     \
-                (pthread_self() == _master ? BLK : WHT), /* NOLINT */          \
+                (DMASTER ? BLK : WHT), /* NOLINT */                            \
                 (long)(_dur.tv_sec % 1000), (long)(_dur.tv_usec / 1000),       \
                 __func__, basename(__FILE__), __LINE__); /* NOLINT */          \
         fprintf(stderr, __VA_ARGS__);                                          \
         fprintf(stderr, " %c%s%c\n" NRM, (_e ? '[' : 0),                       \
                 (_e ? strerror(_e) : ""), (_e ? ']' : 0));                     \
         fflush(stderr);                                                        \
-        pthread_mutex_unlock(&_lock);                                          \
+        DUNLOCK;                                                               \
         abort();                                                               \
     } while (0) // NOLINT
 
@@ -177,22 +201,20 @@ extern regex_t _comp;
     do {                                                                       \
         if (DLEVEL >= dlevel && _dlevel >= dlevel &&                           \
             (DO_REGEXEC ? !regexec(&_comp, __FILE__, 0, 0, 0) : 1)) {          \
-            if (pthread_mutex_lock(&_lock))                                    \
-                abort();                                                       \
+            DLOCK;                                                             \
             struct timeval _now = {0, 0}, _dur = {0, 0};                       \
             gettimeofday(&_now, 0);                                            \
             timersub(&_now, &_epoch, &_dur); /* NOLINT */                      \
             fprintf(stderr, REV "%s " NRM " %ld.%03ld " REV "%s " NRM MAG      \
                                 " %s" BLK " " BLU "%s:%d " NRM,                \
-                    (pthread_self() == _master ? BLK : WHT), /* NOLINT */      \
+                    (DMASTER ? BLK : WHT), /* NOLINT */                        \
                     (long)(_dur.tv_sec % 1000), (long)(_dur.tv_usec / 1000),   \
                     _col[dlevel], __func__, /* NOLINT */ basename(__FILE__),   \
                     __LINE__);                                                 \
             fprintf(stderr, __VA_ARGS__);                                      \
             fprintf(stderr, "\n");                                             \
             fflush(stderr);                                                    \
-            if (pthread_mutex_unlock(&_lock))                                  \
-                abort();                                                       \
+            DUNLOCK;                                                           \
         }                                                                      \
     } while (0) // NOLINT
 
