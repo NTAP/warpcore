@@ -33,11 +33,11 @@ addons:
     branch_pattern: master
 
 before_install:
-  # for coverity
-  #- echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
   # update the documentation
   - |
-    cd build
+    mkdir doc-build
+    cd doc-build
+    cmake -GNinja ..
     git clone -b gh-pages https://git@github.com/NTAP/warpcore.git gh-pages
     cd gh-pages
     ls -la
@@ -55,9 +55,10 @@ before_install:
             -m "Commit: ${TRAVIS_COMMIT}."
         git push --force https://${GH_REPO_TOKEN}@github.com/NTAP/warpcore.git > /dev/null 2>&1
     fi
+    cd ..
 
 script:
-  -|
+  - |
     mkdir build
     cd build
     cmake -GNinja ..
