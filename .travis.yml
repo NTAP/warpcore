@@ -1,8 +1,9 @@
 dist: trusty
+sudo: false
+
 language: C
 os:
   - linux
-  - osx
 
 branches:
   only:
@@ -11,32 +12,53 @@ branches:
 env:
   global:
     - secure: "IHICwP4oMbC6yzx9G4YIthU6ujpt0bJ4jOElN7ujs8xGODB7YQFlxIaBwLvCf8APjczUuarN1r0Vc/Ekyp8LVBVdI6oEK0ZyHkvXOsydtYAtKrK60iEZXLoMzqTR/DeZaLkQb/hh4tYLAfrzNs9ZZA6vU1rJUJdaNmxluM9kcF253tfxKZ7rZ8dveD+gwmfJYH47sNwvFiGVTmU6c9fDVVfE/R3c0aX3A4pI3oOAUMH6Vs/76ZdRh2knzLLDgcNiIDapJd1xlw8HFSyEbsfEgTLPl+9qeXyh8fU6kwU7tGKetdr60klrXChIdwqStOxNwp4ylto727oYtztj7zJxYWQxbXQwehH66Xj44KEfW9MEuBEbGCmlR/74vCTNnKVU6D857ZU7r0L43GTD9KfAqqHWKtdQJpoRZMkhRcFrZkHCG8GJJo+3swwXFWnPbqPDuGWnLaeg4dsFpcAhq4ujSFheJbJ+ilERGio8ksv+FndlImSsQVEHtErPyJlizE3y2QfdWfASpn5HYVJ5la0Vy5Tea0rPRymdtLQm3lCMX+qcAg9EQLFHsc52LsFUwnHrNu5WqzfCmN0b7kfT4SlEHVXOXtC6k5PYxAUBaHfyeVFspc4UN5ZTUmSj9Y2h47Oa5KV/DJRaNKalve3TYgysEvlnTqv6qJfqnbHO2Swl+GE="
+    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+    # via the "travis encrypt" command using the project repo's public key
+    - secure: "WvYmhgy86txaO8D+yAVC2gYBtQZ2W8uWNhjarZlF5SpKnIsjsBx0UcmbmhmbaA3bMhbcbbnMoc7X8iTMrlieXPFr9VH+At2fDUns8LUUNW/Cd5EGhWbI/rD6itH/9Sjc0yrA182VD1GgaKxVaYOHNNMIHA/plaONByA1WMMKZuSfttu3XqoV/wt9B7/Fl2avFo1exyYl8Gj5QG6PyiVEXdCd0jLzAgOb1pg/oxcVrHowaExO6texwqMuBpTekomgo/gMt+8r0uLuxXRWdLOZSoQyHeKecgmmiMP8uTXxqw6IUBi4sKcdcaFULtpgSLDPYUzgygE6jL7gcnDUIDLehds6stU/8tH3b6UYjgWPLewkYqH6eKavHRz6rSewQl2UolIssttXVeVTvXZrW4d2srOysKmJCjyKd/4qBFEQSVLDmjJelTzH/Ze3frzX3iS7N6KfopY+AKfoSjS176FwxbFhCugkgnQ+bB5/IObkHSfJ/W1qGpgyYnt2Mf+Gh0wP4YKa60VjC+6/UoRc/Q8Zd0uSmmmsTxQme3C4VcKun6hk9YLPvpvhCpVo4SAuXJ597bPv5FlPYkW+2FkDCYlnw8NTfe+tHzg6ZMjHi6PKM6LM0wK/z964tmvvUF8oSvJnp3K4Vf95PlKXHDrC0w++qcNs+MNgyf31MVm+U+c3BRg="
 
 addons:
   apt:
     packages:
       - doxygen
       - graphviz
+      - ninja
+
+  coverity_scan:
+    project:
+      name: "NTAP/warpcore"
+      description: "Build submitted via Travis CI"
+    notification_email: lars@eggert.org
+    build_command_prepend: "cmake -GNinja . ; ninja clean"
+    build_command: ninja
+    branch_pattern: master
+
+before_install:
+  # for coverity
+  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+  # update the documentation
+  - |
+    cd build
+    git clone -b gh-pages https://git@github.com/NTAP/warpcore.git gh-pages
+    cd gh-pages
+    ls -la
+    git config --global push.default simple
+    git config user.name "Travis CI"
+    git config user.email "travis@travis-ci.org"
+    rm -rf ./*
+    touch .nojekyll
+    doxygen $TRAVIS_BUILD_DIR/doc/Doxyfile 2>&1 | tee doxygen.log
+    if [ -d "html" ] && [ -f "html/index.html" ]; then
+        mv html/* .
+        git add --all
+        git commit -m "Update doxygen documentation on branch gh-pages." \
+            -m "Travis CI build ${TRAVIS_BUILD_NUMBER}." \
+            -m "Commit: ${TRAVIS_COMMIT}."
+        git push --force https://${GH_REPO_TOKEN}@github.com/NTAP/warpcore.git > /dev/null 2>&1
+    fi
 
 script:
-  - |
-    if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
-      cmake .
-      git clone -b gh-pages https://git@github.com/NTAP/warpcore.git gh-pages
-      cd gh-pages
-      ls -la
-      git config --global push.default simple
-      git config user.name "Travis CI"
-      git config user.email "travis@travis-ci.org"
-      rm -rf ./*
-      touch .nojekyll
-      doxygen $TRAVIS_BUILD_DIR/doc/Doxyfile 2>&1 | tee doxygen.log
-      if [ -d "html" ] && [ -f "html/index.html" ]; then
-          mv html/* .
-          git add --all
-          git commit -m "Update doxygen documentation on branch gh-pages." \
-              -m "Travis CI build ${TRAVIS_BUILD_NUMBER}." \
-              -m "Commit: ${TRAVIS_COMMIT}."
-          git push --force https://${GH_REPO_TOKEN}@github.com/NTAP/warpcore.git > /dev/null 2>&1
-      fi
-    fi
+  -|
+    mkdir build
+    cd build
+    cmake -GNinja ..
+    ninja
