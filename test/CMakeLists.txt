@@ -7,7 +7,7 @@ check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
                         HAVE_BENCHMARK_H)
 cmake_reset_check_state()
 
-if(NOT HAVE_BENCHMARK_H)
+if(NOT HAVE_BENCHMARK_H AND NOT $ENV{CONTINUOUS_INTEGRATION})
   include(ExternalProject)
 
   find_package(Threads)
