@@ -47,7 +47,6 @@ script:
     cd $TRAVIS_BUILD_DIR
     mkdir build
     cd build
-    cat cov-int/scm_log.txt
     cmake -GNinja ..
     ninja clean
     ninja
