@@ -39,7 +39,10 @@ set(CMAKE_C_STANDARD 11)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 foreach(FLAG -march=native -Wextra -Wpedantic -Weverything -Werror
-        -fcolor-diagnostics -fdiagnostics-color=always)
+        -fcolor-diagnostics -fdiagnostics-color=always
+        # for older gcc:
+        -Wno-missing-field-initializers
+        )
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_cxx_compiler_flag(${FLAG} ${F})
   if(${F})
