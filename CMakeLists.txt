@@ -13,7 +13,9 @@ find_package(Threads REQUIRED)
 
 # Look for netmap
 include(CheckIncludeFile)
-set(CMAKE_REQUIRED_INCLUDES "/usr/include /usr/local/include lib/include")
+set(CMAKE_REQUIRED_INCLUDES
+    "/usr/include /usr/local/include ${CMAKE_SOURCE_DIR}/lib/include"
+)
 check_include_file(net/netmap_user.h HAVE_NETMAP_H)
 include(CMakePushCheckState)
 cmake_reset_check_state()
