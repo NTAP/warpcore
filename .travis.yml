@@ -27,7 +27,7 @@ addons:
     project:
       name: "NTAP/warpcore"
       description: "Build submitted via Travis CI"
-    notification_email: lars@eggert.org
+    notification_email: lars@netapp.com
     build_command_prepend: "cmake -GNinja . ; ninja clean"
     build_command: ninja
     branch_pattern: master
@@ -41,29 +41,6 @@ before_install:
     wget \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h
-    ls -la .
-  # update the documentation
-  - |
-    cd $TRAVIS_BUILD_DIR
-    mkdir doc-build
-    cd doc-build
-    cmake -GNinja ..
-    git clone -b gh-pages https://git@github.com/NTAP/warpcore.git gh-pages
-    cd gh-pages
-    git config --global push.default simple
-    git config user.name "Travis CI"
-    git config user.email "travis@travis-ci.org"
-    rm -rf ./*
-    touch .nojekyll
-    doxygen $TRAVIS_BUILD_DIR/doc-build/doc/Doxyfile 2>&1 | tee doxygen.log
-    if [ -d "html" ] && [ -f "html/index.html" ]; then
-        mv html/* .
-        git add --all
-        git commit -m "Update doxygen documentation on branch gh-pages." \
-            -m "Travis CI build ${TRAVIS_BUILD_NUMBER}." \
-            -m "Commit: ${TRAVIS_COMMIT}."
-        git push --force https://${GH_REPO_TOKEN}@github.com/NTAP/warpcore.git > /dev/null 2>&1
-    fi
 
 script:
   - |
@@ -72,3 +49,24 @@ script:
     cd build
     cmake -GNinja ..
     ninja
+
+after_success:
+  # update the documentation
+  - |
+    cd $TRAVIS_BUILD_DIR/build
+    git clone -b gh-pages https://git@github.com/NTAP/warpcore.git gh-pages
+    cd gh-pages
+    git config --global push.default simple
+    git config user.name "Travis CI"
+    git config user.email "travis@travis-ci.org"
+    rm -rf ./*
+    touch .nojekyll
+    doxygen $TRAVIS_BUILD_DIR/build/doc/Doxyfile 2>&1 | tee doxygen.log
+    if [ -d "html" ] && [ -f "html/index.html" ]; then
+        mv html/* .
+        git add --all
+        git commit -m "Update doxygen documentation on branch gh-pages." \
+            -m "Travis CI build ${TRAVIS_BUILD_NUMBER}." \
+            -m "Commit: ${TRAVIS_COMMIT}."
+        git push --force https://${GH_REPO_TOKEN}@github.com/NTAP/warpcore.git > /dev/null 2>&1
+    fi
