@@ -36,11 +36,13 @@ before_install:
   # update the documentation
   - |
     mkdir doc-build
-    ls -l
+    ls -la
     cd doc-build
-    ls -l
+    ls -la
     cmake -GNinja ..
+    ls -la
     git clone -b gh-pages https://git@github.com/NTAP/warpcore.git gh-pages
+    ls -la
     cd gh-pages
     ls -la
     git config --global push.default simple
@@ -48,7 +50,7 @@ before_install:
     git config user.email "travis@travis-ci.org"
     rm -rf ./*
     touch .nojekyll
-    doxygen $TRAVIS_BUILD_DIR/doc/Doxyfile 2>&1 | tee doxygen.log
+    doxygen $TRAVIS_BUILD_DIR/doc-build/doc/Doxyfile 2>&1 | tee doxygen.log
     if [ -d "html" ] && [ -f "html/index.html" ]; then
         mv html/* .
         git add --all
@@ -57,7 +59,6 @@ before_install:
             -m "Commit: ${TRAVIS_COMMIT}."
         git push --force https://${GH_REPO_TOKEN}@github.com/NTAP/warpcore.git > /dev/null 2>&1
     fi
-    cd ..
 
 script:
   - |
