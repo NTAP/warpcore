@@ -35,8 +35,9 @@ addons:
 before_install:
   # download netmap headers, to build the relevant backend
   - |
-    mkdir -p /usr/local/include/net
-    cd /usr/local/include/net
+    cd $TRAVIS_BUILD_DIR
+    mkdir -p lib/include/net
+    cd lib/include/net
     wget \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h
