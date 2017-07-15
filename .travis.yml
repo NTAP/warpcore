@@ -41,10 +41,10 @@ before_install:
     wget \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h
+    cd $TRAVIS_BUILD_DIR
 
 script:
   - |
-    cd $TRAVIS_BUILD_DIR
     mkdir build
     cd build
     cmake -GNinja ..
