@@ -100,11 +100,11 @@ int main(const int argc, char * const argv[])
             flags |= W_ZERO_CHKSUM;
             break;
         case 'n':
-            nbufs = MIN(900000, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
+            nbufs = (uint32_t)MIN(900000, MAX(1, strtoul(optarg, 0, 10)));
             break;
 #ifndef NDEBUG
         case 'v':
-            _dlevel = MIN(DLEVEL, MAX(0, (uint32_t)strtoul(optarg, 0, 10)));
+            _dlevel = (uint32_t)MIN(DLEVEL, strtoul(optarg, 0, 10));
             break;
 #endif
         case 'h':

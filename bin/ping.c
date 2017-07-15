@@ -136,22 +136,22 @@ int main(const int argc, char * const argv[])
             rtr = optarg;
             break;
         case 'l':
-            loops = MIN(UINT32_MAX, (uint32_t)strtoul(optarg, 0, 10));
+            loops = (uint32_t)MIN(UINT32_MAX, strtoul(optarg, 0, 10));
             break;
         case 's':
-            start = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
+            start = (uint32_t)MIN(UINT32_MAX, MAX(1, strtoul(optarg, 0, 10)));
             break;
         case 'p':
-            inc = MIN(UINT32_MAX, MAX(0, (uint32_t)strtoul(optarg, 0, 10)));
+            inc = (uint32_t)MIN(UINT32_MAX, strtoul(optarg, 0, 10));
             break;
         case 'e':
-            end = MIN(UINT32_MAX, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
+            end = (uint32_t)MIN(UINT32_MAX, MAX(1, strtoul(optarg, 0, 10)));
             break;
         case 'c':
-            conns = MIN(50000, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
+            conns = (uint32_t)MIN(50000, MAX(1, strtoul(optarg, 0, 10)));
             break;
         case 'n':
-            nbufs = MIN(900000, MAX(1, (uint32_t)strtoul(optarg, 0, 10)));
+            nbufs = (uint32_t)MIN(900000, MAX(1, strtoul(optarg, 0, 10)));
             break;
         case 'b':
             busywait = true;
@@ -161,7 +161,7 @@ int main(const int argc, char * const argv[])
             break;
 #ifndef NDEBUG
         case 'v':
-            _dlevel = MIN(DLEVEL, MAX(0, (uint32_t)strtoul(optarg, 0, 10)));
+            _dlevel = (uint32_t)MIN(DLEVEL, strtoul(optarg, 0, 10));
             break;
 #endif
         case 'h':
