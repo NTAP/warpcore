@@ -41,6 +41,7 @@ before_install:
     wget \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h
+    ls -la .
   # update the documentation
   - |
     cd $TRAVIS_BUILD_DIR
