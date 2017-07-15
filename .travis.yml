@@ -36,7 +36,9 @@ before_install:
   # update the documentation
   - |
     mkdir doc-build
+    ls -l
     cd doc-build
+    ls -l
     cmake -GNinja ..
     git clone -b gh-pages https://git@github.com/NTAP/warpcore.git gh-pages
     cd gh-pages
