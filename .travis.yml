@@ -28,8 +28,8 @@ addons:
       name: "NTAP/warpcore"
       description: "Build submitted via Travis CI"
     notification_email: lars@eggert.org
-    build_command_prepend: "cmake -GNinja . ; ninja clean"
-    build_command: ninja
+    build_command_prepend: "cmake . ; make clean"
+    build_command: make
     branch_pattern: master
 
 before_install:
@@ -39,7 +39,7 @@ before_install:
     ls -la
     cd doc-build
     ls -la
-    cmake -GNinja ..
+    cmake ..
     ls -la
     git clone -b gh-pages https://git@github.com/NTAP/warpcore.git gh-pages
     ls -la
@@ -50,6 +50,7 @@ before_install:
     git config user.email "travis@travis-ci.org"
     rm -rf ./*
     touch .nojekyll
+    ls -la $TRAVIS_BUILD_DIR/doc-build/doc
     doxygen $TRAVIS_BUILD_DIR/doc-build/doc/Doxyfile 2>&1 | tee doxygen.log
     if [ -d "html" ] && [ -f "html/index.html" ]; then
         mv html/* .
@@ -64,5 +65,5 @@ script:
   - |
     mkdir build
     cd build
-    cmake -GNinja ..
-    ninja
+    cmake ..
+    make
