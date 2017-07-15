@@ -28,7 +28,7 @@ addons:
       name: "NTAP/warpcore"
       description: "Build submitted via Travis CI"
     notification_email: lars@netapp.com
-    build_command_prepend: "cd $TRAVIS_BUILD_DIR; mkdir build; cd build; cmake -GNinja .; ninja clean"
+    build_command_prepend: "cd $TRAVIS_BUILD_DIR; mkdir build; cd build; cmake -GNinja ..; ninja clean"
     build_command: ninja
     branch_pattern: master
 
