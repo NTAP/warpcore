@@ -28,7 +28,13 @@ addons:
       name: "NTAP/warpcore"
       description: "Build submitted via Travis CI"
     notification_email: lars@netapp.com
-    build_command_prepend: "cmake -GNinja . ; ninja clean"
+    build_command_prepend:
+      - |
+        cd $TRAVIS_BUILD_DIR
+        mkdir build
+        cd build
+        cmake -GNinja .
+        ninja clean
     build_command: ninja
     branch_pattern: master
 
@@ -41,13 +47,14 @@ before_install:
     wget \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h
-    cd $TRAVIS_BUILD_DIR
 
 script:
   - |
+    cd $TRAVIS_BUILD_DIR
     mkdir build
     cd build
     cmake -GNinja ..
+    ninja clean
     ninja
 
 after_success:
