@@ -46,9 +46,12 @@ foreach(FLAG -march=native -Wextra -Wpedantic -Weverything -Werror
         -Wno-missing-field-initializers
         )
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
-  check_cxx_compiler_flag(${FLAG} ${F})
+  check_c_compiler_flag(${FLAG} ${F})
   if(${F})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+  endif()
+  check_cxx_compiler_flag(${FLAG} ${F})
+  if(${F})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
   endif()
 endforeach()
