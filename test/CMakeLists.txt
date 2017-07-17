@@ -85,3 +85,12 @@ if(HAVE_NETMAP_H)
   )
   add_test(test_warp test_warp)
 endif()
+
+add_executable(test_hexdump common.c test_hexdump.c)
+target_link_libraries(test_hexdump PUBLIC sock_dyn)
+set_target_properties(test_hexdump
+  PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    INTERPROCEDURAL_OPTIMIZATION True
+)
+add_test(test_hexdump test_hexdump)

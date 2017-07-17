@@ -128,11 +128,13 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
                             "0x%04lx:  " NRM,
                 (DMASTER ? BLK : WHT), _elapsed.tv_sec % 1000,
                 (long long)(_elapsed.tv_usec / 1000), i);
-        for (size_t j = 0; j < 16; j += 2) {
+        for (size_t j = 0; j < 16; j++) {
             if (i + j < len)
-                fprintf(stderr, "%02hhx%02hhx ", buf[i + j], buf[i + j + 1]);
+                fprintf(stderr, "%02hhx", buf[i + j]);
             else
-                fprintf(stderr, "     ");
+                fprintf(stderr, "  ");
+            if (j % 2)
+                fprintf(stderr, " ");
         }
         fprintf(stderr, " ");
         for (size_t j = 0; j < 16; j++) {
