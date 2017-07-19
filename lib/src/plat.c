@@ -98,6 +98,7 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
+    ifr.ifr_name[IFNAMSIZ - 1] = 0;
 
     ensure(ioctl(s, SIOCGIFMTU, &ifr) >= 0, "%s ioctl", i->ifa_name);
     const uint16_t mtu = (uint16_t)MIN(UINT16_MAX, ifr.ifr_ifru.ifru_mtu);
@@ -132,6 +133,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
+    ifr.ifr_name[IFNAMSIZ - 1] = 0;
 
     // if this is loopback interface, SIOCETHTOOL will fail, so just return a
     // placeholder value
@@ -177,12 +179,14 @@ bool plat_get_link(const struct ifaddrs * i)
     struct ifmediareq ifr;
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifm_name, i->ifa_name, IFNAMSIZ);
+    ifr.ifm_name[IFNAMSIZ - 1] = 0;
     ensure(ioctl(s, SIOCGIFMEDIA, &ifr) >= 0, "%s ioctl", i->ifa_name);
     link = (ifr.ifm_status & IFM_AVALID) && (ifr.ifm_status & IFM_ACTIVE);
 #else
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
+    ifr.ifr_name[IFNAMSIZ - 1] = 0;
     ensure(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
     link = (ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING);
 #endif
