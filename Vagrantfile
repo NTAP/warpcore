@@ -117,7 +117,7 @@ Vagrant.configure("2") do |config|
           update-initramfs -u
 
           # XXX is there a way to automate this (reboot doesn't mount /vagrant)
-          echo 'IMPORTANT: You need to "vagrant halt #{node.vm.hostname}"; ' \
+          echo 'IMPORTANT: You need to "vagrant halt #{node.vm.hostname} ; ' \
             'vagrant up #{node.vm.hostname}" for netmap support!'
         SHELL
 
