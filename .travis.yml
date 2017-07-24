@@ -36,7 +36,7 @@ before_install:
   # manually install latest cmake
   - |
     wget https://cmake.org/files/v3.9/cmake-3.9.0-Linux-x86_64.sh
-    sh cmake-3.9.0-Linux-x86_64.sh --prefix=~ --skip-license
+    sh cmake-3.9.0-Linux-x86_64.sh --skip-license
   # download netmap headers, to build the relevant backend
   - |
     cd $TRAVIS_BUILD_DIR
