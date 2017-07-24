@@ -18,7 +18,11 @@ env:
 
 addons:
   apt:
+    soources:
+      - george-edison55-precise-backports
     packages:
+      - cmake
+      - cmake-data
       - doxygen
       - graphviz
       - ninja-build
