@@ -28,7 +28,7 @@ addons:
       name: "NTAP/warpcore"
       description: "Build submitted via Travis CI"
     notification_email: lars@netapp.com
-    build_command_prepend: "cd $TRAVIS_BUILD_DIR; rm -rf build; mkdir build; cd build; cmake -GNinja -DCMAKE_INSTALL_PREFIX:PATH=/tmp .."
+    build_command_prepend: "cd $TRAVIS_BUILD_DIR; rm -rf build; mkdir build; cd build; ../cmake -GNinja -DCMAKE_INSTALL_PREFIX:PATH=/tmp .."
     build_command: ninja
     branch_pattern: master
 
@@ -37,6 +37,7 @@ before_install:
   - |
     wget https://cmake.org/files/v3.9/cmake-3.9.0-Linux-x86_64.sh
     sh cmake-3.9.0-Linux-x86_64.sh --skip-license
+    ls -lta
   # download netmap headers, to build the relevant backend
   - |
     cd $TRAVIS_BUILD_DIR
@@ -52,7 +53,7 @@ script:
     rm -rf build
     mkdir build
     cd build
-    cmake -GNinja -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
+    ../cmake -GNinja -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
     ninja
 
 after_success:
