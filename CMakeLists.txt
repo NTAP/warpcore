@@ -72,34 +72,39 @@ endforeach()
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 
+# disable IPO by default
+set(IPO NO)
+
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Default debug logging level
   if(NOT DEFINED DLEVEL)
     set(DLEVEL "debug")
   endif()
 
-  # # Set some additional flags for Debug builds
-  # set(FLAGS -fno-omit-frame-pointer -fsanitize=leak -fsanitize=address
-  #     -fsanitize=memory -fsanitize-memory-track-origins -fsanitize=thread
-  #     -fsanitize=undefined -fno-sanitize=alignment)
-  # if(CMAKE_C_COMPILER_ID MATCHES Clang)
-  #   # -fsanitize=undefined does not work on clang
-  #   list(REMOVE_ITEM FLAGS -fsanitize=undefined)
-  # endif()
-  # if(CMAKE_SYSTEM_NAME MATCHES FreeBSD)
-  #   # -fsanitize=leak does not work on clang
-  #   list(REMOVE_ITEM FLAGS -fsanitize=leak)
-  # endif()
-  # foreach(FLAG ${FLAGS})
-  #   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
-  #   if(${F})
-  #     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
-  #   endif()
-  #   check_cxx_compiler_flag(${FLAG} ${F})
-  #   if(${F})
-  #     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
-  #   endif()
-  # endforeach()
+  # See if we can use the address sanitizer
+  set(CMAKE_REQUIRED_FLAGS -fsanitize=address)
+  check_c_compiler_flag("" _fsanitize_address)
+  if(_fsanitize_address)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+  endif()
+  unset(CMAKE_REQUIRED_FLAGS)
+
+  # Set some additional flags for Debug builds
+  set(FLAGS -fno-omit-frame-pointer -fsanitize-address-use-after-scope
+      -fsanitize=undefined -fsanitize=unsigned-integer-overflow -fno-common
+  )
+  foreach(FLAG ${FLAGS})
+    string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
+    check_c_compiler_flag(${FLAG} ${F})
+    if(${F})
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+    endif()
+    check_cxx_compiler_flag(${FLAG} ${F})
+    if(${F})
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
+    endif()
+  endforeach()
 
   # Use include-what-you-use to check #includes, if it's installed
   find_program(IWYU NAMES include-what-you-use iwyu)
@@ -135,6 +140,10 @@ else()
   if(NOT DEFINED DLEVEL)
     set(DLEVEL "notice")
   endif()
+
+  # check for INTERPROCEDURAL_OPTIMIZATION support
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT IPO)
 endif()
 
 # flags for "Release" builds
