@@ -33,6 +33,9 @@ if(NOT CMAKE_BUILD_TYPE)
         CACHE STRING "Set build type (default Debug)" FORCE)
 endif()
 
+# Generate compile_commands.json for clang-tidy
+set(CMAKE_EXPORT_COMPILE_COMMANDS True)
+
 # Use modern C and C++
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_STANDARD 11)
@@ -89,10 +92,12 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   # endif()
   # foreach(FLAG ${FLAGS})
   #   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
-  #   check_c_compiler_flag(${FLAG} ${F})
   #   if(${F})
-  #     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${FLAG}")
-  #     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${FLAG}")
+  #     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+  #   endif()
+  #   check_cxx_compiler_flag(${FLAG} ${F})
+  #   if(${F})
+  #     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
   #   endif()
   # endforeach()
 
@@ -119,29 +124,16 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         -cppcoreguidelines-pro-type-vararg
     )
     string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
-    set(CMAKE_C_CLANG_TIDY ${CLANGTIDY} -checks=${CLANG_TIDY_CHECKS})
+    set(CMAKE_C_CLANG_TIDY ${CLANGTIDY}
+        -analyze-temporary-dtors -system-headers
+        -checks=${CLANG_TIDY_CHECKS}
+    )
     set(CMAKE_CXX_CLANG_TIDY ${CMAKE_C_CLANG_TIDY})
   endif()
 else()
   # Default logging level
   if(NOT DEFINED DLEVEL)
     set(DLEVEL "notice")
-  endif()
-
-  # See if we can use LTO
-  check_c_compiler_flag(-flto LTO)
-  if(${LTO})
-    # Turn LTO on
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
-    # Use the correct toolchain for LTO, if enabled
-    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-      set(CMAKE_AR llvm-ar)
-      set(CMAKE_RANLIB llvm-ranlib)
-    elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
-      set(CMAKE_AR gcc-ar)
-      set(CMAKE_RANLIB gcc-ranlib)
-    endif()
   endif()
 endif()
 
