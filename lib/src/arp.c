@@ -23,6 +23,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <warpcore/warpcore.h>
+
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
@@ -37,8 +39,6 @@
 #include <net/ethernet.h>
 #include <netinet/ether.h>
 #endif
-
-#include <warpcore/warpcore.h>
 
 #include "arp.h"
 #include "backend.h"
@@ -109,7 +109,7 @@ static void __attribute__((nonnull))
 arp_is_at(struct w_engine * const w, const uint8_t * const buf)
 {
     // grab iov for reply
-    struct w_iov * const v = w_alloc_iov(w, 0);
+    struct w_iov * const v = w_alloc_iov(w, 0, 0);
     if (unlikely(v == 0)) {
         warn(crit, "no more bufs; ARP reply not sent");
         return;
@@ -174,7 +174,7 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
 #endif
 
         // grab a spare buffer
-        struct w_iov * const v = w_alloc_iov(w, 0);
+        struct w_iov * const v = w_alloc_iov(w, 0, 0);
         if (unlikely(v == 0)) {
             warn(crit, "no more bufs; ARP request not sent");
             return (struct ether_addr){{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};

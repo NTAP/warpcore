@@ -35,6 +35,7 @@
 
 
 #if defined(__linux__)
+#include <errno.h>
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
 #include <netpacket/packet.h>

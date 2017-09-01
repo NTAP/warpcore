@@ -23,10 +23,12 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <warpcore/warpcore.h>
+
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #ifndef __linux__
-#include <netinet/in.h>
+// #include <netinet/in.h>
 #endif
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <stdbool.h>
@@ -34,8 +36,6 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/types.h>
-
-#include <warpcore/warpcore.h>
 
 #include "arp.h"
 #include "backend.h"
@@ -112,7 +112,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     //
     // XXX w_alloc_iov() does some (in this case) unneeded initialization;
     // determine if that overhead is a problem
-    struct w_iov * const i = w_alloc_iov(w, 0);
+    struct w_iov * const i = w_alloc_iov(w, 0, 0);
     if (unlikely(i == 0)) {
         warn(crit, "no more bufs; UDP packet RX failed");
         return;

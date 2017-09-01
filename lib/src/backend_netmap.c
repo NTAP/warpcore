@@ -23,6 +23,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <warpcore/warpcore.h>
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
@@ -36,8 +37,6 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
-#include <warpcore/warpcore.h>
 
 #include "arp.h"
 #include "backend.h"

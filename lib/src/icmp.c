@@ -23,6 +23,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <warpcore/warpcore.h>
+
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
@@ -31,11 +33,9 @@
 #include <sys/param.h>
 #include <unistd.h>
 
-#ifndef __linux__
+#ifdef __FreeBSD__
 #include <netinet/in.h>
 #endif
-
-#include <warpcore/warpcore.h>
 
 #include "eth.h"
 #include "icmp.h"
@@ -56,7 +56,7 @@ void icmp_tx(struct w_engine * const w,
              const uint8_t code,
              uint8_t * const buf)
 {
-    struct w_iov * const v = w_alloc_iov(w, 0);
+    struct w_iov * const v = w_alloc_iov(w, 0, 0);
     if (unlikely(v == 0)) {
         warn(crit, "no more bufs; ICMP not sent (type %d, code %d)", type,
              code);

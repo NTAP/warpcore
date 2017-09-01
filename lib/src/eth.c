@@ -31,10 +31,11 @@
 #include <string.h>
 #include <sys/types.h>
 
-#ifdef __linux__
+#if defined(__linux__)
 #include <net/ethernet.h>
 #include <netinet/ether.h>
-#else
+
+#elif defined(__FreeBSD__)
 #include <netinet/in.h>
 #endif
 

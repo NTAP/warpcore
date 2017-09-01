@@ -74,18 +74,20 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 /// returned to w->iov via STAILQ_INSERT_HEAD() or STAILQ_CONCAT().
 ///
 /// @param      w     Backend engine.
+/// @param[in]  len   The length of each @p buf.
 /// @param[in]  off   Additional offset into the buffer.
 ///
 /// @return     Spare w_iov.
 ///
-struct w_iov * w_alloc_iov(struct w_engine * const w, const uint16_t off)
+struct w_iov *
+w_alloc_iov(struct w_engine * const w, const uint16_t len, const uint16_t off)
 {
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
     if (unlikely(v == 0))
         return 0;
     STAILQ_REMOVE_HEAD(&w->iov, next);
     v->buf = IDX2BUF(w, v->idx) + off;
-    v->len = w->mtu - off;
+    v->len = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off;
 #ifdef WITH_NETMAP
     v->o = 0;
 #endif
@@ -131,14 +133,13 @@ static inline void alloc_cnt(struct w_engine * const w,
     off += sizeof(struct w_hdr);
 #endif
     for (uint32_t i = 0; likely(i < count); i++) {
-        v = w_alloc_iov(w, off);
+        v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0)) {
             // free partial allocation and return
             STAILQ_CONCAT(&w->iov, q);
             warn(crit, "ran out of w_iov bufs trying to allocate %u", count);
             return;
         }
-        v->len = len;
         STAILQ_INSERT_TAIL(q, v, next);
     }
     if (v)
@@ -168,14 +169,13 @@ void w_alloc_len(struct w_engine * const w,
                  const uint16_t len,
                  const uint16_t off)
 {
-    const uint16_t l = len == 0 ? w->mtu : MIN(w->mtu, len);
-    const uint32_t space = l - off
+    const uint32_t space = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off
 #ifdef WITH_NETMAP
                            - sizeof(struct w_hdr)
 #endif
         ;
     const uint32_t count = plen / space + (plen % space != 0);
-    alloc_cnt(w, q, count, l, off, (uint16_t)(space * count - len));
+    alloc_cnt(w, q, count, len, off, (uint16_t)(space * count - plen));
 }
 
 
@@ -198,8 +198,7 @@ void w_alloc_cnt(struct w_engine * const w,
                  const uint16_t len,
                  const uint16_t off)
 {
-    const uint16_t l = len == 0 ? w->mtu : MIN(w->mtu, len);
-    alloc_cnt(w, q, count, l, off, 0);
+    alloc_cnt(w, q, count, len, off, 0);
 }
 
 
