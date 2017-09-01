@@ -29,7 +29,7 @@
 
 int main(void)
 {
-    char buf[LEN];
+    char buf[LEN] = "Hello, world!";
 
     for(int i = 0; i < LEN; i++)
         hexdump(buf, i);
