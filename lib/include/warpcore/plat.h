@@ -31,15 +31,20 @@
 
 struct ifaddrs;
 
-#ifdef __linux__
+#if defined(__linux__)
 #include <netinet/ether.h>
 #include <sys/socket.h>
 #define AF_LINK AF_PACKET
 #define PLAT_MMFLAGS MAP_POPULATE | MAP_LOCKED
-#else
+
+#elif defined(__FreeBSD__)
 #include <net/ethernet.h>
 /// Platform-dependent flags to pass to mmap().
 #define PLAT_MMFLAGS MAP_PREFAULT_READ | MAP_NOSYNC | MAP_ALIGNED_SUPER
+
+#elif defined(__APPLE__)
+#include <net/ethernet.h>
+#define PLAT_MMFLAGS 0
 #endif
 
 

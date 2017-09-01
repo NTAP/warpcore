@@ -48,12 +48,6 @@ if(HAVE_NETMAP_H)
   target_compile_definitions(warp_stat PRIVATE -DWITH_NETMAP)
 endif()
 
-
-# check for INTERPROCEDURAL_OPTIMIZATION support
-include(CheckIPOSupported)
-check_ipo_supported(RESULT IPO)
-
-
 set(TARGETS obj_all obj_sock sock_dyn sock_stat)
 if(HAVE_NETMAP_H)
   set(TARGETS ${TARGETS} obj_warp warp_dyn warp_stat)
@@ -73,10 +67,8 @@ foreach(TARGET ${TARGETS})
       OUTPUT_NAME ${OUTPUT}
       VERSION ${PROJECT_VERSION}
       SOVERSION ${PROJECT_VERSION_MAJOR}
+      INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
-  if (IPO)
-    set_property(TARGET ${TARGET} PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-  endif()
   if(NOT ${TARGET} MATCHES "obj_")
     target_link_libraries(${TARGET} Threads::Threads)
     install(TARGETS ${TARGET}

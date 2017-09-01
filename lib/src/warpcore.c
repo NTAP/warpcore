@@ -74,18 +74,20 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 /// returned to w->iov via STAILQ_INSERT_HEAD() or STAILQ_CONCAT().
 ///
 /// @param      w     Backend engine.
+/// @param[in]  len   The length of each @p buf.
 /// @param[in]  off   Additional offset into the buffer.
 ///
 /// @return     Spare w_iov.
 ///
-struct w_iov * w_alloc_iov(struct w_engine * const w, const uint16_t off)
+struct w_iov *
+w_alloc_iov(struct w_engine * const w, const uint16_t len, const uint16_t off)
 {
     struct w_iov * const v = STAILQ_FIRST(&w->iov);
     if (unlikely(v == 0))
         return 0;
     STAILQ_REMOVE_HEAD(&w->iov, next);
     v->buf = IDX2BUF(w, v->idx) + off;
-    v->len = w->mtu - off;
+    v->len = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off;
 #ifdef WITH_NETMAP
     v->o = 0;
 #endif
@@ -109,17 +111,19 @@ struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 
 
 /// Helper function for w_alloc_size and w_alloc_cnt. Really only needed,
-/// because Linux doesn't define STALIQ_LAST in sys/queue.h for whatever reason.
+/// because Linux doesn't define STAILQ_LAST in sys/queue.h for whatever reason.
 ///
 /// @param      w         Backend engine.
 /// @param[out] q         Tail queue of w_iov structs.
 /// @param[in]  count     Number of w_iov structs to allocate.
+/// @param[in]  len       The length of each @p buf.
 /// @param[in]  off       Additional offset for each buffer.
 /// @param[in]  adj_last  Amount to reduce the length of the last w_iov by.
 ///
 static inline void alloc_cnt(struct w_engine * const w,
                              struct w_iov_stailq * const q,
                              const uint32_t count,
+                             const uint16_t len,
                              uint16_t off,
                              const uint16_t adj_last)
 {
@@ -129,7 +133,7 @@ static inline void alloc_cnt(struct w_engine * const w,
     off += sizeof(struct w_hdr);
 #endif
     for (uint32_t i = 0; likely(i < count); i++) {
-        v = w_alloc_iov(w, off);
+        v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0)) {
             // free partial allocation and return
             STAILQ_CONCAT(&w->iov, q);
@@ -147,48 +151,54 @@ static inline void alloc_cnt(struct w_engine * const w,
 
 
 /// Allocate a w_iov tail queue for @p len payload bytes, for eventual use with
-/// w_tx(). The tail queue must be later returned to warpcore w_free().  If a @p
-/// off offset is specified, leave this much extra space before @p buf in each
-/// w_iov. This is meant for upper-level protocols that wish to reserve space
-/// for their headers.
+/// w_tx(). The tail queue must be later returned to warpcore w_free(). If a @p
+/// len length is specified, limit the length of each buffer to the minimum of
+/// the MTU and this value. If a @p off offset is specified, leave this much
+/// extra space before @p buf in each w_iov. This is meant for upper-level
+/// protocols that wish to reserve space for their headers.
 ///
 /// @param      w     Backend engine.
 /// @param[out] q     Tail queue of w_iov structs.
-/// @param[in]  len   Amount of payload bytes in the returned tail queue.
+/// @param[in]  plen  Amount of payload bytes in the returned tail queue.
+/// @param[in]  len   The length of each @p buf.
 /// @param[in]  off   Additional offset for @p buf.
 ///
 void w_alloc_len(struct w_engine * const w,
                  struct w_iov_stailq * const q,
-                 const uint32_t len,
+                 const uint32_t plen,
+                 const uint16_t len,
                  const uint16_t off)
 {
-    const uint32_t space = w->mtu - off
+    const uint32_t space = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off
 #ifdef WITH_NETMAP
                            - sizeof(struct w_hdr)
 #endif
         ;
-    const uint32_t count = len / space + (len % space != 0);
-    alloc_cnt(w, q, count, off, (uint16_t)(space * count - len));
+    const uint32_t count = plen / space + (plen % space != 0);
+    alloc_cnt(w, q, count, len, off, (uint16_t)(space * count - plen));
 }
 
 
 /// Allocate a w_iov tail queue of @p count packets, for eventual use with
 /// w_tx(). The tail queue must be later returned to warpcore w_free(). If a @p
-/// off offset is specified, leave this much extra space before @p buf in each
-/// w_iov. This is meant for upper-level protocols that wish to reserve space
-/// for their headers.
+/// len length is specified, limit the length of each buffer to the minimum of
+/// the MTU and this value. If a @p off offset is specified, leave this much
+/// extra space before @p buf in each w_iov. This is meant for upper-level
+/// protocols that wish to reserve space for their headers.
 ///
 /// @param      w      Backend engine.
 /// @param[out] q      Tail queue of w_iov structs.
 /// @param[in]  count  Number of packets in the returned tail queue.
+/// @param[in]  len    The length of each @p buf.
 /// @param[in]  off    Additional offset for @p buf.
 ///
 void w_alloc_cnt(struct w_engine * const w,
                  struct w_iov_stailq * const q,
                  const uint32_t count,
+                 const uint16_t len,
                  const uint16_t off)
 {
-    alloc_cnt(w, q, count, off, 0);
+    alloc_cnt(w, q, count, len, off, 0);
 }
 
 

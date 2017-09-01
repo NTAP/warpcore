@@ -32,7 +32,7 @@ if(NOT HAVE_BENCHMARK_H AND NOT $ENV{CONTINUOUS_INTEGRATION})
     IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/lib/libbenchmark.a
     INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_BINARY_DIR}/include
     POSITION_INDEPENDENT_CODE ON
-    INTERPROCEDURAL_OPTIMIZATION True
+    INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
 
   add_dependencies(benchmark google-benchmark Threads)
@@ -47,7 +47,7 @@ if(HAVE_BENCHMARK_H)
   set_target_properties(bench_sock
     PROPERTIES
       POSITION_INDEPENDENT_CODE ON
-      INTERPROCEDURAL_OPTIMIZATION True
+      INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
   add_test(bench_sock bench_sock)
 
@@ -58,7 +58,7 @@ if(HAVE_BENCHMARK_H)
     set_target_properties(bench_warp
       PROPERTIES
         POSITION_INDEPENDENT_CODE ON
-        INTERPROCEDURAL_OPTIMIZATION True
+        INTERPROCEDURAL_OPTIMIZATION ${IPO}
     )
     add_test(bench_warp bench_warp)
   endif()
@@ -70,7 +70,7 @@ target_link_libraries(test_sock PUBLIC sock_dyn)
 set_target_properties(test_sock
   PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    INTERPROCEDURAL_OPTIMIZATION True
+    INTERPROCEDURAL_OPTIMIZATION ${IPO}
 )
 add_test(test_sock test_sock)
 
@@ -81,7 +81,7 @@ if(HAVE_NETMAP_H)
   set_target_properties(test_warp
     PROPERTIES
       POSITION_INDEPENDENT_CODE ON
-      INTERPROCEDURAL_OPTIMIZATION True
+      INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
   add_test(test_warp test_warp)
 endif()
@@ -91,6 +91,6 @@ target_link_libraries(test_hexdump PUBLIC sock_dyn)
 set_target_properties(test_hexdump
   PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    INTERPROCEDURAL_OPTIMIZATION True
+    INTERPROCEDURAL_OPTIMIZATION ${IPO}
 )
 add_test(test_hexdump test_hexdump)

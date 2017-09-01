@@ -35,6 +35,7 @@
 
 
 #if defined(__linux__)
+#include <errno.h>
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
 #include <netpacket/packet.h>
@@ -146,7 +147,11 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     struct ethtool_cmd edata;
     ifr.ifr_data = (__caddr_t)&edata;
     edata.cmd = ETHTOOL_GSET;
-    ensure(ioctl(s, SIOCETHTOOL, &ifr) >= 0, "%s ioctl", i->ifa_name);
+    const int err = ioctl(s, SIOCETHTOOL, &ifr);
+    if (err == -1 && errno == ENOTSUP)
+        // the ioctl can fail for virtual NICs
+        return 0;
+    ensure(err >= 0, "%s ioctl", i->ifa_name);
 
     close(s);
     const uint32_t speed = ethtool_cmd_speed(&edata);

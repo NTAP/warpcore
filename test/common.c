@@ -42,14 +42,15 @@ bool io(const uint32_t len)
 {
     // allocate a w_iov chain for tx
     struct w_iov_stailq o = w_iov_stailq_initializer(o);
-    w_alloc_cnt(w, &o, len, 0);
+    w_alloc_cnt(w, &o, len, 512, 64);
     ensure(w_iov_stailq_cnt(&o) == len, "wrong length");
 
     // fill it with data
     struct w_iov * ov;
     uint8_t fill = 0;
-    STAILQ_FOREACH (ov, &o, next)
+    STAILQ_FOREACH (ov, &o, next) {
         memset(ov->buf, fill++, ov->len);
+    }
     const uint32_t olen = w_iov_stailq_len(&o);
 
     // tx

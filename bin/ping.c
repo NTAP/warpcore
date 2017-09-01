@@ -223,7 +223,7 @@ int main(const int argc, char * const argv[])
     for (uint32_t len = start; len <= end; len += (inc ? inc : .483 * len)) {
         // allocate tx tail queue
         struct w_iov_stailq o;
-        w_alloc_len(w, &o, len, 0);
+        w_alloc_len(w, &o, len, 0, 0);
         long iter = loops;
         while (likely(iter--)) {
             // get the current time
