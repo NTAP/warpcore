@@ -27,8 +27,8 @@
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#ifndef __linux__
-// #include <netinet/in.h>
+#ifdef __FreeBSD__
+#include <netinet/in.h>
 #endif
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <stdbool.h>

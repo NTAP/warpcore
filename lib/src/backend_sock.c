@@ -25,6 +25,11 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+
+#if defined(__linux__) && (defined(HAVE_SENDMMSG) || defined(HAVE_RECVMMSG))
+#include <limits.h>
+#endif
+
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -37,9 +42,6 @@
 // IWYU pragma: no_include <sys/queue.h>
 #include <warpcore/warpcore.h>
 
-#if defined(__linux__) && (defined(HAVE_SENDMMSG) || defined(HAVE_RECVMMSG))
-#include <limits.h>
-#endif
 
 #if defined(HAVE_KQUEUE)
 #include <sys/event.h>
@@ -299,7 +301,7 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
             return;
         }
 #ifdef HAVE_RECVMMSG
-        n = recvmmsg(s->fd, msgvec, (size_t)nbufs, MSG_DONTWAIT, 0);
+        n = (ssize_t)recvmmsg(s->fd, msgvec, (size_t)nbufs, MSG_DONTWAIT, 0);
         ensure(n != -1 || errno == EAGAIN, "recvmmsg");
 #else
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
