@@ -26,7 +26,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-#if defined(__linux__) && (defined(HAVE_SENDMMSG) || defined(HAVE_RECVMMSG))
+#if defined(__linux__)
 #include <limits.h>
 #endif
 
