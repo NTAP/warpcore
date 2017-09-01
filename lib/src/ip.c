@@ -146,9 +146,9 @@ bool ip_tx(struct w_engine * const w,
     // fill in remaining header fields
     ip->len = htons(l);
     ip->id = (uint16_t)plat_random(); // no need to do htons() for random value
+    ip->tos = v->flags; // app-specified DSCP + ECN
     // IP checksum is over header only
     ip->cksum = in_cksum(ip, sizeof(*ip));
-    ip->tos = v->flags; // app-specified DSCP + ECN
 
     ip_log(ip);
 
