@@ -208,12 +208,14 @@ extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_alloc_len(struct w_engine * const w,
                                                  struct w_iov_stailq * const q,
-                                                 const uint32_t len,
+                                                 const uint32_t plen,
+                                                 const uint16_t len,
                                                  const uint16_t off);
 
 extern void __attribute__((nonnull)) w_alloc_cnt(struct w_engine * const w,
                                                  struct w_iov_stailq * const q,
                                                  const uint32_t count,
+                                                 const uint16_t len,
                                                  const uint16_t off);
 
 extern struct w_iov * __attribute__((nonnull))
@@ -306,7 +308,7 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 ///
 /// @return     w_iov struct.
 ///
-#define w_free_iov(w, v)  STAILQ_INSERT_HEAD(&(w)->iov, (v), next)
+#define w_free_iov(w, v) STAILQ_INSERT_HEAD(&(w)->iov, (v), next)
 
 
 #ifdef __cplusplus
