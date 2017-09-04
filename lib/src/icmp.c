@@ -40,7 +40,9 @@
 #include "eth.h"
 #include "icmp.h"
 #include "ip.h"
+#if !defined(NDEBUG) && DLEVEL >= WRN
 #include "udp.h"
+#endif
 
 
 /// Make an ICMP message with the given @p type and @p code based on the
@@ -58,8 +60,7 @@ void icmp_tx(struct w_engine * const w,
 {
     struct w_iov * const v = w_alloc_iov(w, 0, 0);
     if (unlikely(v == 0)) {
-        warn(crit, "no more bufs; ICMP not sent (type %d, code %d)", type,
-             code);
+        warn(CRT, "no more bufs; ICMP not sent (type %d, code %d)", type, code);
         return;
     }
 
@@ -67,7 +68,7 @@ void icmp_tx(struct w_engine * const w,
     struct icmp_hdr * const dst_icmp = (void *)ip_data(v->buf);
     dst_icmp->type = type;
     dst_icmp->code = code;
-    warn(notice, "ICMP type %d, code %d", type, code);
+    warn(NTE, "ICMP type %d, code %d", type, code);
 
     const struct ip_hdr * const src_ip = (const void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
@@ -147,7 +148,7 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     struct icmp_hdr * const icmp = (void *)ip_data(buf);
-    warn(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
+    warn(NTE, "ICMP type %d, code %d", icmp->type, icmp->code);
 
     // validate the ICMP checksum
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
@@ -156,8 +157,7 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
                                       sizeof(struct ip_hdr));
 
     if (in_cksum(icmp, icmp_len) != 0) {
-        warn(warn, "invalid ICMP checksum, received 0x%04x",
-             ntohs(icmp->cksum));
+        warn(WRN, "invalid ICMP checksum, received 0x%04x", ntohs(icmp->cksum));
         return;
     }
 
@@ -167,19 +167,21 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
         icmp_tx(w, ICMP_TYPE_ECHOREPLY, 0, buf);
         break;
     case ICMP_TYPE_UNREACH: {
-#ifndef NDEBUG
+#if !defined(NDEBUG) && DLEVEL >= WRN
         const struct ip_hdr * const payload_ip =
             (const void *)(ip_data(buf) + sizeof(*icmp) + 4);
 #endif
         switch (icmp->code) {
         case ICMP_UNREACH_PROTOCOL:
-            warn(warn, "ICMP protocol %d unreachable", payload_ip->p);
+#if !defined(NDEBUG) && DLEVEL >= WRN
+            warn(WRN, "ICMP protocol %d unreachable", payload_ip->p);
+#endif
             break;
         case ICMP_UNREACH_PORT: {
-#ifndef NDEBUG
+#if !defined(NDEBUG) && DLEVEL >= WRN
             const struct udp_hdr * const payload_udp =
                 (const void *)((const uint8_t *)ip + ip_hl(ip));
-            warn(warn, "ICMP IP proto %d port %d unreachable", payload_ip->p,
+            warn(WRN, "ICMP IP proto %d port %d unreachable", payload_ip->p,
                  ntohs(payload_udp->dport));
 #endif
             break;

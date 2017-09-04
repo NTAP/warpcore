@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.14.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.15.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
@@ -78,7 +78,7 @@ set(IPO NO)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Default debug logging level
   if(NOT DEFINED DLEVEL)
-    set(DLEVEL "debug")
+    set(DLEVEL "DBG")
   endif()
 
   # See if we can use the address sanitizer

@@ -60,7 +60,7 @@ static void terminate(int signum __attribute__((unused)))
 {
     if (done) {
         // we've been here before, restore the default signal handlers
-        warn(warn, "got repeated signal, passing through");
+        warn(WRN, "got repeated signal, passing through");
         ensure(signal(SIGTERM, SIG_DFL) != SIG_ERR, "signal");
         ensure(signal(SIGINT, SIG_DFL) != SIG_ERR, "signal");
     } else
@@ -104,7 +104,7 @@ int main(const int argc, char * const argv[])
             break;
 #ifndef NDEBUG
         case 'v':
-            _dlevel = (uint32_t)MIN(DLEVEL, strtoul(optarg, 0, 10));
+            _dlevel = (short)MIN(DLEVEL, strtoul(optarg, 0, 10));
             break;
 #endif
         case 'h':
@@ -155,7 +155,7 @@ int main(const int argc, char * const argv[])
             w_rx(s, &i);
             if (STAILQ_EMPTY(&i))
                 continue;
-            warn(debug, "received %u bytes", w_iov_stailq_len(&i));
+            warn(DBG, "received %u bytes", w_iov_stailq_len(&i));
 
             struct w_iov_stailq o = w_iov_stailq_initializer(o);
             uint16_t t = 0;

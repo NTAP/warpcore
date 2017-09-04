@@ -31,6 +31,6 @@ int main(void)
 {
     char buf[LEN] = "Hello, world!";
 
-    for(int i = 0; i < LEN; i++)
+    for (int i = 0; i < LEN; i++)
         hexdump(buf, i);
 }

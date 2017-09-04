@@ -60,14 +60,14 @@
 void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     struct eth_hdr * const eth = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    warn(debug, "Eth %s -> %s, type %d, len %d", ether_ntoa(&eth->src),
+    warn(DBG, "Eth %s -> %s, type %d, len %d", ether_ntoa(&eth->src),
          ether_ntoa(&eth->dst), ntohs(eth->type), r->slot[r->cur].len);
 
     // make sure the packet is for us (or broadcast)
     if (unlikely((memcmp(&eth->dst, &w->mac, ETHER_ADDR_LEN) != 0) &&
                  (memcmp(&eth->dst, "\xff\xff\xff\xff\xff\xff",
                          ETHER_ADDR_LEN) != 0))) {
-        warn(info, "Ethernet packet not destined to us; ignoring");
+        warn(INF, "Ethernet packet not destined to us; ignoring");
         return;
     }
 
@@ -102,21 +102,21 @@ bool eth_tx(struct w_engine * const w,
             // we have space in this ring
             break;
 
-        warn(info, "tx ring %u full; moving to next", w->b->cur_txr);
+        warn(INF, "tx ring %u full; moving to next", w->b->cur_txr);
         w->b->cur_txr = (w->b->cur_txr + 1) % w->b->nif->ni_tx_rings;
         txr = 0;
     }
 
     // return false if all rings are full
     if (unlikely(txr == 0)) {
-        warn(info, "all tx rings are full");
+        warn(INF, "all tx rings are full");
         return false;
     }
 
     // place v into the current tx ring
     struct netmap_slot * const s = &txr->slot[txr->cur];
     const uint32_t slot_idx = s->buf_idx;
-    warn(debug, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
+    warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
          v->idx, w->b->cur_txr, txr->cur, slot_idx);
     s->buf_idx = v->idx;
     v->idx = slot_idx;
@@ -124,9 +124,9 @@ bool eth_tx(struct w_engine * const w,
     s->len = len + sizeof(struct eth_hdr);
     s->ptr = (uint64_t)v;
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && DLEVEL >= DBG
     const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, s->buf_idx);
-    warn(debug, "Eth %s -> %s, type %d, len %lu", ether_ntoa(&eth->src),
+    warn(DBG, "Eth %s -> %s, type %d, len %lu", ether_ntoa(&eth->src),
          ether_ntoa(&eth->dst), ntohs(eth->type), len + sizeof(*eth));
 #endif
 
