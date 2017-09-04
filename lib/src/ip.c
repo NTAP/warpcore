@@ -50,8 +50,8 @@
     do {                                                                       \
         char src[INET_ADDRSTRLEN];                                             \
         char dst[INET_ADDRSTRLEN];                                             \
-        warn(debug, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "           \
-                    "flags [%s%s], proto %d, hlen/tot %d/%d",                  \
+        warn(deb, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "             \
+                  "flags [%s%s], proto %d, hlen/tot %d/%d",                    \
              inet_ntop(AF_INET, &(ip)->src, src, INET_ADDRSTRLEN),             \
              inet_ntop(AF_INET, &(ip)->dst, dst, INET_ADDRSTRLEN),             \
              ip_dscp(ip), ip_ecn(ip), (ip)->ttl, ntohs((ip)->id),              \
@@ -89,7 +89,7 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
 #ifndef NDEBUG
         char src[INET_ADDRSTRLEN];
         char dst[INET_ADDRSTRLEN];
-        warn(info, "IP packet from %s to %s (not us); ignoring",
+        warn(inf, "IP packet from %s to %s (not us); ignoring",
              inet_ntop(AF_INET, &ip->src, src, INET_ADDRSTRLEN),
              inet_ntop(AF_INET, &ip->dst, dst, INET_ADDRSTRLEN));
 #endif
@@ -98,7 +98,7 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
 
     // validate the IP checksum
     if (unlikely(in_cksum(ip, sizeof(*ip)) != 0)) {
-        warn(warn, "invalid IP checksum, received 0x%04x", ntohs(ip->cksum));
+        warn(err, "invalid IP checksum, received 0x%04x", ntohs(ip->cksum));
         return;
     }
 
@@ -113,7 +113,7 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
     else if (ip->p == IP_P_ICMP)
         icmp_rx(w, r);
     else {
-        warn(info, "unhandled IP protocol %d", ip->p);
+        warn(inf, "unhandled IP protocol %d", ip->p);
         // be standards compliant and send an ICMP unreachable
         icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PROTOCOL, buf);
     }
@@ -146,7 +146,7 @@ bool ip_tx(struct w_engine * const w,
     // fill in remaining header fields
     ip->len = htons(l);
     ip->id = (uint16_t)plat_random(); // no need to do htons() for random value
-    ip->tos = v->flags; // app-specified DSCP + ECN
+    ip->tos = v->flags;               // app-specified DSCP + ECN
     // IP checksum is over header only
     ip->cksum = in_cksum(ip, sizeof(*ip));
 

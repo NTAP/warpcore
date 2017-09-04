@@ -105,7 +105,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 #else
     const char recv_meth[] = "recvmsg";
 #endif
-    warn(debug, "backend using %s, %s, %s", poll_meth, send_meth, recv_meth);
+    warn(deb, "backend using %s, %s, %s", poll_meth, send_meth, recv_meth);
 #endif
 }
 
@@ -297,7 +297,7 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
                                 .msg_iovlen = 1};
         }
         if (unlikely(nbufs == 0)) {
-            warn(crit, "no more bufs");
+            warn(crt, "no more bufs");
             return;
         }
 #ifdef HAVE_RECVMMSG

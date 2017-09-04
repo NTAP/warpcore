@@ -139,14 +139,14 @@ static inline void alloc_cnt(struct w_engine * const w,
         if (unlikely(v == 0)) {
             // free partial allocation and return
             STAILQ_CONCAT(&w->iov, q);
-            warn(crit, "ran out of w_iov bufs trying to allocate %u", count);
+            warn(crt, "ran out of w_iov bufs trying to allocate %u", count);
             return;
         }
         STAILQ_INSERT_TAIL(q, v, next);
     }
     if (v)
         v->len -= adj_last;
-    warn(debug, "allocated w_iov_stailq of len %u byte%s (%d w_iov%s)",
+    warn(deb, "allocated w_iov_stailq of len %u byte%s (%d w_iov%s)",
          count * (w->mtu - off) - adj_last,
          plural(count * (w->mtu - off) - adj_last), count, plural(count));
 }
@@ -258,7 +258,7 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 
 #if !defined(NDEBUG) && DLEVEL >= 4
     char str[INET_ADDRSTRLEN];
-    warn(notice, "socket connected to %s port %d",
+    warn(ntc, "socket connected to %s port %d",
          inet_ntop(AF_INET, &ip, str, INET_ADDRSTRLEN), ntohs(port));
 #endif
 }
@@ -269,7 +269,7 @@ void w_disconnect(struct w_sock * const s)
     s->hdr->ip.dst = 0;
     s->hdr->udp.dport = 0;
 
-    warn(notice, "socket disconnected");
+    warn(ntc, "socket disconnected");
 }
 
 
@@ -287,7 +287,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 {
     struct w_sock * s = get_sock(w, port);
     if (unlikely(s)) {
-        warn(warn, "UDP source port %d already in bound", ntohs(port));
+        warn(wrn, "UDP source port %d already in bound", ntohs(port));
         return 0;
     }
 
@@ -313,7 +313,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 
     backend_bind(s);
 
-    warn(notice, "socket bound to port %d", ntohs(s->hdr->udp.sport));
+    warn(ntc, "socket bound to port %d", ntohs(s->hdr->udp.sport));
 
     return s;
 }
@@ -350,7 +350,7 @@ void w_close(struct w_sock * const s)
 ///
 void w_cleanup(struct w_engine * const w)
 {
-    warn(notice, "warpcore shutting down");
+    warn(ntc, "warpcore shutting down");
 
     // close all sockets
     struct w_sock *s, *tmp;
@@ -423,8 +423,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 #if !defined(NDEBUG) && DLEVEL >= 4
                 // mpbs can be zero on generic platforms and loopback interfaces
                 const uint32_t mbps = plat_get_mbps(i);
-                warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
-                     i->ifa_name, ether_ntoa(&w->mac), w->mtu, mbps / 1000,
+                warn(ntc, "%s addr %s, MTU %d, speed %uG, link %s", i->ifa_name,
+                     ether_ntoa(&w->mac), w->mtu, mbps / 1000,
                      link_up ? "up" : "down");
 #endif
                 break;
@@ -440,7 +440,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
             case AF_INET6:
                 break;
             default:
-                warn(notice, "ignoring unknown addr family %d on %s",
+                warn(ntc, "ignoring unknown addr family %d on %s",
                      i->ifa_addr->sa_family, i->ifa_name);
                 break;
             }
@@ -450,8 +450,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
         freeifaddrs(ifap);
         if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0) {
             // sleep for a bit, so we don't burn the CPU when link is down
-            warn(warn, "%s: could not obtain required interface "
-                       "information, retrying",
+            warn(wrn, "%s: could not obtain required interface "
+                      "information, retrying",
                  ifname);
             sleep(1);
         }
@@ -467,7 +467,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     char ip_str[INET_ADDRSTRLEN];
     char mask_str[INET_ADDRSTRLEN];
     char rip_str[INET_ADDRSTRLEN];
-    warn(notice, "%s has IP addr %s/%s%s%s", ifname,
+    warn(ntc, "%s has IP addr %s/%s%s%s", ifname,
          inet_ntop(AF_INET, &w->ip, ip_str, INET_ADDRSTRLEN),
          inet_ntop(AF_INET, &w->mask, mask_str, INET_ADDRSTRLEN),
          rip ? ", router " : "",
@@ -485,7 +485,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // store the initialized engine in our global list
     SLIST_INSERT_HEAD(&engines, w, next);
 
-    warn(info, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
+    warn(inf, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
          w->backend_name, warpcore_version, nbufs, w->mtu, ifname);
     return w;
 }
