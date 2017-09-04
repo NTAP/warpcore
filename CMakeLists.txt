@@ -78,7 +78,7 @@ set(IPO NO)
 if(CMAKE_BUILD_TYPE MATCHES Debug)
   # Default debug logging level
   if(NOT DEFINED DLEVEL)
-    set(DLEVEL "debug")
+    set(DLEVEL "deb")
   endif()
 
   # See if we can use the address sanitizer

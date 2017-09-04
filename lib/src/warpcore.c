@@ -40,6 +40,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+// IWYU pragma: no_include <sys/queue.h>
+#include <warpcore/warpcore.h>
+
 #ifdef __linux__
 #include <netinet/ether.h>
 #else
@@ -48,8 +51,6 @@
 #endif
 #endif
 
-// IWYU pragma: no_include <sys/queue.h>
-#include <warpcore/warpcore.h>
 
 #include "backend.h"
 #include "eth.h"
