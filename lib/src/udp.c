@@ -52,8 +52,9 @@
 ///
 #define udp_log(udp)                                                           \
     do {                                                                       \
-        warn(deb, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs((udp)->sport), \
-             ntohs((udp)->dport), ntohs((udp)->cksum), ntohs((udp)->len));     \
+        warn(debug, "UDP :%d -> :%d, cksum 0x%04x, len %u",                    \
+             ntohs((udp)->sport), ntohs((udp)->dport), ntohs((udp)->cksum),    \
+             ntohs((udp)->len));                                               \
     } while (0)
 #else
 #define udp_log(udp)                                                           \
@@ -92,7 +93,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
         cksum = cksum ? cksum : 0xffff; // make all ones; see RFC786
         udp->cksum = orig;
         if (unlikely(orig != cksum)) {
-            warn(wrn, "invalid UDP checksum, received 0x%04x != 0x%04x",
+            warn(warn, "invalid UDP checksum, received 0x%04x != 0x%04x",
                  ntohs(orig), ntohs(cksum));
             return;
         }
@@ -113,12 +114,12 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     // determine if that overhead is a problem
     struct w_iov * const i = w_alloc_iov(w, 0, 0);
     if (unlikely(i == 0)) {
-        warn(crt, "no more bufs; UDP packet RX failed");
+        warn(crit, "no more bufs; UDP packet RX failed");
         return;
     }
     struct netmap_slot * const rxs = &r->slot[r->cur];
 
-    warn(deb, "swapping rx ring %u slot %d (buf %d) and spare buf %u",
+    warn(debug, "swapping rx ring %u slot %d (buf %d) and spare buf %u",
          r->ringid, r->cur, rxs->buf_idx, i->idx);
 
     // remember index of this buffer

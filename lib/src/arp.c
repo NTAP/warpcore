@@ -92,7 +92,7 @@ arp_cache_update(struct w_engine * w,
     a->mac = mac;
 #ifndef NDEBUG
     char ip_str[INET_ADDRSTRLEN];
-    warn(inf, "ARP cache entry: %s is at %s",
+    warn(info, "ARP cache entry: %s is at %s",
          inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN), ether_ntoa(&mac));
 #endif
 }
@@ -111,7 +111,7 @@ arp_is_at(struct w_engine * const w, const uint8_t * const buf)
     // grab iov for reply
     struct w_iov * const v = w_alloc_iov(w, 0, 0);
     if (unlikely(v == 0)) {
-        warn(crt, "no more bufs; ARP reply not sent");
+        warn(crit, "no more bufs; ARP reply not sent");
         return;
     }
     struct arp_hdr * const reply = (void *)eth_data(v->buf);
@@ -131,7 +131,7 @@ arp_is_at(struct w_engine * const w, const uint8_t * const buf)
 
 #ifndef NDEBUG
     char ip_str[INET_ADDRSTRLEN];
-    warn(ntc, "ARP reply %s is at %s",
+    warn(notice, "ARP reply %s is at %s",
          inet_ntop(AF_INET, &reply->spa, ip_str, INET_ADDRSTRLEN),
          ether_ntoa(&reply->sha));
 #endif
@@ -169,14 +169,14 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
     while (a == 0) {
 #ifndef NDEBUG
         char ip_str[INET_ADDRSTRLEN];
-        warn(wrn, "no ARP entry for %s, sending query",
+        warn(warn, "no ARP entry for %s, sending query",
              inet_ntop(AF_INET, &dip, ip_str, INET_ADDRSTRLEN));
 #endif
 
         // grab a spare buffer
         struct w_iov * const v = w_alloc_iov(w, 0, 0);
         if (unlikely(v == 0)) {
-            warn(crt, "no more bufs; ARP request not sent");
+            warn(crit, "no more bufs; ARP request not sent");
             return (struct ether_addr){{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
         }
 
@@ -203,7 +203,7 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
 #ifndef NDEBUG
         char tpa[INET_ADDRSTRLEN];
         char spa[INET_ADDRSTRLEN];
-        warn(ntc, "ARP request who has %s tell %s",
+        warn(notice, "ARP request who has %s tell %s",
              inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN),
              inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
 #endif
@@ -257,14 +257,14 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 #ifndef NDEBUG
         char tpa[INET_ADDRSTRLEN];
         char spa[INET_ADDRSTRLEN];
-        warn(ntc, "ARP request who has %s tell %s",
+        warn(notice, "ARP request who has %s tell %s",
              inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN),
              inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
 #endif
         if (arp->tpa == w->ip)
             arp_is_at(w, buf);
         else
-            warn(wrn, "ignoring ARP request not asking for us");
+            warn(warn, "ignoring ARP request not asking for us");
 
         // opportunistically store the ARP mapping
         arp_cache_update(w, arp->spa, arp->sha);
@@ -274,7 +274,7 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
     case ARP_OP_REPLY: {
 #ifndef NDEBUG
         char ip_str[INET_ADDRSTRLEN];
-        warn(ntc, "ARP reply %s is at %s",
+        warn(notice, "ARP reply %s is at %s",
              inet_ntop(AF_INET, &arp->spa, ip_str, INET_ADDRSTRLEN),
              ether_ntoa(&arp->sha));
 #endif
@@ -290,7 +290,7 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
                   arp->spa == s->hdr->ip.dst)) ||
                 // or non-local socket and ARP src IP matches router
                 (s->w->rip && (s->w->rip == arp->spa))) {
-                warn(ntc, "updating socket on local port %u with %s for %s",
+                warn(notice, "updating socket on local port %u with %s for %s",
                      ntohs(s->hdr->udp.sport), ether_ntoa(&arp->sha),
                      inet_ntop(AF_INET, &arp->spa, ip_str, INET_ADDRSTRLEN));
                 s->hdr->eth.dst = arp->sha;

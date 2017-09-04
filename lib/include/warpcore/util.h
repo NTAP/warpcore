@@ -142,13 +142,14 @@ extern pthread_t _master;
 
 /// Debug levels, decreasing severity.
 ///
-#define crt 0 ///< Critical
-#define err 1 ///< Error
-#define wrn 2 ///< Warning
-#define ntc 3 ///< Notice
-#define inf 4 ///< Informational
-#define deb 5 ///< Debug
-
+enum dlevel {
+    crit = 0,   ///< Critical
+    err = 1,    ///< Error
+    warn = 2,   ///< Warning
+    notice = 3, ///< Notice
+    info = 4,   ///< Informational
+    debug = 5   ///< Debug
+};
 
 // Set DLEVEL to the level of debug output you want to compile in support for
 #ifndef DLEVEL
@@ -160,7 +161,7 @@ extern pthread_t _master;
 /// Dynamically adjust _dlevel from your code to show or suppress debug messages
 /// at runtime. Increasing this past what was compiled in by setting DLEVEL is
 /// obviously not going to have any effect.
-extern int _dlevel;
+extern enum dlevel _dlevel;
 
 
 #ifdef DCOMPONENT
@@ -230,7 +231,7 @@ extern regex_t _comp;
 ///
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
-        if (DLEVEL >= dlevel && _dlevel >= dlevel &&                           \
+        if (DLEVEL >= dlevel &&                                                \
             (DO_REGEXEC ? !regexec(&_comp, __FILE__, 0, 0, 0) : 1)) {          \
             static time_t _rt0, _rcnt;                                         \
             struct timeval _rts = {0, 0};                                      \

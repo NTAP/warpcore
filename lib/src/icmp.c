@@ -59,7 +59,8 @@ void icmp_tx(struct w_engine * const w,
 {
     struct w_iov * const v = w_alloc_iov(w, 0, 0);
     if (unlikely(v == 0)) {
-        warn(crt, "no more bufs; ICMP not sent (type %d, code %d)", type, code);
+        warn(crit, "no more bufs; ICMP not sent (type %d, code %d)", type,
+             code);
         return;
     }
 
@@ -67,7 +68,7 @@ void icmp_tx(struct w_engine * const w,
     struct icmp_hdr * const dst_icmp = (void *)ip_data(v->buf);
     dst_icmp->type = type;
     dst_icmp->code = code;
-    warn(ntc, "ICMP type %d, code %d", type, code);
+    warn(notice, "ICMP type %d, code %d", type, code);
 
     const struct ip_hdr * const src_ip = (const void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
@@ -147,7 +148,7 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     struct icmp_hdr * const icmp = (void *)ip_data(buf);
-    warn(ntc, "ICMP type %d, code %d", icmp->type, icmp->code);
+    warn(notice, "ICMP type %d, code %d", icmp->type, icmp->code);
 
     // validate the ICMP checksum
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
@@ -156,7 +157,8 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
                                       sizeof(struct ip_hdr));
 
     if (in_cksum(icmp, icmp_len) != 0) {
-        warn(err, "invalid ICMP checksum, received 0x%04x", ntohs(icmp->cksum));
+        warn(warn, "invalid ICMP checksum, received 0x%04x",
+             ntohs(icmp->cksum));
         return;
     }
 
@@ -173,14 +175,14 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
         switch (icmp->code) {
         case ICMP_UNREACH_PROTOCOL:
 #if !defined(NDEBUG) && DLEVEL >= 2
-            warn(wrn, "ICMP protocol %d unreachable", payload_ip->p);
+            warn(warn, "ICMP protocol %d unreachable", payload_ip->p);
 #endif
             break;
         case ICMP_UNREACH_PORT: {
 #if !defined(NDEBUG) && DLEVEL >= 2
             const struct udp_hdr * const payload_udp =
                 (const void *)((const uint8_t *)ip + ip_hl(ip));
-            warn(wrn, "ICMP IP proto %d port %d unreachable", payload_ip->p,
+            warn(warn, "ICMP IP proto %d port %d unreachable", payload_ip->p,
                  ntohs(payload_udp->dport));
 #endif
             break;

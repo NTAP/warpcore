@@ -95,13 +95,13 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
         const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
         // initialize tails
         b->tail[ri] = r->tail;
-        warn(inf, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+        warn(info, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 #if !defined(NDEBUG) && DLEVEL >= 4
     for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
-        warn(inf, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
+        warn(info, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 #endif
@@ -118,7 +118,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     }
 
     if (w->nbufs != nbufs)
-        warn(wrn, "can only allocate %d/%d extra buffers", w->nbufs, nbufs);
+        warn(warn, "can only allocate %d/%d extra buffers", w->nbufs, nbufs);
 
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
@@ -294,8 +294,8 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
                 NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
 
             // process the current slot
-            warn(deb, "rx idx %u from ring %u slot %u", r->slot[r->cur].buf_idx,
-                 i, r->cur);
+            warn(debug, "rx idx %u from ring %u slot %u",
+                 r->slot[r->cur].buf_idx, i, r->cur);
             eth_rx(w, r);
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
@@ -317,7 +317,7 @@ void w_nic_tx(struct w_engine * const w)
     // the original w_iov_stailqs, so it's not lost to the app
     for (uint32_t i = 0; likely(i < w->b->nif->ni_tx_rings); i++) {
         struct netmap_ring * const r = NETMAP_TXRING(w->b->nif, i);
-        // warn(wrn, "tx ring %u: tail %u, cur %u, head %u", i, r->tail,
+        // warn(warn, "tx ring %u: tail %u, cur %u, head %u", i, r->tail,
         //      r->cur, r->head);
 
         // XXX we need to abuse the netmap API here by touching tail until a fix
@@ -327,8 +327,8 @@ void w_nic_tx(struct w_engine * const w)
             struct netmap_slot * const s = &r->slot[j];
             struct w_iov * const v = (struct w_iov *)s->ptr;
             if (likely(v)) {
-                warn(deb, "moving idx %u from ring %u slot %u back into "
-                          "w_iov after tx (swap with %u)",
+                warn(debug, "moving idx %u from ring %u slot %u back into "
+                            "w_iov after tx (swap with %u)",
                      s->buf_idx, i, j, v->idx);
                 const uint32_t slot_idx = s->buf_idx;
                 s->buf_idx = v->idx;
@@ -340,7 +340,7 @@ void w_nic_tx(struct w_engine * const w)
                 if (likely(v->o))
                     v->o->tx_pending--;
             } else
-                warn(wrn, "no w_iov in ring %u slot %u, ignoring", i, j);
+                warn(warn, "no w_iov in ring %u slot %u, ignoring", i, j);
         }
 
         // remember current tail

@@ -48,7 +48,7 @@ regex_t _comp;
 
 #ifndef NDEBUG
 const char * const _col[] = {MAG, RED, YEL, CYN, BLU, GRN};
-int _dlevel = DLEVEL;
+enum dlevel _dlevel = DLEVEL;
 #endif
 
 

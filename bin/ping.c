@@ -161,7 +161,7 @@ int main(const int argc, char * const argv[])
             break;
 #ifndef NDEBUG
         case 'v':
-            _dlevel = (int)MIN(DLEVEL, strtoul(optarg, 0, 10));
+            _dlevel = (uint32_t)MIN(DLEVEL, strtoul(optarg, 0, 10));
             break;
 #endif
         case 'h':
@@ -256,7 +256,7 @@ int main(const int argc, char * const argv[])
             ensure(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
             done = false;
 
-            warn(inf, "sent %u byte%s", len, plural(len));
+            warn(info, "sent %u byte%s", len, plural(len));
 
             // wait for a reply; loop until timeout or we have received all data
             struct w_iov_stailq i = w_iov_stailq_initializer(i);
@@ -278,7 +278,7 @@ int main(const int argc, char * const argv[])
 
             const uint32_t i_len = w_iov_stailq_len(&i);
             if (i_len != len) {
-                warn(wrn, "received %u/%u byte%s", i_len, len, plural(i_len));
+                warn(warn, "received %u/%u byte%s", i_len, len, plural(i_len));
                 continue;
             }
 
