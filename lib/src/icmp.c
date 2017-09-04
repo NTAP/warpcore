@@ -40,8 +40,9 @@
 #include "eth.h"
 #include "icmp.h"
 #include "ip.h"
+#if !defined(NDEBUG) && DLEVEL >= 2
 #include "udp.h"
-
+#endif
 
 /// Make an ICMP message with the given @p type and @p code based on the
 /// received packet in @p buf.
@@ -167,16 +168,18 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
         icmp_tx(w, ICMP_TYPE_ECHOREPLY, 0, buf);
         break;
     case ICMP_TYPE_UNREACH: {
-#ifndef NDEBUG
+#if !defined(NDEBUG) && DLEVEL >= 2
         const struct ip_hdr * const payload_ip =
             (const void *)(ip_data(buf) + sizeof(*icmp) + 4);
 #endif
         switch (icmp->code) {
         case ICMP_UNREACH_PROTOCOL:
+#if !defined(NDEBUG) && DLEVEL >= 2
             warn(warn, "ICMP protocol %d unreachable", payload_ip->p);
+#endif
             break;
         case ICMP_UNREACH_PORT: {
-#ifndef NDEBUG
+#if !defined(NDEBUG) && DLEVEL >= 2
             const struct udp_hdr * const payload_udp =
                 (const void *)((const uint8_t *)ip + ip_hl(ip));
             warn(warn, "ICMP IP proto %d port %d unreachable", payload_ip->p,

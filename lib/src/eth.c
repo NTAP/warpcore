@@ -124,7 +124,7 @@ bool eth_tx(struct w_engine * const w,
     s->len = len + sizeof(struct eth_hdr);
     s->ptr = (uint64_t)v;
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) && DLEVEL >= 5
     const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, s->buf_idx);
     warn(debug, "Eth %s -> %s, type %d, len %lu", ether_ntoa(&eth->src),
          ether_ntoa(&eth->dst), ntohs(eth->type), len + sizeof(*eth));
