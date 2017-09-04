@@ -43,9 +43,7 @@
 #ifdef __linux__
 #include <netinet/ether.h>
 #else
-#if !defined(NDEBUG) && DLEVEL >= 4
 #include <net/ethernet.h>
-#endif
 #endif
 
 // IWYU pragma: no_include <sys/queue.h>
@@ -256,7 +254,7 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
     s->hdr->udp.dport = port;
     backend_connect(s);
 
-#if !defined(NDEBUG) && DLEVEL >= 4
+#ifndef NDEBUG
     char str[INET_ADDRSTRLEN];
     warn(notice, "socket connected to %s port %d",
          inet_ntop(AF_INET, &ip, str, INET_ADDRSTRLEN), ntohs(port));
@@ -420,7 +418,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
                 plat_get_mac(&w->mac, i);
                 w->mtu = plat_get_mtu(i);
                 link_up = plat_get_link(i);
-#if !defined(NDEBUG) && DLEVEL >= 4
+#ifndef NDEBUG
                 // mpbs can be zero on generic platforms and loopback interfaces
                 const uint32_t mbps = plat_get_mbps(i);
                 warn(notice, "%s addr %s, MTU %d, speed %uG, link %s",
@@ -463,7 +461,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // set the IP address of our default router
     w->rip = rip;
 
-#if !defined(NDEBUG) && DLEVEL >= 4
+#ifndef NDEBUG
     char ip_str[INET_ADDRSTRLEN];
     char mask_str[INET_ADDRSTRLEN];
     char rip_str[INET_ADDRSTRLEN];
