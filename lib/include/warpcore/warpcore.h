@@ -308,6 +308,15 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 #define w_free_iov(w, v) STAILQ_INSERT_HEAD(&(w)->iov, (v), next)
 
 
+/// Return address to w_iov struct with index @p idx.
+///
+/// @param      w     Backend engine.
+/// @param      i     Index of w_iov struct to return.
+///
+/// @return     Pointer to w_iov struct with index @p idx.
+///
+#define w_iov(w, i) (&(w)->bufs[(i)])
+
 #ifdef __cplusplus
 }
 #endif
