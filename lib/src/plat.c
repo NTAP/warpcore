@@ -148,9 +148,11 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     ifr.ifr_data = (__caddr_t)&edata;
     edata.cmd = ETHTOOL_GSET;
     const int err = ioctl(s, SIOCETHTOOL, &ifr);
-    if (err == -1 && errno == ENOTSUP)
+    if (err == -1 && errno == ENOTSUP) {
         // the ioctl can fail for virtual NICs
+        close(s);
         return 0;
+    }
     ensure(err >= 0, "%s ioctl", i->ifa_name);
 
     close(s);
