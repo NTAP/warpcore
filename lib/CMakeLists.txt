@@ -70,7 +70,7 @@ foreach(TARGET ${TARGETS})
       INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
   if(NOT ${TARGET} MATCHES "obj_")
-    target_link_libraries(${TARGET} Threads::Threads)
+    target_link_libraries(${TARGET})
     install(TARGETS ${TARGET}
       EXPORT ${TARGET}_config
       ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}

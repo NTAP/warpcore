@@ -47,7 +47,7 @@ regex_t _comp;
 #endif
 
 #ifndef NDEBUG
-const char * const _col[] = {MAG, RED, YEL, CYN, BLU, GRN};
+const char * const _col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
 short _dlevel = DLEVEL;
 #endif
 
@@ -111,22 +111,23 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
                                               const char * const file,
                                               const int line)
 {
-    DLOCK;
+    DTHREAD_LOCK;
     struct timeval _now, _elapsed;
     gettimeofday(&_now, 0);
     timersub(&_now, &_epoch, &_elapsed);
 
-    fprintf(stderr, REV "%s " NRM " %ld.%03lld " REV WHT " " NRM MAG " %s" BLK
-                        " " BLU "%s:%d " NRM "hex-dumping %zu byte%s of %s\n",
-            (DMASTER ? BLK : WHT), _elapsed.tv_sec % 1000,
+    fprintf(stderr,
+            DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM MAG " %s" BLK " " BLU
+                                "%s:%d " NRM "hex-dumping %zu byte%s of %s\n",
+            DTHREAD_ID _elapsed.tv_sec % 1000,
             (long long)(_elapsed.tv_usec / 1000), func, basename(file), line,
             len, plural(len), ptr_name);
 
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
-        fprintf(stderr, REV "%s " NRM " %ld.%03lld " REV WHT " " NRM " " BLU
-                            "0x%04lx:  " NRM,
-                (DMASTER ? BLK : WHT), _elapsed.tv_sec % 1000,
+        fprintf(stderr, DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM " " BLU
+                                            "0x%04lx:  " NRM,
+                DTHREAD_ID _elapsed.tv_sec % 1000,
                 (long long)(_elapsed.tv_usec / 1000), i);
         for (size_t j = 0; j < 16; j++) {
             if (i + j < len)
@@ -146,5 +147,5 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
     }
 
     fflush(stderr);
-    DUNLOCK;
+    DTHREAD_UNLOCK;
 }

@@ -9,7 +9,6 @@ check_function_exists(sendmmsg HAVE_SENDMMSG)
 check_function_exists(kqueue HAVE_KQUEUE)
 check_function_exists(epoll_create HAVE_EPOLL)
 check_function_exists(arc4random HAVE_ARC4RANDOM)
-find_package(Threads REQUIRED)
 
 # Look for netmap
 include(CheckIncludeFile)

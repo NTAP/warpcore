@@ -36,21 +36,30 @@
 #include <pthread.h>
 #endif
 
-#define NRM "\x1B[0m"  ///< ANSI escape sequence: reset all to normal
-#define BLD "\x1B[1m"  ///< ANSI escape sequence: bold
-#define DIM "\x1B[2m"  ///< ANSI escape sequence: dim
-#define ULN "\x1B[3m"  ///< ANSI escape sequence: underline
-#define BLN "\x1B[5m"  ///< ANSI escape sequence: blink
-#define REV "\x1B[7m"  ///< ANSI escape sequence: reverse
-#define HID "\x1B[8m"  ///< ANSI escape sequence: hidden
-#define BLK "\x1B[30m" ///< ANSI escape sequence: black
-#define RED "\x1B[31m" ///< ANSI escape sequence: red
-#define GRN "\x1B[32m" ///< ANSI escape sequence: green
-#define YEL "\x1B[33m" ///< ANSI escape sequence: yellow
-#define BLU "\x1B[34m" ///< ANSI escape sequence: blue
-#define MAG "\x1B[35m" ///< ANSI escape sequence: magenta
-#define CYN "\x1B[36m" ///< ANSI escape sequence: cyan
-#define WHT "\x1B[37m" ///< ANSI escape sequence: white
+
+#define NRM "\x1B[0m"   ///< ANSI escape sequence: reset all to normal
+#define BLD "\x1B[1m"   ///< ANSI escape sequence: bold
+#define DIM "\x1B[2m"   ///< ANSI escape sequence: dim
+#define ULN "\x1B[3m"   ///< ANSI escape sequence: underline
+#define BLN "\x1B[5m"   ///< ANSI escape sequence: blink
+#define REV "\x1B[7m"   ///< ANSI escape sequence: reverse
+#define HID "\x1B[8m"   ///< ANSI escape sequence: hidden
+#define BLK "\x1B[30m"  ///< ANSI escape sequence: black
+#define RED "\x1B[31m"  ///< ANSI escape sequence: red
+#define GRN "\x1B[32m"  ///< ANSI escape sequence: green
+#define YEL "\x1B[33m"  ///< ANSI escape sequence: yellow
+#define BLU "\x1B[34m"  ///< ANSI escape sequence: blue
+#define MAG "\x1B[35m"  ///< ANSI escape sequence: magenta
+#define CYN "\x1B[36m"  ///< ANSI escape sequence: cyan
+#define WHT "\x1B[37m"  ///< ANSI escape sequence: white
+#define BBLK "\x1B[40m" ///< ANSI escape sequence: background black
+#define BRED "\x1B[41m" ///< ANSI escape sequence: background red
+#define BGRN "\x1B[42m" ///< ANSI escape sequence: background green
+#define BYEL "\x1B[43m" ///< ANSI escape sequence: background yellow
+#define BBLU "\x1B[44m" ///< ANSI escape sequence: background blue
+#define BMAG "\x1B[45m" ///< ANSI escape sequence: background magenta
+#define BCYN "\x1B[46m" ///< ANSI escape sequence: background cyan
+#define BWHT "\x1B[47m" ///< ANSI escape sequence: background white
 
 
 /// Trim the path from the given file name. Mostly to be used with __FILE__.
@@ -86,26 +95,33 @@ extern pthread_mutex_t _lock;
 ///
 extern pthread_t _master;
 
-#define DLOCK                                                                  \
+#define DTHREAD_LOCK                                                           \
     do {                                                                       \
         if (pthread_mutex_lock(&_lock))                                        \
             abort();                                                           \
     } while (0) // NOLINT
 
-#define DUNLOCK                                                                \
+#define DTHREAD_UNLOCK                                                         \
     do {                                                                       \
         if (pthread_mutex_unlock(&_lock))                                      \
             abort();                                                           \
     } while (0) // NOLINT
 
 
-#define DMASTER (pthread_self() == _master)
+#define DTHREAD_ID (pthread_self() == _master ? BBLK : BWHT),
+
+#define DTHREAD_ID_IND(bg) "%s " bg " "
+
+#define DTHREAD_GAP "          "
 
 #else
 
-#define DLOCK
-#define DUNLOCK
-#define DMASTER 1
+#define DTHREAD_LOCK
+#define DTHREAD_UNLOCK
+#define DTHREAD_ID
+#define DTHREAD_ID_IND(bg) bg
+#define DTHREAD_GAP "        "
+
 #endif
 
 
@@ -117,21 +133,22 @@ extern pthread_t _master;
 ///
 #define die(...)                                                               \
     do {                                                                       \
-        DLOCK;                                                                 \
+        DTHREAD_LOCK;                                                          \
         const int _e = errno;                                                  \
         struct timeval _now = {0, 0}, _dur = {0, 0};                           \
         gettimeofday(&_now, 0);                                                \
         timersub(&_now, &_epoch, &_dur); /* NOLINT */                          \
         fprintf(stderr,                                                        \
-                REV "%s " NRM MAG BLD REV " %ld.%03ld   %s %s:%d ABORT: ",     \
-                (DMASTER ? BLK : WHT), /* NOLINT */                            \
-                (long)(_dur.tv_sec % 1000), (long)(_dur.tv_usec / 1000),       \
-                __func__, basename(__FILE__), __LINE__); /* NOLINT */          \
+                DTHREAD_ID_IND(BMAG) WHT BLD "%ld.%03ld   %s %s:%d ABORT: ",   \
+                DTHREAD_ID /* NOLINT */                                        \
+                (long)(_dur.tv_sec % 1000),                                    \
+                (long)(_dur.tv_usec / 1000), __func__, basename(__FILE__),     \
+                __LINE__); /* NOLINT */                                        \
         fprintf(stderr, __VA_ARGS__);                                          \
         fprintf(stderr, " %c%s%c\n" NRM, (_e ? '[' : 0),                       \
                 (_e ? strerror(_e) : ""), (_e ? ']' : 0));                     \
         fflush(stderr);                                                        \
-        DUNLOCK;                                                               \
+        DTHREAD_UNLOCK;                                                        \
         abort();                                                               \
     } while (0) // NOLINT
 
@@ -199,20 +216,21 @@ extern regex_t _comp;
     do {                                                                       \
         if (DLEVEL >= dlevel && _dlevel >= dlevel &&                           \
             (DO_REGEXEC ? !regexec(&_comp, __FILE__, 0, 0, 0) : 1)) {          \
-            DLOCK;                                                             \
+            DTHREAD_LOCK;                                                      \
             struct timeval _now = {0, 0}, _dur = {0, 0};                       \
             gettimeofday(&_now, 0);                                            \
             timersub(&_now, &_epoch, &_dur); /* NOLINT */                      \
-            fprintf(stderr, REV "%s " NRM " %ld.%03ld " REV "%s " NRM MAG      \
-                                " %s" BLK " " BLU "%s:%d " NRM,                \
-                    (DMASTER ? BLK : WHT), /* NOLINT */                        \
-                    (long)(_dur.tv_sec % 1000), (long)(_dur.tv_usec / 1000),   \
-                    _col[dlevel], __func__, /* NOLINT */ basename(__FILE__),   \
-                    __LINE__);                                                 \
+            fprintf(stderr,                                                    \
+                    DTHREAD_ID_IND(NRM) "%ld.%03ld %s " NRM MAG " %s" BLK      \
+                                        " " BLU "%s:%d " NRM,                  \
+                    DTHREAD_ID /* NOLINT */                                    \
+                    (long)(_dur.tv_sec % 1000),                                \
+                    (long)(_dur.tv_usec / 1000), _col[dlevel], __func__,       \
+                    /* NOLINT */ basename(__FILE__), __LINE__);                \
             fprintf(stderr, __VA_ARGS__);                                      \
             fprintf(stderr, "\n");                                             \
             fflush(stderr);                                                    \
-            DUNLOCK;                                                           \
+            DTHREAD_UNLOCK;                                                    \
         }                                                                      \
     } while (0) // NOLINT
 
@@ -265,9 +283,9 @@ extern regex_t _comp;
 ///                     according to @p fmt.
 #define ensure(e, ...)                                                         \
     do {                                                                       \
-        if (__builtin_expect(!(e), 0))                                         \
-            die("assertion failed \n          " #e                             \
-                " \n          " __VA_ARGS__);                                  \
+        if (unlikely(!(e)))                                                    \
+            die("assertion failed \n" DTHREAD_GAP #e                           \
+                " \n" DTHREAD_GAP __VA_ARGS__);                                \
     } while (0) // NOLINT
 
 

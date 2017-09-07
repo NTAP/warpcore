@@ -10,8 +10,6 @@ cmake_reset_check_state()
 if(NOT HAVE_BENCHMARK_H AND NOT $ENV{CONTINUOUS_INTEGRATION})
   include(ExternalProject)
 
-  find_package(Threads)
-
   externalproject_add(google-benchmark
     UPDATE_COMMAND ""
     GIT_REPOSITORY https://github.com/google/benchmark
@@ -35,7 +33,7 @@ if(NOT HAVE_BENCHMARK_H AND NOT $ENV{CONTINUOUS_INTEGRATION})
     INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
 
-  add_dependencies(benchmark google-benchmark Threads)
+  add_dependencies(benchmark google-benchmark)
   set(HAVE_BENCHMARK_H 1)
 endif()
 
