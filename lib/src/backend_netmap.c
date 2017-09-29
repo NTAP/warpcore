@@ -113,7 +113,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     for (uint32_t n = 0, i = b->nif->ni_bufs_head; likely(n < w->nbufs); n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
-        STAILQ_INSERT_HEAD(&w->iov, &w->bufs[n], next);
+        sq_insert_head(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
     }
 
@@ -236,13 +236,13 @@ int w_fd(const struct w_sock * const s)
 ///                   data.
 /// @param      i     w_iov tail queue to append new data to.
 ///
-void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
+void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 {
-    STAILQ_CONCAT(i, &s->iv);
+    sq_concat(i, &s->iv);
 }
 
 
-/// Loops over the w_iov structures in the w_iov_stailq @p o, sending them all
+/// Loops over the w_iov structures in the w_iov_sq @p o, sending them all
 /// over w_sock @p s. Places the payloads into IPv4 UDP packets, and attempts to
 /// move them into TX rings. Will force a NIC TX if all rings are full, retry
 /// the failed w_iovs. The (last batch of) packets are not send yet; w_nic_tx()
@@ -250,13 +250,13 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 /// control over exactly when to schedule packet I/O.
 ///
 /// @param      s     w_sock socket to transmit over.
-/// @param      o     w_iov_stailq to send.
+/// @param      o     w_iov_sq to send.
 ///
-void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
+void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 {
     struct w_iov * v;
     o->tx_pending = 0;
-    STAILQ_FOREACH (v, o, next) {
+    sq_foreach (v, o, next) {
         o->tx_pending++;
         v->o = o;
         ensure(w_connected(s) || v->ip && v->port,
@@ -312,7 +312,7 @@ void w_nic_tx(struct w_engine * const w)
     ensure(ioctl(w->b->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 
     // grab the transmitted data out of the NIC rings and place it back into
-    // the original w_iov_stailqs, so it's not lost to the app
+    // the original w_iov_sqs, so it's not lost to the app
     for (uint32_t i = 0; likely(i < w->b->nif->ni_tx_rings); i++) {
         struct netmap_ring * const r = NETMAP_TXRING(w->b->nif, i);
         // warn(WRN, "tx ring %u: tail %u, cur %u, head %u", i, r->tail,
@@ -365,8 +365,8 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     struct w_sock * s;
     uint32_t n = 0;
     SPLAY_FOREACH (s, sock, &w->sock)
-        if (!STAILQ_EMPTY(&s->iv)) {
-            SLIST_INSERT_HEAD(sl, s, next_rx);
+        if (!sq_empty(&s->iv)) {
+            sl_insert_head(sl, s, next_rx);
             n++;
         }
 

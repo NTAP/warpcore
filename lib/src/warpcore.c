@@ -69,11 +69,11 @@ SPLAY_GENERATE(sock, w_sock, next, w_sock_cmp)
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
 ///
-struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
+struct w_engines engines = sl_head_initializer(engines);
 
 
 /// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
-/// returned to w->iov via STAILQ_INSERT_HEAD() or STAILQ_CONCAT().
+/// returned to w->iov via sq_insert_head() or sq_concat().
 ///
 /// @param      w     Backend engine.
 /// @param[in]  len   The length of each @p buf.
@@ -84,10 +84,10 @@ struct w_engines engines = SLIST_HEAD_INITIALIZER(engines);
 struct w_iov *
 w_alloc_iov(struct w_engine * const w, const uint16_t len, const uint16_t off)
 {
-    struct w_iov * const v = STAILQ_FIRST(&w->iov);
+    struct w_iov * const v = sq_first(&w->iov);
     if (unlikely(v == 0))
         return 0;
-    STAILQ_REMOVE_HEAD(&w->iov, next);
+    sq_remove_head(&w->iov, next);
     v->buf = IDX2BUF(w, v->idx) + off;
     v->len = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off;
 #ifdef WITH_NETMAP
@@ -113,7 +113,7 @@ struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 
 
 /// Helper function for w_alloc_size and w_alloc_cnt. Really only needed,
-/// because Linux doesn't define STAILQ_LAST in sys/queue.h for whatever reason.
+/// because Linux doesn't define sq_last in sys/queue.h for whatever reason.
 ///
 /// @param      w         Backend engine.
 /// @param[out] q         Tail queue of w_iov structs.
@@ -123,13 +123,13 @@ struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 /// @param[in]  adj_last  Amount to reduce the length of the last w_iov by.
 ///
 static inline void alloc_cnt(struct w_engine * const w,
-                             struct w_iov_stailq * const q,
+                             struct w_iov_sq * const q,
                              const uint32_t count,
                              const uint16_t len,
                              uint16_t off,
                              const uint16_t adj_last)
 {
-    STAILQ_INIT(q);
+    sq_init(q);
     struct w_iov * v = 0;
 #ifdef WITH_NETMAP
     off += sizeof(struct w_hdr);
@@ -138,15 +138,15 @@ static inline void alloc_cnt(struct w_engine * const w,
         v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0)) {
             // free partial allocation and return
-            STAILQ_CONCAT(&w->iov, q);
+            sq_concat(&w->iov, q);
             warn(CRT, "ran out of w_iov bufs trying to allocate %u", count);
             return;
         }
-        STAILQ_INSERT_TAIL(q, v, next);
+        sq_insert_tail(q, v, next);
     }
     if (v)
         v->len -= adj_last;
-    warn(DBG, "allocated w_iov_stailq of len %u byte%s (%d w_iov%s)",
+    warn(DBG, "allocated w_iov_sq of len %u byte%s (%d w_iov%s)",
          count * (w->mtu - off) - adj_last,
          plural(count * (w->mtu - off) - adj_last), count, plural(count));
 }
@@ -166,7 +166,7 @@ static inline void alloc_cnt(struct w_engine * const w,
 /// @param[in]  off   Additional offset for @p buf.
 ///
 void w_alloc_len(struct w_engine * const w,
-                 struct w_iov_stailq * const q,
+                 struct w_iov_sq * const q,
                  const uint32_t plen,
                  const uint16_t len,
                  const uint16_t off)
@@ -195,7 +195,7 @@ void w_alloc_len(struct w_engine * const w,
 /// @param[in]  off    Additional offset for @p buf.
 ///
 void w_alloc_cnt(struct w_engine * const w,
-                 struct w_iov_stailq * const q,
+                 struct w_iov_sq * const q,
                  const uint32_t count,
                  const uint16_t len,
                  const uint16_t off)
@@ -210,11 +210,11 @@ void w_alloc_cnt(struct w_engine * const w,
 ///
 /// @return     Sum of the payload lengths of the w_iov structs in @p q.
 ///
-uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q)
+uint32_t w_iov_sq_len(const struct w_iov_sq * const q)
 {
     uint32_t l = 0;
     const struct w_iov * v;
-    STAILQ_FOREACH (v, q, next)
+    sq_foreach (v, q, next)
         l += v->len;
     return l;
 }
@@ -226,11 +226,11 @@ uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q)
 ///
 /// @return     Number of w_iov structs in @p q.
 ///
-uint32_t w_iov_stailq_cnt(const struct w_iov_stailq * const q)
+uint32_t w_iov_sq_cnt(const struct w_iov_sq * const q)
 {
     uint32_t l = 0;
     const struct w_iov * v;
-    STAILQ_FOREACH (v, q, next)
+    sq_foreach (v, q, next)
         l++;
     return l;
 }
@@ -309,7 +309,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 
     s->w = w;
     SPLAY_INSERT(sock, &w->sock, s);
-    STAILQ_INIT(&s->iv);
+    sq_init(&s->iv);
 
     backend_bind(s);
 
@@ -329,7 +329,7 @@ void w_close(struct w_sock * const s)
     backend_close(s);
 
     // make iovs of the socket available again
-    STAILQ_CONCAT(&s->w->iov, &s->iv);
+    sq_concat(&s->w->iov, &s->iv);
 
     // remove the socket from list of sockets
     SPLAY_REMOVE(sock, &s->w->sock, s);
@@ -360,7 +360,7 @@ void w_cleanup(struct w_engine * const w)
     }
 
     backend_cleanup(w);
-    SLIST_REMOVE(&engines, w, w_engine, next);
+    sl_remove(&engines, w, w_engine, next);
     free(w->ifname);
     free(w->b);
     free(w);
@@ -389,7 +389,7 @@ struct w_engine *
 w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 {
     struct w_engine * w;
-    SLIST_FOREACH (w, &engines, next)
+    sl_foreach (w, &engines, next)
         ensure(strncmp(ifname, w_ifname(w), IFNAMSIZ),
                "can only have one warpcore engine active on %s", ifname);
 
@@ -398,7 +398,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 
     // initialize lists of sockets and iovs
     SPLAY_INIT(&w->sock);
-    STAILQ_INIT(&w->iov);
+    sq_init(&w->iov);
 
     // get interface config
     // we mostly loop here because the link may be down
@@ -484,7 +484,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     backend_init(w, nbufs);
 
     // store the initialized engine in our global list
-    SLIST_INSERT_HEAD(&engines, w, next);
+    sl_insert_head(&engines, w, next);
 
     warn(INF, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
          w->backend_name, warpcore_version, nbufs, w->mtu, ifname);

@@ -149,7 +149,7 @@ arp_is_at(struct w_engine * const w, const uint8_t * const buf)
         usleep(100);
         w_nic_tx(w);
     }
-    STAILQ_INSERT_HEAD(&w->iov, v, next);
+    sq_insert_head(&w->iov, v, next);
 }
 
 
@@ -215,7 +215,7 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
             usleep(100);
             w_nic_tx(w);
         }
-        STAILQ_INSERT_HEAD(&w->iov, v, next);
+        sq_insert_head(&w->iov, v, next);
 
         // wait until packets have been received, then handle them
         w_nic_rx(w, 1000);

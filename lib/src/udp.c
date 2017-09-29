@@ -135,7 +135,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     i->flags = ip->tos;
 
     // append the iov to the socket
-    STAILQ_INSERT_TAIL(&s->iv, i, next);
+    sq_insert_tail(&s->iv, i, next);
 
     // put the original buffer of the iov into the receive ring
     rxs->buf_idx = tmp_idx;

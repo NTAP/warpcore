@@ -76,20 +76,20 @@ struct w_engine {
     uint32_t mask;        ///< IPv4 netmask of this interface.
     uint32_t rip;         ///< Our default IPv4 router IP address.
     uint16_t mtu;         ///< MTU of this interface.
-    struct ether_addr mac;    ///< Local Ethernet MAC address of the interface.
-    uint32_t nbufs;           ///< Number of w_iov buffers in @p bufs.
-    struct sock sock;         ///< List of open (bound) w_sock sockets.
-    STAILQ_HEAD(, w_iov) iov; ///< Tail queue of w_iov buffers available.
+    struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
+    uint32_t nbufs;        ///< Number of w_iov buffers in @p bufs.
+    struct sock sock;      ///< List of open (bound) w_sock sockets.
+    sq_head(, w_iov) iov;  ///< Tail queue of w_iov buffers available.
 
-    SLIST_ENTRY(w_engine) next; ///< Pointer to next engine.
-    char * ifname;              ///< Name of the interface of this engine.
-    const char * backend_name;  ///< Name of the backend in @p b.
+    sl_entry(w_engine) next;   ///< Pointer to next engine.
+    char * ifname;             ///< Name of the interface of this engine.
+    const char * backend_name; ///< Name of the backend in @p b.
 };
 
 
 /// A chain of w_sock socket.
 ///
-SLIST_HEAD(w_sock_slist, w_sock);
+sl_head(w_sock_slist, w_sock);
 
 
 /// Initializer for struct w_sock_slist.
@@ -98,27 +98,27 @@ SLIST_HEAD(w_sock_slist, w_sock);
 ///
 /// @return     Empty w_sock_slist, to be assigned to @p l.
 ///
-#define w_sock_slist_initializer(l) SLIST_HEAD_INITIALIZER(l)
+#define w_sock_slist_initializer(l) sl_head_initializer(l)
 
 
 /// A tail queue of w_iov I/O vectors. Also contains a counter that (on TX)
 /// tracks how many w_iovs have not yet been transmitted by the NIC.
 ///
-struct w_iov_stailq {
-    STAILQ_HEAD(, w_iov); ///< Head of the w_iov tail queue.
+struct w_iov_sq {
+    sq_head(, w_iov);    ///< Head of the w_iov tail queue.
     uint32_t tx_pending; ///< Counter of untransmitted w_iovs. Only valid on TX.
 };
 
 
-/// Initializer for struct w_iov_stailq.
+/// Initializer for struct w_iov_sq.
 ///
-/// @param      q     A struct w_iov_stailq.
+/// @param      q     A struct w_iov_sq.
 ///
-/// @return     Empty w_iov_stailq, to be assigned to @p q.
+/// @return     Empty w_iov_sq, to be assigned to @p q.
 ///
-#define w_iov_stailq_initializer(q)                                            \
+#define w_iov_sq_initializer(q)                                                \
     {                                                                          \
-        STAILQ_HEAD_INITIALIZER(q), 0                                          \
+        sq_head_initializer(q), 0                                              \
     }
 
 
@@ -134,15 +134,15 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     struct w_engine * w;
 
-    STAILQ_HEAD(, w_iov) iv;  ///< Tail queue containing incoming unread data.
+    sq_head(, w_iov) iv;      ///< Tail queue containing incoming unread data.
     SPLAY_ENTRY(w_sock) next; ///< Next socket associated with this engine.
 
     /// The template header to be used for outbound packets on this
     /// w_sock.
     struct w_hdr * hdr;
 
-    SLIST_ENTRY(w_sock) next_rx; ///< Next socket with unread data.
-    uint8_t flags;               ///< Socket flags.
+    sl_entry(w_sock) next_rx; ///< Next socket with unread data.
+    uint8_t flags;            ///< Socket flags.
 
     /// @cond
     uint8_t _unused[3]; ///< @internal Padding.
@@ -165,10 +165,10 @@ struct w_sock {
 /// w_tx().
 ///
 struct w_iov {
-    uint8_t * buf;            ///< Start of payload data.
-    STAILQ_ENTRY(w_iov) next; ///< Next w_iov in a w_iov_stailq.
-    uint32_t idx;             ///< Index of buffer, starting at zero.
-    uint16_t len;             ///< Length of payload data.
+    uint8_t * buf;        ///< Start of payload data.
+    sq_entry(w_iov) next; ///< Next w_iov in a w_iov_sq.
+    uint32_t idx;         ///< Index of buffer, starting at zero.
+    uint16_t len;         ///< Length of payload data.
 
     /// Sender port on RX. Destination port on TX on a disconnected
     /// w_sock. Ignored on TX on a connected w_sock.
@@ -186,8 +186,8 @@ struct w_iov {
     uint8_t _unused[3]; ///< @internal Padding.
     /// @endcond
 
-    ///< Pointer to the w_iov_stailq this w_iov resides in. Only valid on TX.
-    struct w_iov_stailq * o;
+    ///< Pointer to the w_iov_sq this w_iov resides in. Only valid on TX.
+    struct w_iov_sq * o;
 };
 
 
@@ -207,13 +207,13 @@ extern void __attribute__((nonnull)) w_disconnect(struct w_sock * const s);
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_alloc_len(struct w_engine * const w,
-                                                 struct w_iov_stailq * const q,
+                                                 struct w_iov_sq * const q,
                                                  const uint32_t plen,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
 extern void __attribute__((nonnull)) w_alloc_cnt(struct w_engine * const w,
-                                                 struct w_iov_stailq * const q,
+                                                 struct w_iov_sq * const q,
                                                  const uint32_t count,
                                                  const uint16_t len,
                                                  const uint16_t off);
@@ -222,19 +222,19 @@ extern struct w_iov * __attribute__((nonnull))
 w_alloc_iov(struct w_engine * const w, const uint16_t len, const uint16_t off);
 
 extern void __attribute__((nonnull))
-w_tx(const struct w_sock * const s, struct w_iov_stailq * const o);
+w_tx(const struct w_sock * const s, struct w_iov_sq * const o);
 
 extern void __attribute__((nonnull))
-w_free(struct w_engine * const w, struct w_iov_stailq * const q);
+w_free(struct w_engine * const w, struct w_iov_sq * const q);
 
-extern uint32_t w_iov_stailq_len(const struct w_iov_stailq * const q);
+extern uint32_t w_iov_sq_len(const struct w_iov_sq * const q);
 
-extern uint32_t w_iov_stailq_cnt(const struct w_iov_stailq * const q);
+extern uint32_t w_iov_sq_cnt(const struct w_iov_sq * const q);
 
 extern int __attribute__((nonnull)) w_fd(const struct w_sock * const s);
 
 extern void __attribute__((nonnull))
-w_rx(struct w_sock * const s, struct w_iov_stailq * const i);
+w_rx(struct w_sock * const s, struct w_iov_sq * const i);
 
 extern void __attribute__((nonnull)) w_nic_tx(struct w_engine * const w);
 
@@ -294,7 +294,7 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 /// @param      w     Backend engine.
 /// @param      q     Tail queue of w_iov structs to return.
 ///
-#define w_free(w, q) STAILQ_CONCAT(&(w)->iov, (q))
+#define w_free(w, q) sq_concat(&(w)->iov, (q))
 
 
 /// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
@@ -305,7 +305,7 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 ///
 /// @return     w_iov struct.
 ///
-#define w_free_iov(w, v) STAILQ_INSERT_HEAD(&(w)->iov, (v), next)
+#define w_free_iov(w, v) sq_insert_head(&(w)->iov, (v), next)
 
 
 /// Return address to w_iov struct with index @p idx.

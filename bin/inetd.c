@@ -149,15 +149,15 @@ int main(const int argc, char * const argv[])
         struct w_sock_slist sl = w_sock_slist_initializer(sl);
         w_rx_ready(w, &sl);
         struct w_sock * s;
-        SLIST_FOREACH (s, &sl, next_rx) {
+        sl_foreach (s, &sl, next_rx) {
             // ...check if any new data has arrived on the socket
-            struct w_iov_stailq i = w_iov_stailq_initializer(i);
+            struct w_iov_sq i = w_iov_sq_initializer(i);
             w_rx(s, &i);
-            if (STAILQ_EMPTY(&i))
+            if (sq_empty(&i))
                 continue;
-            warn(DBG, "received %u bytes", w_iov_stailq_len(&i));
+            warn(DBG, "received %u bytes", w_iov_sq_len(&i));
 
-            struct w_iov_stailq o = w_iov_stailq_initializer(o);
+            struct w_iov_sq o = w_iov_sq_initializer(o);
             uint16_t t = 0;
 #if 0
             if (s == srv[t++]) {
@@ -171,7 +171,7 @@ int main(const int argc, char * const argv[])
                 const char * ct = ctime(&t);
                 const uint16_t l = (uint16_t)strlen(ct);
                 struct w_iov * v;
-                STAILQ_FOREACH (v, i, next) {
+                sq_foreach (v, i, next) {
                     memcpy(v->buf, c, l); // write a timestamp
                     v->len = l;
                 }
@@ -180,7 +180,7 @@ int main(const int argc, char * const argv[])
                 // time
                 const time_t t = time(0);
                 struct w_iov * v;
-                STAILQ_FOREACH (v, i, next) {
+                sq_foreach (v, i, next) {
                     memcpy(v->buf, &t, sizeof(t)); // write a timestamp
                     v->len = sizeof(t);
                 }
@@ -194,25 +194,25 @@ int main(const int argc, char * const argv[])
                 // if o is empty, the target len is in the first buf of the
                 // incoming tail queue; otherwise, it's in the first buf of o
                 const struct w_iov * const head =
-                    STAILQ_FIRST(STAILQ_EMPTY(&o) ? &i : &o);
+                    sq_first(sq_empty(&o) ? &i : &o);
                 const uint32_t len =
                     ntohl(((struct payload *)(void *)head->buf)->len);
 
-                while (!STAILQ_EMPTY(&i)) {
-                    static struct w_iov_stailq tmp =
-                        w_iov_stailq_initializer(tmp);
+                while (!sq_empty(&i)) {
+                    static struct w_iov_sq tmp =
+                        w_iov_sq_initializer(tmp);
                     static uint32_t tmp_len = 0;
 
-                    while (tmp_len < len && !STAILQ_EMPTY(&i)) {
-                        struct w_iov * const v = STAILQ_FIRST(&i);
-                        STAILQ_REMOVE_HEAD(&i, next);
-                        STAILQ_INSERT_TAIL(&tmp, v, next);
+                    while (tmp_len < len && !sq_empty(&i)) {
+                        struct w_iov * const v = sq_first(&i);
+                        sq_remove_head(&i, next);
+                        sq_insert_tail(&tmp, v, next);
                         tmp_len += v->len;
                     }
 
                     // did we receive all data?
                     if (tmp_len == len) {
-                        STAILQ_CONCAT(&o, &tmp);
+                        sq_concat(&o, &tmp);
                         tmp_len = 0;
                     } else
                         break;
@@ -223,7 +223,7 @@ int main(const int argc, char * const argv[])
             }
 
             // if the current service requires replying with data, do so
-            if (!STAILQ_EMPTY(&o)) {
+            if (!sq_empty(&o)) {
                 w_tx(s, &o);
                 while (w_tx_pending(&o))
                     w_nic_tx(w);
@@ -231,7 +231,7 @@ int main(const int argc, char * const argv[])
 
             // we are done serving the received data
             w_free(w, &i);
-            if (!STAILQ_EMPTY(&o))
+            if (!sq_empty(&o))
                 w_free(w, &o);
         }
     }

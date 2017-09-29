@@ -31,8 +31,7 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_QUEUE_H_
-#define _SYS_QUEUE_H_
+#pragma once
 
 #include <sys/cdefs.h>
 
@@ -183,27 +182,27 @@ struct qm_trace {
 /*
  * Singly-linked List declarations.
  */
-#define SLIST_HEAD(name, type)                                                 \
+#define sl_head(name, type)                                                    \
     struct name {                                                              \
         struct type * slh_first; /* first element */                           \
     }
 
-#define SLIST_CLASS_HEAD(name, type)                                           \
+#define sl_class_head(name, type)                                              \
     struct name {                                                              \
         class type * slh_first; /* first element */                            \
     }
 
-#define SLIST_HEAD_INITIALIZER(head)                                           \
+#define sl_head_initializer(head)                                              \
     {                                                                          \
         NULL                                                                   \
     }
 
-#define SLIST_ENTRY(type)                                                      \
+#define sl_entry(type)                                                         \
     struct {                                                                   \
         struct type * sle_next; /* next element */                             \
     }
 
-#define SLIST_CLASS_ENTRY(type)                                                \
+#define sl_class_entry(type)                                                   \
     struct {                                                                   \
         class type * sle_next; /* next element */                              \
     }
@@ -211,136 +210,136 @@ struct qm_trace {
 /*
  * Singly-linked List functions.
  */
-#if (defined(_KERNEL) && defined(INVARIANTS))
-#define QMD_SLIST_CHECK_PREVPTR(prevp, elm)                                    \
+#ifndef NDEBUG
+#define QMD_SL_CHECK_PREVPTR(prevp, elm)                                       \
     do {                                                                       \
         if (*(prevp) != (elm))                                                 \
             panic("Bad prevptr *(%p) == %p != %p", (prevp), *(prevp), (elm));  \
     } while (0)
 #else
-#define QMD_SLIST_CHECK_PREVPTR(prevp, elm)
+#define QMD_SL_CHECK_PREVPTR(prevp, elm)
 #endif
 
-#define SLIST_CONCAT(head1, head2, type, field)                                \
+#define sl_concat(head1, head2, type, field)                                   \
     do {                                                                       \
-        QUEUE_TYPEOF(type) * curelm = SLIST_FIRST(head1);                      \
+        QUEUE_TYPEOF(type) * curelm = sl_first(head1);                         \
         if (curelm == NULL) {                                                  \
-            if ((SLIST_FIRST(head1) = SLIST_FIRST(head2)) != NULL)             \
-                SLIST_INIT(head2);                                             \
-        } else if (SLIST_FIRST(head2) != NULL) {                               \
-            while (SLIST_NEXT(curelm, field) != NULL)                          \
-                curelm = SLIST_NEXT(curelm, field);                            \
-            SLIST_NEXT(curelm, field) = SLIST_FIRST(head2);                    \
-            SLIST_INIT(head2);                                                 \
+            if ((sl_first(head1) = sl_first(head2)) != NULL)                   \
+                sl_init(head2);                                                \
+        } else if (sl_first(head2) != NULL) {                                  \
+            while (sl_next(curelm, field) != NULL)                             \
+                curelm = sl_next(curelm, field);                               \
+            sl_next(curelm, field) = sl_first(head2);                          \
+            sl_init(head2);                                                    \
         }                                                                      \
     } while (0)
 
-#define SLIST_EMPTY(head) ((head)->slh_first == NULL)
+#define sl_empty(head) ((head)->slh_first == NULL)
 
-#define SLIST_FIRST(head) ((head)->slh_first)
+#define sl_first(head) ((head)->slh_first)
 
-#define SLIST_FOREACH(var, head, field)                                        \
-    for ((var) = SLIST_FIRST((head)); (var); (var) = SLIST_NEXT((var), field))
+#define sl_foreach(var, head, field)                                           \
+    for ((var) = sl_first((head)); (var); (var) = sl_next((var), field))
 
-#define SLIST_FOREACH_FROM(var, head, field)                                   \
-    for ((var) = ((var) ? (var) : SLIST_FIRST((head))); (var);                 \
-         (var) = SLIST_NEXT((var), field))
+#define sl_foreach_from(var, head, field)                                      \
+    for ((var) = ((var) ? (var) : sl_first((head))); (var);                    \
+         (var) = sl_next((var), field))
 
-#define SLIST_FOREACH_SAFE(var, head, field, tvar)                             \
-    for ((var) = SLIST_FIRST((head));                                          \
-         (var) && ((tvar) = SLIST_NEXT((var), field), 1); (var) = (tvar))
+#define sl_foreach_safe(var, head, field, tvar)                                \
+    for ((var) = sl_first((head));                                             \
+         (var) && ((tvar) = sl_next((var), field), 1); (var) = (tvar))
 
-#define SLIST_FOREACH_FROM_SAFE(var, head, field, tvar)                        \
-    for ((var) = ((var) ? (var) : SLIST_FIRST((head)));                        \
-         (var) && ((tvar) = SLIST_NEXT((var), field), 1); (var) = (tvar))
+#define sl_foreach_from_safe(var, head, field, tvar)                           \
+    for ((var) = ((var) ? (var) : sl_first((head)));                           \
+         (var) && ((tvar) = sl_next((var), field), 1); (var) = (tvar))
 
-#define SLIST_FOREACH_PREVPTR(var, varp, head, field)                          \
-    for ((varp) = &SLIST_FIRST((head)); ((var) = *(varp)) != NULL;             \
-         (varp) = &SLIST_NEXT((var), field))
+#define sl_foreach_prevptr(var, varp, head, field)                             \
+    for ((varp) = &sl_first((head)); ((var) = *(varp)) != NULL;                \
+         (varp) = &sl_next((var), field))
 
-#define SLIST_INIT(head)                                                       \
+#define sl_init(head)                                                          \
     do {                                                                       \
-        SLIST_FIRST((head)) = NULL;                                            \
+        sl_first((head)) = NULL;                                               \
     } while (0)
 
-#define SLIST_INSERT_AFTER(slistelm, elm, field)                               \
+#define sl_insert_after(slistelm, elm, field)                                  \
     do {                                                                       \
-        SLIST_NEXT((elm), field) = SLIST_NEXT((slistelm), field);              \
-        SLIST_NEXT((slistelm), field) = (elm);                                 \
+        sl_next((elm), field) = sl_next((slistelm), field);                    \
+        sl_next((slistelm), field) = (elm);                                    \
     } while (0)
 
-#define SLIST_INSERT_HEAD(head, elm, field)                                    \
+#define sl_insert_head(head, elm, field)                                       \
     do {                                                                       \
-        SLIST_NEXT((elm), field) = SLIST_FIRST((head));                        \
-        SLIST_FIRST((head)) = (elm);                                           \
+        sl_next((elm), field) = sl_first((head));                              \
+        sl_first((head)) = (elm);                                              \
     } while (0)
 
-#define SLIST_NEXT(elm, field) ((elm)->field.sle_next)
+#define sl_next(elm, field) ((elm)->field.sle_next)
 
-#define SLIST_REMOVE(head, elm, type, field)                                   \
+#define sl_remove(head, elm, type, field)                                      \
     do {                                                                       \
         QMD_SAVELINK(oldnext, (elm)->field.sle_next);                          \
-        if (SLIST_FIRST((head)) == (elm)) {                                    \
-            SLIST_REMOVE_HEAD((head), field);                                  \
+        if (sl_first((head)) == (elm)) {                                       \
+            sl_remove_head((head), field);                                     \
         } else {                                                               \
-            QUEUE_TYPEOF(type) * curelm = SLIST_FIRST(head);                   \
-            while (SLIST_NEXT(curelm, field) != (elm))                         \
-                curelm = SLIST_NEXT(curelm, field);                            \
-            SLIST_REMOVE_AFTER(curelm, field);                                 \
+            QUEUE_TYPEOF(type) * curelm = sl_first(head);                      \
+            while (sl_next(curelm, field) != (elm))                            \
+                curelm = sl_next(curelm, field);                               \
+            sl_remove_after(curelm, field);                                    \
         }                                                                      \
         TRASHIT(*oldnext);                                                     \
     } while (0)
 
-#define SLIST_REMOVE_AFTER(elm, field)                                         \
+#define sl_remove_after(elm, field)                                            \
     do {                                                                       \
-        SLIST_NEXT(elm, field) = SLIST_NEXT(SLIST_NEXT(elm, field), field);    \
+        sl_next(elm, field) = sl_next(sl_next(elm, field), field);             \
     } while (0)
 
-#define SLIST_REMOVE_HEAD(head, field)                                         \
+#define sl_remove_head(head, field)                                            \
     do {                                                                       \
-        SLIST_FIRST((head)) = SLIST_NEXT(SLIST_FIRST((head)), field);          \
+        sl_first((head)) = sl_next(sl_first((head)), field);                   \
     } while (0)
 
-#define SLIST_REMOVE_PREVPTR(prevp, elm, field)                                \
+#define sl_remove_prevptr(prevp, elm, field)                                   \
     do {                                                                       \
-        QMD_SLIST_CHECK_PREVPTR(prevp, elm);                                   \
-        *(prevp) = SLIST_NEXT(elm, field);                                     \
+        QMD_SL_CHECK_PREVPTR(prevp, elm);                                      \
+        *(prevp) = sl_next(elm, field);                                        \
         TRASHIT((elm)->field.sle_next);                                        \
     } while (0)
 
-#define SLIST_SWAP(head1, head2, type)                                         \
+#define sl_swap(head1, head2, type)                                            \
     do {                                                                       \
-        QUEUE_TYPEOF(type) * swap_first = SLIST_FIRST(head1);                  \
-        SLIST_FIRST(head1) = SLIST_FIRST(head2);                               \
-        SLIST_FIRST(head2) = swap_first;                                       \
+        QUEUE_TYPEOF(type) * swap_first = sl_first(head1);                     \
+        sl_first(head1) = sl_first(head2);                                     \
+        sl_first(head2) = swap_first;                                          \
     } while (0)
 
 /*
  * Singly-linked Tail queue declarations.
  */
-#define STAILQ_HEAD(name, type)                                                \
+#define sq_head(name, type)                                                    \
     struct name {                                                              \
         struct type * stqh_first; /* first element */                          \
         struct type ** stqh_last; /* addr of last next element */              \
     }
 
-#define STAILQ_CLASS_HEAD(name, type)                                          \
+#define sq_class_head(name, type)                                              \
     struct name {                                                              \
         class type * stqh_first; /* first element */                           \
         class type ** stqh_last; /* addr of last next element */               \
     }
 
-#define STAILQ_HEAD_INITIALIZER(head)                                          \
+#define sq_head_initializer(head)                                              \
     {                                                                          \
         NULL, &(head).stqh_first                                               \
     }
 
-#define STAILQ_ENTRY(type)                                                     \
+#define sq_entry(type)                                                         \
     struct {                                                                   \
         struct type * stqe_next; /* next element */                            \
     }
 
-#define STAILQ_CLASS_ENTRY(type)                                               \
+#define sq_class_entry(type)                                                   \
     struct {                                                                   \
         class type * stqe_next; /* next element */                             \
     }
@@ -348,111 +347,111 @@ struct qm_trace {
 /*
  * Singly-linked Tail queue functions.
  */
-#define STAILQ_CONCAT(head1, head2)                                            \
+#define sq_concat(head1, head2)                                                \
     do {                                                                       \
-        if (!STAILQ_EMPTY((head2))) {                                          \
+        if (!sq_empty((head2))) {                                              \
             *(head1)->stqh_last = (head2)->stqh_first;                         \
             (head1)->stqh_last = (head2)->stqh_last;                           \
-            STAILQ_INIT((head2));                                              \
+            sq_init((head2));                                                  \
         }                                                                      \
     } while (0)
 
-#define STAILQ_EMPTY(head) ((head)->stqh_first == NULL)
+#define sq_empty(head) ((head)->stqh_first == NULL)
 
-#define STAILQ_FIRST(head) ((head)->stqh_first)
+#define sq_first(head) ((head)->stqh_first)
 
-#define STAILQ_FOREACH(var, head, field)                                       \
-    for ((var) = STAILQ_FIRST((head)); (var); (var) = STAILQ_NEXT((var), field))
+#define sq_foreach(var, head, field)                                           \
+    for ((var) = sq_first((head)); (var); (var) = sq_next((var), field))
 
-#define STAILQ_FOREACH_FROM(var, head, field)                                  \
-    for ((var) = ((var) ? (var) : STAILQ_FIRST((head))); (var);                \
-         (var) = STAILQ_NEXT((var), field))
+#define sq_foreach_from(var, head, field)                                      \
+    for ((var) = ((var) ? (var) : sq_first((head))); (var);                    \
+         (var) = sq_next((var), field))
 
-#define STAILQ_FOREACH_SAFE(var, head, field, tvar)                            \
-    for ((var) = STAILQ_FIRST((head));                                         \
-         (var) && ((tvar) = STAILQ_NEXT((var), field), 1); (var) = (tvar))
+#define sq_foreach_safe(var, head, field, tvar)                                \
+    for ((var) = sq_first((head));                                             \
+         (var) && ((tvar) = sq_next((var), field), 1); (var) = (tvar))
 
-#define STAILQ_FOREACH_FROM_SAFE(var, head, field, tvar)                       \
-    for ((var) = ((var) ? (var) : STAILQ_FIRST((head)));                       \
-         (var) && ((tvar) = STAILQ_NEXT((var), field), 1); (var) = (tvar))
+#define sq_foreach_from_safe(var, head, field, tvar)                           \
+    for ((var) = ((var) ? (var) : sq_first((head)));                           \
+         (var) && ((tvar) = sq_next((var), field), 1); (var) = (tvar))
 
-#define STAILQ_INIT(head)                                                      \
+#define sq_init(head)                                                          \
     do {                                                                       \
-        STAILQ_FIRST((head)) = NULL;                                           \
-        (head)->stqh_last = &STAILQ_FIRST((head));                             \
+        sq_first((head)) = NULL;                                               \
+        (head)->stqh_last = &sq_first((head));                                 \
     } while (0)
 
-#define STAILQ_INSERT_AFTER(head, tqelm, elm, field)                           \
+#define sq_insert_after(head, tqelm, elm, field)                               \
     do {                                                                       \
-        if ((STAILQ_NEXT((elm), field) = STAILQ_NEXT((tqelm), field)) == NULL) \
-            (head)->stqh_last = &STAILQ_NEXT((elm), field);                    \
-        STAILQ_NEXT((tqelm), field) = (elm);                                   \
+        if ((sq_next((elm), field) = sq_next((tqelm), field)) == NULL)         \
+            (head)->stqh_last = &sq_next((elm), field);                        \
+        sq_next((tqelm), field) = (elm);                                       \
     } while (0)
 
-#define STAILQ_INSERT_HEAD(head, elm, field)                                   \
+#define sq_insert_head(head, elm, field)                                       \
     do {                                                                       \
-        if ((STAILQ_NEXT((elm), field) = STAILQ_FIRST((head))) == NULL)        \
-            (head)->stqh_last = &STAILQ_NEXT((elm), field);                    \
-        STAILQ_FIRST((head)) = (elm);                                          \
+        if ((sq_next((elm), field) = sq_first((head))) == NULL)                \
+            (head)->stqh_last = &sq_next((elm), field);                        \
+        sq_first((head)) = (elm);                                              \
     } while (0)
 
-#define STAILQ_INSERT_TAIL(head, elm, field)                                   \
+#define sq_insert_tail(head, elm, field)                                       \
     do {                                                                       \
-        STAILQ_NEXT((elm), field) = NULL;                                      \
+        sq_next((elm), field) = NULL;                                          \
         *(head)->stqh_last = (elm);                                            \
-        (head)->stqh_last = &STAILQ_NEXT((elm), field);                        \
+        (head)->stqh_last = &sq_next((elm), field);                            \
     } while (0)
 
-#define STAILQ_LAST(head, type, field)                                         \
-    (STAILQ_EMPTY((head))                                                      \
-         ? NULL                                                                \
-         : __containerof((head)->stqh_last, QUEUE_TYPEOF(type),                \
-                         field.stqe_next))
+#define sq_last(head, type, field)                                             \
+    (sq_empty((head)) ? NULL                                                   \
+                      : __containerof((head)->stqh_last, QUEUE_TYPEOF(type),   \
+                                      field.stqe_next))
 
-#define STAILQ_NEXT(elm, field) ((elm)->field.stqe_next)
+#define sq_next(elm, field) ((elm)->field.stqe_next)
 
-#define STAILQ_REMOVE(head, elm, type, field)                                  \
+#define sq_remove(head, elm, type, field)                                      \
     do {                                                                       \
         QMD_SAVELINK(oldnext, (elm)->field.stqe_next);                         \
-        if (STAILQ_FIRST((head)) == (elm)) {                                   \
-            STAILQ_REMOVE_HEAD((head), field);                                 \
+        if (sq_first((head)) == (elm)) {                                       \
+            sq_remove_head((head), field);                                     \
         } else {                                                               \
-            QUEUE_TYPEOF(type) * curelm = STAILQ_FIRST(head);                  \
-            while (STAILQ_NEXT(curelm, field) != (elm))                        \
-                curelm = STAILQ_NEXT(curelm, field);                           \
-            STAILQ_REMOVE_AFTER(head, curelm, field);                          \
+            QUEUE_TYPEOF(type) * curelm = sq_first(head);                      \
+            while (sq_next(curelm, field) != (elm))                            \
+                curelm = sq_next(curelm, field);                               \
+            sq_remove_after(head, curelm, field);                              \
         }                                                                      \
         TRASHIT(*oldnext);                                                     \
     } while (0)
 
-#define STAILQ_REMOVE_AFTER(head, elm, field)                                  \
+#define sq_remove_after(head, elm, field)                                      \
     do {                                                                       \
-        if ((STAILQ_NEXT(elm, field) =                                         \
-                 STAILQ_NEXT(STAILQ_NEXT(elm, field), field)) == NULL)         \
-            (head)->stqh_last = &STAILQ_NEXT((elm), field);                    \
+        if ((sq_next(elm, field) = sq_next(sq_next(elm, field), field)) ==     \
+            NULL)                                                              \
+            (head)->stqh_last = &sq_next((elm), field);                        \
     } while (0)
 
-#define STAILQ_REMOVE_HEAD(head, field)                                        \
+#define sq_remove_head(head, field)                                            \
     do {                                                                       \
-        if ((STAILQ_FIRST((head)) =                                            \
-                 STAILQ_NEXT(STAILQ_FIRST((head)), field)) == NULL)            \
-            (head)->stqh_last = &STAILQ_FIRST((head));                         \
+        if ((sq_first((head)) = sq_next(sq_first((head)), field)) == NULL)     \
+            (head)->stqh_last = &sq_first((head));                             \
     } while (0)
 
-#define STAILQ_SWAP(head1, head2, type)                                        \
+#define sq_swap(head1, head2, type)                                            \
     do {                                                                       \
-        QUEUE_TYPEOF(type) * swap_first = STAILQ_FIRST(head1);                 \
+        QUEUE_TYPEOF(type) * swap_first = sq_first(head1);                     \
         QUEUE_TYPEOF(type) ** swap_last = (head1)->stqh_last;                  \
-        STAILQ_FIRST(head1) = STAILQ_FIRST(head2);                             \
+        sq_first(head1) = sq_first(head2);                                     \
         (head1)->stqh_last = (head2)->stqh_last;                               \
-        STAILQ_FIRST(head2) = swap_first;                                      \
+        sq_first(head2) = swap_first;                                          \
         (head2)->stqh_last = swap_last;                                        \
-        if (STAILQ_EMPTY(head1))                                               \
-            (head1)->stqh_last = &STAILQ_FIRST(head1);                         \
-        if (STAILQ_EMPTY(head2))                                               \
-            (head2)->stqh_last = &STAILQ_FIRST(head2);                         \
+        if (sq_empty(head1))                                                   \
+            (head1)->stqh_last = &sq_first(head1);                             \
+        if (sq_empty(head2))                                                   \
+            (head2)->stqh_last = &sq_first(head2);                             \
     } while (0)
 
+
+#if 0
 
 /*
  * List declarations.
@@ -878,4 +877,4 @@ struct qm_trace {
             (head2)->tqh_last = &(head2)->tqh_first;                           \
     } while (0)
 
-#endif /* !_SYS_QUEUE_H_ */
+#endif

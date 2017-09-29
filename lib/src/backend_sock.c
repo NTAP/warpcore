@@ -80,7 +80,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     for (uint32_t i = 0; i < nbufs; i++) {
         w->bufs[i].buf = IDX2BUF(w, i);
         w->bufs[i].idx = i;
-        STAILQ_INSERT_HEAD(&w->iov, &w->bufs[i], next);
+        sq_insert_head(&w->iov, &w->bufs[i], next);
     }
 
 #if defined(HAVE_KQUEUE)
@@ -193,16 +193,16 @@ int w_fd(const struct w_sock * const s)
 /// over w_sock @p s. This backend uses the Socket API.
 ///
 /// @param      s     w_sock socket to transmit over.
-/// @param      o     w_iov_stailq to send.
+/// @param      o     w_iov_sq to send.
 ///
-void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
+void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 {
 #ifdef HAVE_SENDMMSG
 // There is a tradeoff here in terms of how many messages we should try and
 // send. Preparing to handle longer sizes has preparation overheads, whereas
 // only handling shorter sizes may require multiple syscalls (and incur their
 // overheads). So we're picking a number out of a hat. We could allocate
-// dynamically for MAX(IOV_MAX, w_iov_stailq_cnt(c)), but that seems overkill.
+// dynamically for MAX(IOV_MAX, w_iov_sq_cnt(c)), but that seems overkill.
 #define SEND_SIZE MIN(16, IOV_MAX)
     struct mmsghdr msgvec[SEND_SIZE];
     struct iovec msg[SEND_SIZE];
@@ -211,7 +211,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
 #endif
     o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
     const struct w_iov * v;
-    STAILQ_FOREACH (v, o, next) {
+    sq_foreach (v, o, next) {
         ensure(w_connected(s) || v->ip && v->port,
                "no destination information");
 #ifdef HAVE_SENDMMSG
@@ -227,7 +227,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
                                             .msg_namelen = sizeof(dst[i]),
                                             .msg_iov = &msg[i],
                                             .msg_iovlen = 1};
-        if (unlikely(++i == SEND_SIZE || STAILQ_NEXT(v, next) == 0)) {
+        if (unlikely(++i == SEND_SIZE || sq_next(v, next) == 0)) {
             // the iov is full, or we are at the last w_iov, so send
             const ssize_t r = sendmmsg(s->fd, msgvec, (unsigned int)i, 0);
             ensure(r == (ssize_t)i, "sendmmsg %zu %zu", i, r);
@@ -257,7 +257,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_stailq * const o)
 ///                   data.
 /// @param      i     w_iov tail queue to append new data to.
 ///
-void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
+void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 {
 #ifdef HAVE_RECVMMSG
 // There is a tradeoff here in terms of how many messages we should try and
@@ -320,7 +320,7 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
                 v[j]->port = peer[j].sin_port;
                 v[j]->flags = 0;
                 // add the iov to the tail of the result
-                STAILQ_INSERT_TAIL(i, v[j], next);
+                sq_insert_tail(i, v[j], next);
             }
         } else
             // in case EAGAIN was returned (n == -1)
@@ -328,7 +328,7 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 
         // return any unused buffers
         for (ssize_t j = n; likely(j < nbufs); j++)
-            STAILQ_INSERT_HEAD(&s->w->iov, v[j], next);
+            sq_insert_head(&s->w->iov, v[j], next);
     } while (n == RECV_SIZE);
 }
 
@@ -411,7 +411,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     const int r = kevent(w->b->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
     n = r >= 0 ? (uint32_t)r : 0;
     for (uint32_t i = 0; i < n; i++)
-        SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].udata, next_rx);
+        sl_insert_head(sl, (struct w_sock *)ev[i].udata, next_rx);
 
 #elif defined(HAVE_EPOLL)
 #define EV_SIZE 64
@@ -419,7 +419,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     const int r = epoll_wait(w->b->ep, &ev[0], EV_SIZE, 0);
     n = r >= 0 ? (uint32_t)r : 0;
     for (uint32_t i = 0; i < n; i++)
-        SLIST_INSERT_HEAD(sl, (struct w_sock *)ev[i].data.ptr, next_rx);
+        sl_insert_head(sl, (struct w_sock *)ev[i].data.ptr, next_rx);
 
 #else
     // XXX: this is super-duper inefficient, but just a fallback
@@ -452,7 +452,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
          0);
     for (uint32_t i = 0; i < sock_cnt; i++) {
         if (fds[i].revents & POLLIN && ss[i]) {
-            SLIST_INSERT_HEAD(sl, ss[i], next_rx);
+            sl_insert_head(sl, ss[i], next_rx);
             n++;
         }
     }

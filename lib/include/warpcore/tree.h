@@ -28,8 +28,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SYS_TREE_H_
-#define _SYS_TREE_H_
+#pragma once
 
 #include <sys/cdefs.h>
 
@@ -316,6 +315,9 @@
 #define SPLAY_FOREACH_REV(x, name, head)                                       \
     for ((x) = SPLAY_MAX(name, head); (x) != NULL;                             \
          (x) = SPLAY_PREV(name, head, x))
+
+
+#if 0
 
 /* Macros that define a red-black tree */
 #define RB_HEAD(name, type)                                                    \
@@ -814,4 +816,4 @@
     for ((x) = RB_MAX(name, head);                                             \
          ((x) != NULL) && ((y) = name##_RB_PREV(x), (x) != NULL); (x) = (y))
 
-#endif /* _SYS_TREE_H_ */
+#endif

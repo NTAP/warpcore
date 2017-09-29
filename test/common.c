@@ -40,17 +40,17 @@ struct w_sock * cs;
 bool io(const uint32_t len)
 {
     // allocate a w_iov chain for tx
-    struct w_iov_stailq o = w_iov_stailq_initializer(o);
+    struct w_iov_sq o = w_iov_sq_initializer(o);
     w_alloc_cnt(w, &o, len, 512, 64);
-    ensure(w_iov_stailq_cnt(&o) == len, "wrong length");
+    ensure(w_iov_sq_cnt(&o) == len, "wrong length");
 
     // fill it with data
     struct w_iov * ov;
     uint8_t fill = 0;
-    STAILQ_FOREACH (ov, &o, next) {
+    sq_foreach (ov, &o, next) {
         memset(ov->buf, fill++, ov->len);
     }
-    const uint32_t olen = w_iov_stailq_len(&o);
+    const uint32_t olen = w_iov_sq_len(&o);
 
     // tx
     w_tx(cs, &o);
@@ -58,12 +58,12 @@ bool io(const uint32_t len)
         w_nic_tx(w);
 
     // read the chain back
-    struct w_iov_stailq i = w_iov_stailq_initializer(i);
+    struct w_iov_sq i = w_iov_sq_initializer(i);
     uint32_t ilen = 0;
     do {
         w_nic_rx(w, 1000);
         w_rx(ss, &i);
-        const uint32_t new_ilen = w_iov_stailq_len(&i);
+        const uint32_t new_ilen = w_iov_sq_len(&i);
         if (ilen == new_ilen) {
             // we ran out of buffers or there was packet loss; abort
             w_free(w, &o);
@@ -75,14 +75,14 @@ bool io(const uint32_t len)
     ensure(ilen == olen, "wrong length");
 
     // validate data
-    struct w_iov * iv = STAILQ_FIRST(&i);
-    ov = STAILQ_FIRST(&o);
+    struct w_iov * iv = sq_first(&i);
+    ov = sq_first(&o);
     while (ov && iv) {
         ensure(memcmp(iv->buf, ov->buf, iv->len) == 0,
                "ov %u = 0x%02x (len %u) != iv %u = 0x%02x (len %u)", ov->idx,
                ov->buf[0], ov->len, iv->idx, iv->buf[0], iv->len);
-        ov = STAILQ_NEXT(ov, next);
-        iv = STAILQ_NEXT(iv, next);
+        ov = sq_next(ov, next);
+        iv = sq_next(iv, next);
     }
 
     w_free(w, &o);

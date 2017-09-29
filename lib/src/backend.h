@@ -98,7 +98,7 @@ struct w_backend {
 
 /// Global list of initialized warpcore engines.
 ///
-extern SLIST_HEAD(w_engines, w_engine) engines;
+extern sl_head(w_engines, w_engine) engines;
 
 
 /// Compute the IPv4 broadcast address for the given IPv4 address and netmask.

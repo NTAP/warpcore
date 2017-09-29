@@ -222,7 +222,7 @@ int main(const int argc, char * const argv[])
     // send "loops" number of payloads of len "len" and wait for reply
     for (uint32_t len = start; len <= end; len += (inc ? inc : .483 * len)) {
         // allocate tx tail queue
-        struct w_iov_stailq o;
+        struct w_iov_sq o;
         w_alloc_len(w, &o, len, 0, 0);
         long iter = loops;
         while (likely(iter--)) {
@@ -233,7 +233,7 @@ int main(const int argc, char * const argv[])
 
             // stamp the data
             struct w_iov * v;
-            STAILQ_FOREACH (v, &o, next) {
+            sq_foreach (v, &o, next) {
                 struct payload * const p = (void *)v->buf;
                 p->len = htonl(len);
                 p->ts = before_tx;
@@ -259,8 +259,8 @@ int main(const int argc, char * const argv[])
             warn(INF, "sent %u byte%s", len, plural(len));
 
             // wait for a reply; loop until timeout or we have received all data
-            struct w_iov_stailq i = w_iov_stailq_initializer(i);
-            while (likely(w_iov_stailq_len(&i) < len && done == false)) {
+            struct w_iov_sq i = w_iov_sq_initializer(i);
+            while (likely(w_iov_sq_len(&i) < len && done == false)) {
                 // receive new data (there may not be any if busy-waiting)
                 if (w_nic_rx(w, busywait ? 0 : -1) == false)
                     continue;
@@ -276,7 +276,7 @@ int main(const int argc, char * const argv[])
             const struct itimerval stop = {{0, 0}, {0, 0}};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            const uint32_t i_len = w_iov_stailq_len(&i);
+            const uint32_t i_len = w_iov_sq_len(&i);
             if (i_len != len) {
                 warn(WRN, "received %u/%u byte%s", i_len, len, plural(i_len));
                 continue;
@@ -290,7 +290,7 @@ int main(const int argc, char * const argv[])
                 ensure(diff.tv_sec == 0, "time difference > 1 sec");
                 snprintf(rx, 256, "%ld", diff.tv_nsec);
             }
-            const uint32_t pkts = w_iov_stailq_cnt(&o);
+            const uint32_t pkts = w_iov_sq_cnt(&o);
             time_diff(&diff, &after_tx, &before_tx);
             ensure(diff.tv_sec == 0, "time difference > 1 sec");
             printf("%d\t%d\t%ld\t%s\n", len, pkts, diff.tv_nsec, rx);
