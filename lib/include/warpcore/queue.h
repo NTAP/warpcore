@@ -404,9 +404,10 @@ struct qm_trace {
     } while (0)
 
 #define STAILQ_LAST(head, type, field)                                         \
-    (STAILQ_EMPTY((head)) ? NULL : __containerof((head)->stqh_last,            \
-                                                 QUEUE_TYPEOF(type),           \
-                                                 field.stqe_next))
+    (STAILQ_EMPTY((head))                                                      \
+         ? NULL                                                                \
+         : __containerof((head)->stqh_last, QUEUE_TYPEOF(type),                \
+                         field.stqe_next))
 
 #define STAILQ_NEXT(elm, field) ((elm)->field.stqe_next)
 

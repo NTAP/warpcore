@@ -72,9 +72,9 @@ void icmp_tx(struct w_engine * const w,
 
     const struct ip_hdr * const src_ip = (const void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
-    uint16_t data_len = MIN(ntohs(src_ip->len),
-                            w_iov_max_len(w, v) - sizeof(struct eth_hdr) -
-                                sizeof(struct ip_hdr));
+    uint16_t data_len =
+        MIN(ntohs(src_ip->len), w_iov_max_len(w, v) - sizeof(struct eth_hdr) -
+                                    sizeof(struct ip_hdr));
 
     switch (type) {
     case ICMP_TYPE_ECHOREPLY: {
@@ -152,9 +152,9 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
 
     // validate the ICMP checksum
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
-    const uint16_t icmp_len = MIN(ip_data_len(ip),
-                                  r->slot[r->cur].len - sizeof(struct eth_hdr) -
-                                      sizeof(struct ip_hdr));
+    const uint16_t icmp_len =
+        MIN(ip_data_len(ip), r->slot[r->cur].len - sizeof(struct eth_hdr) -
+                                 sizeof(struct ip_hdr));
 
     if (in_cksum(icmp, icmp_len) != 0) {
         warn(WRN, "invalid ICMP checksum, received 0x%04x", ntohs(icmp->cksum));

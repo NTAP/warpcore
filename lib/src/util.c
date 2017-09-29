@@ -125,8 +125,9 @@ extern void __attribute__((nonnull)) _hexdump(const void * const ptr,
 
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
-        fprintf(stderr, DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM " " BLU
-                                            "0x%04lx:  " NRM,
+        fprintf(stderr,
+                DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM " " BLU
+                                    "0x%04lx:  " NRM,
                 DTHREAD_ID _elapsed.tv_sec % 1000,
                 (long long)(_elapsed.tv_usec / 1000), i);
         for (size_t j = 0; j < 16; j++) {

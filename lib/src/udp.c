@@ -79,9 +79,9 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
     struct udp_hdr * const udp = (void *)ip_data(buf);
-    const uint16_t udp_len = MIN(ntohs(udp->len),
-                                 r->slot[r->cur].len - sizeof(struct eth_hdr) -
-                                     sizeof(struct ip_hdr));
+    const uint16_t udp_len =
+        MIN(ntohs(udp->len), r->slot[r->cur].len - sizeof(struct eth_hdr) -
+                                 sizeof(struct ip_hdr));
     udp_log(udp);
 
     if (udp->cksum) {

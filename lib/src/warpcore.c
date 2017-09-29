@@ -450,8 +450,9 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
         freeifaddrs(ifap);
         if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0) {
             // sleep for a bit, so we don't burn the CPU when link is down
-            warn(WRN, "%s: could not obtain required interface "
-                      "information, retrying",
+            warn(WRN,
+                 "%s: could not obtain required interface "
+                 "information, retrying",
                  ifname);
             sleep(1);
         }

@@ -50,8 +50,9 @@
     do {                                                                       \
         char src[INET_ADDRSTRLEN];                                             \
         char dst[INET_ADDRSTRLEN];                                             \
-        warn(DBG, "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "             \
-                  "flags [%s%s], proto %d, hlen/tot %d/%d",                    \
+        warn(DBG,                                                              \
+             "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "                  \
+             "flags [%s%s], proto %d, hlen/tot %d/%d",                         \
              inet_ntop(AF_INET, &(ip)->src, src, INET_ADDRSTRLEN),             \
              inet_ntop(AF_INET, &(ip)->dst, dst, INET_ADDRSTRLEN),             \
              ip_dscp(ip), ip_ecn(ip), (ip)->ttl, ntohs((ip)->id),              \
