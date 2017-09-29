@@ -45,6 +45,7 @@ struct ifaddrs;
 #elif defined(__APPLE__)
 #include <net/ethernet.h>
 #define PLAT_MMFLAGS 0
+#define SOCK_CLOEXEC 0
 #endif
 
 

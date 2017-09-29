@@ -93,7 +93,7 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
     const struct if_data * const ifa_data = i->ifa_data;
     return (uint16_t)ifa_data->ifi_mtu;
 #else
-    const int s = socket(AF_INET, SOCK_DGRAM, 0);
+    const int s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
     struct ifreq ifr;
@@ -179,7 +179,7 @@ bool plat_get_link(const struct ifaddrs * i)
     const struct if_data * const ifa_data = i->ifa_data;
     link = ((ifa_data->ifi_link_state & LINK_STATE_UP) == LINK_STATE_UP);
 #else
-    const int s = socket(AF_INET, SOCK_DGRAM, 0);
+    const int s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
 #ifdef __APPLE__

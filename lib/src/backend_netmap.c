@@ -62,7 +62,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     struct w_backend * const b = w->b;
 
     // open /dev/netmap
-    ensure((b->fd = open("/dev/netmap", O_RDWR)) != -1,
+    ensure((b->fd = open("/dev/netmap", O_RDWR | O_CLOEXEC)) != -1,
            "cannot open /dev/netmap");
     w->backend_name = backend_name;
 
@@ -193,9 +193,7 @@ void backend_bind(struct w_sock * s)
 ///
 /// @param      s     The w_sock to close.
 ///
-void backend_close(struct w_sock * const s __attribute__((unused)))
-{
-}
+void backend_close(struct w_sock * const s __attribute__((unused))) {}
 
 
 /// Connect the given w_sock, using the netmap backend. If the Ethernet MAC
@@ -327,8 +325,9 @@ void w_nic_tx(struct w_engine * const w)
             struct netmap_slot * const s = &r->slot[j];
             struct w_iov * const v = (struct w_iov *)s->ptr;
             if (likely(v)) {
-                warn(DBG, "moving idx %u from ring %u slot %u back into "
-                          "w_iov after tx (swap with %u)",
+                warn(DBG,
+                     "moving idx %u from ring %u slot %u back into "
+                     "w_iov after tx (swap with %u)",
                      s->buf_idx, i, j, v->idx);
                 const uint32_t slot_idx = s->buf_idx;
                 s->buf_idx = v->idx;

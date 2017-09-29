@@ -127,7 +127,8 @@ void backend_cleanup(struct w_engine * const w)
 ///
 void backend_bind(struct w_sock * const s)
 {
-    ensure((s->fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0, "socket");
+    ensure((s->fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0)) >= 0,
+           "socket");
     ensure(setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, &(int){1},
                       sizeof(int)) >= 0,
            "cannot setsockopt SO_REUSEADDR");
@@ -161,9 +162,7 @@ void backend_bind(struct w_sock * const s)
 ///
 /// @param      s     The w_sock to connect.
 ///
-void backend_connect(struct w_sock * const s __attribute__((unused)))
-{
-}
+void backend_connect(struct w_sock * const s __attribute__((unused))) {}
 
 
 /// Close the socket.
@@ -338,9 +337,7 @@ void w_rx(struct w_sock * const s, struct w_iov_stailq * const i)
 ///
 /// @param[in]  w     Backend engine.
 ///
-void w_nic_tx(struct w_engine * const w __attribute__((unused)))
-{
-}
+void w_nic_tx(struct w_engine * const w __attribute__((unused))) {}
 
 
 /// Check/wait until any data has been received.
