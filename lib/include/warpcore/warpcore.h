@@ -33,28 +33,28 @@ extern "C" {
 #include <sys/time.h>
 
 
-// Add some defines that FreeBSD has in cdefs.h which tree.h and queue.h
-// require.
+// // Add some defines that FreeBSD has in cdefs.h which tree.h and queue.h
+// // require.
 
-#ifdef __linux__
-typedef uintptr_t __uintptr_t;
-#endif
+// #ifdef __linux__
+// typedef uintptr_t __uintptr_t;
+// #endif
 
-#ifndef __offsetof
-#define __offsetof(type, field) __builtin_offsetof(type, field)
-#endif
+// #ifndef __offsetof
+// #define __offsetof(type, field) __builtin_offsetof(type, field)
+// #endif
 
-#ifndef __DEQUALIFY
-#define __DEQUALIFY(type, var) ((type)(__uintptr_t)(const volatile void *)(var))
-#endif
+// #ifndef __DEQUALIFY
+// #define __DEQUALIFY(type, var) ((type)(__uintptr_t)(const volatile void *)(var))
+// #endif
 
-#ifndef __containerof
-#define __containerof(x, s, m)                                                 \
-    ({                                                                         \
-        const volatile __typeof(((s *)0)->m) * __x = (x);                      \
-        __DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));       \
-    })
-#endif
+// #ifndef __containerof
+// #define __containerof(x, s, m)                                                 \
+//     ({                                                                         \
+//         const volatile __typeof(((s *)0)->m) * __x = (x);                      \
+//         __DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));       \
+//     })
+// #endif
 
 
 #include <warpcore/config.h> // IWYU pragma: export
@@ -229,8 +229,6 @@ w_free(struct w_engine * const w, struct w_iov_sq * const q);
 
 extern uint32_t w_iov_sq_len(const struct w_iov_sq * const q);
 
-extern uint32_t w_iov_sq_cnt(const struct w_iov_sq * const q);
-
 extern int __attribute__((nonnull)) w_fd(const struct w_sock * const s);
 
 extern void __attribute__((nonnull))
@@ -316,6 +314,16 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 /// @return     Pointer to w_iov struct with index @p idx.
 ///
 #define w_iov(w, i) (&(w)->bufs[(i)])
+
+
+/// Return the number of w_iov structures in the w_iov tail queue @p c.
+///
+/// @param[in]  q     The w_iov tail queue to compute the payload length of.
+///
+/// @return     Number of w_iov structs in @p q.
+///
+#define w_iov_sq_cnt(q) sq_len(q)
+
 
 #ifdef __cplusplus
 }

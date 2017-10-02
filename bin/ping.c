@@ -25,6 +25,7 @@
 
 #include <arpa/inet.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -120,9 +121,10 @@ int main(const int argc, char * const argv[])
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv, "hzbi:d:l:r:s:c:e:p:n:"
+    while ((ch = getopt(argc, argv,
+                        "hzbi:d:l:r:s:c:e:p:n:"
 #ifndef NDEBUG
-                                    "v:"
+                        "v:"
 #endif
                         )) != -1) {
         switch (ch) {
@@ -290,10 +292,10 @@ int main(const int argc, char * const argv[])
                 ensure(diff.tv_sec == 0, "time difference > 1 sec");
                 snprintf(rx, 256, "%ld", diff.tv_nsec);
             }
-            const uint32_t pkts = w_iov_sq_cnt(&o);
+            const uint64_t pkts = w_iov_sq_cnt(&o);
             time_diff(&diff, &after_tx, &before_tx);
             ensure(diff.tv_sec == 0, "time difference > 1 sec");
-            printf("%d\t%d\t%ld\t%s\n", len, pkts, diff.tv_nsec, rx);
+            printf("%d\t%" PRIu64 "\t%ld\t%s\n", len, pkts, diff.tv_nsec, rx);
 
             // we are done with the received data
             w_free(w, &i);

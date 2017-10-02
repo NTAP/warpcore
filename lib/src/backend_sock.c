@@ -39,7 +39,6 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-// IWYU pragma: no_include <sys/queue.h>
 #include <warpcore/warpcore.h>
 
 

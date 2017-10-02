@@ -33,7 +33,28 @@
 
 #pragma once
 
-#include <sys/cdefs.h>
+// // Add some defines that FreeBSD has in cdefs.h which tree.h and queue.h
+// // require.
+
+// #ifdef __linux__
+// typedef uintptr_t __uintptr_t;
+// #endif
+
+// #ifndef __offsetof
+// #define __offsetof(type, field) __builtin_offsetof(type, field)
+// #endif
+
+#ifndef __DEQUALIFY
+#define __DEQUALIFY(type, var) ((type)(__uintptr_t)(const volatile void *)(var))
+#endif
+
+#ifndef __containerof
+#define __containerof(x, s, m)                                                 \
+    ({                                                                         \
+        const volatile __typeof(((s *)0)->m) * __x = (x);                      \
+        __DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));       \
+    })
+#endif
 
 /*
  * This file defines four types of data structures: singly-linked lists,
@@ -260,6 +281,7 @@ struct qm_trace {
 #define sl_init(head)                                                          \
     do {                                                                       \
         sl_first((head)) = NULL;                                               \
+        (head)->stqh_len = 0;                                                  \
     } while (0)
 
 #define sl_insert_after(slistelm, elm, field)                                  \
@@ -321,17 +343,19 @@ struct qm_trace {
     struct name {                                                              \
         struct type * stqh_first; /* first element */                          \
         struct type ** stqh_last; /* addr of last next element */              \
+        uint64_t stqh_len;        /* number of elements in queue */            \
     }
 
 #define sq_class_head(name, type)                                              \
     struct name {                                                              \
         class type * stqh_first; /* first element */                           \
         class type ** stqh_last; /* addr of last next element */               \
+        uint64_t stqh_len;       /* number of elements in queue */             \
     }
 
 #define sq_head_initializer(head)                                              \
     {                                                                          \
-        NULL, &(head).stqh_first                                               \
+        NULL, &(head).stqh_first, 0                                            \
     }
 
 #define sq_entry(type)                                                         \
@@ -352,9 +376,12 @@ struct qm_trace {
         if (!sq_empty((head2))) {                                              \
             *(head1)->stqh_last = (head2)->stqh_first;                         \
             (head1)->stqh_last = (head2)->stqh_last;                           \
+            (head1)->stqh_len += (head2)->stqh_len;                            \
             sq_init((head2));                                                  \
         }                                                                      \
     } while (0)
+
+#define sq_len(head) ((head)->stqh_len)
 
 #define sq_empty(head) ((head)->stqh_first == NULL)
 
@@ -379,6 +406,7 @@ struct qm_trace {
     do {                                                                       \
         sq_first((head)) = NULL;                                               \
         (head)->stqh_last = &sq_first((head));                                 \
+        (head)->stqh_len = 0;                                                  \
     } while (0)
 
 #define sq_insert_after(head, tqelm, elm, field)                               \
@@ -386,6 +414,7 @@ struct qm_trace {
         if ((sq_next((elm), field) = sq_next((tqelm), field)) == NULL)         \
             (head)->stqh_last = &sq_next((elm), field);                        \
         sq_next((tqelm), field) = (elm);                                       \
+        (head)->stqh_len++;                                                    \
     } while (0)
 
 #define sq_insert_head(head, elm, field)                                       \
@@ -393,6 +422,7 @@ struct qm_trace {
         if ((sq_next((elm), field) = sq_first((head))) == NULL)                \
             (head)->stqh_last = &sq_next((elm), field);                        \
         sq_first((head)) = (elm);                                              \
+        (head)->stqh_len++;                                                    \
     } while (0)
 
 #define sq_insert_tail(head, elm, field)                                       \
@@ -400,6 +430,7 @@ struct qm_trace {
         sq_next((elm), field) = NULL;                                          \
         *(head)->stqh_last = (elm);                                            \
         (head)->stqh_last = &sq_next((elm), field);                            \
+        (head)->stqh_len++;                                                    \
     } while (0)
 
 #define sq_last(head, type, field)                                             \
@@ -420,6 +451,7 @@ struct qm_trace {
                 curelm = sq_next(curelm, field);                               \
             sq_remove_after(head, curelm, field);                              \
         }                                                                      \
+        (head)->stqh_len--;                                                    \
         TRASHIT(*oldnext);                                                     \
     } while (0)
 

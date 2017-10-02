@@ -220,22 +220,6 @@ uint32_t w_iov_sq_len(const struct w_iov_sq * const q)
 }
 
 
-/// Return the number of w_iov structures in the w_iov tail queue @p c.
-///
-/// @param[in]  q     The w_iov tail queue to compute the payload length of.
-///
-/// @return     Number of w_iov structs in @p q.
-///
-uint32_t w_iov_sq_cnt(const struct w_iov_sq * const q)
-{
-    uint32_t l = 0;
-    const struct w_iov * v;
-    sq_foreach (v, q, next)
-        l++;
-    return l;
-}
-
-
 /// Connect a bound socket to a remote IP address and port. Depending on the
 /// backend, this function may block until a MAC address has been resolved with
 /// ARP.
