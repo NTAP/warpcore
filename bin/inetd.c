@@ -83,9 +83,10 @@ int main(const int argc, char * const argv[])
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv, "hi:bzn:"
+    while ((ch = getopt(argc, argv,
+                        "hi:bzn:"
 #ifndef NDEBUG
-                                    "v:"
+                        "v:"
 #endif
 
                         )) != -1) {
@@ -162,7 +163,7 @@ int main(const int argc, char * const argv[])
 #if 0
             if (s == srv[t++]) {
                 // echo received data back to sender (zero-copy)
-                STAILQ_CONCAT(o, i);
+                sq_concat(o, i);
             } else if (s == srv[t++]) {
                 // discard; nothing to do
             } else if (s == srv[t++]) {
@@ -175,7 +176,7 @@ int main(const int argc, char * const argv[])
                     memcpy(v->buf, c, l); // write a timestamp
                     v->len = l;
                 }
-                STAILQ_CONCAT(o, i);
+                sq_concat(o, i);
             } else if (s == srv[t++]) {
                 // time
                 const time_t t = time(0);
@@ -184,7 +185,7 @@ int main(const int argc, char * const argv[])
                     memcpy(v->buf, &t, sizeof(t)); // write a timestamp
                     v->len = sizeof(t);
                 }
-                STAILQ_CONCAT(o, i);
+                sq_concat(o, i);
 
             } else
 #endif
@@ -199,8 +200,7 @@ int main(const int argc, char * const argv[])
                     ntohl(((struct payload *)(void *)head->buf)->len);
 
                 while (!sq_empty(&i)) {
-                    static struct w_iov_sq tmp =
-                        w_iov_sq_initializer(tmp);
+                    static struct w_iov_sq tmp = w_iov_sq_initializer(tmp);
                     static uint32_t tmp_len = 0;
 
                     while (tmp_len < len && !sq_empty(&i)) {
