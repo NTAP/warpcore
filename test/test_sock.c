@@ -23,12 +23,17 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include "common.h"
 
 
 int main(void)
 {
     init();
-    io(8);
+    for (uint32_t i = 1; i < UINT32_MAX; i <<= 1)
+        if (io(i) == false)
+            break;
     cleanup();
 }

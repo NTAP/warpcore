@@ -42,7 +42,8 @@ bool io(const uint32_t len)
     // allocate a w_iov chain for tx
     struct w_iov_sq o = w_iov_sq_initializer(o);
     w_alloc_cnt(w, &o, len, 512, 64);
-    ensure(w_iov_sq_cnt(&o) == len, "wrong length");
+    if (w_iov_sq_cnt(&o) != len)
+        return false;
 
     // fill it with data
     struct w_iov * ov;
