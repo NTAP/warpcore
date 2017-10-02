@@ -80,6 +80,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(DLEVEL "DBG")
   endif()
 
+  # Enable debug support in the queue.h macros
+  add_definitions(-DQUEUE_MACRO_DEBUG_TRASH)
+
   # See if we can use the address sanitizer
   set(CMAKE_REQUIRED_FLAGS -fsanitize=address)
   check_c_compiler_flag("" _fsanitize_address)
@@ -127,6 +130,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         -readability-braces-around-statements
         -google-readability-todo
         -cppcoreguidelines-pro-type-vararg
+        -clang-diagnostic-unused-command-line-argument
     )
     string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
     set(CMAKE_C_CLANG_TIDY ${CLANGTIDY}
