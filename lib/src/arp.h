@@ -93,7 +93,7 @@ extern void __attribute__((nonnull)) free_arp_cache(struct w_engine * const w);
 /// ARP cache entry.
 ///
 struct arp_entry {
-    SPLAY_ENTRY(arp_entry) next; ///< Pointer to next cache entry.
+    splay_entry(arp_entry) next; ///< Pointer to next cache entry.
     uint32_t ip;                 ///< IPv4 address.
     struct ether_addr mac;       ///< Ethernet MAC address.
     /// @cond
@@ -107,5 +107,5 @@ arp_cache_cmp(const struct arp_entry * const a,
               const struct arp_entry * const b);
 
 
-SPLAY_HEAD(arp_cache, arp_entry);
+splay_head(arp_cache, arp_entry);
 SPLAY_PROTOTYPE(arp_cache, arp_entry, next, arp_cache_cmp)

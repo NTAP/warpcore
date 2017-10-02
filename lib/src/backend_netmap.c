@@ -126,7 +126,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     // initialize random port number generation state
     b->next_eph = (uint16_t)plat_random();
 
-    SPLAY_INIT(&b->arp_cache);
+    splay_init(&b->arp_cache);
 }
 
 
@@ -364,7 +364,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     // insert all sockets with pending inbound data
     struct w_sock * s;
     uint32_t n = 0;
-    SPLAY_FOREACH (s, sock, &w->sock)
+    splay_foreach (s, sock, &w->sock)
         if (!sq_empty(&s->iv)) {
             sl_insert_head(sl, s, next_rx);
             n++;

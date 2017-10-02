@@ -30,8 +30,6 @@
 
 #pragma once
 
-#include <sys/cdefs.h>
-
 /*
  * This file defines data structures for different types of trees:
  * splay trees and red-black trees.
@@ -59,145 +57,145 @@
  * The maximum height of a red-black tree is 2lg (n+1).
  */
 
-#define SPLAY_HEAD(name, type)                                                 \
+#define splay_head(name, type)                                                 \
     struct name {                                                              \
         struct type * sph_root; /* root of the tree */                         \
     }
 
-#define SPLAY_INITIALIZER(root)                                                \
+#define splay_initializer(root)                                                \
     {                                                                          \
         NULL                                                                   \
     }
 
-#define SPLAY_INIT(root)                                                       \
+#define splay_init(root)                                                       \
     do {                                                                       \
         (root)->sph_root = NULL;                                               \
     } while (/*CONSTCOND*/ 0)
 
-#define SPLAY_ENTRY(type)                                                      \
+#define splay_entry(type)                                                      \
     struct {                                                                   \
         struct type * spe_left;  /* left element */                            \
         struct type * spe_right; /* right element */                           \
     }
 
-#define SPLAY_LEFT(elm, field) (elm)->field.spe_left
-#define SPLAY_RIGHT(elm, field) (elm)->field.spe_right
-#define SPLAY_ROOT(head) (head)->sph_root
-#define SPLAY_EMPTY(head) (SPLAY_ROOT(head) == NULL)
+#define splay_left(elm, field) (elm)->field.spe_left
+#define splay_right(elm, field) (elm)->field.spe_right
+#define splay_root(head) (head)->sph_root
+#define splay_empty(head) (splay_root(head) == NULL)
 
-/* SPLAY_ROTATE_{LEFT,RIGHT} expect that tmp hold SPLAY_{RIGHT,LEFT} */
-#define SPLAY_ROTATE_RIGHT(head, tmp, field)                                   \
+/* splay_rotate_{left,right} expect that tmp hold splay_{right,left} */
+#define splay_rotate_right(head, tmp, field)                                   \
     do {                                                                       \
-        SPLAY_LEFT((head)->sph_root, field) = SPLAY_RIGHT(tmp, field);         \
-        SPLAY_RIGHT(tmp, field) = (head)->sph_root;                            \
+        splay_left((head)->sph_root, field) = splay_right(tmp, field);         \
+        splay_right(tmp, field) = (head)->sph_root;                            \
         (head)->sph_root = tmp;                                                \
     } while (/*CONSTCOND*/ 0)
 
-#define SPLAY_ROTATE_LEFT(head, tmp, field)                                    \
+#define splay_rotate_left(head, tmp, field)                                    \
     do {                                                                       \
-        SPLAY_RIGHT((head)->sph_root, field) = SPLAY_LEFT(tmp, field);         \
-        SPLAY_LEFT(tmp, field) = (head)->sph_root;                             \
+        splay_right((head)->sph_root, field) = splay_left(tmp, field);         \
+        splay_left(tmp, field) = (head)->sph_root;                             \
         (head)->sph_root = tmp;                                                \
     } while (/*CONSTCOND*/ 0)
 
-#define SPLAY_LINKLEFT(head, tmp, field)                                       \
+#define splay_linkleft(head, tmp, field)                                       \
     do {                                                                       \
-        SPLAY_LEFT(tmp, field) = (head)->sph_root;                             \
+        splay_left(tmp, field) = (head)->sph_root;                             \
         tmp = (head)->sph_root;                                                \
-        (head)->sph_root = SPLAY_LEFT((head)->sph_root, field);                \
+        (head)->sph_root = splay_left((head)->sph_root, field);                \
     } while (/*CONSTCOND*/ 0)
 
-#define SPLAY_LINKRIGHT(head, tmp, field)                                      \
+#define splay_linkright(head, tmp, field)                                      \
     do {                                                                       \
-        SPLAY_RIGHT(tmp, field) = (head)->sph_root;                            \
+        splay_right(tmp, field) = (head)->sph_root;                            \
         tmp = (head)->sph_root;                                                \
-        (head)->sph_root = SPLAY_RIGHT((head)->sph_root, field);               \
+        (head)->sph_root = splay_right((head)->sph_root, field);               \
     } while (/*CONSTCOND*/ 0)
 
-#define SPLAY_ASSEMBLE(head, node, left, right, field)                         \
+#define splay_assemble(head, node, left, right, field)                         \
     do {                                                                       \
-        SPLAY_RIGHT(left, field) = SPLAY_LEFT((head)->sph_root, field);        \
-        SPLAY_LEFT(right, field) = SPLAY_RIGHT((head)->sph_root, field);       \
-        SPLAY_LEFT((head)->sph_root, field) = SPLAY_RIGHT(node, field);        \
-        SPLAY_RIGHT((head)->sph_root, field) = SPLAY_LEFT(node, field);        \
+        splay_right(left, field) = splay_left((head)->sph_root, field);        \
+        splay_left(right, field) = splay_right((head)->sph_root, field);       \
+        splay_left((head)->sph_root, field) = splay_right(node, field);        \
+        splay_right((head)->sph_root, field) = splay_left(node, field);        \
     } while (/*CONSTCOND*/ 0)
 
 /* Generates prototypes and inline functions */
 
 #define SPLAY_PROTOTYPE(name, type, field, cmp)                                \
-    void name##_SPLAY(struct name *, struct type *);                           \
-    void name##_SPLAY_MINMAX(struct name *, int);                              \
-    struct type * name##_SPLAY_INSERT(struct name *, struct type *);           \
-    struct type * name##_SPLAY_REMOVE(struct name *, struct type *);           \
+    void name##_splay(struct name *, struct type *);                           \
+    void name##_splay_minmax(struct name *, int);                              \
+    struct type * name##_splay_insert(struct name *, struct type *);           \
+    struct type * name##_splay_remove(struct name *, struct type *);           \
                                                                                \
     /* Finds the node with the same key as elm */                              \
-    static __inline struct type * name##_SPLAY_FIND(struct name * head,        \
+    static __inline struct type * name##_splay_find(struct name * head,        \
                                                     struct type * elm)         \
     {                                                                          \
-        if (SPLAY_EMPTY(head))                                                 \
+        if (splay_empty(head))                                                 \
             return (NULL);                                                     \
-        name##_SPLAY(head, elm);                                               \
+        name##_splay(head, elm);                                               \
         if ((cmp)(elm, (head)->sph_root) == 0)                                 \
             return (head->sph_root);                                           \
         return (NULL);                                                         \
     }                                                                          \
                                                                                \
-    static __inline struct type * name##_SPLAY_NEXT(struct name * head,        \
+    static __inline struct type * name##_splay_next(struct name * head,        \
                                                     struct type * elm)         \
     {                                                                          \
-        name##_SPLAY(head, elm);                                               \
-        if (SPLAY_RIGHT(elm, field) != NULL) {                                 \
-            elm = SPLAY_RIGHT(elm, field);                                     \
-            while (SPLAY_LEFT(elm, field) != NULL) {                           \
-                elm = SPLAY_LEFT(elm, field);                                  \
+        name##_splay(head, elm);                                               \
+        if (splay_right(elm, field) != NULL) {                                 \
+            elm = splay_right(elm, field);                                     \
+            while (splay_left(elm, field) != NULL) {                           \
+                elm = splay_left(elm, field);                                  \
             }                                                                  \
         } else                                                                 \
             elm = NULL;                                                        \
         return (elm);                                                          \
     }                                                                          \
                                                                                \
-    static __inline struct type * name##_SPLAY_PREV(struct name * head,        \
+    static __inline struct type * name##_splay_prev(struct name * head,        \
                                                     struct type * elm)         \
     {                                                                          \
-        name##_SPLAY(head, elm);                                               \
-        if (SPLAY_LEFT(elm, field) != NULL) {                                  \
-            elm = SPLAY_LEFT(elm, field);                                      \
-            while (SPLAY_RIGHT(elm, field) != NULL) {                          \
-                elm = SPLAY_RIGHT(elm, field);                                 \
+        name##_splay(head, elm);                                               \
+        if (splay_left(elm, field) != NULL) {                                  \
+            elm = splay_left(elm, field);                                      \
+            while (splay_right(elm, field) != NULL) {                          \
+                elm = splay_right(elm, field);                                 \
             }                                                                  \
         } else                                                                 \
             elm = NULL;                                                        \
         return (elm);                                                          \
     }                                                                          \
                                                                                \
-    static __inline struct type * name##_SPLAY_MIN_MAX(struct name * head,     \
+    static __inline struct type * name##_splay_min_max(struct name * head,     \
                                                        int val)                \
     {                                                                          \
-        name##_SPLAY_MINMAX(head, val);                                        \
-        return (SPLAY_ROOT(head));                                             \
+        name##_splay_minmax(head, val);                                        \
+        return (splay_root(head));                                             \
     }
 
 /* Main splay operation.
  * Moves node close to the key of elm to top
  */
 #define SPLAY_GENERATE(name, type, field, cmp)                                 \
-    struct type * name##_SPLAY_INSERT(struct name * head, struct type * elm)   \
+    struct type * name##_splay_insert(struct name * head, struct type * elm)   \
     {                                                                          \
-        if (SPLAY_EMPTY(head)) {                                               \
-            SPLAY_LEFT(elm, field) = SPLAY_RIGHT(elm, field) = NULL;           \
+        if (splay_empty(head)) {                                               \
+            splay_left(elm, field) = splay_right(elm, field) = NULL;           \
         } else {                                                               \
             int __comp;                                                        \
-            name##_SPLAY(head, elm);                                           \
+            name##_splay(head, elm);                                           \
             __comp = (cmp)(elm, (head)->sph_root);                             \
             if (__comp < 0) {                                                  \
-                SPLAY_LEFT(elm, field) = SPLAY_LEFT((head)->sph_root, field);  \
-                SPLAY_RIGHT(elm, field) = (head)->sph_root;                    \
-                SPLAY_LEFT((head)->sph_root, field) = NULL;                    \
+                splay_left(elm, field) = splay_left((head)->sph_root, field);  \
+                splay_right(elm, field) = (head)->sph_root;                    \
+                splay_left((head)->sph_root, field) = NULL;                    \
             } else if (__comp > 0) {                                           \
-                SPLAY_RIGHT(elm, field) =                                      \
-                    SPLAY_RIGHT((head)->sph_root, field);                      \
-                SPLAY_LEFT(elm, field) = (head)->sph_root;                     \
-                SPLAY_RIGHT((head)->sph_root, field) = NULL;                   \
+                splay_right(elm, field) =                                      \
+                    splay_right((head)->sph_root, field);                      \
+                splay_left(elm, field) = (head)->sph_root;                     \
+                splay_right((head)->sph_root, field) = NULL;                   \
             } else                                                             \
                 return ((head)->sph_root);                                     \
         }                                                                      \
@@ -205,116 +203,116 @@
         return (NULL);                                                         \
     }                                                                          \
                                                                                \
-    struct type * name##_SPLAY_REMOVE(struct name * head, struct type * elm)   \
+    struct type * name##_splay_remove(struct name * head, struct type * elm)   \
     {                                                                          \
         struct type * __tmp;                                                   \
-        if (SPLAY_EMPTY(head))                                                 \
+        if (splay_empty(head))                                                 \
             return (NULL);                                                     \
-        name##_SPLAY(head, elm);                                               \
+        name##_splay(head, elm);                                               \
         if ((cmp)(elm, (head)->sph_root) == 0) {                               \
-            if (SPLAY_LEFT((head)->sph_root, field) == NULL) {                 \
-                (head)->sph_root = SPLAY_RIGHT((head)->sph_root, field);       \
+            if (splay_left((head)->sph_root, field) == NULL) {                 \
+                (head)->sph_root = splay_right((head)->sph_root, field);       \
             } else {                                                           \
-                __tmp = SPLAY_RIGHT((head)->sph_root, field);                  \
-                (head)->sph_root = SPLAY_LEFT((head)->sph_root, field);        \
-                name##_SPLAY(head, elm);                                       \
-                SPLAY_RIGHT((head)->sph_root, field) = __tmp;                  \
+                __tmp = splay_right((head)->sph_root, field);                  \
+                (head)->sph_root = splay_left((head)->sph_root, field);        \
+                name##_splay(head, elm);                                       \
+                splay_right((head)->sph_root, field) = __tmp;                  \
             }                                                                  \
             return (elm);                                                      \
         }                                                                      \
         return (NULL);                                                         \
     }                                                                          \
                                                                                \
-    void name##_SPLAY(struct name * head, struct type * elm)                   \
+    void name##_splay(struct name * head, struct type * elm)                   \
     {                                                                          \
         struct type __node, *__left, *__right, *__tmp;                         \
         int __comp;                                                            \
                                                                                \
-        SPLAY_LEFT(&__node, field) = SPLAY_RIGHT(&__node, field) = NULL;       \
+        splay_left(&__node, field) = splay_right(&__node, field) = NULL;       \
         __left = __right = &__node;                                            \
                                                                                \
         while ((__comp = (cmp)(elm, (head)->sph_root)) != 0) {                 \
             if (__comp < 0) {                                                  \
-                __tmp = SPLAY_LEFT((head)->sph_root, field);                   \
+                __tmp = splay_left((head)->sph_root, field);                   \
                 if (__tmp == NULL)                                             \
                     break;                                                     \
                 if ((cmp)(elm, __tmp) < 0) {                                   \
-                    SPLAY_ROTATE_RIGHT(head, __tmp, field);                    \
-                    if (SPLAY_LEFT((head)->sph_root, field) == NULL)           \
+                    splay_rotate_right(head, __tmp, field);                    \
+                    if (splay_left((head)->sph_root, field) == NULL)           \
                         break;                                                 \
                 }                                                              \
-                SPLAY_LINKLEFT(head, __right, field);                          \
+                splay_linkleft(head, __right, field);                          \
             } else if (__comp > 0) {                                           \
-                __tmp = SPLAY_RIGHT((head)->sph_root, field);                  \
+                __tmp = splay_right((head)->sph_root, field);                  \
                 if (__tmp == NULL)                                             \
                     break;                                                     \
                 if ((cmp)(elm, __tmp) > 0) {                                   \
-                    SPLAY_ROTATE_LEFT(head, __tmp, field);                     \
-                    if (SPLAY_RIGHT((head)->sph_root, field) == NULL)          \
+                    splay_rotate_left(head, __tmp, field);                     \
+                    if (splay_right((head)->sph_root, field) == NULL)          \
                         break;                                                 \
                 }                                                              \
-                SPLAY_LINKRIGHT(head, __left, field);                          \
+                splay_linkright(head, __left, field);                          \
             }                                                                  \
         }                                                                      \
-        SPLAY_ASSEMBLE(head, &__node, __left, __right, field);                 \
+        splay_assemble(head, &__node, __left, __right, field);                 \
     }                                                                          \
                                                                                \
     /* Splay with either the minimum or the maximum element                    \
      * Used to find minimum or maximum element in tree.                        \
      */                                                                        \
-    void name##_SPLAY_MINMAX(struct name * head, int __comp)                   \
+    void name##_splay_minmax(struct name * head, int __comp)                   \
     {                                                                          \
         struct type __node, *__left, *__right, *__tmp;                         \
                                                                                \
-        SPLAY_LEFT(&__node, field) = SPLAY_RIGHT(&__node, field) = NULL;       \
+        splay_left(&__node, field) = splay_right(&__node, field) = NULL;       \
         __left = __right = &__node;                                            \
                                                                                \
         while (1) {                                                            \
             if (__comp < 0) {                                                  \
-                __tmp = SPLAY_LEFT((head)->sph_root, field);                   \
+                __tmp = splay_left((head)->sph_root, field);                   \
                 if (__tmp == NULL)                                             \
                     break;                                                     \
                 if (__comp < 0) {                                              \
-                    SPLAY_ROTATE_RIGHT(head, __tmp, field);                    \
-                    if (SPLAY_LEFT((head)->sph_root, field) == NULL)           \
+                    splay_rotate_right(head, __tmp, field);                    \
+                    if (splay_left((head)->sph_root, field) == NULL)           \
                         break;                                                 \
                 }                                                              \
-                SPLAY_LINKLEFT(head, __right, field);                          \
+                splay_linkleft(head, __right, field);                          \
             } else if (__comp > 0) {                                           \
-                __tmp = SPLAY_RIGHT((head)->sph_root, field);                  \
+                __tmp = splay_right((head)->sph_root, field);                  \
                 if (__tmp == NULL)                                             \
                     break;                                                     \
                 if (__comp > 0) {                                              \
-                    SPLAY_ROTATE_LEFT(head, __tmp, field);                     \
-                    if (SPLAY_RIGHT((head)->sph_root, field) == NULL)          \
+                    splay_rotate_left(head, __tmp, field);                     \
+                    if (splay_right((head)->sph_root, field) == NULL)          \
                         break;                                                 \
                 }                                                              \
-                SPLAY_LINKRIGHT(head, __left, field);                          \
+                splay_linkright(head, __left, field);                          \
             }                                                                  \
         }                                                                      \
-        SPLAY_ASSEMBLE(head, &__node, __left, __right, field);                 \
+        splay_assemble(head, &__node, __left, __right, field);                 \
     }
 
-#define SPLAY_NEGINF -1
-#define SPLAY_INF 1
+#define splay_neginf -1
+#define splay_inf 1
 
-#define SPLAY_INSERT(name, x, y) name##_SPLAY_INSERT(x, y)
-#define SPLAY_REMOVE(name, x, y) name##_SPLAY_REMOVE(x, y)
-#define SPLAY_FIND(name, x, y) name##_SPLAY_FIND(x, y)
-#define SPLAY_NEXT(name, x, y) name##_SPLAY_NEXT(x, y)
-#define SPLAY_PREV(name, x, y) name##_SPLAY_PREV(x, y)
-#define SPLAY_MIN(name, x)                                                     \
-    (SPLAY_EMPTY(x) ? NULL : name##_SPLAY_MIN_MAX(x, SPLAY_NEGINF))
-#define SPLAY_MAX(name, x)                                                     \
-    (SPLAY_EMPTY(x) ? NULL : name##_SPLAY_MIN_MAX(x, SPLAY_INF))
+#define splay_insert(name, x, y) name##_splay_insert(x, y)
+#define splay_remove(name, x, y) name##_splay_remove(x, y)
+#define splay_find(name, x, y) name##_splay_find(x, y)
+#define splay_next(name, x, y) name##_splay_next(x, y)
+#define splay_prev(name, x, y) name##_splay_prev(x, y)
+#define splay_min(name, x)                                                     \
+    (splay_empty(x) ? NULL : name##_splay_min_max(x, splay_neginf))
+#define splay_max(name, x)                                                     \
+    (splay_empty(x) ? NULL : name##_splay_min_max(x, splay_inf))
 
-#define SPLAY_FOREACH(x, name, head)                                           \
-    for ((x) = SPLAY_MIN(name, head); (x) != NULL;                             \
-         (x) = SPLAY_NEXT(name, head, x))
+#define splay_foreach(x, name, head)                                           \
+    for ((x) = splay_min(name, head); (x) != NULL;                             \
+         (x) = splay_next(name, head, x))
 
-#define SPLAY_FOREACH_REV(x, name, head)                                       \
-    for ((x) = SPLAY_MAX(name, head); (x) != NULL;                             \
-         (x) = SPLAY_PREV(name, head, x))
+#define splay_foreach_rev(x, name, head)                                       \
+    for ((x) = splay_max(name, head); (x) != NULL;                             \
+         (x) = splay_prev(name, head, x))
 
 
 #if 0

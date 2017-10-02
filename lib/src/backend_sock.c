@@ -365,7 +365,7 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 
     // count sockets
     struct w_sock * s = 0;
-    SPLAY_FOREACH (s, sock, &w->sock)
+    splay_foreach (s, sock, &w->sock)
         n++;
     if (n == 0)
         return false;
@@ -373,10 +373,10 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
     // allocate and fill pollfd
     struct pollfd * fds = calloc((unsigned long)n, sizeof(*fds));
     ensure(fds, "could not calloc");
-    s = SPLAY_MIN(sock, &w->sock);
+    s = splay_min(sock, &w->sock);
     for (int i = 0; i < n && s; i++) {
         fds[i] = (struct pollfd){.fd = s->fd, .events = POLLIN};
-        s = SPLAY_NEXT(sock, &w->sock, s);
+        s = splay_next(sock, &w->sock, s);
     }
 
     // poll
@@ -426,7 +426,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     // count sockets
     unsigned long sock_cnt = 0;
     struct w_sock * s = 0;
-    SPLAY_FOREACH (s, sock, &w->sock)
+    splay_foreach (s, sock, &w->sock)
         sock_cnt++;
     if (sock_cnt == 0)
         return 0;
@@ -435,11 +435,11 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     struct pollfd * fds = calloc(sock_cnt, sizeof(*fds));
     struct w_sock ** ss = calloc(sock_cnt, sizeof(*ss));
     ensure(fds && ss, "could not calloc");
-    s = SPLAY_MIN(sock, &w->sock);
+    s = splay_min(sock, &w->sock);
     for (uint32_t i = 0; i < sock_cnt && s; i++) {
         fds[i] = (struct pollfd){.fd = s->fd, .events = POLLIN};
         ss[i] = s;
-        s = SPLAY_NEXT(sock, &w->sock, s);
+        s = splay_next(sock, &w->sock, s);
     }
 
     // find ready descriptors

@@ -32,31 +32,6 @@ extern "C" {
 #include <stdint.h>
 #include <sys/time.h>
 
-
-// // Add some defines that FreeBSD has in cdefs.h which tree.h and queue.h
-// // require.
-
-// #ifdef __linux__
-// typedef uintptr_t __uintptr_t;
-// #endif
-
-// #ifndef __offsetof
-// #define __offsetof(type, field) __builtin_offsetof(type, field)
-// #endif
-
-// #ifndef __DEQUALIFY
-// #define __DEQUALIFY(type, var) ((type)(__uintptr_t)(const volatile void *)(var))
-// #endif
-
-// #ifndef __containerof
-// #define __containerof(x, s, m)                                                 \
-//     ({                                                                         \
-//         const volatile __typeof(((s *)0)->m) * __x = (x);                      \
-//         __DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));       \
-//     })
-// #endif
-
-
 #include <warpcore/config.h> // IWYU pragma: export
 #include <warpcore/plat.h>   // IWYU pragma: export
 #include <warpcore/queue.h>  // IWYU pragma: export
@@ -64,7 +39,7 @@ extern "C" {
 #include <warpcore/util.h>   // IWYU pragma: export
 
 
-SPLAY_HEAD(sock, w_sock);
+splay_head(sock, w_sock);
 
 /// A warpcore backend engine.
 ///
@@ -135,7 +110,7 @@ struct w_sock {
     struct w_engine * w;
 
     sq_head(, w_iov) iv;      ///< Tail queue containing incoming unread data.
-    SPLAY_ENTRY(w_sock) next; ///< Next socket associated with this engine.
+    splay_entry(w_sock) next; ///< Next socket associated with this engine.
 
     /// The template header to be used for outbound packets on this
     /// w_sock.

@@ -108,7 +108,7 @@ struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 {
     struct w_hdr h = {.udp.sport = port};
     struct w_sock s = {.hdr = &h};
-    return SPLAY_FIND(sock, &w->sock, &s);
+    return splay_find(sock, &w->sock, &s);
 }
 
 
@@ -292,7 +292,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
     // s->hdr->ip.dst is set on w_connect()
 
     s->w = w;
-    SPLAY_INSERT(sock, &w->sock, s);
+    splay_insert(sock, &w->sock, s);
     sq_init(&s->iv);
 
     backend_bind(s);
@@ -316,7 +316,7 @@ void w_close(struct w_sock * const s)
     sq_concat(&s->w->iov, &s->iv);
 
     // remove the socket from list of sockets
-    SPLAY_REMOVE(sock, &s->w->sock, s);
+    splay_remove(sock, &s->w->sock, s);
 
     // free the template header
     free(s->hdr);
@@ -338,8 +338,8 @@ void w_cleanup(struct w_engine * const w)
 
     // close all sockets
     struct w_sock *s, *tmp;
-    for (s = SPLAY_MIN(sock, &w->sock); s != 0; s = tmp) {
-        tmp = SPLAY_NEXT(sock, &w->sock, s);
+    for (s = splay_min(sock, &w->sock); s != 0; s = tmp) {
+        tmp = splay_next(sock, &w->sock, s);
         w_close(s);
     }
 
@@ -381,7 +381,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
 
     // initialize lists of sockets and iovs
-    SPLAY_INIT(&w->sock);
+    splay_init(&w->sock);
     sq_init(&w->iov);
 
     // get interface config

@@ -67,7 +67,7 @@ static struct arp_entry * __attribute__((nonnull))
 arp_cache_find(struct w_engine * w, const uint32_t ip)
 {
     struct arp_entry a = {.ip = ip};
-    return SPLAY_FIND(arp_cache, &w->b->arp_cache, &a);
+    return splay_find(arp_cache, &w->b->arp_cache, &a);
 }
 
 
@@ -87,7 +87,7 @@ arp_cache_update(struct w_engine * w,
         a = calloc(1, sizeof(*a));
         ensure(a, "cannot allocate arp_entry");
         a->ip = ip;
-        SPLAY_INSERT(arp_cache, &w->b->arp_cache, a);
+        splay_insert(arp_cache, &w->b->arp_cache, a);
     }
     a->mac = mac;
 #ifndef NDEBUG
@@ -283,7 +283,7 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
         // check if any socket has an IP address matching this ARP
         // reply, and if so, change its destination MAC
         struct w_sock * s;
-        SPLAY_FOREACH (s, sock, &w->sock) {
+        splay_foreach (s, sock, &w->sock) {
             if ( // is local-net socket and ARP src IP matches its dst
                 ((mk_net(s->w->ip, s->w->mask) ==
                       mk_net(s->hdr->ip.dst, s->w->mask) &&
@@ -313,9 +313,9 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 void free_arp_cache(struct w_engine * const w)
 {
     struct arp_entry *a, *n;
-    for (a = SPLAY_MIN(arp_cache, &w->b->arp_cache); a; a = n) {
-        n = SPLAY_NEXT(arp_cache, &w->b->arp_cache, a);
-        SPLAY_REMOVE(arp_cache, &w->b->arp_cache, a);
+    for (a = splay_min(arp_cache, &w->b->arp_cache); a; a = n) {
+        n = splay_next(arp_cache, &w->b->arp_cache, a);
+        splay_remove(arp_cache, &w->b->arp_cache, a);
         free(a);
     }
 }
