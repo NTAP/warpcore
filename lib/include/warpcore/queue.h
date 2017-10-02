@@ -33,16 +33,16 @@
 
 #pragma once
 
-// // Add some defines that FreeBSD has in cdefs.h which tree.h and queue.h
-// // require.
+// Add some defines that FreeBSD has in cdefs.h which tree.h and queue.h
+// require.
 
-// #ifdef __linux__
-// typedef uintptr_t __uintptr_t;
-// #endif
+#ifdef __linux__
+typedef uintptr_t __uintptr_t;
+#endif
 
-// #ifndef __offsetof
-// #define __offsetof(type, field) __builtin_offsetof(type, field)
-// #endif
+#ifndef __offsetof
+#define __offsetof(type, field) __builtin_offsetof(type, field)
+#endif
 
 #ifndef __DEQUALIFY
 #define __DEQUALIFY(type, var) ((type)(__uintptr_t)(const volatile void *)(var))
@@ -55,6 +55,7 @@
         __DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));       \
     })
 #endif
+
 
 /*
  * This file defines four types of data structures: singly-linked lists,
