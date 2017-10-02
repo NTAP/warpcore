@@ -81,35 +81,35 @@
  *  -  means the macro is not available
  *  s  means the macro is available but is slow (runs in O(n) time)
  *
- *                              SLIST   LIST    STAILQ  TAILQ
- * _HEAD                        +       +       +       +
- * _CLASS_HEAD                  +       +       +       +
- * _HEAD_INITIALIZER            +       +       +       +
- * _ENTRY                       +       +       +       +
- * _CLASS_ENTRY                 +       +       +       +
- * _INIT                        +       +       +       +
- * _EMPTY                       +       +       +       +
- * _FIRST                       +       +       +       +
- * _NEXT                        +       +       +       +
- * _PREV                        -       +       -       +
- * _LAST                        -       -       +       +
- * _FOREACH                     +       +       +       +
- * _FOREACH_FROM                +       +       +       +
- * _FOREACH_SAFE                +       +       +       +
- * _FOREACH_FROM_SAFE           +       +       +       +
- * _FOREACH_REVERSE             -       -       -       +
- * _FOREACH_REVERSE_FROM        -       -       -       +
- * _FOREACH_REVERSE_SAFE        -       -       -       +
- * _FOREACH_REVERSE_FROM_SAFE   -       -       -       +
- * _INSERT_HEAD                 +       +       +       +
- * _INSERT_BEFORE               -       +       -       +
- * _INSERT_AFTER                +       +       +       +
- * _INSERT_TAIL                 -       -       +       +
- * _CONCAT                      s       s       +       +
- * _REMOVE_AFTER                +       -       +       -
- * _REMOVE_HEAD                 +       -       +       -
- * _REMOVE                      s       +       s       +
- * _SWAP                        +       +       +       +
+ *                              sl      l       sq      q
+ * _head                        +       +       +       +
+ * _class_head                  +       +       +       +
+ * _head_initializer            +       +       +       +
+ * _entry                       +       +       +       +
+ * _class_entry                 +       +       +       +
+ * _init                        +       +       +       +
+ * _empty                       +       +       +       +
+ * _first                       +       +       +       +
+ * _next                        +       +       +       +
+ * _prev                        -       +       -       +
+ * _last                        -       -       +       +
+ * _foreach                     +       +       +       +
+ * _foreach_from                +       +       +       +
+ * _foreach_safe                +       +       +       +
+ * _foreach_from_safe           +       +       +       +
+ * _foreach_reverse             -       -       -       +
+ * _foreach_reverse_from        -       -       -       +
+ * _foreach_reverse_safe        -       -       -       +
+ * _foreach_reverse_from_safe   -       -       -       +
+ * _insert_head                 +       +       +       +
+ * _insert_before               -       +       -       +
+ * _insert_after                +       +       +       +
+ * _insert_tail                 -       -       +       +
+ * _concat                      s       s       +       +
+ * _remove_after                +       -       +       -
+ * _remove_head                 +       -       +       -
+ * _remove                      s       +       s       +
+ * _swap                        +       +       +       +
  *
  */
 #ifdef QUEUE_MACRO_DEBUG
