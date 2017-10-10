@@ -301,7 +301,6 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 
     default:
         die("unhandled ARP operation %d", op);
-        break;
     }
 }
 

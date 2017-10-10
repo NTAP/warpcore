@@ -70,7 +70,7 @@ static void usage(const char * const name,
     printf("\t[-b]                    busy-wait\n");
 #ifndef NDEBUG
     printf("\t[-v verbosity]          verbosity level (0-%u, default %u)\n",
-           DLEVEL, _dlevel);
+           DLEVEL, util_dlevel);
 #endif
 }
 
@@ -163,7 +163,7 @@ int main(const int argc, char * const argv[])
             break;
 #ifndef NDEBUG
         case 'v':
-            _dlevel = (short)MIN(DLEVEL, strtoul(optarg, 0, 10));
+            util_dlevel = (short)MIN(DLEVEL, strtoul(optarg, 0, 10));
             break;
 #endif
         case 'h':

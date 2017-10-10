@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.17.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.18.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
@@ -142,7 +142,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 else()
   # Default logging level
   if(NOT DEFINED DLEVEL)
-    set(DLEVEL "notice")
+    set(DLEVEL "NTE")
   endif()
 
   # check for INTERPROCEDURAL_OPTIMIZATION support
