@@ -58,6 +58,11 @@
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
 
+#ifndef HAVE_ARC4RANDOM
+#include <stdlib.h>
+#include <sys/time.h>
+#endif
+
 
 /// Return the Ethernet MAC address of network interface @p i.
 ///

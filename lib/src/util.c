@@ -180,7 +180,8 @@ void util_die(const char * const func,
     timersub(&now, &util_epoch, &dur);
     fprintf(stderr, DTHREAD_ID_IND(BMAG) WHT BLD "%ld.%03ld   %s %s:%d ABORT: ",
             DTHREAD_ID(long)(dur.tv_sec % 1000), // NOLINT
-            (long)(dur.tv_usec / 1000), func, basename(file), line);
+            (long)(dur.tv_usec / 1000),          // NOLINT
+            func, basename(file), line);
     char * fmt = va_arg(ap, char *);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
@@ -221,8 +222,8 @@ static void util_warn_valist(const unsigned dlevel,
             DTHREAD_ID_IND(NRM) "%ld.%03ld %s " NRM MAG " %s" BLK " " BLU
                                 "%s:%d " NRM,
             DTHREAD_ID(long)(dur.tv_sec % 1000), // NOLINT
-            (long)(dur.tv_usec / 1000), util_col[dlevel], func, basename(file),
-            line);
+            (long)(dur.tv_usec / 1000),          // NOLINT
+            util_col[dlevel], func, basename(file), line);
     char * fmt = va_arg(ap, char *);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"

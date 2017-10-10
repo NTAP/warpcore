@@ -28,6 +28,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 struct ifaddrs;
 
@@ -50,7 +51,6 @@ struct ifaddrs;
 
 
 #ifdef HAVE_ARC4RANDOM
-#include <stdlib.h>
 #define plat_random(x) arc4random(x)
 #else
 #define plat_random() random()
