@@ -21,7 +21,9 @@ matrix:
           packages:
             - g++-4.9
       env:
-         - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
+        - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
+        - BUILD_TYPE=Debug
+        - BUILD_TYPE=Release
 
     - os: linux
       addons:
@@ -31,7 +33,9 @@ matrix:
           packages:
             - g++-5
       env:
-         - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+        - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+        - BUILD_TYPE=Debug
+        - BUILD_TYPE=Release
 
     - os: linux
       addons:
@@ -42,6 +46,8 @@ matrix:
             - g++-6
       env:
         - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+        - BUILD_TYPE=Debug
+        - BUILD_TYPE=Release
 
     - os: linux
       addons:
@@ -52,13 +58,15 @@ matrix:
             - g++-7
       env:
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        - BUILD_TYPE=Debug
+        - BUILD_TYPE=Release
 
 env:
-  matrix:
-    - BUILD_TYPE=Debug
-    - BUILD_TYPE=Release
-    # - BUILD_TYPE=RelWithDebInfo
-    # - BUILD_TYPE=MinSizeRel
+  # matrix:
+  #   - BUILD_TYPE=Debug
+  #   - BUILD_TYPE=Release
+  #   # - BUILD_TYPE=RelWithDebInfo
+  #   # - BUILD_TYPE=MinSizeRel
   global:
     - PROJECT=warpcore
     - secure: "IHICwP4oMbC6yzx9G4YIthU6ujpt0bJ4jOElN7ujs8xGODB7YQFlxIaBwLvCf8APjczUuarN1r0Vc/Ekyp8LVBVdI6oEK0ZyHkvXOsydtYAtKrK60iEZXLoMzqTR/DeZaLkQb/hh4tYLAfrzNs9ZZA6vU1rJUJdaNmxluM9kcF253tfxKZ7rZ8dveD+gwmfJYH47sNwvFiGVTmU6c9fDVVfE/R3c0aX3A4pI3oOAUMH6Vs/76ZdRh2knzLLDgcNiIDapJd1xlw8HFSyEbsfEgTLPl+9qeXyh8fU6kwU7tGKetdr60klrXChIdwqStOxNwp4ylto727oYtztj7zJxYWQxbXQwehH66Xj44KEfW9MEuBEbGCmlR/74vCTNnKVU6D857ZU7r0L43GTD9KfAqqHWKtdQJpoRZMkhRcFrZkHCG8GJJo+3swwXFWnPbqPDuGWnLaeg4dsFpcAhq4ujSFheJbJ+ilERGio8ksv+FndlImSsQVEHtErPyJlizE3y2QfdWfASpn5HYVJ5la0Vy5Tea0rPRymdtLQm3lCMX+qcAg9EQLFHsc52LsFUwnHrNu5WqzfCmN0b7kfT4SlEHVXOXtC6k5PYxAUBaHfyeVFspc4UN5ZTUmSj9Y2h47Oa5KV/DJRaNKalve3TYgysEvlnTqv6qJfqnbHO2Swl+GE="
