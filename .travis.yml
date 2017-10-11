@@ -1,7 +1,7 @@
 dist: trusty
 sudo: false
 
-language: C
+language: cpp
 os:
   - linux
 
@@ -13,119 +13,23 @@ branches:
   only:
     - master
 
-matrix:
-  include:
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-4.9
-      env:
-         - CC=gcc-4.9
-         - CXX=g++-4.9
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-5
-      env:
-         - CC=gcc-5
-         - CXX=g++-5
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      env:
-        - CC=gcc-6
-        - CXX=g++-6
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-7
-      env:
-        - CC=gcc-7
-        - CXX=g++-7
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.6
-          packages:
-            - clang-3.6
-      env:
-        - CC=clang-3.6
-        - CXX=clang++-3.6
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.7
-          packages:
-            - clang-3.7
-      env:
-        - CC=clang-3.7
-        - CXX=clang++-3.7
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-precise-3.8
-          packages:
-            - clang-3.8
-      env:
-        - CC=clang-3.8
-        - CXX=clang++-3.8
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-3.9
-          packages:
-            - clang-3.9
-      env:
-        - CC=clang-3.9
-        - CXX=clang++-3.9
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-4.0
-          packages:
-            - clang-4.0
-      env:
-        - CC=clang-4.0
-        - CXX=clang++-4.0
-    - os: linux
-      addons:
-        apt:
-          sources:
-            - llvm-toolchain-trusty-5.0
-          packages:
-            - clang-5.0
-      env:
-        - CC=clang-5.0
-        - CXX=clang++-5.0
-
-
 env:
   matrix:
     - BUILD_TYPE=Debug
     - BUILD_TYPE=Release
     - BUILD_TYPE=RelWithDebInfo
-    - BUILD_TYPE=MinSizeRel
+    # - BUILD_TYPE=MinSizeRel
+    - COMPILERS="CC=gcc-4.8 && CXX=g++-4.8"
+    # - COMPILERS="CC=gcc-4.9 && CXX=g++-4.9"
+    - COMPILERS="CC=gcc-5 && CXX=g++-5"
+    - COMPILERS="CC=gcc-6 && CXX=g++-6"
+    - COMPILERS="CC=gcc-7 && CXX=g++-7"
+    - COMPILERS="CC=clang-3.6 && CXX=clang++-3.6"
+    # - COMPILERS="CC=clang-3.7 && CXX=clang++-3.7"
+    # - COMPILERS="CC=clang-3.8 && CXX=clang++-3.8"
+    - COMPILERS="CC=clang-3.9 && CXX=clang++-3.9"
+    - COMPILERS="CC=clang-4.0 && CXX=clang++-4.0"
+    - COMPILERS="CC=clang-5.0 && CXX=clang++-5.0"
   global:
     - PROJECT=warpcore
     - secure: "IHICwP4oMbC6yzx9G4YIthU6ujpt0bJ4jOElN7ujs8xGODB7YQFlxIaBwLvCf8APjczUuarN1r0Vc/Ekyp8LVBVdI6oEK0ZyHkvXOsydtYAtKrK60iEZXLoMzqTR/DeZaLkQb/hh4tYLAfrzNs9ZZA6vU1rJUJdaNmxluM9kcF253tfxKZ7rZ8dveD+gwmfJYH47sNwvFiGVTmU6c9fDVVfE/R3c0aX3A4pI3oOAUMH6Vs/76ZdRh2knzLLDgcNiIDapJd1xlw8HFSyEbsfEgTLPl+9qeXyh8fU6kwU7tGKetdr60klrXChIdwqStOxNwp4ylto727oYtztj7zJxYWQxbXQwehH66Xj44KEfW9MEuBEbGCmlR/74vCTNnKVU6D857ZU7r0L43GTD9KfAqqHWKtdQJpoRZMkhRcFrZkHCG8GJJo+3swwXFWnPbqPDuGWnLaeg4dsFpcAhq4ujSFheJbJ+ilERGio8ksv+FndlImSsQVEHtErPyJlizE3y2QfdWfASpn5HYVJ5la0Vy5Tea0rPRymdtLQm3lCMX+qcAg9EQLFHsc52LsFUwnHrNu5WqzfCmN0b7kfT4SlEHVXOXtC6k5PYxAUBaHfyeVFspc4UN5ZTUmSj9Y2h47Oa5KV/DJRaNKalve3TYgysEvlnTqv6qJfqnbHO2Swl+GE="
@@ -137,11 +41,26 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - llvm-toolchain-precise-3.6
+      - llvm-toolchain-precise-3.7
+      - llvm-toolchain-precise-3.8
+      - llvm-toolchain-trusty-3.9
+      - llvm-toolchain-trusty-4.0
+      - llvm-toolchain-trusty-5.0
     packages:
       - doxygen
       - graphviz
       - ninja-build
-
+      - g++-4.9
+      - g++-5
+      - g++-6
+      - g++-7
+      - clang-3.6
+      - clang-3.7
+      - clang-3.8
+      - clang-3.9
+      - clang-4.0
+      - clang-5.0
   coverity_scan:
     project:
       name: "NTAP/$PROJECT"
@@ -171,6 +90,8 @@ before_install:
     wget -q \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h
+  # set compilers
+  - eval "${COMPILERS}"
 
 script:
   - |
