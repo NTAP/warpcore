@@ -13,6 +13,113 @@ branches:
   only:
     - master
 
+matrix:
+  include:
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.9
+      env:
+         - CC=gcc-4.9
+         - CXX=g++-4.9
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
+      env:
+         - CC=gcc-5
+         - CXX=g++-5
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      env:
+        - CC=gcc-6
+        - CXX=g++-6
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+      env:
+        - CC=gcc-7
+        - CXX=g++-7
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.6
+          packages:
+            - clang-3.6
+      env:
+        - CC=clang-3.6
+        - CXX=clang++-3.6
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.7
+          packages:
+            - clang-3.7
+      env:
+        - CC=clang-3.7
+        - CXX=clang++-3.7
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.8
+          packages:
+            - clang-3.8
+      env:
+        - CC=clang-3.8
+        - CXX=clang++-3.8
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-3.9
+          packages:
+            - clang-3.9
+      env:
+        - CC=clang-3.9
+        - CXX=clang++-3.9
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-4.0
+          packages:
+            - clang-4.0
+      env:
+        - CC=clang-4.0
+        - CXX=clang++-4.0
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-5.0
+          packages:
+            - clang-5.0
+      env:
+        - CC=clang-5.0
+        - CXX=clang++-5.0
+
+
 env:
   matrix:
     - BUILD_TYPE=Debug
@@ -28,6 +135,8 @@ env:
 
 addons:
   apt:
+    sources:
+      - ubuntu-toolchain-r-test
     packages:
       - doxygen
       - graphviz
@@ -43,7 +152,7 @@ addons:
       rm -rf build
       mkdir build
       cd build
-      ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$CC \
+      ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX \
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
     build_command: ninja
     branch_pattern: coverity
@@ -70,8 +179,8 @@ script:
     rm -rf build
     mkdir build
     cd build
-    ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$CC -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-      -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
+    ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX \
+      -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
     ninja
 
 after_success:
