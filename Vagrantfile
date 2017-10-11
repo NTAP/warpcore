@@ -6,6 +6,9 @@ Vagrant.configure("2") do |config|
   # don't always check for box updates
   config.vm.box_check_update = false
 
+  # add a second NIC
+  config.vm.network "private_network", ip: "192.168.101.1/24"
+
   # hardware configuration of the VM
   config.vm.provider "virtualbox" do |vb|
     vb.gui = false
