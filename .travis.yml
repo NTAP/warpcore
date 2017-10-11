@@ -21,7 +21,8 @@ matrix:
           packages:
             - g++-4.9
       env:
-        - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
+        - COMPILERS="CC=gcc-4.9 && CXX=g++-4.9"   BUILD_TYPE=Debug
+        - COMPILERS="CC=gcc-4.9 && CXX=g++-4.9"   BUILD_TYPE=Release
 
     - os: linux
       addons:
@@ -31,7 +32,8 @@ matrix:
           packages:
             - g++-5
       env:
-        - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+        - COMPILERS="CC=gcc-5 && CXX=g++-5"       BUILD_TYPE=Debug
+        - COMPILERS="CC=gcc-5 && CXX=g++-5"       BUILD_TYPE=Release
 
     - os: linux
       addons:
@@ -41,7 +43,8 @@ matrix:
           packages:
             - g++-6
       env:
-        - MATRIX_EVAL="CC=gcc-6 && CXX=g++-6"
+        - COMPILERS="CC=gcc-6 && CXX=g++-6"       BUILD_TYPE=Debug
+        - COMPILERS="CC=gcc-6 && CXX=g++-6"       BUILD_TYPE=Release
 
     - os: linux
       addons:
@@ -51,11 +54,8 @@ matrix:
           packages:
             - g++-7
       env:
-        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-
-env:
-  - BUILD_TYPE=Debug
-  - BUILD_TYPE=Release
+        - COMPILERS="CC=gcc-7 && CXX=g++-7"       BUILD_TYPE=Debug
+        - COMPILERS="CC=gcc-7 && CXX=g++-7"       BUILD_TYPE=Release
 
 env:
   # matrix:
@@ -106,7 +106,7 @@ before_install:
     wget -q \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h
-  - eval "${MATRIX_EVAL}"
+  - eval "${COMPILERS}"
 
 script:
   - |
