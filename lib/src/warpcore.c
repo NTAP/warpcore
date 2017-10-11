@@ -384,6 +384,14 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     splay_init(&w->sock);
     sq_init(&w->iov);
 
+    // if ifname is a netmap pipe, get the config from the indicated interface
+    char dir = 0, *pipe = 0;
+    if ((pipe = strchr(ifname, '{')) || (pipe = strchr(ifname, '}'))) {
+        dir = *pipe;
+        *pipe = 0;
+        warn(DBG, "getting pipe config from interface %s", ifname);
+    }
+
     // get interface config
     // we mostly loop here because the link may be down
     bool link_up = false;
@@ -442,11 +450,6 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
         }
 
     } while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0);
-    w->ifname = strndup(ifname, IFNAMSIZ);
-    ensure(w->ifname, "could not strndup");
-
-    // set the IP address of our default router
-    w->rip = rip;
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
     char ip_str[INET_ADDRSTRLEN];
@@ -458,6 +461,16 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
          rip ? ", router " : "",
          rip ? inet_ntop(AF_INET, &w->rip, rip_str, INET_ADDRSTRLEN) : "");
 #endif
+
+    // if the interface is a netmap pipe, restore its name
+    if(pipe)
+        *pipe = dir;
+
+    w->ifname = strndup(ifname, IFNAMSIZ);
+    ensure(w->ifname, "could not strndup");
+
+    // set the IP address of our default router
+    w->rip = rip;
 
     // loopback interfaces can have huge MTUs, so cap to something more sensible
     w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
@@ -471,7 +484,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     sl_insert_head(&engines, w, next);
 
     warn(INF, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
-         w->backend_name, warpcore_version, nbufs, w->mtu, ifname);
+         w->backend_name, warpcore_version, w->nbufs, w->mtu, ifname);
     return w;
 }
 

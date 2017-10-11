@@ -74,7 +74,12 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     b->req->nr_ringid &= ~NETMAP_RING_MASK;
     // don't always transmit on poll
     b->req->nr_ringid |= NETMAP_NO_TX_POLL;
-    b->req->nr_flags = NR_REG_ALL_NIC;
+    if (strchr(w->ifname, '{'))
+        b->req->nr_flags = NR_REG_PIPE_MASTER;
+    else if (strchr(w->ifname, '}'))
+        b->req->nr_flags = NR_REG_PIPE_SLAVE;
+    else
+        b->req->nr_flags = NR_REG_ALL_NIC;
     b->req->nr_arg3 = nbufs; // request extra buffers
     ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,
            "%s: cannot put interface into netmap mode", w->ifname);

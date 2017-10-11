@@ -30,7 +30,7 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: <<-SHELL
     export DEBIAN_FRONTEND=noninteractive
 
-    # update the box
+    # update the box (XXX if a kernel update happens, need to reinstall netmap)
     apt-get update
     apt-get -y dist-upgrade
     apt-get -y autoremove
