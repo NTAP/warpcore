@@ -35,7 +35,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/param.h>
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdisabled-macro-expansion"
 #include <sys/socket.h>
+#pragma clang diagnostic pop
+
 #include <sys/uio.h>
 #include <unistd.h>
 
@@ -299,7 +304,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
             return;
         }
 #ifdef HAVE_RECVMMSG
-        n = (ssize_t)recvmmsg(s->fd, msgvec, (size_t)nbufs, MSG_DONTWAIT, 0);
+        n = (ssize_t)recvmmsg(s->fd, msgvec, (unsigned int)nbufs, MSG_DONTWAIT, 0);
         ensure(n != -1 || errno == EAGAIN, "recvmmsg");
 #else
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
