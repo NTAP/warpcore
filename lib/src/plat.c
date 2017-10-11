@@ -209,6 +209,7 @@ void plat_initrandom(void)
     // initialize random number generator
     struct timeval seed;
     gettimeofday(&seed, 0);
-    srandom((seed.tv_sec * 1000) + (unsigned int)(seed.tv_usec / 1000));
+    srandom((unsigned int)(seed.tv_sec * 1000) +
+            (unsigned int)(seed.tv_usec / 1000));
 #endif
 }

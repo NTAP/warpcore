@@ -35,12 +35,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/param.h>
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdisabled-macro-expansion"
 #include <sys/socket.h>
-#pragma clang diagnostic pop
-
 #include <sys/uio.h>
 #include <unistd.h>
 

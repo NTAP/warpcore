@@ -35,12 +35,7 @@
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdisabled-macro-expansion"
 #include <sys/time.h>
-#pragma clang diagnostic pop
-
 #include <time.h>
 
 #include <warpcore/warpcore.h>
