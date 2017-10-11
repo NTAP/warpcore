@@ -178,7 +178,7 @@ struct qm_trace {
 #ifdef QUEUE_MACRO_DEBUG_TRASH
 #define TRASHIT(x)                                                             \
     do {                                                                       \
-        (x) = (void *)-1;                                                      \
+        (x) = (void *)-1; /* NOLINT */                                         \
     } while (0)
 #define QMD_IS_TRASHED(x) ((x) == (void *)(intptr_t)-1)
 #else /* !QUEUE_MACRO_DEBUG_TRASH */
