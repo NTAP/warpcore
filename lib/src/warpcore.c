@@ -463,7 +463,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 #endif
 
     // if the interface is a netmap pipe, restore its name
-    if(pipe)
+    if (pipe)
         *pipe = dir;
 
     w->ifname = strndup(ifname, IFNAMSIZ);
@@ -484,7 +484,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     sl_insert_head(&engines, w, next);
 
     warn(INF, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
-         w->backend_name, warpcore_version, w->nbufs, w->mtu, ifname);
+         w->backend_name, warpcore_version, w->nbufs, w->mtu, w->ifname);
     return w;
 }
 

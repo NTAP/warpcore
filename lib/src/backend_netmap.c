@@ -32,6 +32,7 @@
 #include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -68,18 +69,26 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 
     // switch interface to netmap mode
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");
-    strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);
     b->req->nr_name[sizeof b->req->nr_name - 1] = '\0';
     b->req->nr_version = NETMAP_API;
     b->req->nr_ringid &= ~NETMAP_RING_MASK;
     // don't always transmit on poll
     b->req->nr_ringid |= NETMAP_NO_TX_POLL;
-    if (strchr(w->ifname, '{'))
-        b->req->nr_flags = NR_REG_PIPE_MASTER;
-    else if (strchr(w->ifname, '}'))
-        b->req->nr_flags = NR_REG_PIPE_SLAVE;
-    else
-        b->req->nr_flags = NR_REG_ALL_NIC;
+    b->req->nr_flags = NR_REG_ALL_NIC;
+    char * pipe = 0;
+    if ((pipe = strchr(w->ifname, '{')) || (pipe = strchr(w->ifname, '}'))) {
+        const char dir = *pipe;
+        *pipe = 0;
+        const long id = strtol(pipe + 1, 0, 10);
+        b->req->nr_flags = dir == '{' ? NR_REG_PIPE_MASTER : NR_REG_PIPE_SLAVE;
+        b->req->nr_ringid = id & NETMAP_RING_MASK;
+        char tmp[IFNAMSIZ];
+        snprintf(tmp, IFNAMSIZ, "p%s", w->ifname);
+        warn(DBG, "pipe %s id %u renamed to %s", w->ifname, id, tmp);
+        free(w->ifname);
+        w->ifname = strndup(tmp, IFNAMSIZ);
+    }
+    strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);
     b->req->nr_arg3 = nbufs; // request extra buffers
     ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,
            "%s: cannot put interface into netmap mode", w->ifname);
@@ -124,6 +133,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 
     if (w->nbufs != nbufs)
         warn(WRN, "can only allocate %d/%d extra buffers", w->nbufs, nbufs);
+    ensure(w->nbufs != 0, "got some extra buffers");
 
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
