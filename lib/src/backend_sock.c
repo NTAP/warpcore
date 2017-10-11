@@ -87,12 +87,19 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 #ifndef NDEBUG
     const char poll_meth[] = "kqueue";
 #endif
+
 #elif defined(HAVE_EPOLL)
     w->b->ep = epoll_create1(0);
+#ifndef NDEBUG
     const char poll_meth[] = "epoll";
+#endif
+
 #else
+#ifndef NDEBUG
     const char poll_meth[] = "poll";
 #endif
+#endif
+
 #ifndef NDEBUG
 #if defined(HAVE_SENDMMSG)
     const char send_meth[] = "sendmmsg";
