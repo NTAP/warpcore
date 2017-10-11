@@ -21,8 +21,9 @@ matrix:
           packages:
             - g++-4.9
       env:
-        - COMPILERS="CC=gcc-4.9 && CXX=g++-4.9"   BUILD_TYPE=Debug
-        - COMPILERS="CC=gcc-4.9 && CXX=g++-4.9"   BUILD_TYPE=Release
+        global:
+          - COMPILERS="CC=gcc-4.9 && CXX=g++-4.9"   BUILD_TYPE=Debug
+          - COMPILERS="CC=gcc-4.9 && CXX=g++-4.9"   BUILD_TYPE=Release
 
     - os: linux
       addons:
@@ -32,8 +33,9 @@ matrix:
           packages:
             - g++-5
       env:
-        - COMPILERS="CC=gcc-5 && CXX=g++-5"       BUILD_TYPE=Debug
-        - COMPILERS="CC=gcc-5 && CXX=g++-5"       BUILD_TYPE=Release
+        global:
+          - COMPILERS="CC=gcc-5 && CXX=g++-5"       BUILD_TYPE=Debug
+          - COMPILERS="CC=gcc-5 && CXX=g++-5"       BUILD_TYPE=Release
 
     - os: linux
       addons:
@@ -43,8 +45,9 @@ matrix:
           packages:
             - g++-6
       env:
-        - COMPILERS="CC=gcc-6 && CXX=g++-6"       BUILD_TYPE=Debug
-        - COMPILERS="CC=gcc-6 && CXX=g++-6"       BUILD_TYPE=Release
+        global:
+          - COMPILERS="CC=gcc-6 && CXX=g++-6"       BUILD_TYPE=Debug
+          - COMPILERS="CC=gcc-6 && CXX=g++-6"       BUILD_TYPE=Release
 
     - os: linux
       addons:
@@ -54,8 +57,9 @@ matrix:
           packages:
             - g++-7
       env:
-        - COMPILERS="CC=gcc-7 && CXX=g++-7"       BUILD_TYPE=Debug
-        - COMPILERS="CC=gcc-7 && CXX=g++-7"       BUILD_TYPE=Release
+        global:
+          - COMPILERS="CC=gcc-7 && CXX=g++-7"       BUILD_TYPE=Debug
+          - COMPILERS="CC=gcc-7 && CXX=g++-7"       BUILD_TYPE=Release
 
 env:
   # matrix:
