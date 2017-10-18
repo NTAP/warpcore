@@ -3,8 +3,6 @@ configure_file(include/warpcore/config.h.in include/warpcore/config.h)
 configure_file(src/config.c.in src/config.c)
 
 include(GNUInstallDirs)
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 add_library(obj_all
   OBJECT
