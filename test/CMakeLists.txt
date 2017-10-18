@@ -92,3 +92,12 @@ set_target_properties(test_hexdump
     INTERPROCEDURAL_OPTIMIZATION ${IPO}
 )
 add_test(test_hexdump test_hexdump)
+
+add_executable(test_queue common.c test_queue.c)
+target_link_libraries(test_queue PUBLIC sock_dyn)
+set_target_properties(test_queue
+  PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    INTERPROCEDURAL_OPTIMIZATION ${IPO}
+)
+add_test(test_queue test_queue)

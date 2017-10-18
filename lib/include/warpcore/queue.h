@@ -452,7 +452,6 @@ struct qm_trace {
                 curelm = sq_next(curelm, field);                               \
             sq_remove_after(head, curelm, field);                              \
         }                                                                      \
-        (head)->stqh_len--;                                                    \
         TRASHIT(*oldnext);                                                     \
     } while (0)
 
@@ -461,22 +460,27 @@ struct qm_trace {
         if ((sq_next(elm, field) = sq_next(sq_next(elm, field), field)) ==     \
             NULL)                                                              \
             (head)->stqh_last = &sq_next((elm), field);                        \
+        (head)->stqh_len--;                                                    \
     } while (0)
 
 #define sq_remove_head(head, field)                                            \
     do {                                                                       \
         if ((sq_first((head)) = sq_next(sq_first((head)), field)) == NULL)     \
             (head)->stqh_last = &sq_first((head));                             \
+        (head)->stqh_len--;                                                    \
     } while (0)
 
 #define sq_swap(head1, head2, type)                                            \
     do {                                                                       \
         QUEUE_TYPEOF(type) * swap_first = sq_first(head1);                     \
         QUEUE_TYPEOF(type) ** swap_last = (head1)->stqh_last;                  \
+        const uint64_t swap_len = (head1)->stqh_len;                           \
         sq_first(head1) = sq_first(head2);                                     \
         (head1)->stqh_last = (head2)->stqh_last;                               \
+        (head1)->stqh_len = (head2)->stqh_len;                                 \
         sq_first(head2) = swap_first;                                          \
         (head2)->stqh_last = swap_last;                                        \
+        (head2)->stqh_len = swap_len;                                          \
         if (sq_empty(head1))                                                   \
             (head1)->stqh_last = &sq_first(head1);                             \
         if (sq_empty(head2))                                                   \
