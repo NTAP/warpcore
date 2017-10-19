@@ -29,7 +29,7 @@
 
 #include <warpcore/warpcore.h>
 
-#define r(m) (plat_random() % (m))
+#define r(m) ((m) == 0 ? 0 : (int)(plat_random() % (unsigned)(m)))
 
 
 struct elem {
@@ -49,7 +49,7 @@ static void ins(int head)
 {
     struct elem * const e = malloc(sizeof(*e));
     const int n = r(N);
-    printf("i[%d]=%d ", n, cnt);
+    // printf("i[%d]=%d ", n, cnt);
     e->n = cnt++;
     if (head)
         sq_insert_head(&sq[n], e, next);
@@ -63,7 +63,7 @@ static void ins(int head)
 static void ins_aft(void)
 {
     const int n = r(N);
-    const int p = len[n] / 2;
+    const int p = r(len[n]);
 
     struct elem * e = sq_first(&sq[n]);
     for (int i = 0; i < p; i++)
@@ -75,7 +75,7 @@ static void ins_aft(void)
         sq_insert_after(&sq[n], e, enew, next);
 
         len[n]++;
-        printf("ia[%d]=%d ", n, enew->n);
+        // printf("ia[%d]=%d ", n, enew->n);
     }
 }
 
@@ -83,7 +83,7 @@ static void ins_aft(void)
 static void rem(void)
 {
     const int n = r(N);
-    const int p = len[n] / 2;
+    const int p = r(len[n]);
 
     struct elem * e = sq_first(&sq[n]);
     for (int i = 0; i < p; i++)
@@ -93,7 +93,7 @@ static void rem(void)
         sq_remove(&sq[n], e, elem, next);
 
         len[n]--;
-        printf("r[%d]=%d ", n, e->n);
+        // printf("r[%d]=%d ", n, e->n);
         free(e);
     }
 }
@@ -108,7 +108,7 @@ static void ini(void)
     sq_init(&sq[n]);
 
     len[n] = 0;
-    printf("x[%d] ", n);
+    // printf("x[%d] ", n);
 }
 
 
@@ -121,7 +121,7 @@ static void swp(void)
     const int l = len[n1];
     len[n1] = len[n2];
     len[n2] = l;
-    printf("s[%d/%d] ", n1, n2);
+    // printf("s[%d=%d] ", n1, n2);
 }
 
 
@@ -133,13 +133,13 @@ static void con(void)
 
     len[n1] += len[n2];
     len[n2] = 0;
-    printf("c[%d<%d] ", n1, n2);
+    // printf("c[%d<%d] ", n1, n2);
 }
 
 
 static void show(void)
 {
-    printf("\n");
+    // printf("\n");
     for (int i = 0; i < N; i++) {
         int l = 0;
         printf("%d: ", i);
