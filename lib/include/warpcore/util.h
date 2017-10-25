@@ -115,11 +115,11 @@ extern short util_dlevel;
         }                                                                      \
     } while (0) // NOLINT
 
-extern void __attribute__((nonnull)) util_warn(const unsigned dlevel,
-                                               const char * const func,
-                                               const char * const file,
-                                               const unsigned line,
-                                               ...);
+extern void __attribute__((nonnull(2, 3))) util_warn(const unsigned dlevel,
+                                                     const char * const func,
+                                                     const char * const file,
+                                                     const unsigned line,
+                                                     ...);
 
 
 /// Rate-limited variant of warn(), which repeats the message prints at most @p
@@ -141,12 +141,12 @@ extern void __attribute__((nonnull)) util_warn(const unsigned dlevel,
     } while (0) // NOLINT
 
 
-extern void __attribute__((nonnull)) util_rwarn(const unsigned dlevel,
-                                                const unsigned lps,
-                                                const char * const func,
-                                                const char * const file,
-                                                const unsigned line,
-                                                ...);
+extern void __attribute__((nonnull(3, 4))) util_rwarn(const unsigned dlevel,
+                                                      const unsigned lps,
+                                                      const char * const func,
+                                                      const char * const file,
+                                                      const unsigned line,
+                                                      ...);
 
 #else
 

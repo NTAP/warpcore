@@ -207,11 +207,11 @@ void util_die(const char * const func,
 
 short util_dlevel = DLEVEL;
 
-static void util_warn_valist(const unsigned dlevel,
-                             const char * const func,
-                             const char * const file,
-                             const unsigned line,
-                             va_list ap)
+static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
+                                                      const char * const func,
+                                                      const char * const file,
+                                                      const unsigned line,
+                                                      va_list ap)
 {
     DTHREAD_LOCK;
     struct timeval now = {0, 0}, dur = {0, 0};
