@@ -24,6 +24,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -32,9 +33,8 @@
 #include "common.h"
 
 
-struct w_engine * w;
-struct w_sock * ss;
-struct w_sock * cs;
+static struct w_engine *w;
+static struct w_sock *ss, *cs;
 
 
 bool io(const uint32_t len)
@@ -94,14 +94,13 @@ bool io(const uint32_t len)
 
 void init(void)
 {
-    w = w_init(
+    char i[IFNAMSIZ] = "lo"
 #ifndef __linux__
-        "lo0"
-#else
-        "lo"
+                       "0"
 #endif
-        ,
-        0, 100000);
+        ;
+
+    w = w_init(i, 0, 8000);
 
     // bind server socket
     ss = w_bind(w, htons(55555), 0);

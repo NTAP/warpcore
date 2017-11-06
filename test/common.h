@@ -33,10 +33,6 @@ extern "C" {
 #include <stdint.h>
 
 
-extern struct w_engine * w;
-extern struct w_sock * ss;
-extern struct w_sock * cs;
-
 extern bool io(const uint32_t len);
 extern void init(void);
 extern void cleanup(void);
