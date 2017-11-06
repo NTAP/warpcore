@@ -113,6 +113,18 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
         warn(INF, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
+
+    // allocate space for slot w_iov pointers
+    ensure(w->b->slot_buf =
+               calloc(b->nif->ni_tx_rings, sizeof(*w->b->slot_buf)),
+           "cannot allocate slot w_iov pointers");
+    for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
+        const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
+        ensure(w->b->slot_buf[ri] =
+                   calloc(r->num_slots, sizeof(**w->b->slot_buf)),
+               "cannot allocate slot w_iov pointers");
+    }
+
 #if !defined(NDEBUG) && DLEVEL >= INF
     for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
@@ -166,6 +178,11 @@ void backend_cleanup(struct w_engine * const w)
             *buf = 0;
     }
     w->b->nif->ni_bufs_head = w->bufs[0].idx;
+
+    // free slot w_iov pointers
+    for (uint32_t ri = 0; likely(ri < w->b->nif->ni_tx_rings); ri++)
+        free(w->b->slot_buf[ri]);
+    free(w->b->slot_buf);
 
     ensure(munmap(w->mem, w->b->req->nr_memsize) != -1,
            "cannot munmap netmap memory");
@@ -340,8 +357,7 @@ void w_nic_tx(struct w_engine * const w)
         for (uint32_t j = nm_ring_next(r, w->b->tail[i]);
              likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
-            struct w_iov * const v = (struct w_iov *)s->ptr;
-            ensure(v, "have w_iov ptr");
+            struct w_iov * const v = w->b->slot_buf[r->ringid][j];
             if (!is_pipe(w)) {
                 warn(DBG,
                      "moving idx %u from ring %u slot %u back into "
@@ -350,9 +366,9 @@ void w_nic_tx(struct w_engine * const w)
                 const uint32_t slot_idx = s->buf_idx;
                 s->buf_idx = v->idx;
                 v->idx = slot_idx;
+                s->flags = NS_BUF_CHANGED;
             }
-            s->flags = NS_BUF_CHANGED;
-            s->ptr = 0;
+            w->b->slot_buf[i][j] = 0;
 
             // update tx_pending
             if (likely(v->o))

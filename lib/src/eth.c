@@ -133,9 +133,9 @@ bool eth_tx(struct w_engine * const w,
     }
 
     struct netmap_slot * const s = &txr->slot[txr->cur];
+    w->b->slot_buf[txr->ringid][txr->cur] = v;
     s->flags = NS_BUF_CHANGED;
     s->len = len + sizeof(struct eth_hdr);
-    s->ptr = (uint64_t)v;
     warn(DBG, "%s iov idx %u into tx ring %u slot %d (%s %u)",
          is_pipe(w) ? "copying" : "placing", v->idx, w->b->cur_txr, txr->cur,
          is_pipe(w) ? "idx" : "swap with", s->buf_idx);
