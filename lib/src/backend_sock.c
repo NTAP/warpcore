@@ -74,7 +74,6 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
            "cannot alloc bufs");
     w->backend_name = backend_name;
-    w->nbufs = nbufs;
 
     for (uint32_t i = 0; i < nbufs; i++) {
         w->bufs[i].buf = IDX2BUF(w, i);

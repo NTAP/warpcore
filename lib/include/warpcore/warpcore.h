@@ -52,7 +52,6 @@ struct w_engine {
     uint32_t rip;         ///< Our default IPv4 router IP address.
     uint16_t mtu;         ///< MTU of this interface.
     struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
-    uint32_t nbufs;        ///< Number of w_iov buffers in @p bufs.
     struct sock sock;      ///< List of open (bound) w_sock sockets.
     sq_head(, w_iov) iov;  ///< Tail queue of w_iov buffers available.
 

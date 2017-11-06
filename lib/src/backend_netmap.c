@@ -122,19 +122,20 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 #endif
 
     // save the indices of the extra buffers in the warpcore structure
-    w->nbufs = b->req->nr_arg3;
-    w->bufs = calloc(w->nbufs, sizeof(*w->bufs));
+    w->bufs = calloc(b->req->nr_arg3, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
-    for (uint32_t n = 0, i = b->nif->ni_bufs_head; likely(n < w->nbufs); n++) {
+    for (uint32_t n = 0, i = b->nif->ni_bufs_head; likely(n < b->req->nr_arg3);
+         n++) {
         w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
         sq_insert_head(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
     }
 
-    if (w->nbufs != nbufs)
-        warn(WRN, "can only allocate %d/%d extra buffers", w->nbufs, nbufs);
-    ensure(w->nbufs != 0, "got some extra buffers");
+    if (b->req->nr_arg3 != nbufs)
+        warn(WRN, "can only allocate %d/%d extra buffers", b->req->nr_arg3,
+             nbufs);
+    ensure(b->req->nr_arg3 != 0, "got some extra buffers");
 
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
@@ -157,9 +158,9 @@ void backend_cleanup(struct w_engine * const w)
     free_arp_cache(w);
 
     // re-construct the extra bufs list, so netmap can free the memory
-    for (uint32_t n = 0; likely(n < w->nbufs); n++) {
+    for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
         uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
-        if (likely(n < w->nbufs - 1))
+        if (likely(n < sq_len(&w->iov) - 1))
             *buf = w->bufs[n + 1].idx;
         else
             *buf = 0;
