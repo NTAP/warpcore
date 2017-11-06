@@ -6,9 +6,6 @@ Vagrant.configure("2") do |config|
   # don't always check for box updates
   config.vm.box_check_update = false
 
-  # add a second NIC
-  config.vm.network "private_network", ip: "192.168.101.1/24"
-
   # hardware configuration of the VM
   config.vm.provider "virtualbox" do |vb|
     vb.gui = false
@@ -33,9 +30,9 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: <<-SHELL
     export DEBIAN_FRONTEND=noninteractive
 
-    # update the box (XXX if a kernel update happens, need to reinstall netmap)
-    apt-get update
-    apt-get -y dist-upgrade
+    # update the box
+    apt-get -y update
+    apt-get -y upgrade
     apt-get -y autoremove
     apt-get -y autoclean
 
@@ -43,7 +40,7 @@ Vagrant.configure("2") do |config|
     apt-get -y install git tmux ninja-build libev-dev libssl-dev g++ fish \
       pkg-config htop silversearcher-ag linux-tools-common linux-tools-generic \
       gdb valgrind mercurial libhttp-parser-dev iwyu \
-      clang-tidy libclang-common-3.7-dev
+      clang-tidy libclang-common-3.9-dev
 
     # install recent cmake
     wget -q https://cmake.org/files/v3.9/cmake-3.9.4-Linux-x86_64.sh
