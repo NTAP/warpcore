@@ -121,6 +121,10 @@ extern sl_head(w_engines, w_engine) engines;
 #define mk_net(ip, mask) ((ip) & (mask))
 
 
+#define is_pipe(w)                                                             \
+    ((w)->b->req->nr_flags & (NR_REG_PIPE_MASTER | NR_REG_PIPE_SLAVE))
+
+
 extern struct w_sock * __attribute__((nonnull))
 get_sock(struct w_engine * const w, const uint16_t port);
 

@@ -47,9 +47,23 @@
 #include "ip.h"
 
 
-/// Receive an Ethernet frame. This is the lowest-level RX function, called for
-/// each new inbound frame from w_rx(). Dispatches the frame to either ip_rx()
-/// or arp_rx(), based on its EtherType.
+#ifndef HAVE_ETHER_NTOA_R
+#include <stdio.h>
+
+char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
+{
+    sprintf(buf, "%x:%x:%x:%x:%x:%x", addr->ether_addr_octet[0],
+            addr->ether_addr_octet[1], addr->ether_addr_octet[2],
+            addr->ether_addr_octet[3], addr->ether_addr_octet[4],
+            addr->ether_addr_octet[5]);
+    return buf;
+}
+#endif
+
+
+/// Receive an Ethernet frame. This is the lowest-level RX function, called
+/// for each new inbound frame from w_rx(). Dispatches the frame to either
+/// ip_rx() or arp_rx(), based on its EtherType.
 ///
 /// The Ethernet frame to operate on is in the current netmap lot of the
 /// indicated RX ring.
@@ -60,14 +74,19 @@
 void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     struct eth_hdr * const eth = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    warn(DBG, "Eth %s -> %s, type %d, len %d", ether_ntoa(&eth->src),
-         ether_ntoa(&eth->dst), ntohs(eth->type), r->slot[r->cur].len);
+#ifndef NDEBUG
+    char src[ETH_ADDR_STRLEN];
+    char dst[ETH_ADDR_STRLEN];
+    warn(DBG, "Eth %s -> %s, type %d, len %d", ether_ntoa_r(&eth->src, src),
+         ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), r->slot[r->cur].len);
+#endif
 
     // make sure the packet is for us (or broadcast)
     if (unlikely((memcmp(&eth->dst, &w->mac, ETHER_ADDR_LEN) != 0) &&
                  (memcmp(&eth->dst, "\xff\xff\xff\xff\xff\xff",
                          ETHER_ADDR_LEN) != 0))) {
-        warn(INF, "Ethernet packet not destined to us; ignoring");
+        warn(INF, "Ethernet packet to %s not destined to us (%s); ignoring",
+             ether_ntoa_r(&eth->dst, dst), ether_ntoa_r(&w->mac, src));
         return;
     }
 
@@ -113,21 +132,29 @@ bool eth_tx(struct w_engine * const w,
         return false;
     }
 
-    // place v into the current tx ring
     struct netmap_slot * const s = &txr->slot[txr->cur];
-    const uint32_t slot_idx = s->buf_idx;
-    warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
-         v->idx, w->b->cur_txr, txr->cur, slot_idx);
-    s->buf_idx = v->idx;
-    v->idx = slot_idx;
     s->flags = NS_BUF_CHANGED;
     s->len = len + sizeof(struct eth_hdr);
     s->ptr = (uint64_t)v;
+    warn(DBG, "%s iov idx %u into tx ring %u slot %d (%s %u)",
+         is_pipe(w) ? "copying" : "placing", v->idx, w->b->cur_txr, txr->cur,
+         is_pipe(w) ? "idx" : "swap with", s->buf_idx);
+    if (is_pipe(w)) {
+        // for netmap pipes, we need to copy the buffer into the slot
+        memcpy(NETMAP_BUF(txr, s->buf_idx), IDX2BUF(w, v->idx), s->len);
+    } else {
+        // for NIC rings, temporarily place v into the current tx ring
+        const uint32_t slot_idx = s->buf_idx;
+        s->buf_idx = v->idx;
+        v->idx = slot_idx;
+    }
 
 #if !defined(NDEBUG) && DLEVEL >= DBG
+    char src[ETH_ADDR_STRLEN];
+    char dst[ETH_ADDR_STRLEN];
     const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, s->buf_idx);
-    warn(DBG, "Eth %s -> %s, type %d, len %lu", ether_ntoa(&eth->src),
-         ether_ntoa(&eth->dst), ntohs(eth->type), len + sizeof(*eth));
+    warn(DBG, "Eth %s -> %s, type %d, len %lu", ether_ntoa_r(&eth->src, src),
+         ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), len + sizeof(*eth));
 #endif
 
     // advance tx ring

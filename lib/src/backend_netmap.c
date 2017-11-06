@@ -331,8 +331,8 @@ void w_nic_tx(struct w_engine * const w)
     // the original w_iov_sqs, so it's not lost to the app
     for (uint32_t i = 0; likely(i < w->b->nif->ni_tx_rings); i++) {
         struct netmap_ring * const r = NETMAP_TXRING(w->b->nif, i);
-        // warn(WRN, "tx ring %u: tail %u, cur %u, head %u", i, r->tail,
-        //      r->cur, r->head);
+        // warn(WRN, "tx ring %u: old tail %u, tail %u, cur %u, head %u", i,
+        //      w->b->tail[i], r->tail, r->cur, r->head);
 
         // XXX we need to abuse the netmap API here by touching tail until a fix
         // is included upstream
@@ -340,7 +340,8 @@ void w_nic_tx(struct w_engine * const w)
              likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
             struct w_iov * const v = (struct w_iov *)s->ptr;
-            if (likely(v)) {
+            ensure(v, "have w_iov ptr");
+            if (!is_pipe(w)) {
                 warn(DBG,
                      "moving idx %u from ring %u slot %u back into "
                      "w_iov after tx (swap with %u)",
@@ -348,14 +349,13 @@ void w_nic_tx(struct w_engine * const w)
                 const uint32_t slot_idx = s->buf_idx;
                 s->buf_idx = v->idx;
                 v->idx = slot_idx;
-                s->flags = NS_BUF_CHANGED;
-                s->ptr = 0;
+            }
+            s->flags = NS_BUF_CHANGED;
+            s->ptr = 0;
 
-                // update tx_pending
-                if (likely(v->o))
-                    v->o->tx_pending--;
-            } else
-                warn(WRN, "no w_iov in ring %u slot %u, ignoring", i, j);
+            // update tx_pending
+            if (likely(v->o))
+                v->o->tx_pending--;
         }
 
         // remember current tail

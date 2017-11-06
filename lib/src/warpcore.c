@@ -112,8 +112,7 @@ struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 }
 
 
-/// Helper function for w_alloc_size and w_alloc_cnt. Really only needed,
-/// because Linux doesn't define sq_last in sys/queue.h for whatever reason.
+/// Helper function for w_alloc_size and w_alloc_cnt.
 ///
 /// @param      w         Backend engine.
 /// @param[out] q         Tail queue of w_iov structs.
@@ -152,7 +151,7 @@ static inline void alloc_cnt(struct w_engine * const w,
 }
 
 
-/// Allocate a w_iov tail queue for @p len payload bytes, for eventual use with
+/// Allocate a w_iov tail queue for @p plen payload bytes, for eventual use with
 /// w_tx(). The tail queue must be later returned to warpcore w_free(). If a @p
 /// len length is specified, limit the length of each buffer to the minimum of
 /// the MTU and this value. If a @p off offset is specified, leave this much

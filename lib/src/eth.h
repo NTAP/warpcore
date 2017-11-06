@@ -30,12 +30,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-struct w_iov;
-struct w_engine;
+#include <warpcore/warpcore.h> // IWYU pragma: keep
+
+
 struct netmap_ring;
 
 #define ETH_TYPE_IP htons(0x0800)  ///< EtherType for IPv4.
 #define ETH_TYPE_ARP htons(0x0806) ///< EtherType for ARP.
+
+#define ETH_ADDR_STRLEN ETHER_ADDR_LEN * 3
 
 
 /// An [Ethernet II MAC
@@ -65,3 +68,8 @@ eth_rx(struct w_engine * const w, struct netmap_ring * const r);
 
 extern bool __attribute__((nonnull))
 eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len);
+
+#ifndef HAVE_ETHER_NTOA_R
+extern char * __attribute__((nonnull))
+ether_ntoa_r(const struct ether_addr * const addr, char * const buf);
+#endif
