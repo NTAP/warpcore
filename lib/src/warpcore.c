@@ -137,7 +137,7 @@ static inline void alloc_cnt(struct w_engine * const w,
         v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0)) {
             // free partial allocation and return
-            sq_concat(&w->iov, q);
+            w_free(w, q);
             warn(CRT, "ran out of w_iov bufs trying to allocate %u", count);
             return;
         }
@@ -302,8 +302,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 }
 
 
-/// Close a warpcore socket. This dequeues all data from w_sock::iv and
-/// w_sock::ov, i.e., data will *not* be placed in rings and sent.
+/// Close a warpcore socket. This dequeues all data from w_sock::iv.
 ///
 /// @param      s     w_sock to close.
 ///
@@ -312,7 +311,7 @@ void w_close(struct w_sock * const s)
     backend_close(s);
 
     // make iovs of the socket available again
-    sq_concat(&s->w->iov, &s->iv);
+    w_free(s->w, &s->iv);
 
     // remove the socket from list of sockets
     splay_remove(sock, &s->w->sock, s);

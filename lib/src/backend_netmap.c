@@ -103,26 +103,20 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     // direct pointer to the netmap interface struct for convenience
     b->nif = NETMAP_IF(w->mem, b->req->nr_offset);
 
-    // allocate space for tails
+    // allocate space for tails and slot w_iov pointers
     ensure((b->tail = calloc(b->nif->ni_tx_rings, sizeof(*b->tail))) != 0,
            "cannot allocate tail");
+    ensure(b->slot_buf = calloc(b->nif->ni_tx_rings, sizeof(*b->slot_buf)),
+           "cannot allocate slot w_iov pointers");
     for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
+        // allocate slot pointers
+        ensure(b->slot_buf[ri] = calloc(r->num_slots, sizeof(**b->slot_buf)),
+               "cannot allocate slot w_iov pointers");
         // initialize tails
         b->tail[ri] = r->tail;
         warn(INF, "tx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
-    }
-
-    // allocate space for slot w_iov pointers
-    ensure(w->b->slot_buf =
-               calloc(b->nif->ni_tx_rings, sizeof(*w->b->slot_buf)),
-           "cannot allocate slot w_iov pointers");
-    for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
-        const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
-        ensure(w->b->slot_buf[ri] =
-                   calloc(r->num_slots, sizeof(**w->b->slot_buf)),
-               "cannot allocate slot w_iov pointers");
     }
 
 #if !defined(NDEBUG) && DLEVEL >= INF
