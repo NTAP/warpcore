@@ -10,8 +10,8 @@ compiler:
   - gcc
 
 branches:
-  only:
-    - master
+  except:
+    - gh-pages
 
 env:
   matrix:
