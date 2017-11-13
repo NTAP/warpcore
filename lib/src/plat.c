@@ -189,8 +189,13 @@ bool plat_get_link(const struct ifaddrs * i)
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifm_name, i->ifa_name, IFNAMSIZ);
     ifr.ifm_name[IFNAMSIZ - 1] = 0;
-    ensure(ioctl(s, SIOCGIFMEDIA, &ifr) >= 0, "%s ioctl", i->ifa_name);
-    link = (ifr.ifm_status & IFM_AVALID) && (ifr.ifm_status & IFM_ACTIVE);
+    if (strncmp("vboxnet", i->ifa_name, 7) == 0)
+        //  SIOCGIFMEDIA not supported by VirtualBox interfaces
+        link = true;
+    else {
+        ensure(ioctl(s, SIOCGIFMEDIA, &ifr) >= 0, "%s ioctl", i->ifa_name);
+        link = (ifr.ifm_status & IFM_AVALID) && (ifr.ifm_status & IFM_ACTIVE);
+    }
 #else
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
