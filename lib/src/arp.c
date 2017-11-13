@@ -49,10 +49,10 @@
 #include "udp.h"
 
 
-int32_t __attribute__((nonnull)) arp_cache_cmp(const struct arp_entry * const a,
-                                               const struct arp_entry * const b)
+int8_t __attribute__((nonnull)) arp_cache_cmp(const struct arp_entry * const a,
+                                              const struct arp_entry * const b)
 {
-    return (int32_t)a->ip - (int32_t)b->ip;
+    return (a->ip > b->ip) - (a->ip < b->ip);
 }
 
 SPLAY_GENERATE(arp_cache, arp_entry, next, arp_cache_cmp)

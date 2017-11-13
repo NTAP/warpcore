@@ -104,7 +104,7 @@ struct arp_entry {
 };
 
 
-extern int32_t __attribute__((nonnull))
+extern int8_t __attribute__((nonnull))
 arp_cache_cmp(const struct arp_entry * const a,
               const struct arp_entry * const b);
 
