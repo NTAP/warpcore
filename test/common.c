@@ -35,15 +35,15 @@
 #include "common.h"
 
 
-static struct w_engine *w;
-static struct w_sock *ss, *cs;
+static struct w_engine *w_serv, *w_clnt;
+static struct w_sock *s_serv, *s_clnt;
 
 
 bool io(const uint32_t len)
 {
     // allocate a w_iov chain for tx
     struct w_iov_sq o = w_iov_sq_initializer(o);
-    w_alloc_cnt(w, &o, len, 512, 64);
+    w_alloc_cnt(w_clnt, &o, len, 512, 64);
     if (w_iov_sq_cnt(&o) != len)
         return false;
 
@@ -56,21 +56,21 @@ bool io(const uint32_t len)
     const uint32_t olen = w_iov_sq_len(&o);
 
     // tx
-    w_tx(cs, &o);
+    w_tx(s_clnt, &o);
     while (w_tx_pending(&o))
-        w_nic_tx(w);
+        w_nic_tx(w_clnt);
 
     // read the chain back
     struct w_iov_sq i = w_iov_sq_initializer(i);
     uint32_t ilen = 0;
     do {
-        w_nic_rx(w, 1000);
-        w_rx(ss, &i);
+        w_nic_rx(w_serv, 1000);
+        w_rx(s_serv, &i);
         const uint32_t new_ilen = w_iov_sq_len(&i);
         if (ilen == new_ilen) {
             // we ran out of buffers or there was packet loss; abort
-            w_free(w, &o);
-            w_free(w, &i);
+            w_free(w_clnt, &o);
+            w_free(w_serv, &i);
             return false;
         }
         ilen = new_ilen;
@@ -88,8 +88,8 @@ bool io(const uint32_t len)
         iv = sq_next(iv, next);
     }
 
-    w_free(w, &o);
-    w_free(w, &i);
+    w_free(w_clnt, &o);
+    w_free(w_serv, &i);
     return true;
 }
 
@@ -102,23 +102,24 @@ void init(void)
 #endif
         ;
 
-    w = w_init(i, 0, 8000);
+    w_serv = w_init(i, 0, 8000);
+    w_clnt = w_init(i, 0, 8000);
 
     // bind server socket
-    ss = w_bind(w, htons(55555), 0);
-    ensure(w_engine(ss) == w, "same engine");
+    s_serv = w_bind(w_serv, htons(55555), 0);
 
     // connect to server
-    cs = w_bind(w, 0, 0);
-    w_connect(cs, inet_addr("127.0.0.1"), htons(55555));
-    ensure(w_connected(cs), "not connected");
+    s_clnt = w_bind(w_clnt, 0, 0);
+    w_connect(s_clnt, inet_addr("127.0.0.1"), htons(55555));
+    ensure(w_connected(s_clnt), "not connected");
 }
 
 
 void cleanup(void)
 {
     // close down
-    w_close(cs);
-    w_close(ss);
-    w_cleanup(w);
+    w_close(s_clnt);
+    w_close(s_serv);
+    w_cleanup(w_clnt);
+    w_cleanup(w_serv);
 }
