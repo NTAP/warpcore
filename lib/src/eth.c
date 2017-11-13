@@ -138,6 +138,10 @@ bool eth_tx(struct w_engine * const w,
     w->b->slot_buf[txr->ringid][txr->cur] = v;
     s->flags = NS_BUF_CHANGED;
     s->len = len + sizeof(struct eth_hdr);
+    warn(DBG, "is_pipe %u %u %u %u", (w)->b->req->nr_flags,
+         (w)->b->req->nr_flags & NR_REG_PIPE_MASTER,
+         (w)->b->req->nr_flags & NR_REG_PIPE_SLAVE,
+         (w)->b->req->nr_flags & (NR_REG_PIPE_MASTER | NR_REG_PIPE_SLAVE));
     warn(DBG, "%s iov idx %u into tx ring %u slot %d (%s %u)",
          is_pipe(w) ? "copying" : "placing", v->idx, w->b->cur_txr, txr->cur,
          is_pipe(w) ? "idx" : "swap with", s->buf_idx);

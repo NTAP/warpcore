@@ -485,6 +485,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 
     warn(INF, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
          w->backend_name, warpcore_version, sq_len(&w->iov), w->mtu, w->ifname);
+    warn(INF, "submit bug reports at https://github.com/NTAP/warpcore/issues");
     return w;
 }
 
