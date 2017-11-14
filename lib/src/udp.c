@@ -159,9 +159,9 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     // copy template header into buffer and fill in remaining fields
     uint8_t * const buf = IDX2BUF(s->w, v->idx);
-    hexdump(buf, s->w->mtu);
+    hexdump(buf, v->len + (buf - v->buf));
     memcpy(buf, s->hdr, sizeof(*s->hdr));
-    hexdump(buf, s->w->mtu);
+    hexdump(buf, v->len + (buf - v->buf));
 
     struct ip_hdr * const ip = (void *)eth_data(buf);
     struct udp_hdr * const udp = (void *)ip_data(buf);
