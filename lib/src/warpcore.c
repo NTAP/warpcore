@@ -34,8 +34,10 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <sanitizer/asan_interface.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
@@ -90,11 +92,13 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, const uint16_t off)
     if (unlikely(v == 0))
         return 0;
     sq_remove_head(&w->iov, next);
+
     v->buf = IDX2BUF(w, v->idx) + off;
     v->len = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off;
 #ifdef WITH_NETMAP
     v->o = 0;
 #endif
+    ASAN_UNPOISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
     return v;
 }
 
@@ -135,6 +139,9 @@ static inline void alloc_cnt(struct w_engine * const w,
 #ifdef WITH_NETMAP
     off += sizeof(struct w_hdr);
 #endif
+#ifndef NDEBUG
+    uint32_t qlen = 0;
+#endif
     for (uint32_t i = 0; likely(i < count); i++) {
         v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0)) {
@@ -144,12 +151,18 @@ static inline void alloc_cnt(struct w_engine * const w,
             return;
         }
         sq_insert_tail(q, v, next);
+#ifndef NDEBUG
+        qlen += v->len;
+#endif
     }
-    if (v)
+    if (v) {
         v->len -= adj_last;
-    warn(DBG, "allocated w_iov_sq of len %u byte%s (%d w_iov%s)",
-         count * (w->mtu - off) - adj_last,
-         plural(count * (w->mtu - off) - adj_last), count, plural(count));
+#ifndef NDEBUG
+        qlen -= adj_last;
+#endif
+    }
+    warn(DBG, "allocated w_iov_sq of len %u byte%s (%d w_iov%s)", qlen,
+         plural(qlen), count, plural(count));
 }
 
 
@@ -201,7 +214,13 @@ void w_alloc_cnt(struct w_engine * const w,
                  const uint16_t len,
                  const uint16_t off)
 {
-    alloc_cnt(w, q, count, len, off, 0);
+    alloc_cnt(w, q, count,
+              len
+#ifdef WITH_NETMAP
+                  + sizeof(struct w_hdr)
+#endif
+                  ,
+              off, 0);
 }
 
 
@@ -372,40 +391,34 @@ void w_cleanup(struct w_engine * const w)
 struct w_engine *
 w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 {
-    struct w_engine * w;
-    sl_foreach (w, &engines, next)
-        ensure(strncmp(ifname, w_ifname(w), IFNAMSIZ),
-               "can only have one warpcore engine active on %s", ifname);
-
     // allocate engine struct
+    struct w_engine * w;
     ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
 
     // initialize lists of sockets and iovs
     splay_init(&w->sock);
     sq_init(&w->iov);
 
-    // if ifname is a netmap pipe, get the config from the indicated interface
-    char dir = 0, *pipe = 0;
-    if ((pipe = strchr(ifname, '{')) || (pipe = strchr(ifname, '}'))) {
-        dir = *pipe;
-        *pipe = 0;
-        warn(DBG, "getting pipe config from interface %s", ifname);
-    }
+    // construct interface name of a netmap pipe for this interface
+    char pipe[IFNAMSIZ];
+    snprintf(pipe, IFNAMSIZ, "warp-%s", ifname);
 
     // get interface config
-    // we mostly loop here because the link may be down
-    bool link_up = false;
-    do {
-        // get interface information
-        struct ifaddrs * ifap;
-        ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface information",
-               ifname);
+    struct ifaddrs * ifap;
+    ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface info", ifname);
 
-        bool found = false;
-        for (const struct ifaddrs * i = ifap; i; i = i->ifa_next) {
+    // we mostly loop here because the link may be down
+    bool link_up = false, is_loopback = false, have_pipe = false;
+    while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0) {
+        struct ifaddrs * i;
+        for (i = ifap; i; i = i->ifa_next) {
+            if (strcmp(i->ifa_name, pipe) == 0)
+                have_pipe = true;
+
             if (strcmp(i->ifa_name, ifname) != 0)
                 continue;
-            found = true;
+
+            is_loopback = i->ifa_flags & IFF_LOOPBACK;
 
             switch (i->ifa_addr->sa_family) {
             case AF_LINK:
@@ -437,9 +450,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
                 break;
             }
         }
-        ensure(found, "unknown interface %s", ifname);
+        // ensure(i, "unknown interface %s", ifname);
 
-        freeifaddrs(ifap);
         if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0) {
             // sleep for a bit, so we don't burn the CPU when link is down
             warn(WRN,
@@ -448,8 +460,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
                  ifname);
             sleep(1);
         }
-
-    } while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0);
+    }
+    freeifaddrs(ifap);
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
     char ip_str[INET_ADDRSTRLEN];
@@ -461,10 +473,6 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
          rip ? ", router " : "",
          rip ? inet_ntop(AF_INET, &w->rip, rip_str, INET_ADDRSTRLEN) : "");
 #endif
-
-    // if the interface is a netmap pipe, restore its name
-    if (pipe)
-        *pipe = dir;
 
     w->ifname = strndup(ifname, IFNAMSIZ);
     ensure(w->ifname, "could not strndup");
@@ -478,14 +486,19 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // backend-specific init
     w->b = calloc(1, sizeof(*w->b));
     ensure(w->b, "cannot alloc backend");
-    backend_init(w, nbufs);
+    backend_init(w, nbufs, is_loopback, !have_pipe);
+
+#ifndef NDEBUG
+    struct w_iov * v;
+    sq_foreach (v, &w->iov, next)
+        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
+#endif
 
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);
 
     warn(INF, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
          w->backend_name, warpcore_version, sq_len(&w->iov), w->mtu, w->ifname);
-    warn(INF, "submit bug reports at https://github.com/NTAP/warpcore/issues");
     return w;
 }
 
@@ -519,3 +532,22 @@ bool w_connected(const struct w_sock * const s)
 {
     return s->hdr->ip.dst;
 }
+
+#ifndef NDEBUG
+
+void w_free(struct w_engine * const w, struct w_iov_sq * const q)
+{
+    sq_concat(&w->iov, q);
+    struct w_iov * v;
+    sq_foreach (v, q, next)
+        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
+}
+
+
+void w_free_iov(struct w_engine * const w, struct w_iov * const v)
+{
+    sq_insert_head(&w->iov, v, next);
+    ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
+}
+
+#endif

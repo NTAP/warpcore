@@ -125,7 +125,8 @@ extern sl_head(w_engines, w_engine) engines;
 
 
 #define is_pipe(w)                                                             \
-    ((w)->b->req->nr_flags & (NR_REG_PIPE_MASTER | NR_REG_PIPE_SLAVE))
+    unlikely(((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_MASTER ||    \
+             ((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_SLAVE)
 
 
 extern struct w_sock * __attribute__((nonnull))
@@ -137,7 +138,9 @@ extern void __attribute__((nonnull)) backend_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) backend_connect(struct w_sock * const s);
 
-extern void __attribute__((nonnull))
-backend_init(struct w_engine * const w, const uint32_t nbufs);
+extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
+                                                  const uint32_t nbufs,
+                                                  const bool is_lo,
+                                                  const bool is_left);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);

@@ -104,6 +104,11 @@ struct arp_entry {
 };
 
 
+extern void __attribute__((nonnull))
+arp_cache_update(struct w_engine * w,
+                 const uint32_t ip,
+                 const struct ether_addr mac);
+
 extern int8_t __attribute__((nonnull))
 arp_cache_cmp(const struct arp_entry * const a,
               const struct arp_entry * const b);

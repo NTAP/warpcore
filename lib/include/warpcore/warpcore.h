@@ -41,42 +41,6 @@ extern "C" {
 #include <warpcore/util.h>   // IWYU pragma: export
 
 
-splay_head(sock, w_sock);
-
-/// A warpcore backend engine.
-///
-struct w_engine {
-    void * mem;           ///< Pointer to netmap or socket buffer memory region.
-    struct w_iov * bufs;  ///< Pointer to w_iov buffers.
-    struct w_backend * b; ///< Backend.
-    uint32_t ip;          ///< Local IPv4 address used on this interface.
-    uint32_t mask;        ///< IPv4 netmask of this interface.
-    uint32_t rip;         ///< Our default IPv4 router IP address.
-    uint16_t mtu;         ///< MTU of this interface.
-    struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
-    struct sock sock;      ///< List of open (bound) w_sock sockets.
-    sq_head(, w_iov) iov;  ///< Tail queue of w_iov buffers available.
-
-    sl_entry(w_engine) next;   ///< Pointer to next engine.
-    char * ifname;             ///< Name of the interface of this engine.
-    const char * backend_name; ///< Name of the backend in @p b.
-};
-
-
-/// A chain of w_sock socket.
-///
-sl_head(w_sock_slist, w_sock);
-
-
-/// Initializer for struct w_sock_slist.
-///
-/// @param      l     A struct w_sock_slist.
-///
-/// @return     Empty w_sock_slist, to be assigned to @p l.
-///
-#define w_sock_slist_initializer(l) sl_head_initializer(l)
-
-
 /// A tail queue of w_iov I/O vectors. Also contains a counter that (on TX)
 /// tracks how many w_iovs have not yet been transmitted by the NIC.
 ///
@@ -98,6 +62,42 @@ struct w_iov_sq {
     }
 
 
+splay_head(sock, w_sock);
+
+/// A warpcore backend engine.
+///
+struct w_engine {
+    void * mem;           ///< Pointer to netmap or socket buffer memory region.
+    struct w_iov * bufs;  ///< Pointer to w_iov buffers.
+    struct w_backend * b; ///< Backend.
+    uint32_t ip;          ///< Local IPv4 address used on this interface.
+    uint32_t mask;        ///< IPv4 netmask of this interface.
+    uint32_t rip;         ///< Our default IPv4 router IP address.
+    uint16_t mtu;         ///< MTU of this interface.
+    struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
+    struct sock sock;      ///< List of open (bound) w_sock sockets.
+    struct w_iov_sq iov;   ///< Tail queue of w_iov buffers available.
+
+    sl_entry(w_engine) next;   ///< Pointer to next engine.
+    char * ifname;             ///< Name of the interface of this engine.
+    const char * backend_name; ///< Name of the backend in @p b.
+};
+
+
+/// A chain of w_sock socket.
+///
+sl_head(w_sock_slist, w_sock);
+
+
+/// Initializer for struct w_sock_slist.
+///
+/// @param      l     A struct w_sock_slist.
+///
+/// @return     Empty w_sock_slist, to be assigned to @p l.
+///
+#define w_sock_slist_initializer(l) sl_head_initializer(l)
+
+
 /// Do not compute a UDP checksum for outgoing packets. Has no effect for the
 /// socket engine.
 ///
@@ -110,7 +110,7 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     struct w_engine * w;
 
-    sq_head(, w_iov) iv;      ///< Tail queue containing incoming unread data.
+    struct w_iov_sq iv;       ///< Tail queue containing incoming unread data.
     splay_entry(w_sock) next; ///< Next socket associated with this engine.
 
     /// The template header to be used for outbound packets on this
@@ -265,8 +265,12 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 /// @param      w     Backend engine.
 /// @param      q     Tail queue of w_iov structs to return.
 ///
+#ifndef NDEBUG
+extern void __attribute__((nonnull))
+w_free(struct w_engine * const w, struct w_iov_sq * const q);
+#else
 #define w_free(w, q) sq_concat(&(w)->iov, (q))
-
+#endif
 
 /// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
 /// back to warpcore.
@@ -276,8 +280,12 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 ///
 /// @return     w_iov struct.
 ///
+#ifndef NDEBUG
+extern void __attribute__((nonnull))
+w_free_iov(struct w_engine * const w, struct w_iov * const v);
+#else
 #define w_free_iov(w, v) sq_insert_head(&(w)->iov, (v), next)
-
+#endif
 
 /// Return address to w_iov struct with index @p idx.
 ///

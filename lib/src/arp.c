@@ -79,10 +79,9 @@ arp_cache_find(struct w_engine * w, const uint32_t ip)
 /// @param[in]  ip    IPv4 address to update the ARP cache for.
 /// @param[in]  mac   New Ethernet MAC address of @p ip.
 ///
-static void __attribute__((nonnull))
-arp_cache_update(struct w_engine * w,
-                 const uint32_t ip,
-                 const struct ether_addr mac)
+void arp_cache_update(struct w_engine * w,
+                      const uint32_t ip,
+                      const struct ether_addr mac)
 {
     struct arp_entry * a = arp_cache_find(w, ip);
     if (unlikely(a == 0)) {

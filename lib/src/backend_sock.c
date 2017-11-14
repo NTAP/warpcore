@@ -66,10 +66,15 @@ static char backend_name[] = "socket";
 /// Initialize the warpcore socket backend for engine @p w. Sets up the extra
 /// buffers.
 ///
-/// @param      w      Backend engine.
-/// @param[in]  nbufs  Number of packet buffers to allocate.
+/// @param      w        Backend engine.
+/// @param[in]  nbufs    Number of packet buffers to allocate.
+/// @param[in]  is_lo    Unused.
+/// @param[in]  is_left  Unused.
 ///
-void backend_init(struct w_engine * const w, const uint32_t nbufs)
+void backend_init(struct w_engine * const w,
+                  const uint32_t nbufs,
+                  const bool is_lo __attribute__((unused)),
+                  const bool is_left __attribute__((unused)))
 {
     ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
            "cannot alloc %u * %u buf mem", nbufs, w->mtu);
@@ -307,7 +312,8 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
             return;
         }
 #ifdef HAVE_RECVMMSG
-        n = (ssize_t)recvmmsg(s->fd, msgvec, (unsigned int)nbufs, MSG_DONTWAIT, 0);
+        n = (ssize_t)recvmmsg(s->fd, msgvec, (unsigned int)nbufs, MSG_DONTWAIT,
+                              0);
         ensure(n != -1 || errno == EAGAIN, "recvmmsg");
 #else
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);

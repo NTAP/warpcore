@@ -30,9 +30,11 @@
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <poll.h>
+#include <sanitizer/asan_interface.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -58,10 +60,15 @@ static char backend_name[] = "netmap";
 /// interface to netmap mode, maps the underlying buffers into memory and locks
 /// it there, and sets up the extra buffers.
 ///
-/// @param      w      Backend engine.
-/// @param[in]  nbufs  Number of packet buffers to allocate.
+/// @param      w        Backend engine.
+/// @param[in]  nbufs    Number of packet buffers to allocate.
+/// @param[in]  is_lo    Is this a loopback interface?
+/// @param[in]  is_left  Is this the left end of a loopback pipe?
 ///
-void backend_init(struct w_engine * const w, const uint32_t nbufs)
+void backend_init(struct w_engine * const w,
+                  const uint32_t nbufs,
+                  const bool is_lo,
+                  const bool is_left)
 {
     struct w_backend * const b = w->b;
 
@@ -70,28 +77,38 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
            "cannot open /dev/netmap");
     w->backend_name = backend_name;
 
+    splay_init(&b->arp_cache);
+
     // switch interface to netmap mode
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");
     b->req->nr_name[sizeof b->req->nr_name - 1] = '\0';
     b->req->nr_version = NETMAP_API;
     b->req->nr_ringid &= ~NETMAP_RING_MASK;
-    // don't always transmit on poll
-    b->req->nr_ringid |= NETMAP_NO_TX_POLL;
+    b->req->nr_ringid |= NETMAP_NO_TX_POLL; // don't always transmit on poll
     b->req->nr_flags = NR_REG_ALL_NIC;
-    char * pipe = 0;
-    if ((pipe = strchr(w->ifname, '{')) || (pipe = strchr(w->ifname, '}'))) {
-        const char dir = *pipe;
-        *pipe = 0;
-        const long id = strtol(pipe + 1, 0, 10);
-        b->req->nr_flags = dir == '{' ? NR_REG_PIPE_MASTER : NR_REG_PIPE_SLAVE;
-        b->req->nr_ringid = id & NETMAP_RING_MASK;
-        char tmp[IFNAMSIZ];
-        snprintf(tmp, IFNAMSIZ, "p%s", w->ifname);
-        warn(DBG, "pipe %s id %u renamed to %s", w->ifname, id, tmp);
-        free(w->ifname);
-        w->ifname = strndup(tmp, IFNAMSIZ);
+
+    // if the interface is a netmap pipe, restore its name
+    if (is_lo) {
+        warn(NTE, "%s is a loopback, using %s netmap pipe", w->ifname,
+             is_left ? "left" : "right");
+
+        snprintf(b->req->nr_name, IFNAMSIZ, "warp-%s", w->ifname);
+        b->req->nr_flags = is_left ? NR_REG_PIPE_SLAVE : NR_REG_PIPE_MASTER;
+        b->req->nr_ringid = 1 & NETMAP_RING_MASK;
+
+        // preload ARP cache
+        arp_cache_update(
+            w, 0x0100007f,
+            (struct ether_addr){{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}});
+    } else {
+        struct w_engine * e;
+        sl_foreach (e, &engines, next)
+            ensure(strncmp(w->ifname, w_ifname(e), IFNAMSIZ),
+                   "can only have one warpcore engine active on %s", w->ifname);
+
+        strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);
     }
-    strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);
+
     b->req->nr_arg3 = nbufs; // request extra buffers
     ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,
            "%s: cannot put interface into netmap mode", w->ifname);
@@ -150,8 +167,6 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 
     // initialize random port number generation state
     b->next_eph = (uint16_t)plat_random();
-
-    splay_init(&b->arp_cache);
 }
 
 
@@ -168,6 +183,7 @@ void backend_cleanup(struct w_engine * const w)
     // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
         uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
+        ASAN_UNPOISON_MEMORY_REGION(buf, w->mtu);
         if (likely(n < sq_len(&w->iov) - 1))
             *buf = w->bufs[n + 1].idx;
         else

@@ -91,7 +91,7 @@ void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
              ether_ntoa_r(&eth->dst, dst), ether_ntoa_r(&w->mac, src));
         return;
     }
-
+    // hexdump(eth, r->slot[r->cur].len);
     if (likely(eth->type == ETH_TYPE_IP))
         ip_rx(w, r);
     else if (eth->type == ETH_TYPE_ARP)
@@ -138,16 +138,13 @@ bool eth_tx(struct w_engine * const w,
     w->b->slot_buf[txr->ringid][txr->cur] = v;
     s->flags = NS_BUF_CHANGED;
     s->len = len + sizeof(struct eth_hdr);
-    warn(DBG, "is_pipe %u %u %u %u", (w)->b->req->nr_flags,
-         (w)->b->req->nr_flags & NR_REG_PIPE_MASTER,
-         (w)->b->req->nr_flags & NR_REG_PIPE_SLAVE,
-         (w)->b->req->nr_flags & (NR_REG_PIPE_MASTER | NR_REG_PIPE_SLAVE));
     warn(DBG, "%s iov idx %u into tx ring %u slot %d (%s %u)",
          is_pipe(w) ? "copying" : "placing", v->idx, w->b->cur_txr, txr->cur,
          is_pipe(w) ? "idx" : "swap with", s->buf_idx);
     if (is_pipe(w)) {
         // for netmap pipes, we need to copy the buffer into the slot
         memcpy(NETMAP_BUF(txr, s->buf_idx), IDX2BUF(w, v->idx), s->len);
+        // hexdump(NETMAP_BUF(txr, s->buf_idx), s->len);
     } else {
         // for NIC rings, temporarily place v into the current tx ring
         const uint32_t slot_idx = s->buf_idx;
