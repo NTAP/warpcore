@@ -161,8 +161,8 @@ static inline void alloc_cnt(struct w_engine * const w,
         qlen -= adj_last;
 #endif
     }
-    warn(DBG, "allocated w_iov_sq of len %u byte%s (%d w_iov%s)", qlen,
-         plural(qlen), count, plural(count));
+    warn(DBG, "allocated w_iov_sq of len %u byte%s (%d w_iov%s w/off %u)", qlen,
+         plural(qlen), count, plural(count), off);
 }
 
 
