@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: BSD-2-Clause
 //
 // Copyright (c) 2014-2017, NetApp, Inc.
@@ -297,10 +298,11 @@ void util_hexdump(const void * const ptr,
 
     fprintf(stderr,
             DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM MAG " %s" BLK " " BLU
-                                "%s:%d " NRM "hex-dumping %zu byte%s of %s\n",
+                                "%s:%d " NRM
+                                "hex-dumping %zu byte%s of %s from %p\n",
             DTHREAD_ID elapsed.tv_sec % 1000,
             (long long)(elapsed.tv_usec / 1000), func, basename(file), line,
-            len, plural(len), ptr_name);
+            len, plural(len), ptr_name, ptr);
 
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
