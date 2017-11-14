@@ -38,21 +38,21 @@
 static struct w_engine *w_serv, *w_clnt;
 static struct w_sock *s_serv, *s_clnt;
 
+#define OFFSET 64
 
 bool io(const uint32_t len)
 {
     // allocate a w_iov chain for tx
     struct w_iov_sq o = w_iov_sq_initializer(o);
-    w_alloc_cnt(w_clnt, &o, len, 512, 64);
+    w_alloc_cnt(w_clnt, &o, len, 512, OFFSET);
     if (w_iov_sq_cnt(&o) != len)
         return false;
 
     // fill it with data
     struct w_iov * ov;
-    uint8_t fill = 0;
-    sq_foreach (ov, &o, next) {
+    uint8_t fill = 0x0f;
+    sq_foreach (ov, &o, next)
         memset(ov->buf, fill++, ov->len);
-    }
     const uint32_t olen = w_iov_sq_len(&o);
 
     // tx
@@ -81,6 +81,8 @@ bool io(const uint32_t len)
     struct w_iov * iv = sq_first(&i);
     ov = sq_first(&o);
     while (ov && iv) {
+        iv->buf += OFFSET;
+        iv->len -= OFFSET;
         ensure(memcmp(iv->buf, ov->buf, iv->len) == 0,
                "ov %u = 0x%02x (len %u) != iv %u = 0x%02x (len %u)", ov->idx,
                ov->buf[0], ov->len, iv->idx, iv->buf[0], iv->len);
