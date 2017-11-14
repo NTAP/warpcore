@@ -1,10 +1,15 @@
 Vagrant.configure("2") do |config|
 
   # OS to use for the VM
-  config.vm.box = "ubuntu/zesty64"
+  config.vm.box = "ubuntu/zesty64" # artful64
 
   # don't always check for box updates
   config.vm.box_check_update = false
+
+  config.vm.network "private_network", type: "dhcp"
+
+  config.vm.provision "file", source: "/etc/letsencrypt/live/slate.eggert.org",
+    destination: "~/slate.eggert.org"
 
   # hardware configuration of the VM
   config.vm.provider "virtualbox" do |vb|
@@ -30,6 +35,9 @@ Vagrant.configure("2") do |config|
   config.vm.provision "shell", inline: <<-SHELL
     export DEBIAN_FRONTEND=noninteractive
 
+    git config --global user.email lars@netapp.com
+    git config --global user.name "Lars Eggert"
+
     # update the box
     apt-get -y update
     apt-get -y upgrade
@@ -39,12 +47,12 @@ Vagrant.configure("2") do |config|
     # install some tools that are needed
     apt-get -y install git tmux ninja-build libev-dev libssl-dev g++ fish \
       pkg-config htop silversearcher-ag linux-tools-common linux-tools-generic \
-      gdb valgrind mercurial libhttp-parser-dev iwyu \
+      gdb valgrind mercurial libhttp-parser-dev iwyu apache2 libbsd-dev \
       clang-tidy libclang-common-3.9-dev
 
     # install recent cmake
-    wget -q https://cmake.org/files/v3.9/cmake-3.9.4-Linux-x86_64.sh
-    sh cmake-3.9.4-Linux-x86_64.sh --skip-license --prefix=/usr/local
+    wget -q https://cmake.org/files/v3.9/cmake-3.9.5-Linux-x86_64.sh
+    sh cmake-3.9.5-Linux-x86_64.sh --skip-license --prefix=/usr/local
 
     # change shell to fish
     chsh -s /usr/bin/fish ubuntu
@@ -64,7 +72,11 @@ Vagrant.configure("2") do |config|
     echo 'netmap' >> /etc/modules-load.d/modules.conf
     echo 'e1000-netmap' >> /etc/modules-load.d/modules.conf
     echo 'blacklist e1000' >> /etc/modprobe.d/blacklist-netmap.conf
-    # echo 'blacklist virtio' >> /etc/modprobe.d/blacklist-netmap.conf
+    echo 'blacklist virtio' >> /etc/modprobe.d/blacklist-netmap.conf
+
+    # configure netmap
+    echo 'echo 1 > /sys/module/netmap/parameters/admode' >> /etc/rc.local
+    echo 'echo 1000000 > /sys/module/netmap/parameters/buf_num' >> /etc/rc.local
 
     # various changes to /etc to let normal users use netmap
     echo 'KERNEL=="netmap", MODE="0666"' > /etc/udev/rules.d/netmap.rules
@@ -77,7 +89,7 @@ Vagrant.configure("2") do |config|
     depmod -a
     update-initramfs -u
 
-    # we need to restart via "vagrant up"
+    echo Please restart via \"vagrant up\"
     shutdown -P now
   SHELL
 end
