@@ -76,33 +76,6 @@ SPLAY_GENERATE(sock, w_sock, next, w_sock_cmp)
 struct w_engines engines = sl_head_initializer(engines);
 
 
-/// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
-/// returned to w->iov via sq_insert_head() or sq_concat().
-///
-/// @param      w     Backend engine.
-/// @param[in]  len   The length of each @p buf.
-/// @param[in]  off   Additional offset into the buffer.
-///
-/// @return     Spare w_iov.
-///
-struct w_iov *
-w_alloc_iov(struct w_engine * const w, const uint16_t len, const uint16_t off)
-{
-    struct w_iov * const v = sq_first(&w->iov);
-    if (unlikely(v == 0))
-        return 0;
-    sq_remove_head(&w->iov, next);
-
-    v->buf = IDX2BUF(w, v->idx) + off;
-    v->len = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off;
-#ifdef WITH_NETMAP
-    v->o = 0;
-#endif
-    ASAN_UNPOISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
-    return v;
-}
-
-
 /// Get the socket bound to local port @p port.
 ///
 /// @param      w     Backend engine.
@@ -115,6 +88,34 @@ struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
     struct w_hdr h = {.udp.sport = port};
     struct w_sock s = {.hdr = &h};
     return splay_find(sock, &w->sock, &s);
+}
+
+
+/// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
+/// returned to w->iov via sq_insert_head() or sq_concat().
+///
+/// @param      w     Backend engine.
+/// @param[in]  len   The length of each @p buf.
+/// @param[in]  off   Additional offset into the buffer.
+///
+/// @return     Spare w_iov.
+///
+struct w_iov *
+w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
+{
+    struct w_iov * const v = sq_first(&w->iov);
+    if (unlikely(v == 0))
+        return 0;
+    sq_remove_head(&w->iov, next);
+
+#ifdef WITH_NETMAP
+    off += sizeof(struct w_hdr);
+    v->o = 0;
+#endif
+    v->buf = IDX2BUF(w, v->idx) + off;
+    v->len = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off;
+    ASAN_UNPOISON_MEMORY_REGION(IDX2BUF(w, v->idx), v->len + off);
+    return v;
 }
 
 
@@ -136,9 +137,6 @@ static inline void alloc_cnt(struct w_engine * const w,
 {
     sq_init(q);
     struct w_iov * v = 0;
-#ifdef WITH_NETMAP
-    off += sizeof(struct w_hdr);
-#endif
 #ifndef NDEBUG
     uint32_t qlen = 0;
 #endif
