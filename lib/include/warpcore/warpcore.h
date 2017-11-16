@@ -287,16 +287,6 @@ w_free_iov(struct w_engine * const w, struct w_iov * const v);
 #define w_free_iov(w, v) sq_insert_head(&(w)->iov, (v), next)
 #endif
 
-/// Return address to w_iov struct with index @p idx.
-///
-/// @param      w     Backend engine.
-/// @param      i     Index of w_iov struct to return.
-///
-/// @return     Pointer to w_iov struct with index @p idx.
-///
-#define w_iov(w, i) (&(w)->bufs[(i)])
-
-
 /// Return the number of w_iov structures in the w_iov tail queue @p c.
 ///
 /// @param[in]  q     The w_iov tail queue to compute the payload length of.
