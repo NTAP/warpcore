@@ -157,7 +157,7 @@ void backend_init(struct w_engine * const w,
     w->max_buf_idx = w->min_buf_idx = 0;
 
     // save the indices of the extra buffers in the warpcore structure
-    w->bufs = calloc(b->req->nr_arg3 + num_slots, sizeof(*w->bufs));
+    w->bufs = calloc(b->req->nr_arg3 + num_slots + 1, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
 
     uint32_t n, i;
@@ -195,6 +195,8 @@ void backend_init(struct w_engine * const w,
         warn(WRN, "can only allocate %d/%d extra buffers", b->req->nr_arg3,
              nbufs);
     ensure(b->req->nr_arg3 != 0, "got some extra buffers");
+
+    w->nbufs = b->req->nr_arg3 + num_slots;
 
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");

@@ -124,7 +124,7 @@ void backend_init(struct w_engine * const w,
     warn(DBG, "backend using %s, %s, %s", poll_meth, send_meth, recv_meth);
 #endif
 
-    w->max_buf_idx = nbufs;
+    w->nbufs = w->max_buf_idx = nbufs;
     w->min_buf_idx = 0;
 }
 

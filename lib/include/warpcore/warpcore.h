@@ -84,6 +84,7 @@ struct w_engine {
     const char * backend_name; ///< Name of the backend in @p b.
     uint32_t min_buf_idx;      ///< Index of the smallest buffer.
     uint32_t max_buf_idx;      ///< Index of the largest buffer.
+    uint32_t nbufs;            ///< Total number of buffers used by backend.
 };
 
 

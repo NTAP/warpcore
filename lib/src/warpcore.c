@@ -497,8 +497,9 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);
 
-    warn(INF, "%s/%s %s using %u %u-byte buffers on %s", warpcore_name,
-         w->backend_name, warpcore_version, sq_len(&w->iov), w->mtu, w->ifname);
+    warn(INF, "%s/%s %s using %u-byte bufs w/idx %u-%u (%u used) on %s",
+         warpcore_name, w->backend_name, warpcore_version, w->mtu,
+         w->min_buf_idx, w->max_buf_idx, w->nbufs, w->ifname);
     return w;
 }
 
