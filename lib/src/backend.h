@@ -27,6 +27,13 @@
 
 #pragma once
 
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#else
+#define ASAN_POISON_MEMORY_REGION(x, y)
+#define ASAN_UNPOISON_MEMORY_REGION(x, y)
+#endif
+
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
@@ -137,10 +144,18 @@ extern sl_head(w_engines, w_engine) engines;
     } while (0)
 
 
-extern struct w_iov * __attribute__((nonnull))
-w_alloc_iov_base(struct w_engine * const w,
-                 const uint16_t len,
-                 const uint16_t off);
+#define w_alloc_iov_base(w)                                                    \
+    __extension__({                                                            \
+        struct w_iov * const _v = sq_first(&(w)->iov);                         \
+        if (likely(_v)) {                                                      \
+            sq_remove_head(&(w)->iov, next);                                   \
+            init_iov((w), _v);                                                 \
+            _v->len = (w)->mtu;                                                \
+            ASAN_UNPOISON_MEMORY_REGION(IDX2BUF((w), _v->idx), _v->len);       \
+        }                                                                      \
+        _v;                                                                    \
+    })
+
 
 extern struct w_sock * __attribute__((nonnull))
 get_sock(struct w_engine * const w, const uint16_t port);

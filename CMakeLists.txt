@@ -46,7 +46,7 @@ include(CheckCXXCompilerFlag)
 foreach(FLAG -march=native -Wextra -Wpedantic -Weverything -Werror
         -fcolor-diagnostics -fdiagnostics-color=always
         # for older gcc:
-        -Wno-missing-field-initializers -Wno-disabled-macro-expansion
+        -Wno-missing-field-initializers -Wno-disabled-macro-expansion -Wno-undef
         )
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})
@@ -85,13 +85,16 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   add_definitions(-DQUEUE_MACRO_DEBUG_TRASH)
 
   # See if we can use the address sanitizer
-  set(CMAKE_REQUIRED_FLAGS -fsanitize=address)
-  check_c_compiler_flag("" _fsanitize_address)
-  if(_fsanitize_address)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+  check_include_file(sanitizer/asan_interface.h HAVE_ASAN)
+  if(HAVE_ASAN)
+    set(CMAKE_REQUIRED_FLAGS -fsanitize=address)
+    check_c_compiler_flag("" _fsanitize_address)
+    if(_fsanitize_address)
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+    endif()
+    unset(CMAKE_REQUIRED_FLAGS)
   endif()
-  unset(CMAKE_REQUIRED_FLAGS)
 
   # Set some additional flags for Debug builds
   set(FLAGS -fno-omit-frame-pointer -fsanitize-address-use-after-scope

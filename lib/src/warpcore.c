@@ -25,16 +25,10 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// IWYU pragma: no_include <net/netmap.h>
-#ifdef WITH_NETMAP
-#include <net/netmap_user.h> // IWYU pragma: keep
-#endif
-
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <sanitizer/asan_interface.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -44,8 +38,17 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+// IWYU pragma: no_include <net/netmap.h>
+#ifdef WITH_NETMAP
+#include <net/netmap_user.h> // IWYU pragma: keep
+#endif
+
 // IWYU pragma: no_include <sys/queue.h>
 #include <warpcore/warpcore.h>
+
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
 #ifdef __linux__
@@ -91,24 +94,6 @@ struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 }
 
 
-struct w_iov *
-w_alloc_iov_base(struct w_engine * const w, const uint16_t len, uint16_t off)
-{
-    struct w_iov * const v = sq_first(&w->iov);
-    if (unlikely(v == 0))
-        return 0;
-    sq_remove_head(&w->iov, next);
-    init_iov(w, v);
-    v->len = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off;
-
-    ASAN_UNPOISON_MEMORY_REGION(IDX2BUF(w, v->idx), v->len + off);
-    warn(DBG, "idx %u base %p buf %p baselen %u off %u len %u", v->idx,
-         (void *)IDX2BUF(w, v->idx), (void *)v->buf,
-         (len == 0 ? w->mtu : MIN(w->mtu, len)), off, v->len);
-    return v;
-}
-
-
 /// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
 /// returned to w->iov via sq_insert_head() or sq_concat().
 ///
@@ -121,21 +106,22 @@ w_alloc_iov_base(struct w_engine * const w, const uint16_t len, uint16_t off)
 struct w_iov *
 w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
 {
-    struct w_iov * const v = w_alloc_iov_base(w, len, off);
-    if (unlikely(v == 0))
-        return 0;
-
-    v->buf += off;
-    v->len -= off;
+    struct w_iov * const v = w_alloc_iov_base(w);
+    if (likely(v)) {
+        v->buf += off;
+        v->len = len ? MIN(len, v->len) : v->len;
+        ensure(v->len >= off, "offset larger than length");
+        v->len -= off;
 #ifdef WITH_NETMAP
-    v->buf += sizeof(struct w_hdr);
-    v->len -= sizeof(struct w_hdr);
+        v->buf += sizeof(struct w_hdr);
+        ensure(v->len >= sizeof(struct w_hdr), "offset larger than headers");
+        v->len -= sizeof(struct w_hdr);
 #endif
-
-    ASAN_UNPOISON_MEMORY_REGION(IDX2BUF(w, v->idx), v->len + off);
-    warn(DBG, "idx %u base %p buf %p baselen %u off %u len %u", v->idx,
-         (void *)IDX2BUF(w, v->idx), (void *)v->buf,
-         (len == 0 ? w->mtu : MIN(w->mtu, len)), off, v->len);
+        ASAN_UNPOISON_MEMORY_REGION(IDX2BUF(w, v->idx), v->len + off);
+        // warn(DBG, "idx %u base %p buf %p baselen %u off %u len %u", v->idx,
+        //      (void *)IDX2BUF(w, v->idx), (void *)v->buf,
+        //      (len == 0 ? w->mtu : MIN(w->mtu, len)), off, v->len);
+    }
     return v;
 }
 

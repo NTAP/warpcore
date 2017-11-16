@@ -25,8 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <warpcore/warpcore.h>
-
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -34,7 +32,6 @@
 #include <net/if.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <poll.h>
-#include <sanitizer/asan_interface.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -43,6 +40,12 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
+#include <warpcore/warpcore.h>
+
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 
 #include "arp.h"
 #include "backend.h"

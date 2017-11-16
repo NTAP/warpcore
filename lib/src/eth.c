@@ -91,7 +91,6 @@ void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
              ether_ntoa_r(&eth->dst, dst), ether_ntoa_r(&w->mac, src));
         return;
     }
-    hexdump(eth, r->slot[r->cur].len);
     if (likely(eth->type == ETH_TYPE_IP))
         ip_rx(w, r);
     else if (eth->type == ETH_TYPE_ARP)
@@ -141,7 +140,6 @@ bool eth_tx(struct w_engine * const w,
     warn(DBG, "%s iov idx %u into tx ring %u slot %d (%s %u)",
          is_pipe(w) ? "copying" : "placing", v->idx, w->b->cur_txr, txr->cur,
          is_pipe(w) ? "idx" : "swap with", s->buf_idx);
-    hexdump(IDX2BUF(w, v->idx), s->len);
     if (is_pipe(w))
         // for netmap pipes, we need to copy the buffer into the slot
         memcpy(NETMAP_BUF(txr, s->buf_idx), IDX2BUF(w, v->idx), s->len);

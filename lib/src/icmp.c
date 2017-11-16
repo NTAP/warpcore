@@ -61,7 +61,7 @@ void icmp_tx(struct w_engine * const w,
              const uint8_t code,
              uint8_t * const buf)
 {
-    struct w_iov * const v = w_alloc_iov_base(w, 0, 0);
+    struct w_iov * const v = w_alloc_iov_base(w);
     if (unlikely(v == 0)) {
         warn(CRT, "no more bufs; ICMP not sent (type %d, code %d)", type, code);
         return;

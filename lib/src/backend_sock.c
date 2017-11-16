@@ -27,7 +27,6 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
-#include <sanitizer/asan_interface.h>
 
 #if defined(__linux__)
 #include <limits.h>
@@ -44,6 +43,9 @@
 
 #include <warpcore/warpcore.h>
 
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 
 #if defined(HAVE_KQUEUE)
 #include <sys/event.h>
