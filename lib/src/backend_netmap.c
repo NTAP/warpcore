@@ -175,6 +175,7 @@ void backend_init(struct w_engine * const w,
         const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
         for (uint32_t si = 0; si < r->num_slots; si++) {
             const struct netmap_slot * const s = &r->slot[si];
+            w->bufs[n].idx = i;
             init_iov(w, &w->bufs[n]);
             w->max_buf_idx = MAX(w->max_buf_idx, s->buf_idx);
             w->min_buf_idx = MIN(w->min_buf_idx, s->buf_idx);
@@ -187,6 +188,7 @@ void backend_init(struct w_engine * const w,
         const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
         for (uint32_t si = 0; si < r->num_slots; si++) {
             const struct netmap_slot * const s = &r->slot[si];
+            w->bufs[n].idx = i;
             init_iov(w, &w->bufs[n]);
             w->max_buf_idx = MAX(w->max_buf_idx, s->buf_idx);
             w->min_buf_idx = MIN(w->min_buf_idx, s->buf_idx);
