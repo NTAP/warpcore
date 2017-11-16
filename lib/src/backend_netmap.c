@@ -39,6 +39,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/param.h>
 #include <unistd.h>
 
 #include <warpcore/warpcore.h>
@@ -68,10 +69,12 @@ static char backend_name[] = "netmap";
 /// @param[in]  is_lo    Is this a loopback interface?
 /// @param[in]  is_left  Is this the left end of a loopback pipe?
 ///
-void backend_init(struct w_engine * const w,
-                  const uint32_t nbufs,
-                  const bool is_lo,
-                  const bool is_left)
+/// @return     Returns the index of the largest buffer used.
+///
+uint32_t backend_init(struct w_engine * const w,
+                      const uint32_t nbufs,
+                      const bool is_lo,
+                      const bool is_left)
 {
     struct w_backend * const b = w->b;
 
@@ -125,6 +128,8 @@ void backend_init(struct w_engine * const w,
     // direct pointer to the netmap interface struct for convenience
     b->nif = NETMAP_IF(w->mem, b->req->nr_offset);
 
+    uint32_t max_idx = 0;
+
     // allocate space for tails and slot w_iov pointers
     ensure((b->tail = calloc(b->nif->ni_tx_rings, sizeof(*b->tail))) != 0,
            "cannot allocate tail");
@@ -132,6 +137,7 @@ void backend_init(struct w_engine * const w,
            "cannot allocate slot w_iov pointers");
     for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
+        max_idx = MAX(max_idx, r->slot[r->num_slots - 1].buf_idx);
         // allocate slot pointers
         ensure(b->slot_buf[ri] = calloc(r->num_slots, sizeof(**b->slot_buf)),
                "cannot allocate slot w_iov pointers");
@@ -141,19 +147,19 @@ void backend_init(struct w_engine * const w,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 
-#if !defined(NDEBUG) && DLEVEL >= INF
     for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
+        max_idx = MAX(max_idx, r->slot[r->num_slots - 1].buf_idx);
         warn(INF, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
-#endif
 
     // save the indices of the extra buffers in the warpcore structure
     w->bufs = calloc(b->req->nr_arg3, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
     for (uint32_t n = 0, i = b->nif->ni_bufs_head; likely(n < b->req->nr_arg3);
          n++) {
+        max_idx = MAX(max_idx, i);
         w->bufs[n].idx = i;
         init_iov(w, &w->bufs[n]);
         sq_insert_head(&w->iov, &w->bufs[n], next);
@@ -171,6 +177,8 @@ void backend_init(struct w_engine * const w,
 
     // initialize random port number generation state
     b->next_eph = (uint16_t)plat_random();
+
+    return max_idx;
 }
 
 

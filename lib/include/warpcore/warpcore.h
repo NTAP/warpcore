@@ -81,6 +81,7 @@ struct w_engine {
     sl_entry(w_engine) next;   ///< Pointer to next engine.
     char * ifname;             ///< Name of the interface of this engine.
     const char * backend_name; ///< Name of the backend in @p b.
+    uint32_t max_buf_idx;      ///< Index of the largest buffer.
 };
 
 

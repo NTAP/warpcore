@@ -74,10 +74,12 @@ static char backend_name[] = "socket";
 /// @param[in]  is_lo    Unused.
 /// @param[in]  is_left  Unused.
 ///
-void backend_init(struct w_engine * const w,
-                  const uint32_t nbufs,
-                  const bool is_lo __attribute__((unused)),
-                  const bool is_left __attribute__((unused)))
+/// @return     Returns the index of the largest buffer used.
+///
+uint32_t backend_init(struct w_engine * const w,
+                      const uint32_t nbufs,
+                      const bool is_lo __attribute__((unused)),
+                      const bool is_left __attribute__((unused)))
 {
     ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
            "cannot alloc %u * %u buf mem", nbufs, w->mtu);
@@ -123,6 +125,8 @@ void backend_init(struct w_engine * const w,
 #endif
     warn(DBG, "backend using %s, %s, %s", poll_meth, send_meth, recv_meth);
 #endif
+
+    return nbufs;
 }
 
 

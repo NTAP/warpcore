@@ -491,7 +491,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // backend-specific init
     w->b = calloc(1, sizeof(*w->b));
     ensure(w->b, "cannot alloc backend");
-    backend_init(w, nbufs, is_loopback, !have_pipe);
+    w->max_buf_idx = backend_init(w, nbufs, is_loopback, !have_pipe);
 
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);
