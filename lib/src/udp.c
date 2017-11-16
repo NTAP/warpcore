@@ -104,7 +104,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     if (unlikely(s == 0)) {
         // nobody bound to this port locally
         // send an ICMP unreachable reply, if this was not a broadcast
-        if (ip->src)
+        if (ip->dst != IP_BCAST && mk_net(ip->dst, w->mask) != w->mask)
             icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
         return;
     }
@@ -113,7 +113,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     //
     // XXX w_alloc_iov() does some (in this case) unneeded initialization;
     // determine if that overhead is a problem
-    struct w_iov * const i = w_alloc_iov(w, 0, 0);
+    struct w_iov * const i = w_alloc_iov_base(w, 0, 0);
     if (unlikely(i == 0)) {
         warn(CRT, "no more bufs; UDP packet RX failed");
         return;
@@ -159,9 +159,9 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     // copy template header into buffer and fill in remaining fields
     uint8_t * const buf = IDX2BUF(s->w, v->idx);
-    hexdump(buf, v->len + (buf - v->buf));
+    hexdump(buf, v->len + (v->buf - buf));
     memcpy(buf, s->hdr, sizeof(*s->hdr));
-    hexdump(buf, v->len + (buf - v->buf));
+    hexdump(buf, v->len + (v->buf - buf));
 
     struct ip_hdr * const ip = (void *)eth_data(buf);
     struct udp_hdr * const udp = (void *)ip_data(buf);

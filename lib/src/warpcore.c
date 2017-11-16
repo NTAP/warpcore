@@ -91,6 +91,24 @@ struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 }
 
 
+struct w_iov *
+w_alloc_iov_base(struct w_engine * const w, const uint16_t len, uint16_t off)
+{
+    struct w_iov * const v = sq_first(&w->iov);
+    if (unlikely(v == 0))
+        return 0;
+    sq_remove_head(&w->iov, next);
+    init_iov(w, v);
+    v->len = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off;
+
+    ASAN_UNPOISON_MEMORY_REGION(IDX2BUF(w, v->idx), v->len + off);
+    warn(DBG, "idx %u base %p buf %p baselen %u off %u len %u", v->idx,
+         (void *)IDX2BUF(w, v->idx), (void *)v->buf,
+         (len == 0 ? w->mtu : MIN(w->mtu, len)), off, v->len);
+    return v;
+}
+
+
 /// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
 /// returned to w->iov via sq_insert_head() or sq_concat().
 ///
@@ -103,18 +121,21 @@ struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 struct w_iov *
 w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
 {
-    struct w_iov * const v = sq_first(&w->iov);
+    struct w_iov * const v = w_alloc_iov_base(w, len, off);
     if (unlikely(v == 0))
         return 0;
-    sq_remove_head(&w->iov, next);
 
+    v->buf += off;
+    v->len -= off;
 #ifdef WITH_NETMAP
-    off += sizeof(struct w_hdr);
-    v->o = 0;
+    v->buf += sizeof(struct w_hdr);
+    v->len -= sizeof(struct w_hdr);
 #endif
-    v->buf = IDX2BUF(w, v->idx) + off;
-    v->len = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off;
+
     ASAN_UNPOISON_MEMORY_REGION(IDX2BUF(w, v->idx), v->len + off);
+    warn(DBG, "idx %u base %p buf %p baselen %u off %u len %u", v->idx,
+         (void *)IDX2BUF(w, v->idx), (void *)v->buf,
+         (len == 0 ? w->mtu : MIN(w->mtu, len)), off, v->len);
     return v;
 }
 
@@ -485,12 +506,6 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     w->b = calloc(1, sizeof(*w->b));
     ensure(w->b, "cannot alloc backend");
     backend_init(w, nbufs, is_loopback, !have_pipe);
-
-#ifndef NDEBUG
-    struct w_iov * v;
-    sq_foreach (v, &w->iov, next)
-        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
-#endif
 
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);

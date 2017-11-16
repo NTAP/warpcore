@@ -27,6 +27,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <sanitizer/asan_interface.h>
 
 #if defined(__linux__)
 #include <limits.h>
@@ -83,9 +84,10 @@ void backend_init(struct w_engine * const w,
     w->backend_name = backend_name;
 
     for (uint32_t i = 0; i < nbufs; i++) {
-        w->bufs[i].buf = IDX2BUF(w, i);
         w->bufs[i].idx = i;
+        init_iov(w, &w->bufs[i]);
         sq_insert_head(&w->iov, &w->bufs[i], next);
+        ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, w->mtu);
     }
 
 #if defined(HAVE_KQUEUE)

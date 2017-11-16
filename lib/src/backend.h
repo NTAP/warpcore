@@ -129,6 +129,19 @@ extern sl_head(w_engines, w_engine) engines;
              ((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_SLAVE)
 
 
+#define init_iov(w, v)                                                         \
+    do {                                                                       \
+        (v)->buf = IDX2BUF((w), (v)->idx);                                     \
+        (v)->len = (w)->mtu;                                                   \
+        (v)->o = 0;                                                            \
+    } while (0)
+
+
+extern struct w_iov * __attribute__((nonnull))
+w_alloc_iov_base(struct w_engine * const w,
+                 const uint16_t len,
+                 const uint16_t off);
+
 extern struct w_sock * __attribute__((nonnull))
 get_sock(struct w_engine * const w, const uint16_t port);
 

@@ -151,10 +151,11 @@ void backend_init(struct w_engine * const w,
     ensure(w->bufs != 0, "cannot allocate w_iov");
     for (uint32_t n = 0, i = b->nif->ni_bufs_head; likely(n < b->req->nr_arg3);
          n++) {
-        w->bufs[n].buf = IDX2BUF(w, i);
         w->bufs[n].idx = i;
+        init_iov(w, &w->bufs[n]);
         sq_insert_head(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
+        ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, w->mtu);
     }
 
     if (b->req->nr_arg3 != nbufs)
