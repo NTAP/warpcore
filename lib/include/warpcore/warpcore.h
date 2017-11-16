@@ -74,13 +74,15 @@ struct w_engine {
     uint32_t mask;        ///< IPv4 netmask of this interface.
     uint32_t rip;         ///< Our default IPv4 router IP address.
     uint16_t mtu;         ///< MTU of this interface.
-    struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
-    struct sock sock;      ///< List of open (bound) w_sock sockets.
-    struct w_iov_sq iov;   ///< Tail queue of w_iov buffers available.
+    struct ether_addr mac;    ///< Local Ethernet MAC address of the interface.
+    struct sock sock;         ///< List of open (bound) w_sock sockets.
+    struct w_iov_sq iov;      ///< Tail queue of w_iov buffers available.
+    struct w_iov_sq priv_iov; ///< Tail queue of w_iov buffers in internal use.
 
     sl_entry(w_engine) next;   ///< Pointer to next engine.
     char * ifname;             ///< Name of the interface of this engine.
     const char * backend_name; ///< Name of the backend in @p b.
+    uint32_t min_buf_idx;      ///< Index of the smallest buffer.
     uint32_t max_buf_idx;      ///< Index of the largest buffer.
 };
 

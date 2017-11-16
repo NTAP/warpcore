@@ -389,7 +389,7 @@ void w_cleanup(struct w_engine * const w)
 /// @param[in]  ifname  The OS name of the interface (e.g., "eth0").
 /// @param[in]  rip     The default router to be used for non-local
 ///                     destinations. Can be zero.
-/// @param[in]  nbufs   Number of packet buffers to allocate.
+/// @param[in]  nbufs   Number of extra packet buffers to allocate.
 ///
 /// @return     Initialized warpcore engine.
 ///
@@ -403,6 +403,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // initialize lists of sockets and iovs
     splay_init(&w->sock);
     sq_init(&w->iov);
+    sq_init(&w->priv_iov);
 
     // construct interface name of a netmap pipe for this interface
     char pipe[IFNAMSIZ];
@@ -491,7 +492,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // backend-specific init
     w->b = calloc(1, sizeof(*w->b));
     ensure(w->b, "cannot alloc backend");
-    w->max_buf_idx = backend_init(w, nbufs, is_loopback, !have_pipe);
+    backend_init(w, nbufs, is_loopback, !have_pipe);
 
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);

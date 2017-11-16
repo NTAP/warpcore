@@ -69,12 +69,10 @@ static char backend_name[] = "netmap";
 /// @param[in]  is_lo    Is this a loopback interface?
 /// @param[in]  is_left  Is this the left end of a loopback pipe?
 ///
-/// @return     Returns the index of the largest buffer used.
-///
-uint32_t backend_init(struct w_engine * const w,
-                      const uint32_t nbufs,
-                      const bool is_lo,
-                      const bool is_left)
+void backend_init(struct w_engine * const w,
+                  const uint32_t nbufs,
+                  const bool is_lo,
+                  const bool is_left)
 {
     struct w_backend * const b = w->b;
 
@@ -128,7 +126,8 @@ uint32_t backend_init(struct w_engine * const w,
     // direct pointer to the netmap interface struct for convenience
     b->nif = NETMAP_IF(w->mem, b->req->nr_offset);
 
-    uint32_t max_idx = 0;
+    // keep track of the buffers used in NIC rings
+    uint32_t num_slots = 0;
 
     // allocate space for tails and slot w_iov pointers
     ensure((b->tail = calloc(b->nif->ni_tx_rings, sizeof(*b->tail))) != 0,
@@ -137,7 +136,7 @@ uint32_t backend_init(struct w_engine * const w,
            "cannot allocate slot w_iov pointers");
     for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
-        max_idx = MAX(max_idx, r->slot[r->num_slots - 1].buf_idx);
+        num_slots += r->num_slots;
         // allocate slot pointers
         ensure(b->slot_buf[ri] = calloc(r->num_slots, sizeof(**b->slot_buf)),
                "cannot allocate slot w_iov pointers");
@@ -149,22 +148,47 @@ uint32_t backend_init(struct w_engine * const w,
 
     for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
-        max_idx = MAX(max_idx, r->slot[r->num_slots - 1].buf_idx);
+        num_slots += r->num_slots;
         warn(INF, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 
+    // keep track of largest buffer index found
+    w->max_buf_idx = w->min_buf_idx = 0;
+
     // save the indices of the extra buffers in the warpcore structure
-    w->bufs = calloc(b->req->nr_arg3, sizeof(*w->bufs));
+    w->bufs = calloc(b->req->nr_arg3 + num_slots, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
-    for (uint32_t n = 0, i = b->nif->ni_bufs_head; likely(n < b->req->nr_arg3);
-         n++) {
-        max_idx = MAX(max_idx, i);
+
+    uint32_t n, i;
+    for (n = 0, i = b->nif->ni_bufs_head; likely(n < b->req->nr_arg3); n++) {
+        w->max_buf_idx = MAX(w->max_buf_idx, i);
+        w->min_buf_idx = MIN(w->min_buf_idx, i);
         w->bufs[n].idx = i;
         init_iov(w, &w->bufs[n]);
         sq_insert_head(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
         ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, w->mtu);
+    }
+
+    for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
+        const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
+        for (uint32_t si = 0; si < r->num_slots; si++) {
+            const struct netmap_slot * const s = &r->slot[si];
+            w->max_buf_idx = MAX(w->max_buf_idx, s->buf_idx);
+            w->min_buf_idx = MIN(w->min_buf_idx, s->buf_idx);
+            sq_insert_head(&w->priv_iov, &w->bufs[n++], next);
+        };
+    }
+
+    for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
+        const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
+        for (uint32_t si = 0; si < r->num_slots; si++) {
+            const struct netmap_slot * const s = &r->slot[si];
+            w->max_buf_idx = MAX(w->max_buf_idx, s->buf_idx);
+            w->min_buf_idx = MIN(w->min_buf_idx, s->buf_idx);
+            sq_insert_head(&w->priv_iov, &w->bufs[n++], next);
+        };
     }
 
     if (b->req->nr_arg3 != nbufs)
@@ -177,8 +201,6 @@ uint32_t backend_init(struct w_engine * const w,
 
     // initialize random port number generation state
     b->next_eph = (uint16_t)plat_random();
-
-    return max_idx;
 }
 
 

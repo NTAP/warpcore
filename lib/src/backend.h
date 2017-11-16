@@ -166,9 +166,9 @@ extern void __attribute__((nonnull)) backend_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) backend_connect(struct w_sock * const s);
 
-extern uint32_t __attribute__((nonnull)) backend_init(struct w_engine * const w,
-                                                      const uint32_t nbufs,
-                                                      const bool is_lo,
-                                                      const bool is_left);
+extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
+                                                  const uint32_t nbufs,
+                                                  const bool is_lo,
+                                                  const bool is_left);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);
