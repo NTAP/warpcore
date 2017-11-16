@@ -175,9 +175,11 @@ void backend_init(struct w_engine * const w,
         const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
         for (uint32_t si = 0; si < r->num_slots; si++) {
             const struct netmap_slot * const s = &r->slot[si];
+            init_iov(w, &w->bufs[n]);
             w->max_buf_idx = MAX(w->max_buf_idx, s->buf_idx);
             w->min_buf_idx = MIN(w->min_buf_idx, s->buf_idx);
-            sq_insert_head(&w->priv_iov, &w->bufs[n++], next);
+            sq_insert_head(&w->priv_iov, &w->bufs[n], next);
+            n++;
         };
     }
 
@@ -185,11 +187,16 @@ void backend_init(struct w_engine * const w,
         const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
         for (uint32_t si = 0; si < r->num_slots; si++) {
             const struct netmap_slot * const s = &r->slot[si];
+            init_iov(w, &w->bufs[n]);
             w->max_buf_idx = MAX(w->max_buf_idx, s->buf_idx);
             w->min_buf_idx = MIN(w->min_buf_idx, s->buf_idx);
-            sq_insert_head(&w->priv_iov, &w->bufs[n++], next);
+            sq_insert_head(&w->priv_iov, &w->bufs[n], next);
+            n++;
         };
     }
+
+    if (w->min_buf_idx != 0)
+        warn(WRN, "TODO: optimize for min buf idx > 0 (is %u)", w->min_buf_idx);
 
     if (b->req->nr_arg3 != nbufs)
         warn(WRN, "can only allocate %d/%d extra buffers", b->req->nr_arg3,
@@ -408,8 +415,7 @@ void w_nic_tx(struct w_engine * const w)
             struct w_iov * const v = w->b->slot_buf[r->ringid][j];
             if (!is_pipe(w)) {
                 warn(DBG,
-                     "moving idx %u from ring %u slot %u back into "
-                     "w_iov after tx (swap with %u)",
+                     "move idx %u from ring %u slot %u to w_iov (swap w/%u)",
                      s->buf_idx, i, j, v->idx);
                 const uint32_t slot_idx = s->buf_idx;
                 s->buf_idx = v->idx;
