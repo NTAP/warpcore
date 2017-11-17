@@ -115,55 +115,12 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
         ensure(off == 0 || off <= v->len, "off %u > v->len %u", off, v->len);
         v->buf += off;
         v->len -= off;
-        ensure(len <= v->len, "len %u > v->len %u", v->len, len);
+        ensure(len <= v->len, "len %u > v->len %u", len, v->len);
         v->len = len ? len : v->len;
+        warn(DBG, "alloc w_iov off %u len %u",
+             v->buf - IDX2BUF(w, w_iov_idx(v)), v->len);
     }
     return v;
-}
-
-
-/// Helper function for w_alloc_size and w_alloc_cnt.
-///
-/// @param      w         Backend engine.
-/// @param[out] q         Tail queue of w_iov structs.
-/// @param[in]  count     Number of w_iov structs to allocate.
-/// @param[in]  len       The length of each @p buf.
-/// @param[in]  off       Additional offset for each buffer.
-/// @param[in]  adj_last  Amount to reduce the length of the last w_iov by.
-///
-static inline void alloc_cnt(struct w_engine * const w,
-                             struct w_iov_sq * const q,
-                             const uint32_t count,
-                             const uint16_t len,
-                             uint16_t off,
-                             const uint16_t adj_last)
-{
-    sq_init(q);
-    struct w_iov * v = 0;
-#ifndef NDEBUG
-    uint32_t qlen = 0;
-#endif
-    for (uint32_t i = 0; likely(i < count); i++) {
-        v = w_alloc_iov(w, len, off);
-        if (unlikely(v == 0)) {
-            // free partial allocation and return
-            w_free(q);
-            warn(CRT, "ran out of w_iov bufs trying to allocate %u", count);
-            return;
-        }
-        sq_insert_tail(q, v, next);
-#ifndef NDEBUG
-        qlen += v->len;
-#endif
-    }
-    if (v) {
-        v->len -= adj_last;
-#ifndef NDEBUG
-        qlen -= adj_last;
-#endif
-    }
-    warn(DBG, "allocated w_iov_sq of len %u byte%s (%d w_iov%s w/off %u)", qlen,
-         plural(qlen), count, plural(count), off);
 }
 
 
@@ -176,23 +133,28 @@ static inline void alloc_cnt(struct w_engine * const w,
 ///
 /// @param      w     Backend engine.
 /// @param[out] q     Tail queue of w_iov structs.
-/// @param[in]  plen  Amount of payload bytes in the returned tail queue.
+/// @param[in]  qlen  Amount of payload bytes in the returned tail queue.
 /// @param[in]  len   The length of each @p buf.
 /// @param[in]  off   Additional offset for @p buf.
 ///
 void w_alloc_len(struct w_engine * const w,
                  struct w_iov_sq * const q,
-                 const uint32_t plen,
+                 const uint32_t qlen,
                  const uint16_t len,
                  const uint16_t off)
 {
-    const uint32_t space = (len == 0 ? w->mtu : MIN(w->mtu, len)) - off
-#ifdef WITH_NETMAP
-                           - sizeof(struct w_hdr)
-#endif
-        ;
-    const uint32_t count = plen / space + (plen % space != 0);
-    alloc_cnt(w, q, count, len, off, (uint16_t)(space * count - plen));
+    uint32_t needed = qlen;
+    while (needed) {
+        struct w_iov * const v = w_alloc_iov(w, len, off);
+        if (needed > v->len)
+            needed -= v->len;
+        else {
+            warn(DBG, "adjust last to %u", needed);
+            v->len = (uint16_t)needed;
+            needed = 0;
+        }
+        sq_insert_tail(q, v, next);
+    }
 }
 
 
@@ -215,13 +177,17 @@ void w_alloc_cnt(struct w_engine * const w,
                  const uint16_t len,
                  const uint16_t off)
 {
-    alloc_cnt(w, q, count,
-              len
-#ifdef WITH_NETMAP
-                  + sizeof(struct w_hdr)
-#endif
-                  ,
-              off, 0);
+    for (uint32_t needed = 0; needed < count; needed++) {
+        struct w_iov * const v = w_alloc_iov(w, len, off);
+        sq_insert_tail(q, v, next);
+    }
+    //     alloc_cnt(w, q, count,
+    //               len
+    // #ifdef WITH_NETMAP
+    //                   + sizeof(struct w_hdr)
+    // #endif
+    //                   ,
+    //               off, 0);
 }
 
 

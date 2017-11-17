@@ -206,7 +206,7 @@ extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_alloc_len(struct w_engine * const w,
                                                  struct w_iov_sq * const q,
-                                                 const uint32_t plen,
+                                                 const uint32_t qlen,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
