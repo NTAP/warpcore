@@ -126,9 +126,9 @@ void icmp_tx(struct w_engine * const w,
     dst_eth->type = ETH_TYPE_IP;
 
     // now send the packet, and make sure it went out before returning it
-    const uint32_t orig_idx = v->idx;
+    const uint32_t orig_idx = v->nm_idx;
     ip_tx(w, v, sizeof(*dst_icmp) + data_len);
-    while (v->idx != orig_idx) {
+    while (v->nm_idx != orig_idx) {
         usleep(100);
         w_nic_tx(w);
     }

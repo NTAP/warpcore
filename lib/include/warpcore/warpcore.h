@@ -74,17 +74,13 @@ struct w_engine {
     uint32_t mask;        ///< IPv4 netmask of this interface.
     uint32_t rip;         ///< Our default IPv4 router IP address.
     uint16_t mtu;         ///< MTU of this interface.
-    struct ether_addr mac;    ///< Local Ethernet MAC address of the interface.
-    struct sock sock;         ///< List of open (bound) w_sock sockets.
-    struct w_iov_sq iov;      ///< Tail queue of w_iov buffers available.
-    struct w_iov_sq priv_iov; ///< Tail queue of w_iov buffers in internal use.
+    struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
+    struct sock sock;      ///< List of open (bound) w_sock sockets.
+    struct w_iov_sq iov;   ///< Tail queue of w_iov buffers available.
 
     sl_entry(w_engine) next;   ///< Pointer to next engine.
     char * ifname;             ///< Name of the interface of this engine.
     const char * backend_name; ///< Name of the backend in @p b.
-    uint32_t min_buf_idx;      ///< Index of the smallest buffer.
-    uint32_t max_buf_idx;      ///< Index of the largest buffer.
-    uint32_t nbufs;            ///< Total number of buffers used by backend.
 };
 
 
@@ -147,7 +143,7 @@ struct w_sock {
 struct w_iov {
     uint8_t * buf;        ///< Start of payload data.
     sq_entry(w_iov) next; ///< Next w_iov in a w_iov_sq.
-    uint32_t idx;         ///< Index of buffer, starting at zero.
+    uint32_t nm_idx;      ///< Index of netmap buffer.
     uint16_t len;         ///< Length of payload data.
 
     /// Sender port on RX. Destination port on TX on a disconnected
@@ -169,6 +165,9 @@ struct w_iov {
     ///< Pointer to the w_iov_sq this w_iov resides in. Only valid on TX.
     struct w_iov_sq * o;
 };
+
+
+#define w_iov_idx(w, v) ((w)->bufs - (v))
 
 
 extern struct w_engine * __attribute__((nonnull))

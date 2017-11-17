@@ -39,7 +39,6 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/param.h>
 #include <unistd.h>
 
 #include <warpcore/warpcore.h>
@@ -126,9 +125,6 @@ void backend_init(struct w_engine * const w,
     // direct pointer to the netmap interface struct for convenience
     b->nif = NETMAP_IF(w->mem, b->req->nr_offset);
 
-    // keep track of the buffers used in NIC rings
-    uint32_t num_slots = 0;
-
     // allocate space for tails and slot w_iov pointers
     ensure((b->tail = calloc(b->nif->ni_tx_rings, sizeof(*b->tail))) != 0,
            "cannot allocate tail");
@@ -136,7 +132,6 @@ void backend_init(struct w_engine * const w,
            "cannot allocate slot w_iov pointers");
     for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
-        num_slots += r->num_slots;
         // allocate slot pointers
         ensure(b->slot_buf[ri] = calloc(r->num_slots, sizeof(**b->slot_buf)),
                "cannot allocate slot w_iov pointers");
@@ -146,66 +141,31 @@ void backend_init(struct w_engine * const w,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 
+#ifndef NDEBUG
     for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
-        num_slots += r->num_slots;
         warn(INF, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
-
-    // keep track of largest buffer index found
-    w->max_buf_idx = w->min_buf_idx = 0;
+#endif
 
     // save the indices of the extra buffers in the warpcore structure
-    w->bufs = calloc(b->req->nr_arg3 + num_slots + 1, sizeof(*w->bufs));
+    w->bufs = calloc(b->req->nr_arg3, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
 
     uint32_t n, i;
     for (n = 0, i = b->nif->ni_bufs_head; likely(n < b->req->nr_arg3); n++) {
-        w->max_buf_idx = MAX(w->max_buf_idx, i);
-        w->min_buf_idx = MIN(w->min_buf_idx, i);
-        w->bufs[n].idx = i;
+        w->bufs[n].nm_idx = i;
         init_iov(w, &w->bufs[n]);
         sq_insert_head(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
         ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, w->mtu);
     }
 
-    for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
-        const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
-        for (uint32_t si = 0; si < r->num_slots; si++) {
-            const struct netmap_slot * const s = &r->slot[si];
-            w->bufs[n].idx = s->buf_idx;
-            init_iov(w, &w->bufs[n]);
-            w->max_buf_idx = MAX(w->max_buf_idx, s->buf_idx);
-            w->min_buf_idx = MIN(w->min_buf_idx, s->buf_idx);
-            sq_insert_head(&w->priv_iov, &w->bufs[n], next);
-            n++;
-        };
-    }
-
-    for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
-        const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
-        for (uint32_t si = 0; si < r->num_slots; si++) {
-            const struct netmap_slot * const s = &r->slot[si];
-            w->bufs[n].idx = s->buf_idx;
-            init_iov(w, &w->bufs[n]);
-            w->max_buf_idx = MAX(w->max_buf_idx, s->buf_idx);
-            w->min_buf_idx = MIN(w->min_buf_idx, s->buf_idx);
-            sq_insert_head(&w->priv_iov, &w->bufs[n], next);
-            n++;
-        };
-    }
-
-    if (w->min_buf_idx != 0)
-        warn(WRN, "TODO: optimize for min buf idx > 0 (is %u)", w->min_buf_idx);
-
     if (b->req->nr_arg3 != nbufs)
         warn(WRN, "can only allocate %d/%d extra buffers", b->req->nr_arg3,
              nbufs);
     ensure(b->req->nr_arg3 != 0, "got some extra buffers");
-
-    w->nbufs = b->req->nr_arg3 + num_slots;
 
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
@@ -227,14 +187,14 @@ void backend_cleanup(struct w_engine * const w)
 
     // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
-        uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
+        uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].nm_idx);
         ASAN_UNPOISON_MEMORY_REGION(buf, w->mtu);
         if (likely(n < sq_len(&w->iov) - 1))
-            *buf = w->bufs[n + 1].idx;
+            *buf = w->bufs[n + 1].nm_idx;
         else
             *buf = 0;
     }
-    w->b->nif->ni_bufs_head = w->bufs[0].idx;
+    w->b->nif->ni_bufs_head = w->bufs[0].nm_idx;
 
     // free slot w_iov pointers
     for (uint32_t ri = 0; likely(ri < w->b->nif->ni_tx_rings); ri++)
@@ -383,8 +343,8 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
                 NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
 
             // process the current slot
-            warn(DBG, "rx idx %u from ring %u slot %u", r->slot[r->cur].buf_idx,
-                 i, r->cur);
+            warn(DBG, "rx nm_idx %u from ring %u slot %u",
+                 r->slot[r->cur].buf_idx, i, r->cur);
             eth_rx(w, r);
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
@@ -417,11 +377,11 @@ void w_nic_tx(struct w_engine * const w)
             struct w_iov * const v = w->b->slot_buf[r->ringid][j];
             if (!is_pipe(w)) {
                 warn(DBG,
-                     "move idx %u from ring %u slot %u to w_iov (swap w/%u)",
-                     s->buf_idx, i, j, v->idx);
+                     "move nm_idx %u from ring %u slot %u to w_iov (swap w/%u)",
+                     s->buf_idx, i, j, v->nm_idx);
                 const uint32_t slot_idx = s->buf_idx;
-                s->buf_idx = v->idx;
-                v->idx = slot_idx;
+                s->buf_idx = v->nm_idx;
+                v->nm_idx = slot_idx;
                 s->flags = NS_BUF_CHANGED;
             }
             w->b->slot_buf[i][j] = 0;

@@ -89,19 +89,19 @@ struct w_backend {
     /// @cond
     uint8_t _unused[6]; ///< @internal Padding.
     /// @endcond
-
 #else
-
 #if defined(HAVE_KQUEUE)
     int kq;
 #elif defined(HAVE_EPOLL)
     int ep;
 #else
     /// @cond
-    uint8_t _unused_2[4]; ///< @internal Padding.
-                          /// @endcond
+    uint8_t _unused_2[4];
+    /// @endcond
 #endif
-    uint8_t _unused_2[4]; ///< @internal Padding.
+    /// @cond
+    uint8_t _unused_2[4];
+    /// @endcond
 #endif
 };
 
@@ -138,7 +138,7 @@ extern sl_head(w_engines, w_engine) engines;
 
 #define init_iov(w, v)                                                         \
     do {                                                                       \
-        (v)->buf = IDX2BUF((w), (v)->idx);                                     \
+        (v)->buf = IDX2BUF((w), (v)->nm_idx);                                  \
         (v)->len = (w)->mtu;                                                   \
         (v)->o = 0;                                                            \
     } while (0)
@@ -151,7 +151,7 @@ extern sl_head(w_engines, w_engine) engines;
             sq_remove_head(&(w)->iov, next);                                   \
             init_iov((w), _v);                                                 \
             _v->len = (w)->mtu;                                                \
-            ASAN_UNPOISON_MEMORY_REGION(IDX2BUF((w), _v->idx), _v->len);       \
+            ASAN_UNPOISON_MEMORY_REGION(IDX2BUF((w), _v->nm_idx), _v->len);    \
         }                                                                      \
         _v;                                                                    \
     })

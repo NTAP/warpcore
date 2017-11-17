@@ -108,19 +108,16 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
 {
     struct w_iov * const v = w_alloc_iov_base(w);
     if (likely(v)) {
-        v->buf += off;
-        v->len = len ? MIN(len, v->len) : v->len;
-        ensure(v->len >= off, "offset larger than length");
-        v->len -= off;
+        ASAN_UNPOISON_MEMORY_REGION(v->buf, v->len);
 #ifdef WITH_NETMAP
         v->buf += sizeof(struct w_hdr);
-        ensure(v->len >= sizeof(struct w_hdr), "offset larger than headers");
         v->len -= sizeof(struct w_hdr);
 #endif
-        ASAN_UNPOISON_MEMORY_REGION(IDX2BUF(w, v->idx), v->len + off);
-        // warn(DBG, "idx %u base %p buf %p baselen %u off %u len %u", v->idx,
-        //      (void *)IDX2BUF(w, v->idx), (void *)v->buf,
-        //      (len == 0 ? w->mtu : MIN(w->mtu, len)), off, v->len);
+        ensure(off == 0 || off <= v->len, "off %u > v->len %u", off, v->len);
+        v->buf += off;
+        v->len -= off;
+        ensure(len <= v->len, "len %u > v->len %u", v->len, len);
+        v->len = len ? len : v->len;
     }
     return v;
 }
@@ -403,7 +400,6 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // initialize lists of sockets and iovs
     splay_init(&w->sock);
     sq_init(&w->iov);
-    sq_init(&w->priv_iov);
 
     // construct interface name of a netmap pipe for this interface
     char pipe[IFNAMSIZ];
@@ -497,9 +493,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);
 
-    warn(INF, "%s/%s %s using %u-byte bufs w/idx %u-%u (%u used) on %s",
-         warpcore_name, w->backend_name, warpcore_version, w->mtu,
-         w->min_buf_idx, w->max_buf_idx, w->nbufs, w->ifname);
+    warn(INF, "%s/%s %s using %u-byte bufs on %s", warpcore_name,
+         w->backend_name, warpcore_version, w->mtu, w->ifname);
     return w;
 }
 
@@ -517,7 +512,7 @@ uint16_t w_iov_max_len(const struct w_engine * const w,
                        const struct w_iov * const v)
 {
     const uint16_t offset = (const uint16_t)(
-        (const uint8_t *)v->buf - (const uint8_t *)IDX2BUF(w, v->idx));
+        (const uint8_t *)v->buf - (const uint8_t *)IDX2BUF(w, v->nm_idx));
     return w->mtu - offset;
 }
 
@@ -541,14 +536,14 @@ void w_free(struct w_engine * const w, struct w_iov_sq * const q)
     sq_concat(&w->iov, q);
     struct w_iov * v;
     sq_foreach (v, q, next)
-        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
+        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->nm_idx), w->mtu);
 }
 
 
 void w_free_iov(struct w_engine * const w, struct w_iov * const v)
 {
     sq_insert_head(&w->iov, v, next);
-    ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
+    ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->nm_idx), w->mtu);
 }
 
 #endif

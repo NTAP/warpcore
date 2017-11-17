@@ -143,7 +143,7 @@ bool ip_tx(struct w_engine * const w,
            struct w_iov * const v,
            const uint16_t len)
 {
-    struct ip_hdr * const ip = (void *)eth_data(IDX2BUF(w, v->idx));
+    struct ip_hdr * const ip = (void *)eth_data(IDX2BUF(w, v->nm_idx));
     const uint16_t l = len + sizeof(*ip);
 
     // fill in remaining header fields

@@ -137,17 +137,17 @@ bool eth_tx(struct w_engine * const w,
     w->b->slot_buf[txr->ringid][txr->cur] = v;
     s->flags = NS_BUF_CHANGED;
     s->len = len + sizeof(struct eth_hdr);
-    warn(DBG, "%s iov idx %u into tx ring %u slot %d (%s %u)",
-         is_pipe(w) ? "copying" : "placing", v->idx, w->b->cur_txr, txr->cur,
-         is_pipe(w) ? "idx" : "swap with", s->buf_idx);
+    warn(DBG, "%s iov nm_idx %u into tx ring %u slot %d (%s %u)",
+         is_pipe(w) ? "copying" : "placing", v->nm_idx, w->b->cur_txr, txr->cur,
+         is_pipe(w) ? "nm_idx" : "swap with", s->buf_idx);
     if (is_pipe(w))
         // for netmap pipes, we need to copy the buffer into the slot
-        memcpy(NETMAP_BUF(txr, s->buf_idx), IDX2BUF(w, v->idx), s->len);
+        memcpy(NETMAP_BUF(txr, s->buf_idx), IDX2BUF(w, v->nm_idx), s->len);
     else {
         // for NIC rings, temporarily place v into the current tx ring
         const uint32_t slot_idx = s->buf_idx;
-        s->buf_idx = v->idx;
-        v->idx = slot_idx;
+        s->buf_idx = v->nm_idx;
+        v->nm_idx = slot_idx;
     }
 
 #if !defined(NDEBUG) && DLEVEL >= DBG
