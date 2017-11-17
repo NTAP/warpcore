@@ -23,8 +23,8 @@ Vagrant.configure("2") do |config|
     vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
 
     # per-VM serial log
-    vb.customize ["modifyvm", :id, "--uartmode1", "file",
-      File.join(Dir.pwd, "%s-console.log" % config.vm.hostname)]
+    # vb.customize ["modifyvm", :id, "--uartmode1", "file",
+    #   File.join(Dir.pwd, "%s-console.log" % config.vm.hostname)]
 
     # better clock synchronization (to within 100ms)
     vb.customize [ "guestproperty", "set", :id,
