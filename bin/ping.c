@@ -226,7 +226,7 @@ int main(const int argc, char * const argv[])
     // send "loops" number of payloads of len "len" and wait for reply
     for (uint32_t len = start; len <= end; len += (inc ? inc : .483 * len)) {
         // allocate tx tail queue
-        struct w_iov_sq o;
+        struct w_iov_sq o = w_iov_sq_initializer(o);
         w_alloc_len(w, &o, len, 0, 0);
         long iter = loops;
         while (likely(iter--)) {
