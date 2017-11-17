@@ -170,7 +170,23 @@ struct w_iov {
 };
 
 
-#define w_iov_idx(w, v) ((w)->bufs - (v))
+/// Return the index of w_iov @p v.
+///
+/// @param      v     A w_iov.
+///
+/// @return     Index between 0-nfbus.
+///
+#define w_iov_idx(v) ((v) - (v)->w->bufs)
+
+
+/// Return a pointer to the w_iov with index @p i.
+///
+/// @param      w     Warpcore engine.
+/// @param      i     Index.
+///
+/// @return     Pointer to w_iov.
+///
+#define w_iov(w, i) (&(w)->bufs[(i)])
 
 
 extern struct w_engine * __attribute__((nonnull))
