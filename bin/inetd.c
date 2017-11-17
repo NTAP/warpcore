@@ -232,9 +232,9 @@ int main(const int argc, char * const argv[])
             }
 
             // we are done serving the received data
-            w_free(w, &i);
+            w_free(&i);
             if (!sq_empty(&o))
-                w_free(w, &o);
+                w_free(&o);
         }
     }
 

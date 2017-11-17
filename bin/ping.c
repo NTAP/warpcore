@@ -300,9 +300,9 @@ int main(const int argc, char * const argv[])
             printf("%d\t%" PRIu64 "\t%ld\t%s\n", len, pkts, diff.tv_nsec, rx);
 
             // we are done with the received data
-            w_free(w, &i);
+            w_free(&i);
         }
-        w_free(w, &o);
+        w_free(&o);
     }
 
     for (uint32_t c = 0; c < conns; c++)

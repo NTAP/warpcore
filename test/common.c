@@ -69,8 +69,8 @@ bool io(const uint32_t len)
         const uint32_t new_ilen = w_iov_sq_len(&i);
         if (ilen == new_ilen) {
             // we ran out of buffers or there was packet loss; abort
-            w_free(w_clnt, &o);
-            w_free(w_serv, &i);
+            w_free(&o);
+            w_free(&i);
             return false;
         }
         ilen = new_ilen;
@@ -90,8 +90,8 @@ bool io(const uint32_t len)
         iv = sq_next(iv, next);
     }
 
-    w_free(w_clnt, &o);
-    w_free(w_serv, &i);
+    w_free(&o);
+    w_free(&i);
     return true;
 }
 

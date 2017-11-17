@@ -108,7 +108,6 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
 {
     struct w_iov * const v = w_alloc_iov_base(w);
     if (likely(v)) {
-        ASAN_UNPOISON_MEMORY_REGION(v->buf, v->len);
 #ifdef WITH_NETMAP
         v->buf += sizeof(struct w_hdr);
         v->len -= sizeof(struct w_hdr);
@@ -148,7 +147,7 @@ static inline void alloc_cnt(struct w_engine * const w,
         v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0)) {
             // free partial allocation and return
-            w_free(w, q);
+            w_free(q);
             warn(CRT, "ran out of w_iov bufs trying to allocate %u", count);
             return;
         }
@@ -334,7 +333,7 @@ void w_close(struct w_sock * const s)
     backend_close(s);
 
     // make iovs of the socket available again
-    w_free(s->w, &s->iv);
+    w_free(&s->iv);
 
     // remove the socket from list of sockets
     splay_remove(sock, &s->w->sock, s);
@@ -503,17 +502,15 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 /// Basically, subtracts the header space and any offset specified when
 /// allocating the w_iov from the MTU.
 ///
-/// @param[in]  w     Backend engine.
 /// @param[in]  v     The w_iov in question.
 ///
 /// @return     Maximum length of the data in a w_iov for this engine.
 ///
-uint16_t w_iov_max_len(const struct w_engine * const w,
-                       const struct w_iov * const v)
+uint16_t w_iov_max_len(const struct w_iov * const v)
 {
     const uint16_t offset = (const uint16_t)(
-        (const uint8_t *)v->buf - (const uint8_t *)IDX2BUF(w, v->nm_idx));
-    return w->mtu - offset;
+        (const uint8_t *)v->buf - (const uint8_t *)IDX2BUF(v->w, v->nm_idx));
+    return v->w->mtu - offset;
 }
 
 
@@ -529,10 +526,17 @@ bool w_connected(const struct w_sock * const s)
     return s->hdr->ip.dst;
 }
 
-#ifndef NDEBUG
 
-void w_free(struct w_engine * const w, struct w_iov_sq * const q)
+/// Return a w_iov tail queue obtained via w_alloc_len(), w_alloc_cnt() or
+/// w_rx() back to warpcore.
+///
+/// @param      q     Tail queue of w_iov structs to return.
+///
+void w_free(struct w_iov_sq * const q)
 {
+    if (sq_empty(q))
+        return;
+    struct w_engine * const w = sq_first(q)->w;
     sq_concat(&w->iov, q);
     struct w_iov * v;
     sq_foreach (v, q, next)
@@ -540,10 +544,13 @@ void w_free(struct w_engine * const w, struct w_iov_sq * const q)
 }
 
 
-void w_free_iov(struct w_engine * const w, struct w_iov * const v)
+/// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
+/// back to warpcore.
+///
+/// @param      v     w_iov struct to return.
+///
+void w_free_iov(struct w_iov * const v)
 {
-    sq_insert_head(&w->iov, v, next);
-    ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->nm_idx), w->mtu);
+    sq_insert_head(&v->w->iov, v, next);
+    ASAN_POISON_MEMORY_REGION(IDX2BUF(v->w, v->nm_idx), v->w->mtu);
 }
-
-#endif

@@ -141,6 +141,9 @@ struct w_sock {
 /// w_tx().
 ///
 struct w_iov {
+    /// Pointer back to the warpcore instance associated with this w_iov.
+    struct w_engine * w;
+
     uint8_t * buf;        ///< Start of payload data.
     sq_entry(w_iov) next; ///< Next w_iov in a w_iov_sq.
     uint32_t nm_idx;      ///< Index of netmap buffer.
@@ -219,10 +222,13 @@ extern uint32_t __attribute__((nonnull))
 w_rx_ready(struct w_engine * const w, struct w_sock_slist * sl);
 
 extern uint16_t __attribute__((nonnull))
-w_iov_max_len(const struct w_engine * const w, const struct w_iov * const v);
+w_iov_max_len(const struct w_iov * const v);
 
 extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 
+extern void __attribute__((nonnull)) w_free(struct w_iov_sq * const q);
+
+extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
 
 /// Return the number of w_iov structs in @p q that are still waiting for
 /// transmission. Only valid after w_tx() has been called on @p p.
@@ -261,34 +267,6 @@ extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
 ///
 #define w_mtu(w) (w)->mtu
 
-
-/// Return a w_iov tail queue obtained via w_alloc_len(), w_alloc_cnt() or
-/// w_rx() back to warpcore.
-///
-/// @param      w     Backend engine.
-/// @param      q     Tail queue of w_iov structs to return.
-///
-#ifndef NDEBUG
-extern void __attribute__((nonnull))
-w_free(struct w_engine * const w, struct w_iov_sq * const q);
-#else
-#define w_free(w, q) sq_concat(&(w)->iov, (q))
-#endif
-
-/// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
-/// back to warpcore.
-///
-/// @param      w     Backend engine.
-/// @param      v     w_iov struct to return.
-///
-/// @return     w_iov struct.
-///
-#ifndef NDEBUG
-extern void __attribute__((nonnull))
-w_free_iov(struct w_engine * const w, struct w_iov * const v);
-#else
-#define w_free_iov(w, v) sq_insert_head(&(w)->iov, (v), next)
-#endif
 
 /// Return the number of w_iov structures in the w_iov tail queue @p c.
 ///

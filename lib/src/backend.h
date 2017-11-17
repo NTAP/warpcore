@@ -136,10 +136,11 @@ extern sl_head(w_engines, w_engine) engines;
              ((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_SLAVE)
 
 
-#define init_iov(w, v)                                                         \
+#define init_iov(ww, v)                                                        \
     do {                                                                       \
-        (v)->buf = IDX2BUF((w), (v)->nm_idx);                                  \
-        (v)->len = (w)->mtu;                                                   \
+        (v)->w = (ww);                                                         \
+        (v)->buf = IDX2BUF((ww), (v)->nm_idx);                                 \
+        (v)->len = (ww)->mtu;                                                  \
         (v)->o = 0;                                                            \
     } while (0)
 
@@ -150,7 +151,6 @@ extern sl_head(w_engines, w_engine) engines;
         if (likely(_v)) {                                                      \
             sq_remove_head(&(w)->iov, next);                                   \
             init_iov((w), _v);                                                 \
-            _v->len = (w)->mtu;                                                \
             ASAN_UNPOISON_MEMORY_REGION(IDX2BUF((w), _v->nm_idx), _v->len);    \
         }                                                                      \
         _v;                                                                    \

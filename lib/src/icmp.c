@@ -76,8 +76,8 @@ void icmp_tx(struct w_engine * const w,
     const struct ip_hdr * const src_ip = (const void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
     uint16_t data_len =
-        MIN(ntohs(src_ip->len), w_iov_max_len(w, v) - sizeof(struct eth_hdr) -
-                                    sizeof(struct ip_hdr));
+        MIN(ntohs(src_ip->len),
+            w_iov_max_len(v) - sizeof(struct eth_hdr) - sizeof(struct ip_hdr));
 
     switch (type) {
     case ICMP_TYPE_ECHOREPLY: {
