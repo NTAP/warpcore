@@ -35,7 +35,7 @@
 #include "common.h"
 
 
-static struct w_engine *w_serv, *w_clnt;
+struct w_engine *w_serv, *w_clnt;
 static struct w_sock *s_serv, *s_clnt;
 
 #define OFFSET 64

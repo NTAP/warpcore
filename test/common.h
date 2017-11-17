@@ -34,6 +34,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
+extern struct w_engine *w_serv, *w_clnt;
 
 extern bool io(const uint32_t len);
 extern void init(void);

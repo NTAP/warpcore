@@ -72,6 +72,15 @@ set_target_properties(test_sock
 )
 add_test(test_sock test_sock)
 
+add_executable(test_iov common.c test_iov.c)
+target_link_libraries(test_iov PUBLIC sock_dyn)
+set_target_properties(test_iov
+  PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    INTERPROCEDURAL_OPTIMIZATION ${IPO}
+)
+add_test(test_iov test_iov)
+
 if(HAVE_NETMAP_H)
   add_executable(test_warp common.c test_sock.c)
   target_compile_definitions(test_warp PRIVATE -DWITH_NETMAP)
