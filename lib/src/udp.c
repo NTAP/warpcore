@@ -104,7 +104,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     if (unlikely(s == 0)) {
         // nobody bound to this port locally
         // send an ICMP unreachable reply, if this was not a broadcast
-        if (ip->dst != IP_BCAST && mk_net(ip->dst, w->mask) != w->mask)
+        if (ip->dst == w->ip)
             icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
         return;
     }
