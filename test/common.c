@@ -84,8 +84,8 @@ bool io(const uint32_t len)
         iv->buf += OFFSET;
         iv->len -= OFFSET;
         ensure(memcmp(iv->buf, ov->buf, iv->len) == 0,
-               "ov %u = 0x%02x (len %u) != iv %u = 0x%02x (len %u)", ov->nm_idx,
-               ov->buf[0], ov->len, iv->nm_idx, iv->buf[0], iv->len);
+               "ov %u = 0x%02x (len %u) != iv %u = 0x%02x (len %u)", ov->idx,
+               ov->buf[0], ov->len, iv->idx, iv->buf[0], iv->len);
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);
     }

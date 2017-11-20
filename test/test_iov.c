@@ -96,7 +96,8 @@ int main(void)
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
         sq_foreach (v, &q, next) {
-            ensure(v->len == (sq_next(v, next) ? w->mtu - off : (uint16_t)(x - sl)),
+            ensure(v->len ==
+                       (sq_next(v, next) ? w->mtu - off : (uint16_t)(x - sl)),
                    "len %u != %u", v->len,
                    (sq_next(v, next) ? w->mtu : x - sl));
             ensure(v->buf == beg(v) + off, "start incorrect");
@@ -114,9 +115,8 @@ int main(void)
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
         sq_foreach (v, &q, next) {
-            ensure(v->len == (sq_next(v, next) ? len : x - sl),
-                   "len %u != %u", v->len,
-                   (sq_next(v, next) ? len : x - sl));
+            ensure(v->len == (sq_next(v, next) ? len : x - sl), "len %u != %u",
+                   v->len, (sq_next(v, next) ? len : x - sl));
             ensure(v->buf == beg(v) + off, "start incorrect");
             sl += v->len;
         }

@@ -158,7 +158,7 @@ int main(const int argc, char * const argv[])
             w_rx(s, &i);
             if (sq_empty(&i))
                 continue;
-            warn(DBG, "received %u bytes", w_iov_sq_len(&i));
+            warn(INF, "received %u bytes", w_iov_sq_len(&i));
 
             struct w_iov_sq o = w_iov_sq_initializer(o);
             uint16_t t = 0;
