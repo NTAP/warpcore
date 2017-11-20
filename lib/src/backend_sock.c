@@ -86,7 +86,7 @@ void backend_init(struct w_engine * const w,
     w->backend_name = backend_name;
 
     for (uint32_t i = 0; i < nbufs; i++) {
-        w->bufs[i].nm_idx = i;
+        w->bufs[i].idx = i;
         init_iov(w, &w->bufs[i]);
         sq_insert_head(&w->iov, &w->bufs[i], next);
         ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, w->mtu);

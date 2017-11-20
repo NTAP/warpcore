@@ -144,12 +144,12 @@ arp_is_at(struct w_engine * const w, const uint8_t * const buf)
     eth->type = ETH_TYPE_ARP;
 
     // now send the packet, and make sure it went out before returning it
-    const uint32_t orig_idx = v->nm_idx;
+    const uint32_t orig_idx = v->idx;
     eth_tx(w, v, sizeof(*reply));
     do {
         usleep(100);
         w_nic_tx(w);
-    } while (v->nm_idx != orig_idx);
+    } while (v->idx != orig_idx);
     sq_insert_head(&w->iov, v, next);
 }
 
@@ -210,12 +210,12 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
 #endif
 
         // now send the packet, and make sure it went out before returning it
-        const uint32_t orig_idx = v->nm_idx;
+        const uint32_t orig_idx = v->idx;
         eth_tx(w, v, sizeof(*eth) + sizeof(*arp));
         do {
             usleep(100);
             w_nic_tx(w);
-        } while (v->nm_idx != orig_idx);
+        } while (v->idx != orig_idx);
         sq_insert_head(&w->iov, v, next);
 
         // wait until packets have been received, then handle them

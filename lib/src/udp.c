@@ -121,15 +121,15 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
     struct netmap_slot * const rxs = &r->slot[r->cur];
 
     warn(DBG, "swapping rx ring %u slot %d (buf %d) and spare buf %u",
-         r->ringid, r->cur, rxs->buf_idx, i->nm_idx);
+         r->ringid, r->cur, rxs->buf_idx, i->idx);
 
     // remember index of this buffer
-    const uint32_t tmp_idx = i->nm_idx;
+    const uint32_t tmp_idx = i->idx;
 
     // adjust the buffer offset to the received data into the iov
     i->buf = ip_data(buf) + sizeof(*udp);
     i->len = udp_len - sizeof(*udp);
-    i->nm_idx = rxs->buf_idx;
+    i->idx = rxs->buf_idx;
 
     // tag the iov with sender information and metadata
     i->ip = ip->src;
@@ -158,7 +158,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     // copy template header into buffer and fill in remaining fields
-    uint8_t * const buf = IDX2BUF(s->w, v->nm_idx);
+    uint8_t * const buf = IDX2BUF(s->w, v->idx);
     memcpy(buf, s->hdr, sizeof(*s->hdr));
 
     struct ip_hdr * const ip = (void *)eth_data(buf);

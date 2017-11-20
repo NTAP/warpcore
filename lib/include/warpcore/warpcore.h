@@ -146,7 +146,7 @@ struct w_iov {
 
     uint8_t * buf;        ///< Start of payload data.
     sq_entry(w_iov) next; ///< Next w_iov in a w_iov_sq.
-    uint32_t nm_idx;      ///< Index of netmap buffer.
+    uint32_t idx;         ///< Index of netmap buffer.
     uint16_t len;         ///< Length of payload data.
 
     /// Sender port on RX. Destination port on TX on a disconnected

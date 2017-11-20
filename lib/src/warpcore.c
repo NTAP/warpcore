@@ -117,8 +117,8 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
         v->len -= off;
         ensure(len <= v->len, "len %u > v->len %u", len, v->len);
         v->len = len ? len : v->len;
-        warn(DBG, "alloc w_iov off %u len %u",
-             v->buf - IDX2BUF(w, w_iov_idx(v)), v->len);
+        // warn(DBG, "alloc w_iov off %u len %u",
+        //      v->buf - IDX2BUF(w, w_iov_idx(v)), v->len);
     }
     return v;
 }
@@ -149,7 +149,7 @@ void w_alloc_len(struct w_engine * const w,
         if (needed > v->len)
             needed -= v->len;
         else {
-            warn(DBG, "adjust last to %u", needed);
+            // warn(DBG, "adjust last to %u", needed);
             v->len = (uint16_t)needed;
             needed = 0;
         }
@@ -181,13 +181,6 @@ void w_alloc_cnt(struct w_engine * const w,
         struct w_iov * const v = w_alloc_iov(w, len, off);
         sq_insert_tail(q, v, next);
     }
-    //     alloc_cnt(w, q, count,
-    //               len
-    // #ifdef WITH_NETMAP
-    //                   + sizeof(struct w_hdr)
-    // #endif
-    //                   ,
-    //               off, 0);
 }
 
 
@@ -475,7 +468,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 uint16_t w_iov_max_len(const struct w_iov * const v)
 {
     const uint16_t offset = (const uint16_t)(
-        (const uint8_t *)v->buf - (const uint8_t *)IDX2BUF(v->w, v->nm_idx));
+        (const uint8_t *)v->buf - (const uint8_t *)IDX2BUF(v->w, v->idx));
     return v->w->mtu - offset;
 }
 
@@ -506,7 +499,7 @@ void w_free(struct w_iov_sq * const q)
     sq_concat(&w->iov, q);
     struct w_iov * v;
     sq_foreach (v, q, next)
-        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->nm_idx), w->mtu);
+        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
 }
 
 
@@ -518,5 +511,5 @@ void w_free(struct w_iov_sq * const q)
 void w_free_iov(struct w_iov * const v)
 {
     sq_insert_head(&v->w->iov, v, next);
-    ASAN_POISON_MEMORY_REGION(IDX2BUF(v->w, v->nm_idx), v->w->mtu);
+    ASAN_POISON_MEMORY_REGION(IDX2BUF(v->w, v->idx), v->w->mtu);
 }

@@ -155,7 +155,7 @@ void backend_init(struct w_engine * const w,
 
     uint32_t n, i;
     for (n = 0, i = b->nif->ni_bufs_head; likely(n < b->req->nr_arg3); n++) {
-        w->bufs[n].nm_idx = i;
+        w->bufs[n].idx = i;
         init_iov(w, &w->bufs[n]);
         sq_insert_head(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
@@ -187,14 +187,14 @@ void backend_cleanup(struct w_engine * const w)
 
     // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
-        uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].nm_idx);
+        uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
         ASAN_UNPOISON_MEMORY_REGION(buf, w->mtu);
         if (likely(n < sq_len(&w->iov) - 1))
-            *buf = w->bufs[n + 1].nm_idx;
+            *buf = w->bufs[n + 1].idx;
         else
             *buf = 0;
     }
-    w->b->nif->ni_bufs_head = w->bufs[0].nm_idx;
+    w->b->nif->ni_bufs_head = w->bufs[0].idx;
 
     // free slot w_iov pointers
     for (uint32_t ri = 0; likely(ri < w->b->nif->ni_tx_rings); ri++)
@@ -343,8 +343,8 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
                 NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
 
             // process the current slot
-            warn(DBG, "rx nm_idx %u from ring %u slot %u",
-                 r->slot[r->cur].buf_idx, i, r->cur);
+            warn(DBG, "rx idx %u from ring %u slot %u", r->slot[r->cur].buf_idx,
+                 i, r->cur);
             eth_rx(w, r);
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
@@ -377,11 +377,11 @@ void w_nic_tx(struct w_engine * const w)
             struct w_iov * const v = w->b->slot_buf[r->ringid][j];
             if (!is_pipe(w)) {
                 warn(DBG,
-                     "move nm_idx %u from ring %u slot %u to w_iov (swap w/%u)",
-                     s->buf_idx, i, j, v->nm_idx);
+                     "move idx %u from ring %u slot %u to w_iov (swap w/%u)",
+                     s->buf_idx, i, j, v->idx);
                 const uint32_t slot_idx = s->buf_idx;
-                s->buf_idx = v->nm_idx;
-                v->nm_idx = slot_idx;
+                s->buf_idx = v->idx;
+                v->idx = slot_idx;
                 s->flags = NS_BUF_CHANGED;
             }
             w->b->slot_buf[i][j] = 0;

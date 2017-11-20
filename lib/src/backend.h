@@ -139,7 +139,7 @@ extern sl_head(w_engines, w_engine) engines;
 #define init_iov(ww, v)                                                        \
     do {                                                                       \
         (v)->w = (ww);                                                         \
-        (v)->buf = IDX2BUF((ww), (v)->nm_idx);                                 \
+        (v)->buf = IDX2BUF((ww), (v)->idx);                                    \
         (v)->len = (ww)->mtu;                                                  \
         (v)->o = 0;                                                            \
     } while (0)
@@ -151,7 +151,7 @@ extern sl_head(w_engines, w_engine) engines;
         if (likely(_v)) {                                                      \
             sq_remove_head(&(w)->iov, next);                                   \
             init_iov((w), _v);                                                 \
-            ASAN_UNPOISON_MEMORY_REGION(IDX2BUF((w), _v->nm_idx), _v->len);    \
+            ASAN_UNPOISON_MEMORY_REGION(IDX2BUF((w), _v->idx), _v->len);       \
         }                                                                      \
         _v;                                                                    \
     })
