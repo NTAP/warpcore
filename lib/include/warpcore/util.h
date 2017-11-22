@@ -51,7 +51,11 @@
 #define plural(n) ((n) == 1 ? "" : "s")
 #endif
 
-#ifndef likely
+#ifndef NDEBUG
+// cppcheck gets confused by __builtin_expect()
+#define likely(x) (x)
+#define unlikely(x) (x)
+#else
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #endif
