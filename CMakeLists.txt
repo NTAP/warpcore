@@ -120,7 +120,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   find_program(CPPCHECK NAMES cppcheck)
   if(CPPCHECK)
     message(STATUS "Found cppcheck: ${CPPCHECK}")
-    set(CMAKE_C_CPPCHECK ${CPPCHECK} -q
+    set(CMAKE_C_CPPCHECK ${CPPCHECK} -q --inline-suppr
         --enable=warning,style,performance,portability
         -I external/include -I lib/include -I ${PROJECT_SOURCE_DIR}/lib/include
     )

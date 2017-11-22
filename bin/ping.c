@@ -71,7 +71,7 @@ static void usage(const char * const name,
     printf("\t[-z]                    turn off UDP checksums\n");
     printf("\t[-b]                    busy-wait\n");
 #ifndef NDEBUG
-    printf("\t[-v verbosity]          verbosity level (0-%u, default %u)\n",
+    printf("\t[-v verbosity]          verbosity level (0-%d, default %d)\n",
            DLEVEL, util_dlevel);
 #endif
 }

@@ -181,7 +181,7 @@ void util_die(const char * const func,
     struct timeval now = {0, 0}, dur = {0, 0};
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &dur);
-    fprintf(stderr, DTHREAD_ID_IND(BMAG) WHT BLD "%ld.%03ld   %s %s:%d ABORT: ",
+    fprintf(stderr, DTHREAD_ID_IND(BMAG) WHT BLD "%ld.%03ld   %s %s:%u ABORT: ",
             DTHREAD_ID(long)(dur.tv_sec % 1000), // NOLINT
             (long)(dur.tv_usec / 1000),          // NOLINT
             func, basename(file), line);
@@ -223,7 +223,7 @@ static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
     const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
     fprintf(stderr,
             DTHREAD_ID_IND(NRM) "%ld.%03ld %s " NRM MAG " %s" BLK " " BLU
-                                "%s:%d " NRM,
+                                "%s:%u " NRM,
             DTHREAD_ID(long)(dur.tv_sec % 1000), // NOLINT
             (long)(dur.tv_usec / 1000),          // NOLINT
             util_col[dlevel], func, basename(file), line);
@@ -298,7 +298,7 @@ void util_hexdump(const void * const ptr,
 
     fprintf(stderr,
             DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM MAG " %s" BLK " " BLU
-                                "%s:%d " NRM
+                                "%s:%u " NRM
                                 "hex-dumping %zu byte%s of %s from %p\n",
             DTHREAD_ID elapsed.tv_sec % 1000,
             (long long)(elapsed.tv_usec / 1000), func, basename(file), line,

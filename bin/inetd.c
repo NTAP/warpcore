@@ -48,7 +48,7 @@ static void usage(const char * const name, const uint32_t nbufs)
            "(default %u)\n",
            nbufs);
 #ifndef NDEBUG
-    printf("\t[-v verbosity]          verbosity level (0-%u, default %u)\n",
+    printf("\t[-v verbosity]          verbosity level (0-%d, default %d)\n",
            DLEVEL, util_dlevel);
 #endif
 }
