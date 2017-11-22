@@ -27,3 +27,11 @@ add_executable(sockinetd inetd.c)
 target_link_libraries(sockinetd PUBLIC sock_dyn)
 
 install(TARGETS sockping sockinetd DESTINATION bin)
+
+if (DSYMUTIL)
+  foreach (TARGET sockping warpping sockinetd warpinetd)
+    add_custom_command (TARGET ${TARGET} POST_BUILD
+      COMMAND ${DSYMUTIL} ARGS $<TARGET_FILE:${TARGET}>
+    )
+  endforeach()
+endif()

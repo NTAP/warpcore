@@ -78,3 +78,11 @@ foreach(TARGET ${TARGETS})
   endif()
 endforeach()
 
+if (DSYMUTIL)
+  foreach (TARGET sock_dyn warp_dyn)
+    add_custom_command (TARGET ${TARGET} POST_BUILD
+      COMMAND ${DSYMUTIL} ARGS *${CMAKE_SHARED_LIBRARY_SUFFIX}
+    )
+  endforeach()
+endif()
+
