@@ -147,7 +147,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     }
 
     struct ethtool_cmd edata;
-    ifr.ifr_data = (__caddr_t)&edata;
+    ifr.ifr_data = (char *)&edata;
     edata.cmd = ETHTOOL_GSET;
     const int err = ioctl(s, SIOCETHTOOL, &ifr);
     if (err == -1 && errno == ENOTSUP) {
