@@ -20,14 +20,7 @@ check_include_file(net/netmap_user.h HAVE_NETMAP_H)
 include(CMakePushCheckState)
 cmake_reset_check_state()
 
-# Check if _GNU_SOURCE is available.
-include(CheckSymbolExists)
-check_symbol_exists(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
- if (NOT _GNU_SOURCE)
-    unset(_GNU_SOURCE CACHE)
-    check_symbol_exists(_GNU_SOURCE "features.h" _GNU_SOURCE)
-endif()
-if(_GNU_SOURCE)
+if("${CMAKE_SYSTEM}" MATCHES "Linux")
   add_definitions(-D_GNU_SOURCE)
 endif()
 
