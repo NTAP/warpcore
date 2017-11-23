@@ -98,6 +98,10 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       -fsanitize=undefined -fsanitize=unsigned-integer-overflow
       -fno-sanitize=alignment -fno-common
   )
+  if("${CMAKE_SYSTEM}" MATCHES "Alpine")
+    # libubsan not present on Alpine Linux
+    set(FLAGS "${FLAGS} -fsanitize-undefined-trap-on-error")
+  endif()
   foreach(FLAG ${FLAGS})
     string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
     check_c_compiler_flag(${FLAG} ${F})
