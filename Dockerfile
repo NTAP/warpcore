@@ -1,12 +1,11 @@
 FROM alpine:edge
 RUN apk add --no-cache cmake ninja gcc g++ musl-dev linux-headers
-ADD . /warpcore
-WORKDIR /warpcore/Debug
-RUN cmake -GNinja -DNO_SANITIZERS=True ..
-RUN ninja
+ADD . /src
+WORKDIR /src/Debug
+RUN cmake -GNinja -DNO_SANITIZERS=True -DCMAKE_INSTALL_PREFIX=/dst ..
+RUN ninja install
 
 FROM alpine:edge
-WORKDIR /warpcore/bin
-COPY --from=0 /warpcore/Debug/bin/sock* ./
+COPY --from=0 /dst /
 EXPOSE 55555/UDP
-CMD ["./sockinetd", "-i", "eth0"]
+CMD ["sockinetd", "-i", "eth0"]
