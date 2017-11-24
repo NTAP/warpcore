@@ -5,18 +5,12 @@ configure_file(src/config.c.in src/config.c)
 include(GNUInstallDirs)
 
 add_library(obj_all
-  OBJECT
-    src/plat.c src/util.c ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
+  OBJECT src/plat.c src/util.c ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
 )
 
 add_library(obj_sock OBJECT src/backend_sock.c src/warpcore.c)
 
-add_library(sock_dyn SHARED
-  $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>
-)
-add_library(sock_stat STATIC
-  $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>
-)
+add_library(sock $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>)
 
 install(DIRECTORY include/warpcore
   DESTINATION include
@@ -34,21 +28,13 @@ if(HAVE_NETMAP_H)
       src/udp.c src/backend_netmap.c src/warpcore.c
   )
   target_compile_definitions(obj_warp PRIVATE -DWITH_NETMAP)
-
-  add_library(warp_dyn SHARED
-    $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>
-  )
-  target_compile_definitions(warp_dyn PRIVATE -DWITH_NETMAP)
-
-  add_library(warp_stat STATIC
-    $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>
-  )
-  target_compile_definitions(warp_stat PRIVATE -DWITH_NETMAP)
+  add_library(warp $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>)
+  target_compile_definitions(warp PRIVATE -DWITH_NETMAP)
 endif()
 
-set(TARGETS obj_all obj_sock sock_dyn sock_stat)
+set(TARGETS obj_all obj_sock sock)
 if(HAVE_NETMAP_H)
-  set(TARGETS ${TARGETS} obj_warp warp_dyn warp_stat)
+  set(TARGETS ${TARGETS} obj_warp warp)
 endif()
 foreach(TARGET ${TARGETS})
   target_include_directories(${TARGET}
@@ -78,9 +64,9 @@ foreach(TARGET ${TARGETS})
   endif()
 endforeach()
 
-if (DSYMUTIL)
-  foreach (TARGET sock_dyn warp_dyn)
-    add_custom_command (TARGET ${TARGET} POST_BUILD
+if(DSYMUTIL)
+  foreach (TARGET sock warp)
+    add_custom_command(TARGET ${TARGET} POST_BUILD
       COMMAND ${DSYMUTIL} ARGS *${CMAKE_SHARED_LIBRARY_SUFFIX}
     )
   endforeach()

@@ -83,7 +83,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 
   # See if we can use the address sanitizer
   check_include_file(sanitizer/asan_interface.h HAVE_ASAN)
-  if(HAVE_ASAN)
+  if(HAVE_ASAN AND NOT NO_SANITIZERS)
     set(CMAKE_REQUIRED_FLAGS -fsanitize=address)
     check_c_compiler_flag("" _fsanitize_address)
     if(_fsanitize_address)
@@ -91,27 +91,27 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
     endif()
     unset(CMAKE_REQUIRED_FLAGS)
+
+    # Set some additional flags for Debug builds
+    set(FLAGS -fno-omit-frame-pointer -fsanitize-address-use-after-scope
+        -fsanitize=undefined -fsanitize=unsigned-integer-overflow
+        -fno-sanitize=alignment -fno-common
+    )
+    foreach(FLAG ${FLAGS})
+      string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
+      check_c_compiler_flag(${FLAG} ${F})
+      if(${F})
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+      endif()
+      check_cxx_compiler_flag(${FLAG} ${F})
+      if(${F})
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
+      endif()
+    endforeach()
   endif()
 
-  # Set some additional flags for Debug builds
-  set(FLAGS -fno-omit-frame-pointer -fsanitize-address-use-after-scope
-      -fsanitize=undefined -fsanitize=unsigned-integer-overflow
-      -fno-sanitize=alignment -fno-common
-  )
-  foreach(FLAG ${FLAGS})
-    string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
-    check_c_compiler_flag(${FLAG} ${F})
-    if(${F})
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
-    endif()
-    check_cxx_compiler_flag(${FLAG} ${F})
-    if(${F})
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
-    endif()
-  endforeach()
-
-  if (APPLE)
-    find_program (DSYMUTIL dsymutil)
+  if(APPLE AND BUILD_SHARED_LIBS)
+    find_program(DSYMUTIL dsymutil)
   endif()
 
   find_program(CPPCHECK NAMES cppcheck)
@@ -135,7 +135,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${CMAKE_C_INCLUDE_WHAT_YOU_USE})
   endif()
 
-  if (CMAKE_C_COMPILER_ID MATCHES "Clang" AND
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND
       CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Use clang-tidy for extra warnings, if it's installed
     find_program(CLANGTIDY NAMES clang-tidy clang-tidy40 clang-tidy39
