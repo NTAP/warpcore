@@ -1,0 +1,7 @@
+.git
+Darwin*
+Debug
+FreeBSD*
+lib/include/net
+Linux*
+Release
