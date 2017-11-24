@@ -65,10 +65,9 @@ foreach(TARGET ${TARGETS})
 endforeach()
 
 if(DSYMUTIL)
-  foreach (TARGET sock warp)
+  foreach(TARGET sock warp)
     add_custom_command(TARGET ${TARGET} POST_BUILD
       COMMAND ${DSYMUTIL} ARGS *${CMAKE_SHARED_LIBRARY_SUFFIX}
     )
   endforeach()
 endif()
-
