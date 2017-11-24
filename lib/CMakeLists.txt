@@ -9,8 +9,7 @@ add_library(obj_all
 )
 
 add_library(obj_sock OBJECT src/backend_sock.c src/warpcore.c)
-
-add_library(sock $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>)
+add_library(sockcore $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>)
 
 install(DIRECTORY include/warpcore
   DESTINATION include
@@ -28,13 +27,13 @@ if(HAVE_NETMAP_H)
       src/udp.c src/backend_netmap.c src/warpcore.c
   )
   target_compile_definitions(obj_warp PRIVATE -DWITH_NETMAP)
-  add_library(warp $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>)
-  target_compile_definitions(warp PRIVATE -DWITH_NETMAP)
+  add_library(warpcore $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>)
+  target_compile_definitions(warpcore PRIVATE -DWITH_NETMAP)
 endif()
 
-set(TARGETS obj_all obj_sock sock)
+set(TARGETS obj_all obj_sock sockcore)
 if(HAVE_NETMAP_H)
-  set(TARGETS ${TARGETS} obj_warp warp)
+  set(TARGETS ${TARGETS} obj_warp warpcore)
 endif()
 foreach(TARGET ${TARGETS})
   target_include_directories(${TARGET}
@@ -55,6 +54,11 @@ foreach(TARGET ${TARGETS})
   )
   if(NOT ${TARGET} MATCHES "obj_")
     target_link_libraries(${TARGET})
+    if(DSYMUTIL)
+      add_custom_command(TARGET ${TARGET} POST_BUILD
+        COMMAND ${DSYMUTIL} ARGS *${CMAKE_SHARED_LIBRARY_SUFFIX}
+      )
+    endif()
     install(TARGETS ${TARGET}
       EXPORT ${TARGET}_config
       ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -64,10 +68,3 @@ foreach(TARGET ${TARGETS})
   endif()
 endforeach()
 
-if(DSYMUTIL)
-  foreach(TARGET sock warp)
-    add_custom_command(TARGET ${TARGET} POST_BUILD
-      COMMAND ${DSYMUTIL} ARGS *${CMAKE_SHARED_LIBRARY_SUFFIX}
-    )
-  endforeach()
-endif()

@@ -9,29 +9,26 @@ if("${isSystemDir}" STREQUAL "-1")
 endif()
 
 if(HAVE_NETMAP_H)
-  add_executable(warpping ping.c)
-  target_compile_definitions(warpping PRIVATE -DWITH_NETMAP)
-  target_link_libraries(warpping PUBLIC warp)
-
-  add_executable(warpinetd inetd.c)
-  target_compile_definitions(warpinetd PRIVATE -DWITH_NETMAP)
-  target_link_libraries(warpinetd PUBLIC warp)
-
-  install(TARGETS warpping warpinetd DESTINATION bin)
-endif()
-
-add_executable(sockping ping.c)
-target_link_libraries(sockping PUBLIC sock)
-
-add_executable(sockinetd inetd.c)
-target_link_libraries(sockinetd PUBLIC sock)
-
-install(TARGETS sockping sockinetd DESTINATION bin)
-
-if(DSYMUTIL)
-  foreach(TARGET sockping warpping sockinetd warpinetd)
-    add_custom_command(TARGET ${TARGET} POST_BUILD
-      COMMAND ${DSYMUTIL} ARGS $<TARGET_FILE:${TARGET}>
-    )
+  foreach(TARGET ping inetd)
+    add_executable(warp${TARGET} ${TARGET}.c)
+    target_compile_definitions(warp${TARGET} PRIVATE -DWITH_NETMAP)
+    target_link_libraries(warp${TARGET} PUBLIC warpcore)
+    install(TARGETS warp${TARGET} DESTINATION bin)
+    if(DSYMUTIL)
+      add_custom_command(TARGET warp${TARGET} POST_BUILD
+        COMMAND ${DSYMUTIL} ARGS $<TARGET_FILE:warp${TARGET}>
+      )
+    endif()
   endforeach()
 endif()
+
+foreach(TARGET ping inetd)
+  add_executable(sock${TARGET} ${TARGET}.c)
+  target_link_libraries(sock${TARGET} PUBLIC sockcore)
+  install(TARGETS sock${TARGET} DESTINATION bin)
+  if(DSYMUTIL)
+    add_custom_command(TARGET sock${TARGET} POST_BUILD
+      COMMAND ${DSYMUTIL} ARGS $<TARGET_FILE:sock${TARGET}>
+    )
+  endif()
+endforeach()

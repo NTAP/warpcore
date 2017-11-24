@@ -63,28 +63,22 @@ if(HAVE_BENCHMARK_H)
 endif()
 
 
-add_executable(test_sock common.c test_sock.c)
-target_link_libraries(test_sock PUBLIC sock)
-set_target_properties(test_sock
-  PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-    INTERPROCEDURAL_OPTIMIZATION ${IPO}
-)
-add_test(test_sock test_sock)
+foreach(TARGET sock iov hexdump queue)
+  add_executable(test_${TARGET} common.c test_${TARGET}.c)
+  target_link_libraries(test_${TARGET} PUBLIC sockcore)
+  set_target_properties(test_${TARGET}
+    PROPERTIES
+      POSITION_INDEPENDENT_CODE ON
+      INTERPROCEDURAL_OPTIMIZATION ${IPO}
+  )
+  add_test(test_${TARGET} test_${TARGET})
+endforeach()
 
-add_executable(test_iov common.c test_iov.c)
-target_link_libraries(test_iov PUBLIC sock)
-set_target_properties(test_iov
-  PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-    INTERPROCEDURAL_OPTIMIZATION ${IPO}
-)
-add_test(test_iov test_iov)
 
 if(HAVE_NETMAP_H)
   add_executable(test_warp common.c test_sock.c)
   target_compile_definitions(test_warp PRIVATE -DWITH_NETMAP)
-  target_link_libraries(test_warp PUBLIC warp)
+  target_link_libraries(test_warp PUBLIC warpcore)
   set_target_properties(test_warp
     PROPERTIES
       POSITION_INDEPENDENT_CODE ON
@@ -92,21 +86,3 @@ if(HAVE_NETMAP_H)
   )
   add_test(test_warp test_warp)
 endif()
-
-add_executable(test_hexdump common.c test_hexdump.c)
-target_link_libraries(test_hexdump PUBLIC sock)
-set_target_properties(test_hexdump
-  PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-    INTERPROCEDURAL_OPTIMIZATION ${IPO}
-)
-add_test(test_hexdump test_hexdump)
-
-add_executable(test_queue common.c test_queue.c)
-target_link_libraries(test_queue PUBLIC sock)
-set_target_properties(test_queue
-  PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-    INTERPROCEDURAL_OPTIMIZATION ${IPO}
-)
-add_test(test_queue test_queue)
