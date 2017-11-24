@@ -32,6 +32,7 @@ addons:
       - doxygen
       - graphviz
       - ninja-build
+      - g++-7
 
   coverity_scan:
     project:
@@ -51,8 +52,8 @@ addons:
 before_install:
   # manually install latest cmake
   - |
-    wget -q https://cmake.org/files/v3.9/cmake-3.9.4-Linux-x86_64.sh
-    sh cmake-3.9.4-Linux-x86_64.sh --skip-license
+    wget -q https://cmake.org/files/v3.10/cmake-3.10.0-Linux-x86_64.sh
+    sh cmake-3.10.0-Linux-x86_64.sh --skip-license
     ls -lta
   # download netmap headers, to build the relevant backend
   - |
