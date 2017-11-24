@@ -40,8 +40,6 @@ foreach(TARGET ${TARGETS})
     SYSTEM PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-      $<INSTALL_INTERFACE:include>
-    PRIVATE src
   )
   string(REGEX REPLACE "_dyn|_stat" "core" OUTPUT ${TARGET})
   set_target_properties(${TARGET}

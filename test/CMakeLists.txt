@@ -37,8 +37,6 @@ if(NOT HAVE_BENCHMARK_H AND NOT $ENV{CONTINUOUS_INTEGRATION})
   set(HAVE_BENCHMARK_H 1)
 endif()
 
-include_directories(${CMAKE_SOURCE_DIR}/lib/src)
-
 if(HAVE_BENCHMARK_H)
   add_executable(bench_sock bench.cc common.c ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
   target_link_libraries(bench_sock PUBLIC benchmark sock)
@@ -66,6 +64,7 @@ endif()
 foreach(TARGET sock iov hexdump queue)
   add_executable(test_${TARGET} common.c test_${TARGET}.c)
   target_link_libraries(test_${TARGET} PUBLIC sockcore)
+  target_include_directories(test_${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/lib/src)
   set_target_properties(test_${TARGET}
     PROPERTIES
       POSITION_INDEPENDENT_CODE ON
