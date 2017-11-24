@@ -5,20 +5,16 @@ language: cpp
 os:
   - linux
 
-compiler:
-  - clang
-  - gcc
-
 branches:
   except:
     - gh-pages
 
 env:
   matrix:
-    - BUILD_TYPE=Debug
-    - BUILD_TYPE=Release
-    # - BUILD_TYPE=RelWithDebInfo
-    # - BUILD_TYPE=MinSizeRel
+    - BUILD_TYPE=Debug    MYCC=gcc-7      MYCXX=g++-7
+    - BUILD_TYPE=Release  MYCC=gcc-7      MYCXX=g++-7
+    - BUILD_TYPE=Debug    MYCC=clang-5.0  MYCXX=clang++-5.0
+    - BUILD_TYPE=Release  MYCC=clang-5.0  MYCXX=clang++-5.0
   global:
     - PROJECT=warpcore
     - secure: "IHICwP4oMbC6yzx9G4YIthU6ujpt0bJ4jOElN7ujs8xGODB7YQFlxIaBwLvCf8APjczUuarN1r0Vc/Ekyp8LVBVdI6oEK0ZyHkvXOsydtYAtKrK60iEZXLoMzqTR/DeZaLkQb/hh4tYLAfrzNs9ZZA6vU1rJUJdaNmxluM9kcF253tfxKZ7rZ8dveD+gwmfJYH47sNwvFiGVTmU6c9fDVVfE/R3c0aX3A4pI3oOAUMH6Vs/76ZdRh2knzLLDgcNiIDapJd1xlw8HFSyEbsfEgTLPl+9qeXyh8fU6kwU7tGKetdr60klrXChIdwqStOxNwp4ylto727oYtztj7zJxYWQxbXQwehH66Xj44KEfW9MEuBEbGCmlR/74vCTNnKVU6D857ZU7r0L43GTD9KfAqqHWKtdQJpoRZMkhRcFrZkHCG8GJJo+3swwXFWnPbqPDuGWnLaeg4dsFpcAhq4ujSFheJbJ+ilERGio8ksv+FndlImSsQVEHtErPyJlizE3y2QfdWfASpn5HYVJ5la0Vy5Tea0rPRymdtLQm3lCMX+qcAg9EQLFHsc52LsFUwnHrNu5WqzfCmN0b7kfT4SlEHVXOXtC6k5PYxAUBaHfyeVFspc4UN5ZTUmSj9Y2h47Oa5KV/DJRaNKalve3TYgysEvlnTqv6qJfqnbHO2Swl+GE="
@@ -30,11 +26,13 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - llvm-toolchain-trusty-5.0
     packages:
+      - g++-7
+      - clang-5.0
       - doxygen
       - graphviz
       - ninja-build
-      - g++-7
 
   coverity_scan:
     project:
@@ -46,8 +44,9 @@ addons:
       rm -rf build
       mkdir build
       cd build
-      ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX \
-        -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
+      ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$MYCC \
+        -DCMAKE_CXX_COMPILER=$MYCXX -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+        -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
     build_command: ninja
     branch_pattern: coverity
 
@@ -73,8 +72,9 @@ script:
     rm -rf build
     mkdir build
     cd build
-    ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX \
-      -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
+    ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$MYCC \
+      -DCMAKE_CXX_COMPILER=$MYCXX -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+      -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
     ninja
 
 after_success:
