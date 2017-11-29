@@ -1,6 +1,7 @@
 # iwyu mappings for Darwin
 [
         { include: ["<i386/_types.h>", "private", "<stdint.h>", "public"] },
+        { include: ["<net/ethernet.h>", "private", "<netinet/if_ether.h>", "public"] },
         { include: ["<net/if_var.h>", "private", "<net/if.h>", "public"] },
         { include: ["<secure/_string.h>", "private", "<string.h>", "public"] },
         { include: ["<sys/_endian.h>", "private", "<arpa/inet.h>", "public"] },

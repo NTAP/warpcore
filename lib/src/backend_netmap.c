@@ -28,9 +28,9 @@
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
+#include <netinet/if_ether.h>
 #include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>

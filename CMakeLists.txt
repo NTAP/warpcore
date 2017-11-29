@@ -42,8 +42,8 @@ include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 foreach(FLAG -march=native -Wextra -Wpedantic -Weverything -Werror
         -fcolor-diagnostics -fdiagnostics-color=always
-        # for older gcc:
         -Wno-missing-field-initializers -Wno-disabled-macro-expansion
+        -Wno-gnu-folding-constant
         )
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})

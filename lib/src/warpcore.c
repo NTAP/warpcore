@@ -28,6 +28,7 @@
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if.h>
+#include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -48,14 +49,6 @@
 
 #ifdef HAVE_ASAN
 #include <sanitizer/asan_interface.h>
-#endif
-
-#if !defined(NDEBUG) && DLEVEL >= NTE
-#ifdef __linux__
-#include <netinet/ether.h>
-#else
-#include <net/ethernet.h>
-#endif
 #endif
 
 #include "backend.h"

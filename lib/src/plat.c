@@ -28,14 +28,6 @@
 // needs to come before net/ethernet.h
 #include <sys/types.h> // IWYU pragma: keep
 
-#include <ifaddrs.h>
-#include <net/ethernet.h>
-#include <net/if.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-
-
 #if defined(__linux__)
 #include <errno.h>
 #include <linux/ethtool.h>
@@ -48,6 +40,7 @@
 
 #elif defined(__FreeBSD__)
 #include <net/if_dl.h>
+#include <netinet/in.h>
 
 #elif defined(__APPLE__)
 #include <net/if_dl.h>
@@ -57,6 +50,13 @@
 #include <sys/sockio.h>
 #include <unistd.h>
 #endif
+
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netinet/if_ether.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
 

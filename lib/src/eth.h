@@ -28,7 +28,7 @@
 #pragma once
 
 #include <arpa/inet.h>
-#include <net/ethernet.h>
+#include <netinet/if_ether.h>
 #include <stdbool.h>
 #include <stdint.h>
 

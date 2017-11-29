@@ -28,18 +28,11 @@
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
+#include <netinet/if_ether.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
-
-#if defined(__linux__)
-#include <net/ethernet.h>
-#include <netinet/ether.h>
-
-#elif defined(__FreeBSD__)
-#include <netinet/in.h>
-#endif
 
 #include <warpcore/warpcore.h>
 

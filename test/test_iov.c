@@ -25,8 +25,12 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// #include <stdbool.h>
 #include <stdint.h>
+
+#ifdef __FreeBSD__
+#include <netinet/in.h>
+#include <sys/socket.h>
+#endif
 
 #include <warpcore/warpcore.h>
 

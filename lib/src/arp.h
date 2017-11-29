@@ -27,7 +27,7 @@
 
 #pragma once
 
-#include <net/ethernet.h>
+#include <netinet/if_ether.h>
 #include <stdint.h>
 
 #include <warpcore/warpcore.h>

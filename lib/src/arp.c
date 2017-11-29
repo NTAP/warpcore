@@ -30,17 +30,13 @@
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
+#include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
-#ifdef __linux__
-#include <net/ethernet.h>
-#include <netinet/ether.h>
-#endif
 
 #include "arp.h"
 #include "backend.h"
