@@ -154,6 +154,14 @@ void backend_bind(struct w_sock * const s)
     ensure(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
            "bind failed on port %u", ntohs(s->hdr->udp.sport));
 
+    // enable ECN
+    ensure(setsockopt(s->fd, IPPROTO_IP, IP_RECVTOS, &(int){1}, sizeof(int)) >=
+               0,
+           "cannot setsockopt IP_RECVTOS");
+    ensure(setsockopt(s->fd, IPPROTO_IP, IP_TOS, &(int){IP_ECN_ECT_0},
+                      sizeof(int)) >= 0,
+           "cannot setsockopt IP_TOS");
+
     // if we're binding to a random port, find out what it is
     if (s->hdr->udp.sport == 0) {
         socklen_t len = sizeof(addr);
@@ -221,47 +229,68 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 // dynamically for MAX(IOV_MAX, w_iov_sq_cnt(c)), but that seems overkill.
 #define SEND_SIZE MIN(16, IOV_MAX)
     struct mmsghdr msgvec[SEND_SIZE];
+#else
+#define SEND_SIZE 1
+    struct msghdr msgvec[SEND_SIZE];
+#endif
     struct iovec msg[SEND_SIZE];
     struct sockaddr_in dst[SEND_SIZE];
-    size_t i = 0;
-#endif
+    uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(uint8_t))];
     o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
-    const struct w_iov * v;
-    sq_foreach (v, o, next) {
-        ensure(w_connected(s) || v->ip && v->port,
-               "no destination information");
+
+    const struct w_iov * v = sq_first(o);
+    do {
+        size_t i;
+        for (i = 0; i < MIN(SEND_SIZE, w_iov_sq_cnt(o)); i++) {
+            ensure(w_connected(s) || v->ip && v->port,
+                   "no destination information");
+
+            // for sendmmsg, we populate the parameters
+            msg[i] = (struct iovec){.iov_base = v->buf, .iov_len = v->len};
+            // if w_sock is disconnected, use destination IP and port from w_iov
+            // instead of the one in the template header
+            dst[i] = (struct sockaddr_in){
+                .sin_family = AF_INET,
+                .sin_port = w_connected(s) ? s->hdr->udp.dport : v->port,
+                .sin_addr = {w_connected(s) ? s->hdr->ip.dst : v->ip}};
 #ifdef HAVE_SENDMMSG
-        // for sendmmsg, we populate the parameters
-        msg[i] = (struct iovec){.iov_base = v->buf, .iov_len = v->len};
-        // if w_sock is disconnected, use destination IP and port from w_iov
-        // instead of the one in the template header
-        dst[i] = (struct sockaddr_in){
-            .sin_family = AF_INET,
-            .sin_port = w_connected(s) ? s->hdr->udp.dport : v->port,
-            .sin_addr = {w_connected(s) ? s->hdr->ip.dst : v->ip}};
-        msgvec[i].msg_hdr = (struct msghdr){.msg_name = &dst[i],
-                                            .msg_namelen = sizeof(dst[i]),
-                                            .msg_iov = &msg[i],
-                                            .msg_iovlen = 1};
-        if (unlikely(++i == SEND_SIZE || sq_next(v, next) == 0)) {
-            // the iov is full, or we are at the last w_iov, so send
-            const ssize_t r = sendmmsg(s->fd, msgvec, (unsigned int)i, 0);
-            ensure(r == (ssize_t)i, "sendmmsg %zu %zu", i, r);
-            // reuse the iov structure for the next batch
-            i = 0;
-        }
+            msgvec[i].msg_hdr =
 #else
-        // without sendmmsg, send one packet directly
-        // if w_sock is disconnected, use destination IP and port from w_iov
-        // instead of the one in the template header
-        const struct sockaddr_in dst = {
-            .sin_family = AF_INET,
-            .sin_port = w_connected(s) ? s->hdr->udp.dport : v->port,
-            .sin_addr = {w_connected(s) ? s->hdr->ip.dst : v->ip}};
-        sendto(s->fd, v->buf, v->len, 0, (const struct sockaddr *)&dst,
-               sizeof(dst));
+            msgvec[i] =
 #endif
-    }
+                (struct msghdr){.msg_name = &dst[i],
+                                .msg_namelen = sizeof(dst[i]),
+                                .msg_iov = &msg[i],
+                                .msg_iovlen = 1};
+
+            // set TOS from w_iov
+            if (v->flags) {
+#ifdef HAVE_SENDMMSG
+                msgvec[i].msg_hdr.msg_control = &ctrl[i];
+                msgvec[i].msg_hdr.msg_controllen = sizeof(ctrl[i]);
+                struct cmsghdr * const cmsg = CMSG_FIRSTHDR(&msgvec[i].msg_hdr);
+#else
+                msgvec[i].msg_control = &ctrl[i];
+                msgvec[i].msg_controllen = sizeof(ctrl[i]);
+                struct cmsghdr * const cmsg = CMSG_FIRSTHDR(&msgvec[i]);
+#endif
+                cmsg->cmsg_level = IPPROTO_IP;
+                cmsg->cmsg_type = IP_TOS;
+                cmsg->cmsg_len = CMSG_LEN(sizeof(uint8_t));
+                *(uint8_t *)CMSG_DATA(cmsg) = v->flags;
+            }
+
+            v = sq_next(v, next);
+        }
+
+        const ssize_t r =
+#ifdef HAVE_SENDMMSG
+            sendmmsg(s->fd, msgvec, (unsigned int)i, 0);
+#else
+            sendmsg(s->fd, msgvec, 0);
+#endif
+        ensure(r > 0, "sendmsg/sendmmsg");
+    } while (v);
 }
 
 
@@ -289,6 +318,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
         struct sockaddr_in peer[RECV_SIZE];
         struct w_iov * v[RECV_SIZE];
         struct iovec msg[RECV_SIZE];
+        uint8_t ctrl[RECV_SIZE][CMSG_SPACE(sizeof(uint8_t))];
 #ifdef HAVE_RECVMMSG
         struct mmsghdr msgvec[RECV_SIZE];
 #else
@@ -309,7 +339,9 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 (struct msghdr){.msg_name = &peer[j],
                                 .msg_namelen = sizeof(peer[j]),
                                 .msg_iov = &msg[j],
-                                .msg_iovlen = 1};
+                                .msg_iovlen = 1,
+                                .msg_control = &ctrl[j],
+                                .msg_controllen = sizeof(ctrl[j])};
         }
         if (unlikely(nbufs == 0)) {
             warn(CRT, "no more bufs");
@@ -335,7 +367,28 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
                 v[j]->ip = peer[j].sin_addr.s_addr;
                 v[j]->port = peer[j].sin_port;
-                v[j]->flags = 0;
+
+                // extract TOS byte
+#ifdef HAVE_RECVMMSG
+                for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j].msg_hdr);
+                     cmsg; cmsg = CMSG_NXTHDR(&msgvec[j].msg_hdr, cmsg)) {
+#else
+                for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j]); cmsg;
+                     cmsg = CMSG_NXTHDR(&msgvec[j], cmsg)) {
+#endif
+                    if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_len &&
+#ifdef __linux__
+                        // why do you always need to be different, Linux?
+                        cmsg->cmsg_type == IP_TOS
+#else
+                        cmsg->cmsg_type == IP_RECVTOS
+#endif
+                    ) {
+                        v[j]->flags = *CMSG_DATA(cmsg);
+                        break;
+                    }
+                }
+
                 // add the iov to the tail of the result
                 sq_insert_tail(i, v[j], next);
             }
@@ -406,11 +459,12 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 }
 
 
-/// Fill a w_sock_slist with pointers to some sockets with pending inbound data.
-/// Data can be obtained via w_rx() on each w_sock in the list. Call can
-/// optionally block to wait for at least one ready connection. Will return the
-/// number of ready connections, or zero if none are ready. When the return
-/// value is not zero, a repeated call may return additional ready sockets.
+/// Fill a w_sock_slist with pointers to some sockets with pending inbound
+/// data. Data can be obtained via w_rx() on each w_sock in the list. Call
+/// can optionally block to wait for at least one ready connection. Will
+/// return the number of ready connections, or zero if none are ready. When
+/// the return value is not zero, a repeated call may return additional
+/// ready sockets.
 ///
 /// @param[in]  w     Backend engine.
 /// @param      sl    Empty and initialized w_sock_slist.

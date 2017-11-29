@@ -40,15 +40,16 @@ struct w_iov;
 struct w_engine;
 struct netmap_ring;
 
+#define IP_ECN_NOT_ECT 0x00 ///< ECN was not enabled.
+#define IP_ECN_ECT_1 0x01   ///< ECN capable packet.
+#define IP_ECN_ECT_0 0x02   ///< ECN capable packet.
+#define IP_ECN_CE 0x03      ///< ECN congestion.
+#define IP_ECN_MASK 0x03    ///< Mask of ECN bits.
 
-#define IP_ECT1 1 ///< ECN ECT(1) codepoint.
-#define IP_ECT0 2 ///< ECN ECT(0) codepoint.
-#define IP_CE 3   ///< ECN CE codepoint.
-
-#define IP_OFFMASK 0x1fff ///< Bit mask for extracting the fragment offset.
-#define IP_RF 0x8000      ///< "Reserved" flag.
-#define IP_DF 0x4000      ///< "Don't fragment" flag.
-#define IP_MF 0x2000      ///< "More fragments" flag.
+#define IP_OFF_MASK 0x1fff ///< Bit mask for extracting the fragment offset.
+#define IP_RF 0x8000       ///< "Reserved" flag.
+#define IP_DF 0x4000       ///< "Don't fragment" flag.
+#define IP_MF 0x2000       ///< "More fragments" flag.
 
 #define IP_ADDR_LEN 4 ///< Length of an IPv4 address in bytes. Four.
 
@@ -145,6 +146,7 @@ struct ip_hdr {
 #define ip_hdr_init(ip)                                                        \
     do {                                                                       \
         (ip)->vhl = (4 << 4) + 5;                                              \
+        (ip)->tos = IP_ECN_ECT_0;                                              \
         (ip)->off = htons(IP_DF);                                              \
         (ip)->ttl = 64; /* XXX this should be configurable */                  \
         (ip)->p = IP_P_UDP;                                                    \

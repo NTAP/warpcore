@@ -109,7 +109,7 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
     ensure(ip_hl(ip) == 20, "no support for IP options");
 
     // TODO: handle IP fragments
-    ensure((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP fragments");
+    ensure((ntohs(ip->off) & IP_OFF_MASK) == 0, "no support for IP fragments");
 
     if (likely(ip->p == IP_P_UDP))
         udp_rx(w, r);
@@ -149,7 +149,8 @@ bool ip_tx(struct w_engine * const w,
     // fill in remaining header fields
     ip->len = htons(l);
     ip->id = (uint16_t)plat_random(); // no need to do htons() for random value
-    ip->tos = v->flags;               // app-specified DSCP + ECN
+    if (v->flags)
+        ip->tos = v->flags; // app-specified DSCP + ECN
     // IP checksum is over header only (TODO: adjust instead of recompute)
     ip->cksum = in_cksum(ip, sizeof(*ip));
 

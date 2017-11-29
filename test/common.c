@@ -51,14 +51,17 @@ bool io(const uint32_t len)
     // fill it with data
     struct w_iov * ov;
     uint8_t fill = 0x0f;
-    sq_foreach (ov, &o, next)
+    sq_foreach (ov, &o, next) {
         memset(ov->buf, fill++, ov->len);
+        ov->flags = 0x55;
+    }
     const uint32_t olen = w_iov_sq_len(&o);
 
     // tx
     w_tx(s_clnt, &o);
     while (w_tx_pending(&o))
         w_nic_tx(w_clnt);
+    ensure(olen == w_iov_sq_len(&o), "same length");
 
     // read the chain back
     struct w_iov_sq i = w_iov_sq_initializer(i);
@@ -86,9 +89,12 @@ bool io(const uint32_t len)
         ensure(memcmp(iv->buf, ov->buf, iv->len) == 0,
                "ov %u = 0x%02x (len %u) != iv %u = 0x%02x (len %u)", ov->idx,
                ov->buf[0], ov->len, iv->idx, iv->buf[0], iv->len);
+        ensure(ov->flags == iv->flags, "TOS byte 0x%02x != 0x%02x", ov->flags,
+               iv->flags);
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);
     }
+    ensure(ov == 0 && iv == 0, "done with data ov %p iv %p", ov, iv);
 
     w_free(&o);
     w_free(&i);
