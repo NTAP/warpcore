@@ -25,8 +25,17 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#ifdef __FreeBSD__
 // needs to come before net/ethernet.h
-#include <sys/types.h> // IWYU pragma: keep
+#include <netinet/in.h>
+#endif
+
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netinet/if_ether.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
 
 #if defined(__linux__)
 #include <errno.h>
@@ -50,13 +59,6 @@
 #include <sys/sockio.h>
 #include <unistd.h>
 #endif
-
-#include <ifaddrs.h>
-#include <net/if.h>
-#include <netinet/if_ether.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
 
@@ -159,7 +161,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
 
     close(s);
 
-    if(edata.speed == (uint16_t)SPEED_UNKNOWN)
+    if (edata.speed == (uint16_t)SPEED_UNKNOWN)
         return 0;
     return ethtool_cmd_speed(&edata);
 #endif
