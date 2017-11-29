@@ -158,8 +158,10 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     ensure(err >= 0, "%s ioctl", i->ifa_name);
 
     close(s);
-    const uint32_t speed = ethtool_cmd_speed(&edata);
-    return speed != (uint32_t)SPEED_UNKNOWN ? speed : 0;
+
+    if(edata.speed == (uint16_t)SPEED_UNKNOWN)
+        return 0;
+    return ethtool_cmd_speed(&edata);
 #endif
 }
 
