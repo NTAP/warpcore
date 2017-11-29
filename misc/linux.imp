@@ -1,6 +1,7 @@
 # iwyu mappings for Linux
 [
         { include: ["<bits/socket_type.h>", "private", "<sys/socket.h>", "public"] },
+        { include: ["<bsd/sys/bitstring.h>", "private", "<bsd/bitstring.h>", "public"] },
         { include: ["<net/ethernet.h>", "private", "<netinet/if_ether.h>", "public"] },
         { include: ["<netinet/ether.h>", "private", "<netinet/if_ether.h>", "public"] },
 

@@ -13,6 +13,7 @@
         { include: ["<sys/signal.h>", "private", "<signal.h>", "public"] },
         { include: ["@<_types/_uint.*>", "private", "<stdint.h>", "public"] },
         { include: ["@<sys/_pthread/.*>", "private", "<pthread.h>", "public"] },
+        { include: ["@<sys/_types/.*>", "private", "<sys/types.h>", "public"] },
         { include: ["@<sys/_types/_int.*>", "private", "<stdint.h>", "public"] },
         { include: ["@<sys/_types/_iovec_t.*>", "private", "<sys/uio.h>", "public"] },
 
