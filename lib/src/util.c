@@ -72,7 +72,7 @@ static pthread_t util_master;
     } while (0) // NOLINT
 
 
-#define DTHREAD_ID (pthread_self() == util_master ? BBLK : BWHT),
+#define DTHREAD_ID (pthread_self() == util_master ? BBLK : BWHT)
 
 #define DTHREAD_ID_IND(bg) "%s " bg " "
 
@@ -82,8 +82,8 @@ static pthread_t util_master;
 
 #define DTHREAD_LOCK
 #define DTHREAD_UNLOCK
-#define DTHREAD_ID
-#define DTHREAD_ID_IND(bg) bg
+#define DTHREAD_ID ""
+#define DTHREAD_ID_IND(bg) "%s" bg
 
 #endif
 
@@ -178,8 +178,8 @@ void util_die(const char * const func,
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &dur);
     fprintf(stderr, DTHREAD_ID_IND(BMAG) WHT BLD "%ld.%03ld   %s %s:%u ABORT: ",
-            DTHREAD_ID(long)(dur.tv_sec % 1000), // NOLINT
-            (long)(dur.tv_usec / 1000),          // NOLINT
+            DTHREAD_ID, (long)(dur.tv_sec % 1000), // NOLINT
+            (long)(dur.tv_usec / 1000),            // NOLINT
             func, basename(file), line);
     char * fmt = va_arg(ap, char *);
 #pragma clang diagnostic push
@@ -212,18 +212,33 @@ static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
                                                       const unsigned line,
                                                       va_list ap)
 {
+    const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
     DTHREAD_LOCK;
+
     struct timeval now = {0, 0}, dur = {0, 0};
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &dur);
-    const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
-    fprintf(stderr, DTHREAD_ID_IND(NRM) "%ld.%03ld %s " NRM " ",
-            DTHREAD_ID(long)(dur.tv_sec % 1000), // NOLINT
-            (long)(dur.tv_usec / 1000),          // NOLINT
-            util_col[dlevel]);
-    if (util_dlevel != DBG)
-        fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func,
-                basename(file), line);
+
+    fprintf(stderr, DTHREAD_ID_IND(NRM), DTHREAD_ID);
+
+    char now_str[10];
+    static char last_str[10];
+    snprintf(now_str, sizeof(now_str), "%ld.%03ld",
+             (long)(dur.tv_sec % 1000), // NOLINT
+             (long)(dur.tv_usec / 1000) // NOLINT
+    );
+    if (strncmp(now_str, last_str, sizeof(now_str)) != 0) {
+        fprintf(stderr, "%s ", now_str);
+        strncpy(last_str, now_str, sizeof(last_str));
+    } else
+        for (size_t i = 0; i <= strlen(last_str); i++)
+            fprintf(stderr, " ");
+    fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
+
+    if (util_dlevel == DBG)
+        fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, basename(file),
+                line);
+
     char * fmt = va_arg(ap, char *);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
@@ -304,7 +319,7 @@ void util_hexdump(const void * const ptr,
             DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM MAG " %s" BLK " " BLU
                                 "%s:%u " NRM
                                 "hex-dumping %zu byte%s of %s from %p\n",
-            DTHREAD_ID elapsed.tv_sec % 1000,
+            DTHREAD_ID, elapsed.tv_sec % 1000,
             (long long)(elapsed.tv_usec / 1000), func, basename(file), line,
             len, plural(len), ptr_name, ptr);
 
@@ -313,7 +328,7 @@ void util_hexdump(const void * const ptr,
         fprintf(stderr,
                 DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM " " BLU
                                     "0x%04lx:  " NRM,
-                DTHREAD_ID elapsed.tv_sec % 1000,
+                DTHREAD_ID, elapsed.tv_sec % 1000,
                 (long long)(elapsed.tv_usec / 1000), i);
         for (size_t j = 0; j < 16; j++) {
             if (i + j < len)
