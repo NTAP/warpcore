@@ -37,16 +37,12 @@
 #include <time.h>
 
 #if !defined(NDEBUG)
-#include <regex.h>
-static regex_t util_comp;
-
 #ifdef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
 /// the DCOMPONENT define to a regular expression matching the components
 /// (files) you want to see debug output from.
-#define DO_REGEXEC 1
-#else
-#define DO_REGEXEC 0
+#include <regex.h>
+static regex_t util_comp;
 #endif
 #endif
 
@@ -246,12 +242,16 @@ void util_warn(const unsigned dlevel,
                const unsigned line,
                ...)
 {
-    if (DO_REGEXEC ? !regexec(&util_comp, file, 0, 0, 0) : 1) {
+#ifdef DCOMPONENT
+    if (!regexec(&util_comp, file, 0, 0, 0)) {
+#endif
         va_list ap;
         va_start(ap, line);
         util_warn_valist(dlevel, func, file, line, ap);
         va_end(ap);
+#ifdef DCOMPONENT
     }
+#endif
 }
 
 
@@ -271,8 +271,11 @@ void util_rwarn(const unsigned dlevel,
         rt0 = rts.tv_sec;
         rcnt = 0;
     }
-    if (rcnt++ < lps &&
-        (DO_REGEXEC ? !regexec(&util_comp, file, 0, 0, 0) : 1)) {
+    if (rcnt++ < lps
+#ifdef DCOMPONENT
+        && !regexec(&util_comp, file, 0, 0, 0)
+#endif
+    ) {
         va_list ap;
         va_start(ap, line);
         util_warn_valist(dlevel, func, file, line, ap);
