@@ -111,7 +111,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     endforeach()
   endif()
 
-  if(APPLE AND BUILD_SHARED_LIBS)
+  if(APPLE)
     find_program(DSYMUTIL dsymutil)
   endif()
 

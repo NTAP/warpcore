@@ -52,7 +52,7 @@ foreach(TARGET ${TARGETS})
   )
   if(NOT ${TARGET} MATCHES "obj_")
     target_link_libraries(${TARGET})
-    if(DSYMUTIL)
+    if(DSYMUTIL AND BUILD_SHARED_LIBS)
       add_custom_command(TARGET ${TARGET} POST_BUILD
         COMMAND ${DSYMUTIL} ARGS *${CMAKE_SHARED_LIBRARY_SUFFIX}
       )
