@@ -217,12 +217,13 @@ static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &dur);
     const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
-    fprintf(stderr,
-            DTHREAD_ID_IND(NRM) "%ld.%03ld %s " NRM MAG " %s" BLK " " BLU
-                                "%s:%u " NRM,
+    fprintf(stderr, DTHREAD_ID_IND(NRM) "%ld.%03ld %s " NRM " ",
             DTHREAD_ID(long)(dur.tv_sec % 1000), // NOLINT
             (long)(dur.tv_usec / 1000),          // NOLINT
-            util_col[dlevel], func, basename(file), line);
+            util_col[dlevel]);
+    if (util_dlevel != DBG)
+        fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func,
+                basename(file), line);
     char * fmt = va_arg(ap, char *);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
