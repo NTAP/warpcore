@@ -69,10 +69,11 @@
 ///
 #define die(...) util_die(__func__, __FILE__, __LINE__, __VA_ARGS__)
 
-extern void __attribute__((nonnull, noreturn)) util_die(const char * const func,
-                                                        const char * const file,
-                                                        const unsigned line,
-                                                        ...);
+extern void __attribute__((nonnull(1, 2), noreturn))
+util_die(const char * const func,
+         const char * const file,
+         const unsigned line,
+         ...);
 
 
 #ifndef NDEBUG
