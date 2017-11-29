@@ -28,7 +28,6 @@
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if.h>
-#include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -39,13 +38,17 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+// IWYU pragma: no_include <sys/queue.h>
+#include <warpcore/warpcore.h>
+
+#if !defined(NDEBUG) && DLEVEL >= NTE
+#include <netinet/if_ether.h>
+#endif
+
 // IWYU pragma: no_include <net/netmap.h>
 #ifdef WITH_NETMAP
 #include <net/netmap_user.h> // IWYU pragma: keep
 #endif
-
-// IWYU pragma: no_include <sys/queue.h>
-#include <warpcore/warpcore.h>
 
 #ifdef HAVE_ASAN
 #include <sanitizer/asan_interface.h>
