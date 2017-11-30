@@ -215,23 +215,24 @@ static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
     const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
     DTHREAD_LOCK;
 
-    struct timeval now = {0, 0}, dur = {0, 0};
+    static struct timeval last = {-1, -1};
+    struct timeval now = {0, 0}, dur = {0, 0}, diff = {0, 0};
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &dur);
+    timersub(&now, &last, &diff);
 
     fprintf(stderr, DTHREAD_ID_IND(NRM), DTHREAD_ID);
 
-    char now_str[10];
-    static char last_str[10];
-    snprintf(now_str, sizeof(now_str), "%ld.%03ld",
-             (long)(dur.tv_sec % 1000), // NOLINT
-             (long)(dur.tv_usec / 1000) // NOLINT
-    );
-    if (strncmp(now_str, last_str, sizeof(now_str)) != 0) {
+    static char now_str[10];
+    if (diff.tv_sec || diff.tv_usec > 1000) {
+        snprintf(now_str, sizeof(now_str), "%ld.%03ld",
+                 (long)(dur.tv_sec % 1000), // NOLINT
+                 (long)(dur.tv_usec / 1000) // NOLINT
+        );
         fprintf(stderr, "%s ", now_str);
-        strncpy(last_str, now_str, sizeof(last_str));
+        last = now;
     } else
-        for (size_t i = 0; i <= strlen(last_str); i++)
+        for (size_t i = 0; i <= strlen(now_str); i++)
             fprintf(stderr, " ");
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
 
