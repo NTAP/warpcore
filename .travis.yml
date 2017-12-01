@@ -33,6 +33,7 @@ addons:
       - doxygen
       - graphviz
       - ninja-build
+      - libbsd-dev
 
   coverity_scan:
     project:
