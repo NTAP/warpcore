@@ -31,7 +31,7 @@
 
 #include <warpcore/warpcore.h>
 
-#define r(m) ((m) == 0 ? 0 : (int)(plat_random() % (unsigned)(m)))
+#define r(m) ((m) == 0 ? 0 : (int)arc4random_uniform((unsigned)(m)))
 
 
 struct elem {
@@ -161,7 +161,6 @@ static void show(void)
 
 int main(void)
 {
-    plat_initrandom();
     for (int i = 0; i < N; i++)
         sq_init(&sq[i]);
 

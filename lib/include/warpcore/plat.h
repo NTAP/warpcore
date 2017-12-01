@@ -52,13 +52,6 @@ struct ifaddrs;
 #endif
 
 
-#ifdef HAVE_ARC4RANDOM
-#define plat_random(x) arc4random(x)
-#else
-#define plat_random() random()
-#endif
-
-
 extern void __attribute__((nonnull))
 plat_get_mac(struct ether_addr * const mac, const struct ifaddrs * const i);
 
@@ -70,5 +63,3 @@ plat_get_mbps(const struct ifaddrs * const i);
 
 extern bool __attribute__((nonnull))
 plat_get_link(const struct ifaddrs * const i);
-
-extern void plat_initrandom(void);

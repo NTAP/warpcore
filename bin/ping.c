@@ -26,7 +26,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
-#include <getopt.h>
 #include <inttypes.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -39,6 +38,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <warpcore/warpcore.h>
 
@@ -123,12 +123,11 @@ int main(const int argc, char * const argv[])
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv,
-                        "hzbi:d:l:r:s:c:e:p:n:"
 #ifndef NDEBUG
-                        "v:"
+    while ((ch = getopt(argc, argv, "hzbi:d:l:r:s:c:e:p:n:v:")) != -1) {
+#else
+    while ((ch = getopt(argc, argv, "hzbi:d:l:r:s:c:e:p:n:")) != -1) {
 #endif
-                        )) != -1) {
         switch (ch) {
         case 'i':
             ifname = optarg;
@@ -244,7 +243,7 @@ int main(const int argc, char * const argv[])
             }
 
             // pick a random connection for output
-            const uint32_t c = plat_random() % conns;
+            const uint32_t c = arc4random_uniform(conns);
 
             // send the data, and wait until it is out
             w_tx(s[c], &o);

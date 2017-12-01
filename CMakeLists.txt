@@ -21,7 +21,8 @@ include(CMakePushCheckState)
 cmake_reset_check_state()
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
-  add_definitions(-D_GNU_SOURCE)
+  add_definitions(-D_GNU_SOURCE -DLIBBSD_OVERLAY)
+  include_directories(SYSTEM /usr/include/bsd)
 endif()
 
 # Build "Debug" type by default
@@ -43,7 +44,7 @@ include(CheckCXXCompilerFlag)
 foreach(FLAG -march=native -Wextra -Wpedantic -Weverything -Werror
         -fcolor-diagnostics -fdiagnostics-color=always
         -Wno-missing-field-initializers -Wno-disabled-macro-expansion
-        -Wno-gnu-folding-constant
+        -Wno-gnu-folding-constant -Wno-cpp
         )
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})

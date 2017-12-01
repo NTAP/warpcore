@@ -62,11 +62,6 @@
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
 
-#ifndef HAVE_ARC4RANDOM
-#include <stdlib.h>
-#include <sys/time.h>
-#endif
-
 
 /// Return the Ethernet MAC address of network interface @p i.
 ///
@@ -211,16 +206,4 @@ bool plat_get_link(const struct ifaddrs * i)
     close(s);
 #endif
     return link;
-}
-
-
-void plat_initrandom(void)
-{
-#ifndef HAVE_ARC4RANDOM
-    // initialize random number generator
-    struct timeval seed;
-    gettimeofday(&seed, 0);
-    srandom((unsigned int)(seed.tv_sec * 1000) +
-            (unsigned int)(seed.tv_usec / 1000));
-#endif
 }

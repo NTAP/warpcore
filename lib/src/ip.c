@@ -31,6 +31,7 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
@@ -148,7 +149,8 @@ bool ip_tx(struct w_engine * const w,
 
     // fill in remaining header fields
     ip->len = htons(l);
-    ip->id = (uint16_t)plat_random(); // no need to do htons() for random value
+    // no need to do htons() for random value
+    ip->id = (uint16_t)arc4random_uniform(UINT16_MAX);
     if (v->flags)
         ip->tos = v->flags; // app-specified DSCP + ECN
     // IP checksum is over header only (TODO: adjust instead of recompute)

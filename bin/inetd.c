@@ -26,7 +26,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
-#include <getopt.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -34,6 +33,7 @@
 #include <stdlib.h>
 #include <sys/param.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <warpcore/warpcore.h>
 
@@ -85,13 +85,11 @@ int main(const int argc, char * const argv[])
 
     // handle arguments
     int ch;
-    while ((ch = getopt(argc, argv,
-                        "hi:bzn:"
 #ifndef NDEBUG
-                        "v:"
+    while ((ch = getopt(argc, argv, "hi:bzn:v:")) != -1) {
+#else
+    while ((ch = getopt(argc, argv, "hi:bzn:")) != -1) {
 #endif
-
-                        )) != -1) {
         switch (ch) {
         case 'i':
             ifname = optarg;
