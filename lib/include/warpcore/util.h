@@ -142,7 +142,7 @@ extern short util_dlevel;
     } while (0) // NOLINT
 
 
-extern void __attribute__((nonnull(2, 3))) util_warn(const unsigned dlevel,
+extern void __attribute__((nonnull(3, 4))) util_warn(const unsigned dlevel,
                                                      const bool tstamp,
                                                      const char * const func,
                                                      const char * const file,
