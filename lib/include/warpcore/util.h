@@ -28,6 +28,8 @@
 #pragma once
 // IWYU pragma: private, include <warpcore/warpcore.h>
 
+#include <stdbool.h>
+
 
 /// Trim the path from the given file name. Mostly to be used with __FILE__.
 ///
@@ -118,11 +120,30 @@ extern short util_dlevel;
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
         if (unlikely(DLEVEL >= dlevel && util_dlevel >= dlevel)) {             \
-            util_warn(dlevel, __func__, __FILE__, __LINE__, __VA_ARGS__);      \
+            util_warn(dlevel, false, __func__, __FILE__, __LINE__,             \
+                      __VA_ARGS__);                                            \
         }                                                                      \
     } while (0) // NOLINT
 
+
+/// Like warn(), but always prints a timestamp.
+///
+/// @param      dlevel  The #dlevel severity level of the message
+/// @param      fmt     A printf()-style format string.
+/// @param      ...     Subsequent arguments to be converted for output
+///                     according to @p fmt.
+///
+#define twarn(dlevel, ...)                                                     \
+    do {                                                                       \
+        if (unlikely(DLEVEL >= dlevel && util_dlevel >= dlevel)) {             \
+            util_warn(dlevel, true, __func__, __FILE__, __LINE__,              \
+                      __VA_ARGS__);                                            \
+        }                                                                      \
+    } while (0) // NOLINT
+
+
 extern void __attribute__((nonnull(2, 3))) util_warn(const unsigned dlevel,
+                                                     const bool tstamp,
                                                      const char * const func,
                                                      const char * const file,
                                                      const unsigned line,

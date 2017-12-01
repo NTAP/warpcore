@@ -29,6 +29,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -207,6 +208,7 @@ void util_die(const char * const func,
 short util_dlevel = DLEVEL;
 
 static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
+                                                      const bool tstamp,
                                                       const char * const func,
                                                       const char * const file,
                                                       const unsigned line,
@@ -223,16 +225,18 @@ static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
 
     fprintf(stderr, DTHREAD_ID_IND(NRM), DTHREAD_ID);
 
-    static char now_str[10];
-    if (diff.tv_sec || diff.tv_usec > 1000) {
-        snprintf(now_str, sizeof(now_str), "%ld.%03ld",
+    static char now_str[24];
+    if (tstamp || diff.tv_sec || diff.tv_usec > 1000) {
+        snprintf(now_str, sizeof(now_str), "%s%ld.%03ld" NRM,
+                 tstamp ? BLD : NRM,
                  (long)(dur.tv_sec % 1000), // NOLINT
                  (long)(dur.tv_usec / 1000) // NOLINT
         );
         fprintf(stderr, "%s ", now_str);
         last = now;
     } else
-        for (size_t i = 0; i <= strlen(now_str); i++)
+        // subtract out the length of the ANSI control characters
+        for (size_t i = 0; i <= strlen(now_str) - 8; i++)
             fprintf(stderr, " ");
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
 
@@ -254,6 +258,7 @@ static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
 // See the warn() macro.
 //
 void util_warn(const unsigned dlevel,
+               const bool tstamp,
                const char * const func,
                const char * const file,
                const unsigned line,
@@ -264,7 +269,7 @@ void util_warn(const unsigned dlevel,
 #endif
         va_list ap;
         va_start(ap, line);
-        util_warn_valist(dlevel, func, file, line, ap);
+        util_warn_valist(dlevel, tstamp, func, file, line, ap);
         va_end(ap);
 #ifdef DCOMPONENT
     }
@@ -295,7 +300,7 @@ void util_rwarn(const unsigned dlevel,
     ) {
         va_list ap;
         va_start(ap, line);
-        util_warn_valist(dlevel, func, file, line, ap);
+        util_warn_valist(dlevel, true, func, file, line, ap);
         va_end(ap);
     }
 }
