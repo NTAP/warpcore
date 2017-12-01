@@ -182,7 +182,7 @@ extern void __attribute__((nonnull(3, 4))) util_rwarn(const unsigned dlevel,
     do {                                                                       \
     } while (0) // NOLINT
 
-#define tarn(...)                                                              \
+#define twarn(...)                                                              \
     do {                                                                       \
     } while (0) // NOLINT
 
