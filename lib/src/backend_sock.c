@@ -283,7 +283,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
                 cmsg->cmsg_type = IP_TOS;
 #ifdef __linux__
                 cmsg->cmsg_len = CMSG_LEN(sizeof(int));
-                *(int *)CMSG_DATA(cmsg) = v->flags;
+                *(int *)(void *)CMSG_DATA(cmsg) = v->flags;
 #else
                 cmsg->cmsg_len = CMSG_LEN(sizeof(uint8_t));
                 *(uint8_t *)CMSG_DATA(cmsg) = v->flags;
