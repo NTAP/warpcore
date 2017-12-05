@@ -28,7 +28,6 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <execinfo.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -49,6 +48,10 @@ static regex_t util_comp;
 #endif
 
 #include <warpcore/warpcore.h>
+
+#ifdef HAVE_BACKTRACE
+#include <execinfo.h>
+#endif
 
 #ifdef DTHREADED
 #include <pthread.h>
@@ -191,6 +194,7 @@ void util_die(const char * const func,
     fprintf(stderr, " %s%s%s" NRM "\n", (e ? "[" : ""), (e ? strerror(e) : ""),
             (e ? "]" : ""));
 
+#ifdef HAVE_BACKTRACE
     void * bt_buf[128];
     const int n = backtrace(bt_buf, sizeof(bt_buf));
     char ** const bt_sym = backtrace_symbols(bt_buf, n);
@@ -198,6 +202,7 @@ void util_die(const char * const func,
         fprintf(stderr, DTHREAD_GAP "%s\n", bt_sym[j]);
     }
     free(bt_sym);
+#endif
 
     fflush(stderr);
     va_end(ap);

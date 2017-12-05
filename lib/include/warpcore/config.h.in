@@ -49,3 +49,4 @@ extern const char @PROJECT_NAME@_version[];
 #cmakedefine HAVE_ARC4RANDOM
 #cmakedefine HAVE_ETHER_NTOA_R
 #cmakedefine HAVE_ASAN
+#cmakedefine HAVE_BACKTRACE

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.20.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.21.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
@@ -10,6 +10,7 @@ check_function_exists(kqueue HAVE_KQUEUE)
 check_function_exists(epoll_create HAVE_EPOLL)
 check_function_exists(arc4random HAVE_ARC4RANDOM)
 check_function_exists(ether_ntoa_r HAVE_ETHER_NTOA_R)
+check_function_exists(backtrace HAVE_BACKTRACE)
 
 # Look for netmap
 include(CheckIncludeFile)
