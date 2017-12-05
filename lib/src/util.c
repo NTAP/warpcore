@@ -28,6 +28,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <execinfo.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -182,13 +183,22 @@ void util_die(const char * const func,
             DTHREAD_ID, (long)(dur.tv_sec % 1000), // NOLINT
             (long)(dur.tv_usec / 1000),            // NOLINT
             func, basename(file), line);
-    char * fmt = va_arg(ap, char *);
+    const char * const fmt = va_arg(ap, char *);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     vfprintf(stderr, fmt, ap);
 #pragma clang diagnostic pop
-    fprintf(stderr, " %c%s%c\n" NRM, (e ? '[' : 0), (e ? strerror(e) : ""),
-            (e ? ']' : 0));
+    fprintf(stderr, " %s%s%s" NRM "\n", (e ? "[" : ""), (e ? strerror(e) : ""),
+            (e ? "]" : ""));
+
+    void * bt_buf[128];
+    const int n = backtrace(bt_buf, sizeof(bt_buf));
+    char ** const bt_sym = backtrace_symbols(bt_buf, n);
+    for (int j = 0; j < n; j++) {
+        fprintf(stderr, DTHREAD_GAP "%s\n", bt_sym[j]);
+    }
+    free(bt_sym);
+
     fflush(stderr);
     va_end(ap);
     DTHREAD_UNLOCK;
