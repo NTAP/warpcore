@@ -235,7 +235,12 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #endif
     struct iovec msg[SEND_SIZE];
     struct sockaddr_in dst[SEND_SIZE];
+#ifdef __linux__
+    // kernels below 4.9 can't deal with getting an uint8_t passed in, sigh
+    uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(int))];
+#else
     uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(uint8_t))];
+#endif
     o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
 
     const struct w_iov * v = sq_first(o);
@@ -276,8 +281,13 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #endif
                 cmsg->cmsg_level = IPPROTO_IP;
                 cmsg->cmsg_type = IP_TOS;
+#ifdef __linux__
+                cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+                *(int *)CMSG_DATA(cmsg) = v->flags;
+#else
                 cmsg->cmsg_len = CMSG_LEN(sizeof(uint8_t));
                 *(uint8_t *)CMSG_DATA(cmsg) = v->flags;
+#endif
             }
 
             v = sq_next(v, next);
