@@ -246,7 +246,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
     const struct w_iov * v = sq_first(o);
     do {
         size_t i;
-        for (i = 0; i < MIN(SEND_SIZE, w_iov_sq_cnt(o)); i++) {
+        for (i = 0; i < SEND_SIZE && v; i++) {
             ensure(w_connected(s) || v->ip && v->port,
                    "no destination information");
 
