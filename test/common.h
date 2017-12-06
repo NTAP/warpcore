@@ -37,7 +37,7 @@ extern "C" {
 extern struct w_engine *w_serv, *w_clnt;
 
 extern bool io(const uint32_t len);
-extern void init(void);
+extern void init(const uint32_t len);
 extern void cleanup(void);
 
 #ifdef __cplusplus

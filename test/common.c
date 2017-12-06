@@ -102,7 +102,7 @@ bool io(const uint32_t len)
 }
 
 
-void init(void)
+void init(const uint32_t len)
 {
     char i[IFNAMSIZ] = "lo"
 #ifndef __linux__
@@ -110,8 +110,8 @@ void init(void)
 #endif
         ;
 
-    w_serv = w_init(i, 0, 8000);
-    w_clnt = w_init(i, 0, 8000);
+    w_serv = w_init(i, 0, len);
+    w_clnt = w_init(i, 0, len);
 
     // bind server socket
     s_serv = w_bind(w_serv, htons(55555), 0);

@@ -33,8 +33,8 @@
 
 int main(void)
 {
-    init();
-    for (uint32_t i = 1; i < UINT32_MAX; i <<= 1)
+    init(64 * 1024);
+    for (uint32_t i = 1; i < 64 * 1024; i <<= 1)
         if (io(i) == false)
             break;
     cleanup();

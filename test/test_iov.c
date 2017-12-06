@@ -42,7 +42,7 @@
 
 int main(void)
 {
-    init();
+    init(8192);
 
     struct w_engine * const w = w_serv;
 
