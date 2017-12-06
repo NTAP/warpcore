@@ -42,8 +42,8 @@
 #include <stdint.h>
 
 #ifdef __FreeBSD__
-#include <sys/socket.h>
-#include <sys/types.h>
+#include <sys/socket.h> // IWYU pragma: keep
+#include <sys/types.h>  // IWYU pragma: keep
 #endif
 
 #include "ip.h" // IWYU pragma: keep

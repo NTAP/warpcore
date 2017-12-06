@@ -27,7 +27,7 @@
 
 #ifdef __FreeBSD__
 // needs to come before net/ethernet.h
-#include <netinet/in.h>
+#include <netinet/in.h> // IWYU pragma: keep
 #endif
 
 #include <ifaddrs.h>
@@ -49,7 +49,6 @@
 
 #elif defined(__FreeBSD__)
 #include <net/if_dl.h>
-#include <netinet/in.h>
 
 #elif defined(__APPLE__)
 #include <net/if_dl.h>

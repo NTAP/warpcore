@@ -35,7 +35,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+
+#ifndef __FreeBSD__
 #include <time.h>
+#endif
 
 #if !defined(NDEBUG)
 #ifdef DCOMPONENT

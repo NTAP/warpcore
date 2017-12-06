@@ -28,8 +28,8 @@
 #include <stdint.h>
 
 #ifdef __FreeBSD__
-#include <netinet/in.h>
-#include <sys/socket.h>
+#include <netinet/in.h> // IWYU pragma: keep
+#include <sys/socket.h> // IWYU pragma: keep
 #endif
 
 #include <warpcore/warpcore.h>

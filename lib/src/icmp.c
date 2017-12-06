@@ -35,10 +35,6 @@
 #include <sys/param.h>
 #include <unistd.h>
 
-#ifdef __FreeBSD__
-#include <netinet/in.h>
-#endif
-
 #include "backend.h"
 #include "eth.h"
 #include "icmp.h"
