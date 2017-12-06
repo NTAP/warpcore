@@ -1,11 +1,14 @@
 # iwyu mappings for Linux
 [
         { include: ["<bits/socket_type.h>", "private", "<sys/socket.h>", "public"] },
-        { include: ["<bsd/sys/bitstring.h>", "private", "<bsd/bitstring.h>", "public"] },
+        { include: ["<bits/stdint-uintn.h>", "private", "<stdint.h>", "public"] },
+        { include: ["<bits/types/struct_iovec.h>", "private", "<sys/uio.h>", "public"] },
+        { include: ["<bits/types/struct_timespec.h>", "private", "<time.h>", "public"] },
+        { include: ["<bits/types/struct_timeval.h>", "private", "<sys/time.h>", "public"] },
+        { include: ["<bits/types/time_t.h>", "private", "<time.h>", "public"] },
         { include: ["<net/ethernet.h>", "private", "<netinet/if_ether.h>", "public"] },
         { include: ["<netinet/ether.h>", "private", "<netinet/if_ether.h>", "public"] },
 
-        { symbol: ["optarg", "private", "<unistd.h>", "public"] },
         { symbol: ["htonl", "private", "<arpa/inet.h>", "public"] },
         { symbol: ["htons", "private", "<arpa/inet.h>", "public"] },
         { symbol: ["int16_t", "private", "<stdint.h>", "public"] },
@@ -15,4 +18,5 @@
         { symbol: ["IOV_MAX", "private", "<limits.h>", "public"] },
         { symbol: ["ntohl", "private", "<arpa/inet.h>", "public"] },
         { symbol: ["ntohs", "private", "<arpa/inet.h>", "public"] },
+        { symbol: ["optarg", "private", "<unistd.h>", "public"] },
 ]

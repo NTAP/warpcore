@@ -33,7 +33,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+
+#ifndef __linux__
 #include <sys/types.h>
+#endif
 
 #include <warpcore/warpcore.h>
 
