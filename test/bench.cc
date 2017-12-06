@@ -23,7 +23,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <benchmark/benchmark_api.h>
+#include <benchmark/benchmark.h>
 #include <cstdint>
 #include <cstring>
 #include <warpcore/warpcore.h>
@@ -34,7 +34,7 @@ extern "C" {
 }
 
 
-static void BM_io(benchmark::State & state) // NOLINT
+static void BM_io(benchmark::State & state)
 {
     const auto len = uint32_t(state.range(0));
     while (state.KeepRunning())
@@ -42,11 +42,11 @@ static void BM_io(benchmark::State & state) // NOLINT
             state.SkipWithError("ran out of bufs or saw packet loss");
             break;
         }
-    state.SetBytesProcessed(state.iterations() * len * w_mtu(w));
+    state.SetBytesProcessed(state.iterations() * len * w_mtu(w_serv));
 }
 
 
-static void BM_in_cksum(benchmark::State & state) // NOLINT
+static void BM_in_cksum(benchmark::State & state)
 {
     const auto len = uint16_t(state.range(0));
     auto * buf = new char[len];
@@ -58,8 +58,44 @@ static void BM_in_cksum(benchmark::State & state) // NOLINT
 }
 
 
-BENCHMARK(BM_io)->RangeMultiplier(2)->Range(16, 8192);      // NOLINT
-BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 2048); // NOLINT
+static void BM_arc4random(benchmark::State & state)
+{
+    while (state.KeepRunning())
+        arc4random();
+}
+
+
+static void BM_random(benchmark::State & state)
+{
+    while (state.KeepRunning())
+        random();
+}
+
+/* The state must be seeded so that it is not all zero */
+static uint64_t s[2];
+
+static uint64_t xorshift128plus(void)
+{
+    uint64_t x = s[0];
+    uint64_t const y = s[1];
+    s[0] = y;
+    x ^= x << 23;                         // a
+    s[1] = x ^ y ^ (x >> 17) ^ (y >> 26); // b, c
+    return s[1] + y;
+}
+
+static void BM_xorshift128plus(benchmark::State & state)
+{
+    while (state.KeepRunning())
+        xorshift128plus();
+}
+
+
+BENCHMARK(BM_io)->RangeMultiplier(2)->Range(16, 8192);
+BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 2048);
+BENCHMARK(BM_arc4random);
+BENCHMARK(BM_random);
+BENCHMARK(BM_xorshift128plus);
 
 
 // BENCHMARK_MAIN()
@@ -68,9 +104,9 @@ int main(int argc, char ** argv)
 {
     benchmark::Initialize(&argc, argv);
 #ifndef NDEBUG
-    _dlevel = info;
+    util_dlevel = WRN;
 #endif
-    init();
+    init(8192);
     benchmark::RunSpecifiedBenchmarks();
     cleanup();
 }

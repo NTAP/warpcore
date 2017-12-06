@@ -7,24 +7,22 @@ check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
                         HAVE_BENCHMARK_H)
 cmake_reset_check_state()
 
-if(NOT HAVE_BENCHMARK_H AND NOT $ENV{CONTINUOUS_INTEGRATION})
+if(NOT HAVE_BENCHMARK_H AND NOT ENV{CONTINUOUS_INTEGRATION})
   include(ExternalProject)
 
   externalproject_add(google-benchmark
     UPDATE_COMMAND ""
     GIT_REPOSITORY https://github.com/google/benchmark
-    GIT_TAG v1.1.0
     GIT_SHALLOW 1
     CMAKE_ARGS
       -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}
       -DCMAKE_BUILD_TYPE=Release
-      -DBENCHMARK_ENABLE_LTO=true
     BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libbenchmark.a
   )
 
   file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include ${CMAKE_BINARY_DIR}/lib)
 
-  add_library(benchmark IMPORTED GLOBAL)
+  add_library(benchmark STATIC IMPORTED GLOBAL)
 
   set_target_properties(benchmark PROPERTIES
     IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/lib/libbenchmark.a
@@ -39,7 +37,13 @@ endif()
 
 if(HAVE_BENCHMARK_H)
   add_executable(bench_sock bench.cc common.c ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
-  target_link_libraries(bench_sock PUBLIC benchmark sock)
+  target_link_libraries(bench_sock PUBLIC benchmark pthread sockcore)
+  target_include_directories(bench_sock
+    SYSTEM PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/include
+      ${CMAKE_BINARY_DIR}/lib/include
+      ${CMAKE_SOURCE_DIR}/lib/src
+    )
   set_target_properties(bench_sock
     PROPERTIES
       POSITION_INDEPENDENT_CODE ON
@@ -50,7 +54,13 @@ if(HAVE_BENCHMARK_H)
   if(HAVE_NETMAP_H)
     add_executable(bench_warp bench.cc common.c ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
     target_compile_definitions(bench_warp PRIVATE -DWITH_NETMAP)
-    target_link_libraries(bench_warp PUBLIC benchmark warp)
+    target_link_libraries(bench_warp PUBLIC benchmark pthread warpcore)
+    target_include_directories(bench_warp
+    SYSTEM PRIVATE
+      ${CMAKE_SOURCE_DIR}/lib/include
+      ${CMAKE_BINARY_DIR}/lib/include
+      ${CMAKE_SOURCE_DIR}/lib/src
+    )
     set_target_properties(bench_warp
       PROPERTIES
         POSITION_INDEPENDENT_CODE ON
