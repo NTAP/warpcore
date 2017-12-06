@@ -243,7 +243,7 @@ int main(const int argc, char * const argv[])
             }
 
             // pick a random connection for output
-            const uint32_t c = arc4random_uniform(conns);
+            const uint32_t c = w_rand() % conns;
 
             // send the data, and wait until it is out
             w_tx(s[c], &o);

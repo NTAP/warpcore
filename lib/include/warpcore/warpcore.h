@@ -246,6 +246,9 @@ extern void __attribute__((nonnull)) w_free(struct w_iov_sq * const q);
 
 extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
 
+extern uint64_t w_rand(void);
+
+
 /// Return the number of w_iov structs in @p q that are still waiting for
 /// transmission. Only valid after w_tx() has been called on @p p.
 ///

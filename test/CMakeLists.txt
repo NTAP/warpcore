@@ -7,7 +7,7 @@ check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
                         HAVE_BENCHMARK_H)
 cmake_reset_check_state()
 
-if(NOT HAVE_BENCHMARK_H AND NOT ENV{CONTINUOUS_INTEGRATION})
+if(NOT HAVE_BENCHMARK_H AND NOT DEFINED ENV{CONTINUOUS_INTEGRATION})
   include(ExternalProject)
 
   externalproject_add(google-benchmark
@@ -32,7 +32,6 @@ if(NOT HAVE_BENCHMARK_H AND NOT ENV{CONTINUOUS_INTEGRATION})
   )
 
   add_dependencies(benchmark google-benchmark)
-  set(HAVE_BENCHMARK_H 1)
 endif()
 
 if(HAVE_BENCHMARK_H)

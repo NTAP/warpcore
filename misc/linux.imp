@@ -1,5 +1,6 @@
 # iwyu mappings for Linux
 [
+        { include: ["<bits/getopt_core.h>", "private", "<unistd.h>", "public"] },
         { include: ["<bits/socket_type.h>", "private", "<sys/socket.h>", "public"] },
         { include: ["<bits/stdint-uintn.h>", "private", "<stdint.h>", "public"] },
         { include: ["<bits/types/struct_iovec.h>", "private", "<sys/uio.h>", "public"] },

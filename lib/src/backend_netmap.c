@@ -171,7 +171,7 @@ void backend_init(struct w_engine * const w,
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
 
     // initialize random port number generation state
-    b->next_eph = (uint16_t)arc4random_uniform(UINT16_MAX);
+    b->next_eph = (uint16_t)w_rand();
 }
 
 
@@ -228,7 +228,7 @@ void backend_bind(struct w_sock * s)
     uint16_t num_eph = max_eph - min_eph + 1;
     uint16_t count = num_eph;
     do {
-        s->w->b->next_eph += arc4random_uniform(N) + 1;
+        s->w->b->next_eph += (w_rand() % N) + 1;
         const uint16_t port = htons(min_eph + (s->w->b->next_eph % num_eph));
         if (get_sock(s->w, port) == 0) {
             s->hdr->udp.sport = port;

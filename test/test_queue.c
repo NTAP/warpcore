@@ -31,7 +31,7 @@
 
 #include <warpcore/warpcore.h>
 
-#define r(m) ((m) == 0 ? 0 : (int)arc4random_uniform((unsigned)(m)))
+#define r(m) ((m) == 0 ? 0 : (int)w_rand() % (m))
 
 
 struct elem {

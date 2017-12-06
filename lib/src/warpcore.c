@@ -60,6 +60,10 @@
 #include "udp.h"
 
 
+// w_init() must initialize this so that it is not all zero
+static uint64_t w_rand_state[2];
+
+
 int16_t w_sock_cmp(const struct w_sock * const a, const struct w_sock * const b)
 {
     return (int16_t)a->hdr->udp.sport - (int16_t)b->hdr->udp.sport;
@@ -355,6 +359,10 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     splay_init(&w->sock);
     sq_init(&w->iov);
 
+    // init state for w_rand()
+    w_rand_state[0] = ((uint64_t)random() << 32) | (uint64_t)random(); // NOLINT
+    w_rand_state[1] = ((uint64_t)random() << 32) | (uint64_t)random(); // NOLINT
+
     // construct interface name of a netmap pipe for this interface
     char pipe[IFNAMSIZ];
     snprintf(pipe, IFNAMSIZ, "warp-%s", ifname);
@@ -508,4 +516,27 @@ void w_free_iov(struct w_iov * const v)
 {
     sq_insert_head(&v->w->iov, v, next);
     ASAN_POISON_MEMORY_REGION(IDX2BUF(v->w, v->idx), v->w->mtu);
+}
+
+
+/// Return a random number. Fast, but not cryptographically secure. Implements
+/// xoroshiro128+; see https://en.wikipedia.org/wiki/Xoroshiro128%2B.
+///
+/// @return     Random number.
+///
+uint64_t w_rand(void)
+{
+#define rotl(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
+
+    const uint64_t s0 = w_rand_state[0];
+    uint64_t s1 = w_rand_state[1];
+    const uint64_t result = s0 + s1;
+
+    s1 ^= s0;
+    w_rand_state[0] = rotl(s0, 55) ^ s1 ^ (s1 << 14);
+    w_rand_state[1] = rotl(s1, 36);
+
+#undef rotl
+
+    return result;
 }

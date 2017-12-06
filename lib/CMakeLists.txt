@@ -51,9 +51,6 @@ foreach(TARGET ${TARGETS})
       INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
   if(NOT ${TARGET} MATCHES "obj_")
-    if("${CMAKE_SYSTEM}" MATCHES "Linux")
-      target_link_libraries(${TARGET} bsd)
-    endif()
     if(DSYMUTIL AND BUILD_SHARED_LIBS)
       add_custom_command(TARGET ${TARGET} POST_BUILD
         COMMAND ${DSYMUTIL} ARGS *${CMAKE_SHARED_LIBRARY_SUFFIX}

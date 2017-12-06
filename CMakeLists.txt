@@ -8,7 +8,6 @@ check_function_exists(recvmmsg HAVE_RECVMMSG)
 check_function_exists(sendmmsg HAVE_SENDMMSG)
 check_function_exists(kqueue HAVE_KQUEUE)
 check_function_exists(epoll_create HAVE_EPOLL)
-check_function_exists(arc4random HAVE_ARC4RANDOM)
 check_function_exists(ether_ntoa_r HAVE_ETHER_NTOA_R)
 check_function_exists(backtrace HAVE_BACKTRACE)
 
@@ -22,8 +21,7 @@ include(CMakePushCheckState)
 cmake_reset_check_state()
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
-  add_definitions(-D_GNU_SOURCE -DLIBBSD_OVERLAY)
-  include_directories(SYSTEM /usr/include/bsd)
+  add_definitions(-D_GNU_SOURCE)
 endif()
 
 # Build "Debug" type by default
