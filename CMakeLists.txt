@@ -20,6 +20,13 @@ check_include_file(net/netmap_user.h HAVE_NETMAP_H)
 include(CMakePushCheckState)
 cmake_reset_check_state()
 
+# See if we have google benchmark
+include(CheckCXXSymbolExists)
+set(CMAKE_REQUIRED_LIBRARIES benchmark)
+check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
+                        HAVE_BENCHMARK_H)
+cmake_reset_check_state()
+
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
   add_definitions(-D_GNU_SOURCE)
 endif()
