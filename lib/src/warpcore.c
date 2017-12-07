@@ -524,7 +524,11 @@ void w_free_iov(struct w_iov * const v)
 ///
 /// @return     Random number.
 ///
-uint64_t w_rand(void)
+uint64_t
+#if defined(__clang__)
+    __attribute__((no_sanitize("unsigned-integer-overflow")))
+#endif
+    w_rand(void)
 {
 #define rotl(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
 
