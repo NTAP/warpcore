@@ -164,29 +164,3 @@ ip_rx(struct w_engine * const w, struct netmap_ring * const r);
 
 extern bool __attribute__((nonnull))
 ip_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len);
-
-
-// these are documented here, since in_chksum.c taken from FreeBSD
-
-/// Compute the Internet checksum over buffer @p buf of length @p len. See
-/// [RFC1071](https://tools.ietf.org/html/rfc1071).
-///
-/// @param[in]  buf   The buffer
-/// @param[in]  len   The length
-///
-/// @return     Internet checksum of @p buf.
-///
-extern uint16_t __attribute__((nonnull))
-in_cksum(const void * const buf, const uint16_t len);
-
-
-/// Compute a pseudo checksum over three 32-bit values.
-///
-/// @param[in]  a     Value one.
-/// @param[in]  b     Value two.
-/// @param[in]  c     Value three.
-///
-/// @return     Peudo checksum.
-///
-extern uint16_t __attribute__((const))
-in_pseudo(const uint32_t a, const uint32_t b, const uint32_t c);

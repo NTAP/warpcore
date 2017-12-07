@@ -28,7 +28,7 @@
 
 extern "C" {
 #include "common.h"
-#include "ip.h" // IWYU pragma: keep
+#include "in_cksum.h" // IWYU pragma: keep
 }
 
 
@@ -44,23 +44,23 @@ static void BM_io(benchmark::State & state)
 }
 
 
-static void BM_in_cksum(benchmark::State & state)
+static void BM_ip_cksum(benchmark::State & state)
 {
     const auto len = uint16_t(state.range(0));
     auto * buf = new char[len];
     memset(buf, 'x', len);
     for (auto _ : state)
-        benchmark::DoNotOptimize(in_cksum(buf, len));
+        benchmark::DoNotOptimize(ip_cksum(buf, len));
     state.SetBytesProcessed(state.iterations() * len);
     delete[] buf;
 }
 
 
-static void BM_arc4random(benchmark::State & state)
-{
-    for (auto _ : state)
-        benchmark::DoNotOptimize(arc4random());
-}
+// static void BM_arc4random(benchmark::State & state)
+// {
+//     for (auto _ : state)
+//         benchmark::DoNotOptimize(arc4random());
+// }
 
 
 static void BM_random(benchmark::State & state)
@@ -78,8 +78,8 @@ static void BM_w_rand(benchmark::State & state)
 
 
 BENCHMARK(BM_io)->RangeMultiplier(2)->Range(16, 8192);
-BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(64, 2048);
-BENCHMARK(BM_arc4random);
+BENCHMARK(BM_ip_cksum)->RangeMultiplier(2)->Range(64, 2048);
+// BENCHMARK(BM_arc4random);
 BENCHMARK(BM_random);
 BENCHMARK(BM_w_rand);
 

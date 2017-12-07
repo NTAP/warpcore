@@ -43,6 +43,7 @@
 #include "backend.h"
 #include "eth.h"
 #include "icmp.h"
+#include "in_cksum.h"
 #include "ip.h"
 #include "udp.h"
 
@@ -88,14 +89,10 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 
     if (udp->cksum) {
         // validate the checksum
-        const uint16_t orig = udp->cksum;
-        udp->cksum = in_pseudo(ip->src, ip->dst, htons(udp_len + ip->p));
-        uint16_t cksum = in_cksum(udp, udp_len);
-        cksum = cksum ? cksum : 0xffff; // make all ones; see RFC786
-        udp->cksum = orig;
-        if (unlikely(orig != cksum)) {
+        const uint16_t cksum = udp_cksum(ip, udp_len + sizeof(*ip));
+        if (unlikely(udp->cksum != cksum)) {
             warn(WRN, "invalid UDP checksum, received 0x%04x != 0x%04x",
-                 ntohs(orig), ntohs(cksum));
+                 ntohs(udp->cksum), ntohs(cksum));
             return;
         }
     }
@@ -176,10 +173,8 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
     }
 
     // compute the checksum, unless disabled by a socket option
-    if ((s->flags & W_ZERO_CHKSUM) == 0) {
-        udp->cksum = in_pseudo(s->w->ip, ip->dst, htons(len + IP_P_UDP));
-        udp->cksum = in_cksum(udp, len);
-    }
+    if ((s->flags & W_ZERO_CHKSUM) == 0)
+        udp->cksum = udp_cksum(ip, len + sizeof(*ip));
 
     udp_log(udp);
 

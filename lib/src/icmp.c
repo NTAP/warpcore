@@ -38,6 +38,7 @@
 #include "backend.h"
 #include "eth.h"
 #include "icmp.h"
+#include "in_cksum.h"
 #include "ip.h"
 #if !defined(NDEBUG) && DLEVEL >= WRN
 #include "udp.h"
@@ -105,7 +106,7 @@ void icmp_tx(struct w_engine * const w,
 
     // calculate the new ICMP checksum
     dst_icmp->cksum = 0;
-    dst_icmp->cksum = in_cksum(dst_icmp, sizeof(*dst_icmp) + data_len);
+    dst_icmp->cksum = ip_cksum(dst_icmp, sizeof(*dst_icmp) + data_len);
 
     // construct an IPv4 header
     struct ip_hdr * const dst_ip = (void *)eth_data(v->buf);
@@ -155,7 +156,7 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
         MIN(ip_data_len(ip), r->slot[r->cur].len - sizeof(struct eth_hdr) -
                                  sizeof(struct ip_hdr));
 
-    if (in_cksum(icmp, icmp_len) != 0) {
+    if (ip_cksum(icmp, icmp_len) != 0) {
         warn(WRN, "invalid ICMP checksum, received 0x%04x", ntohs(icmp->cksum));
         return;
     }

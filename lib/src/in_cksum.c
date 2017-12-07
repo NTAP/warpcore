@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 1988, 1992, 1993
-// The Regents of the University of California.  All rights reserved.
-//
-// Copyright (c) 1996
-// Matt Thomas <matt@3am-software.com>
-//
-// Copyright (c) 2014-2017
-// NetApp, Inc.
+// Copyright (c) 2014-2017, NetApp, Inc.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -19,154 +13,111 @@
 //    this list of conditions and the following disclaimer in the documentation
 //    and/or other materials provided with the distribution.
 //
-// 3. All advertising materials mentioning features or use of this software must
-//    display the following acknowledgement: This product includes software
-//    developed by the University of California, Berkeley and its contributors.
-//
-// 4. Neither the name of the University nor the names of its contributors may
-//    be used to endorse or promote products derived from this software without
-//    specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+
+// Code adapted from https://github.com/intel/soft-crc/blob/master/crc_tcpip.c
+
+/*******************************************************************************
+ Copyright (c) 2009-2017, Intel Corporation
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+     * Redistributions of source code must retain the above copyright notice,
+       this list of conditions and the following disclaimer.
+     * Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+     * Neither the name of Intel Corporation nor the names of its contributors
+       may be used to endorse or promote products derived from this software
+       without specific prior written permission.
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*******************************************************************************/
 
 
 #include <stdint.h>
 
-#ifdef __FreeBSD__
-#include <sys/socket.h> // IWYU pragma: keep
-#include <sys/types.h>  // IWYU pragma: keep
-#endif
-
-#include "ip.h" // IWYU pragma: keep
-
-// IWYU pragma: no_forward_declare l_util
-// IWYU pragma: no_forward_declare q_util
+#include "in_cksum.h"
+#include "ip.h"
+#include "udp.h"
 
 
-// Checksum routine for Internet Protocol family headers (portable Alpha
-// version). This routine is very heavily used in the network code and should be
-// modified for each CPU to be as fast as possible.
-
-
-#define ADDCARRY(x) ((x) > 65535 ? (x) -= 65535 : (x))
-#define REDUCE32                                                               \
-    {                                                                          \
-        q_util.q = sum;                                                        \
-        sum = q_util.s[0] + q_util.s[1] + q_util.s[2] + q_util.s[3];           \
-    }
-#define REDUCE16                                                               \
-    {                                                                          \
-        q_util.q = sum;                                                        \
-        l_util.l = q_util.s[0] + q_util.s[1] + q_util.s[2] + q_util.s[3];      \
-        sum = l_util.s[0] + l_util.s[1];                                       \
-        ADDCARRY(sum);                                                         \
-    }
-
-static const uint32_t in_masks[] = {
-    // 0 bytes     1 byte      2 bytes     3 bytes
-    0x00000000, 0x000000FF, 0x0000FFFF, 0x00FFFFFF, // offset 0
-    0x00000000, 0x0000FF00, 0x00FFFF00, 0xFFFFFF00, // offset 1
-    0x00000000, 0x00FF0000, 0xFFFF0000, 0xFFFF0000, // offset 2
-    0x00000000, 0xFF000000, 0xFF000000, 0xFF000000, // offset 3
-};
-
-union l_util {
-    uint16_t s[2];
-    uint32_t l;
-};
-
-union q_util {
-    uint16_t s[4];
-    uint32_t l[2];
-    uint64_t q;
-};
-
-
-static inline uint64_t __attribute__((nonnull))
-in_cksumdata(const void * const buf, int len)
+static inline uint32_t __attribute__((always_inline))
+csum_oc16(const uint8_t * data, uint32_t data_len)
 {
-    const uint32_t * lw = (const uint32_t *)buf;
-    uint64_t sum = 0;
-    union q_util q_util;
+    const uint16_t * data16 = (const uint16_t *)(const void *)data;
+    uint32_t sum = 0;
 
-    if ((3 & (long)lw) == 0 && len == 20) {
-        sum = (uint64_t)lw[0] + lw[1] + lw[2] + lw[3] + lw[4];
-        REDUCE32;
-        return sum;
-    }
+    for (uint32_t n = 0; n < (data_len / sizeof(uint16_t)); n++)
+        sum += (uint32_t)data16[n];
 
-    int offset;
-    if ((offset = 3 & (long)lw) != 0) {
-        const uint32_t * masks = in_masks + (offset << 2);
-        lw = (uint32_t *)(((long)lw) - offset);
-        sum = *lw++ & masks[len >= 3 ? 3 : len];
-        len -= 4 - offset;
-        if (len <= 0) {
-            REDUCE32;
-            return sum;
-        }
-    }
+    if (data_len & 1)
+        sum += (uint32_t)data[data_len - 1];
 
-    // Access prefilling to start load of next cache line. Then add current
-    // cache line. Save result of prefilling for loop iteration.
-
-    uint64_t prefilled = lw[0];
-    while ((len -= 32) >= 4) {
-        uint64_t prefilling = lw[8];
-        sum +=
-            prefilled + lw[1] + lw[2] + lw[3] + lw[4] + lw[5] + lw[6] + lw[7];
-        lw += 8;
-        prefilled = prefilling;
-    }
-
-    if (len >= 0) {
-        sum +=
-            prefilled + lw[1] + lw[2] + lw[3] + lw[4] + lw[5] + lw[6] + lw[7];
-        lw += 8;
-    } else
-        len += 32;
-
-    while ((len -= 16) >= 0) {
-        sum += (uint64_t)lw[0] + lw[1] + lw[2] + lw[3];
-        lw += 4;
-    }
-
-    len += 16;
-    while ((len -= 4) >= 0)
-        sum += (uint64_t)*lw++;
-
-    len += 4;
-    if (len > 0)
-        sum += (uint64_t)(in_masks[len] & *lw);
-    REDUCE32;
     return sum;
 }
 
 
-uint16_t in_pseudo(const uint32_t a, const uint32_t b, const uint32_t c)
+static inline uint16_t __attribute__((always_inline))
+csum_oc16_reduce(uint32_t sum)
 {
-    union q_util q_util;
-    union l_util l_util;
-    uint64_t sum = (uint64_t)a + b + c;
-    REDUCE16;
-    return (uint16_t)sum;
+    while (sum >> 16)
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    return (uint16_t)(~sum);
 }
 
 
-uint16_t in_cksum(const void * const buf, const uint16_t len)
+/// Compute the Internet checksum over buffer @p buf of length @p len. See
+/// [RFC1071](https://tools.ietf.org/html/rfc1071).
+///
+/// @param[in]  buf   The buffer
+/// @param[in]  len   The length
+///
+/// @return     Internet checksum of @p buf.
+///
+uint16_t ip_cksum(const void * const buf, const uint16_t len)
 {
-    union q_util q_util;
-    union l_util l_util;
-    uint64_t sum = in_cksumdata(buf, len);
-    REDUCE16;
-    return ~sum & 0xffff;
+    const uint32_t sum = csum_oc16(buf, len);
+    return csum_oc16_reduce(sum);
+}
+
+
+uint16_t udp_cksum(const void * buf, uint16_t len)
+{
+    const struct ip_hdr * const ip = (const struct ip_hdr *)buf;
+    const struct udp_hdr * const udp =
+        (const struct udp_hdr *)(const void *)((const uint8_t *)buf +
+                                               sizeof(*ip));
+
+    // IPv4 pseudo header
+    uint32_t sum = ((uint32_t)ip->p) << 8;
+    sum += csum_oc16((const uint8_t *)&ip->src, sizeof(ip->src));
+    sum += csum_oc16((const uint8_t *)&ip->dst, sizeof(ip->dst));
+    sum += csum_oc16((const uint8_t *)&udp->len, sizeof(udp->len));
+
+    // UDP header without checksum.
+    sum += csum_oc16((const uint8_t *)udp, sizeof(*udp) - sizeof(uint16_t));
+
+    // UDP payload
+    sum += csum_oc16((const uint8_t *)udp + sizeof(*udp),
+                     len - sizeof(*ip) - sizeof(*udp));
+
+    return csum_oc16_reduce(sum);
 }

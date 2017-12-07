@@ -42,6 +42,7 @@
 #include "backend.h"
 #include "eth.h"
 #include "icmp.h"
+#include "in_cksum.h"
 #include "ip.h"
 #include "udp.h"
 
@@ -103,8 +104,9 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
     }
 
     // validate the IP checksum
-    if (unlikely(in_cksum(ip, sizeof(*ip)) != 0)) {
-        warn(WRN, "invalid IP checksum, received 0x%04x", ntohs(ip->cksum));
+    if (unlikely(ip_cksum(ip, sizeof(*ip)) != 0)) {
+        warn(WRN, "invalid IP checksum, received 0x%04x != 0x%04x",
+             ntohs(ip->cksum), ip_cksum(ip, sizeof(*ip)));
         return;
     }
 
@@ -156,7 +158,7 @@ bool ip_tx(struct w_engine * const w,
     if (v->flags)
         ip->tos = v->flags; // app-specified DSCP + ECN
     // IP checksum is over header only (TODO: adjust instead of recompute)
-    ip->cksum = in_cksum(ip, sizeof(*ip));
+    ip->cksum = ip_cksum(ip, sizeof(*ip));
 
     ip_log(ip);
 
