@@ -79,6 +79,9 @@ void backend_init(struct w_engine * const w,
                   const bool is_lo __attribute__((unused)),
                   const bool is_left __attribute__((unused)))
 {
+    // lower the MTU to account for IP and UPD headers
+    w->mtu -= sizeof(struct ip_hdr) + sizeof(struct udp_hdr);
+
     ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
            "cannot alloc %u * %u buf mem", nbufs, w->mtu);
     ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
