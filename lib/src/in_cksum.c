@@ -52,7 +52,13 @@
 *******************************************************************************/
 
 
+#include <arpa/inet.h>
+#include <emmintrin.h>
+#include <smmintrin.h>
 #include <stdint.h>
+#include <tmmintrin.h>
+
+#include <warpcore/warpcore.h>
 
 #include "in_cksum.h"
 #include "ip.h"
@@ -60,7 +66,7 @@
 
 
 static inline uint32_t __attribute__((always_inline))
-csum_oc16(const uint8_t * data, uint32_t data_len)
+csum_oc16(const uint8_t * const data, const uint32_t data_len)
 {
     const uint16_t * data16 = (const uint16_t *)(const void *)data;
     uint32_t sum = 0;
@@ -99,7 +105,7 @@ uint16_t ip_cksum(const void * const buf, const uint16_t len)
 }
 
 
-uint16_t udp_cksum(const void * buf, uint16_t len)
+uint16_t udp_cksum(const void * const buf, const uint16_t len)
 {
     const struct ip_hdr * const ip = (const struct ip_hdr *)buf;
     const struct udp_hdr * const udp =
@@ -120,4 +126,154 @@ uint16_t udp_cksum(const void * buf, uint16_t len)
                      len - sizeof(*ip) - sizeof(*udp));
 
     return csum_oc16_reduce(sum);
+}
+
+
+#define DECLARE_ALIGNED(_declaration, _boundary)                               \
+    _declaration __attribute__((aligned(_boundary)))
+
+static const DECLARE_ALIGNED(uint8_t crc_xmm_shift_tab[48], 16) = {
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+
+static inline __m128i __attribute__((always_inline))
+xmm_shift_right(const __m128i reg, const unsigned int num)
+{
+    const __m128i * p =
+        (const __m128i *)(const void *)(crc_xmm_shift_tab + 16 + num);
+    return _mm_shuffle_epi8(reg, _mm_loadu_si128(p));
+}
+
+
+static inline __m128i __attribute__((always_inline))
+xmm_shift_left(const __m128i reg, const unsigned int num)
+{
+    const __m128i * p =
+        (const __m128i *)(const void *)(crc_xmm_shift_tab + 16 - num);
+    return _mm_shuffle_epi8(reg, _mm_loadu_si128(p));
+}
+
+
+static __m128i swap16a;
+static __m128i swap16b;
+static __m128i udp_mask;
+
+
+static void __attribute__((constructor)) cksum_sse_init(void)
+{
+    swap16a = _mm_setr_epi16((short)0x0001, (short)0xffff, (short)0x0203,
+                             (short)0xffff, (short)0x0405, (short)0xffff,
+                             (short)0x0607, (short)0xffff);
+
+    swap16b = _mm_setr_epi16((short)0x0809, (short)0xffff, (short)0x0a0b,
+                             (short)0xffff, (short)0x0c0d, (short)0xffff,
+                             (short)0x0e0f, (short)0xffff);
+
+    udp_mask = _mm_setr_epi8((char)0x01, (char)0x00, (char)0xff, (char)0xff,
+                             (char)0x03, (char)0x02, (char)0xff, (char)0xff,
+                             (char)0x05, (char)0x04, (char)0xff, (char)0xff,
+                             (char)0x05, (char)0x04, (char)0xff, (char)0xff);
+}
+
+
+static inline uint32_t __attribute__((always_inline))
+csum_oc16_sse(const uint8_t * const data,
+              const uint32_t data_len,
+              __m128i sum32a,
+              __m128i sum32b)
+{
+    uint32_t n = 0;
+    for (n = 0; (n + 64) <= data_len; n += 64) {
+        __m128i dblock1, dblock2;
+
+        dblock1 = _mm_loadu_si128((const __m128i *)(const void *)&data[n]);
+        dblock2 = _mm_loadu_si128((const __m128i *)(const void *)&data[n + 16]);
+
+        sum32a = _mm_add_epi32(sum32a, _mm_shuffle_epi8(dblock1, swap16a));
+        sum32b = _mm_add_epi32(sum32b, _mm_shuffle_epi8(dblock1, swap16b));
+        sum32a = _mm_add_epi32(sum32a, _mm_shuffle_epi8(dblock2, swap16a));
+        sum32b = _mm_add_epi32(sum32b, _mm_shuffle_epi8(dblock2, swap16b));
+
+        dblock1 = _mm_loadu_si128((const __m128i *)(const void *)&data[n + 32]);
+        dblock2 = _mm_loadu_si128((const __m128i *)(const void *)&data[n + 48]);
+
+        sum32a = _mm_add_epi32(sum32a, _mm_shuffle_epi8(dblock1, swap16a));
+        sum32b = _mm_add_epi32(sum32b, _mm_shuffle_epi8(dblock1, swap16b));
+        sum32a = _mm_add_epi32(sum32a, _mm_shuffle_epi8(dblock2, swap16a));
+        sum32b = _mm_add_epi32(sum32b, _mm_shuffle_epi8(dblock2, swap16b));
+    }
+
+    while ((n + 16) <= data_len) {
+        __m128i dblock;
+
+        dblock = _mm_loadu_si128((const __m128i *)(const void *)&data[n]);
+        sum32a = _mm_add_epi32(sum32a, _mm_shuffle_epi8(dblock, swap16a));
+        sum32b = _mm_add_epi32(sum32b, _mm_shuffle_epi8(dblock, swap16b));
+        n += 16;
+    }
+
+    if (likely(n != data_len)) {
+        __m128i dblock;
+
+        dblock = _mm_loadu_si128((const __m128i *)(const void *)&data[n]);
+        dblock = xmm_shift_left(dblock, 16 - (data_len & 15));
+        dblock = xmm_shift_right(dblock, 16 - (data_len & 15));
+        sum32a = _mm_add_epi32(sum32a, _mm_shuffle_epi8(dblock, swap16a));
+        sum32b = _mm_add_epi32(sum32b, _mm_shuffle_epi8(dblock, swap16b));
+    }
+
+    sum32a = _mm_add_epi32(sum32a, sum32b);
+    sum32a = _mm_hadd_epi32(sum32a, _mm_setzero_si128());
+    sum32a = _mm_hadd_epi32(sum32a, _mm_setzero_si128());
+    return (uint32_t)_mm_extract_epi32(sum32a, 0);
+}
+
+
+uint16_t ip_cksum_sse(const void * const buf, const uint16_t len)
+{
+    const uint32_t sum =
+        csum_oc16_sse(buf, len, _mm_setzero_si128(), _mm_setzero_si128());
+
+    return htons(csum_oc16_reduce(sum));
+}
+
+
+uint16_t udp_cksum_sse(const void * const buf, const uint16_t len)
+{
+    const struct ip_hdr * ip = (const struct ip_hdr *)buf;
+    __m128i sum32a, sum32b;
+    uint32_t sum;
+
+    /**
+     * Do pseudo IPv4 header
+     * Load source and destination addresses from IP header
+     * Swap 16-bit words from big endian to little endian
+     * Extend 16 bit words to 32 bit words for further with SSE
+     */
+    sum32a = _mm_loadu_si128((
+        const __m128i *)(const void *)((const uint8_t *)buf +
+                                       __builtin_offsetof(struct ip_hdr, src)));
+    sum32a = _mm_shuffle_epi8(sum32a, swap16a);
+
+    /**
+     * Read UDP header
+     * Duplicate length field as it wasn't included in IPv4 pseudo header
+     * Swap 16-bit words from big endian to little endian
+     * Extend 16 bit words to 32 bit words for further with SSE
+     */
+    sum32b =
+        _mm_loadu_si128((const __m128i *)(const void *)((const uint8_t *)buf +
+                                                        sizeof(struct ip_hdr)));
+    sum32b = _mm_shuffle_epi8(sum32b, udp_mask);
+
+    sum = csum_oc16_sse((const uint8_t *)buf + sizeof(struct ip_hdr) +
+                            sizeof(struct udp_hdr),
+                        len - sizeof(struct ip_hdr) - sizeof(struct udp_hdr),
+                        sum32a, sum32b) +
+          ((uint32_t)ip->p);
+
+    return htons(csum_oc16_reduce(sum));
 }
