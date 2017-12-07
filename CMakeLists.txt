@@ -156,6 +156,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
           -google-readability-todo
           -cppcoreguidelines-pro-type-vararg
           -clang-diagnostic-unused-command-line-argument
+          -cert-err58-cpp
+          -google-runtime-references
       )
       string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
       set(CMAKE_C_CLANG_TIDY ${CLANGTIDY}
