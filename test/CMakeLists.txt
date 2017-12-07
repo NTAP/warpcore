@@ -25,6 +25,7 @@ if(NOT HAVE_BENCHMARK_H AND NOT DEFINED ENV{CONTINUOUS_INTEGRATION})
   )
 
   add_dependencies(benchmark google-benchmark)
+  set(HAVE_BENCHMARK_H 1)
 endif()
 
 if(HAVE_BENCHMARK_H)
