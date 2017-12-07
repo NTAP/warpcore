@@ -24,20 +24,18 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <benchmark/benchmark.h>
-#include <cstdint>
-#include <cstring>
 #include <warpcore/warpcore.h>
 
 extern "C" {
 #include "common.h"
-#include "ip.h"
+#include "ip.h" // IWYU pragma: keep
 }
 
 
 static void BM_io(benchmark::State & state)
 {
     const auto len = uint32_t(state.range(0));
-    while (state.KeepRunning())
+    for (auto _ : state)
         if (!io(len)) {
             state.SkipWithError("ran out of bufs or saw packet loss");
             break;
@@ -51,8 +49,8 @@ static void BM_in_cksum(benchmark::State & state)
     const auto len = uint16_t(state.range(0));
     auto * buf = new char[len];
     memset(buf, 'x', len);
-    while (state.KeepRunning())
-        in_cksum(buf, len);
+    for (auto _ : state)
+        benchmark::DoNotOptimize(in_cksum(buf, len));
     state.SetBytesProcessed(state.iterations() * len);
     delete[] buf;
 }
@@ -60,42 +58,30 @@ static void BM_in_cksum(benchmark::State & state)
 
 static void BM_arc4random(benchmark::State & state)
 {
-    while (state.KeepRunning())
-        arc4random();
+    for (auto _ : state)
+        benchmark::DoNotOptimize(arc4random());
 }
 
 
 static void BM_random(benchmark::State & state)
 {
-    while (state.KeepRunning())
-        random();
+    for (auto _ : state)
+        benchmark::DoNotOptimize(random());
 }
 
-/* The state must be seeded so that it is not all zero */
-static uint64_t s[2];
 
-static uint64_t xorshift128plus(void)
+static void BM_w_rand(benchmark::State & state)
 {
-    uint64_t x = s[0];
-    uint64_t const y = s[1];
-    s[0] = y;
-    x ^= x << 23;                         // a
-    s[1] = x ^ y ^ (x >> 17) ^ (y >> 26); // b, c
-    return s[1] + y;
-}
-
-static void BM_xorshift128plus(benchmark::State & state)
-{
-    while (state.KeepRunning())
-        xorshift128plus();
+    for (auto _ : state)
+        benchmark::DoNotOptimize(w_rand());
 }
 
 
 BENCHMARK(BM_io)->RangeMultiplier(2)->Range(16, 8192);
-BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(4, 2048);
+BENCHMARK(BM_in_cksum)->RangeMultiplier(2)->Range(64, 2048);
 BENCHMARK(BM_arc4random);
 BENCHMARK(BM_random);
-BENCHMARK(BM_xorshift128plus);
+BENCHMARK(BM_w_rand);
 
 
 // BENCHMARK_MAIN()
