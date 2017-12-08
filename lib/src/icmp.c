@@ -68,7 +68,7 @@ void icmp_tx(struct w_engine * const w,
     struct icmp_hdr * const dst_icmp = (void *)ip_data(v->buf);
     dst_icmp->type = type;
     dst_icmp->code = code;
-    warn(NTE, "ICMP type %d, code %d", type, code);
+    warn(INF, "ICMP type %d, code %d", type, code);
 
     const struct ip_hdr * const src_ip = (const void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
@@ -148,7 +148,7 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     struct icmp_hdr * const icmp = (void *)ip_data(buf);
-    warn(NTE, "ICMP type %d, code %d", icmp->type, icmp->code);
+    warn(INF, "ICMP type %d, code %d", icmp->type, icmp->code);
 
     // validate the ICMP checksum
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
