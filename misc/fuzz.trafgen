@@ -1,0 +1,27 @@
+# Random Ethernet
+{
+	eth(da=68:05:ca:32:0b:98, sa=68:05:ca:32:15:d0, type=drnd()),
+	drnd(100)
+}
+
+# Random IPv4
+{
+	eth(da=68:05:ca:32:0b:98, sa=68:05:ca:32:15:d0, type=0x0800),
+	ipv4(id=drnd(), df, ttl=drnd(), tos=drnd(), sa=10.11.40.1, da=10.11.40.2, prot=drnd()),
+	drnd(100)
+}
+
+# Random ICMPv4
+{
+	eth(da=68:05:ca:32:0b:98, sa=68:05:ca:32:15:d0, type=0x0800),
+	icmpv4(type=drnd(), code=drnd()),
+	drnd(100)
+}
+
+# Random UDP
+{
+	eth(da=68:05:ca:32:0b:98, sa=68:05:ca:32:15:d0, type=0x0800),
+	ipv4(id=drnd(), mf, ttl=drnd(), tos=drnd(), sa=10.11.40.1, da=10.11.40.2, prot=17),
+	udp(sp=drnd(), dp=drnd()),
+	drnd(100)
+}
