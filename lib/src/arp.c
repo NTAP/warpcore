@@ -166,7 +166,7 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
     while (a == 0) {
 #ifndef NDEBUG
         char ip_str[INET_ADDRSTRLEN];
-        warn(WRN, "no ARP entry for %s, sending query",
+        warn(INF, "no ARP entry for %s, sending query",
              inet_ntop(AF_INET, &dip, ip_str, INET_ADDRSTRLEN));
 #endif
 
@@ -241,12 +241,13 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
     const struct arp_hdr * const arp = (const void *)eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
-    ensure(hrd == ARP_HRD_ETHER && arp->hln == ETHER_ADDR_LEN,
-           "unhandled ARP hardware format %d with len %d", hrd, arp->hln);
+    if (hrd != ARP_HRD_ETHER || arp->hln != ETHER_ADDR_LEN)
+        warn(INF, "unhandled ARP hardware format %d with len %d", hrd,
+             arp->hln);
 
-    ensure(arp->pro == ETH_TYPE_IP && arp->pln == IP_ADDR_LEN,
-           "unhandled ARP protocol format %d with len %d", ntohs(arp->pro),
-           arp->pln);
+    if (arp->pro != ETH_TYPE_IP || arp->pln == IP_ADDR_LEN)
+        warn(INF, "unhandled ARP protocol format %d with len %d",
+             ntohs(arp->pro), arp->pln);
 
     const uint16_t op = ntohs(arp->op);
     switch (op) {
@@ -297,7 +298,7 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
     }
 
     default:
-        die("unhandled ARP operation %d", op);
+        warn(INF, "unhandled ARP operation %d", op);
     }
 }
 

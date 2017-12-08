@@ -92,7 +92,7 @@ void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
     else if (eth->type == ETH_TYPE_ARP)
         arp_rx(w, r);
     else
-        die("unhandled ethertype 0x%04x", ntohs(eth->type));
+        warn(INF, "unhandled ethertype 0x%04x", ntohs(eth->type));
 }
 
 
