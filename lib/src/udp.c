@@ -87,7 +87,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
                                  sizeof(struct ip_hdr));
     udp_log(udp);
 
-    if (udp_len < 8) {
+    if (unlikely(udp_len < 8)) {
         warn(WRN, "received invalid UDP len %u", udp_len);
         return;
     }

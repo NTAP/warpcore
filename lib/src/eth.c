@@ -136,7 +136,7 @@ bool eth_tx(struct w_engine * const w,
     warn(DBG, "%s iov idx %u into tx ring %u slot %d (%s %u)",
          is_pipe(w) ? "copying" : "placing", v->idx, w->b->cur_txr, txr->cur,
          is_pipe(w) ? "idx" : "swap with", s->buf_idx);
-    if (is_pipe(w))
+    if (unlikely(is_pipe(w)))
         // for netmap pipes, we need to copy the buffer into the slot
         memcpy(NETMAP_BUF(txr, s->buf_idx), IDX2BUF(w, v->idx), s->len);
     else {

@@ -375,7 +375,7 @@ void w_nic_tx(struct w_engine * const w)
              likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
             struct w_iov * const v = w->b->slot_buf[r->ringid][j];
-            if (!is_pipe(w)) {
+            if (likely(!is_pipe(w))) {
                 warn(DBG,
                      "move idx %u from ring %u slot %u to w_iov (swap w/%u)",
                      s->buf_idx, i, j, v->idx);
