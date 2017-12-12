@@ -223,7 +223,7 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
     char str[INET_ADDRSTRLEN];
-    warn(NTE, "socket connected to %s port %d",
+    warn(DBG, "socket connected to %s port %d",
          inet_ntop(AF_INET, &ip, str, INET_ADDRSTRLEN), ntohs(port));
 #endif
 }
@@ -234,7 +234,7 @@ void w_disconnect(struct w_sock * const s)
     s->hdr->ip.dst = 0;
     s->hdr->udp.dport = 0;
 
-    warn(NTE, "socket disconnected");
+    warn(DBG, "socket disconnected");
 }
 
 
