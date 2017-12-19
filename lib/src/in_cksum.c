@@ -105,6 +105,28 @@ uint16_t ip_cksum(const void * const buf, const uint16_t len)
 }
 
 
+uint16_t
+ip_cksum_update32(uint16_t old_check, uint32_t old_data, uint32_t new_data)
+{
+    old_check = ~old_check;
+    old_data = ~old_data;
+    const uint32_t l = (uint32_t)old_check + (old_data >> 16) +
+                       (old_data & 0xffff) + (new_data >> 16) +
+                       (new_data & 0xffff);
+    return csum_oc16_reduce(l);
+}
+
+
+uint16_t
+ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data)
+{
+    old_check = ~old_check;
+    old_data = ~old_data;
+    const uint32_t l = (uint32_t)(old_check + ~old_data + new_data);
+    return csum_oc16_reduce(l);
+}
+
+
 uint16_t udp_cksum(const void * const buf, const uint16_t len)
 {
     const struct ip_hdr * const ip = (const struct ip_hdr *)buf;
