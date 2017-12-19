@@ -30,16 +30,27 @@ env.tests = [
     # {"speed": 40, "client": "mora1", "server": "mora2", "iface": "ixl0"},
 
     # mora Linux
-    # {"speed": 1, "client": "mora1", "server": "mora2", "iface": "eno3"},
-    # {"speed": 10, "client": "mora1", "server": "mora2", "iface": "enp6s0f0"},
-    {"speed": 40, "client": "mora1", "server": "mora2", "iface": "enp4s0f0"},
+    {"speed": 1, "client": "mora1", "server": "mora2",
+     "client_iface": "eno3", "server_iface": "eno3"},
+    {"speed": 10, "client": "mora1", "server": "mora2",
+     "client_iface": "enp2s0f1", "server_iface": "enp8s0f1"},
+    {"speed": 40, "client": "mora1", "server": "mora2",
+     "client_iface": "enp4s0f0", "server_iface": "enp4s0f0"},
 ]
+
+
+def get_iface(test):
+    if env.host_string in env.roledefs["client"]:
+        return test["client_iface"]
+    else:
+        return test["server_iface"]
 
 
 @task
 @parallel
 @roles("client", "server")
-def ip_config(iface):
+def ip_config(test):
+    iface = get_iface(test)
     with settings(warn_only=True):
         cmd = ""
         if env.uname[env.host_string] == "Linux":
@@ -65,7 +76,8 @@ def ip_config(iface):
 @task
 @parallel
 @roles("client", "server")
-def ip_unconfig(iface):
+def ip_unconfig(test):
+    iface = get_iface(test)
     with settings(warn_only=True):
         cmd = ""
         if env.uname[env.host_string] == "Linux":
@@ -81,7 +93,8 @@ def ip_unconfig(iface):
 
 @parallel
 @roles("client", "server")
-def netmap_config(iface):
+def netmap_config(test):
+    iface = get_iface(test)
     with settings(warn_only=True):
         if env.uname[env.host_string] == "Linux":
             sudo("echo 4096 > /sys/module/netmap/parameters/if_size; "
@@ -100,7 +113,8 @@ def netmap_config(iface):
 
 @parallel
 @roles("client", "server")
-def netmap_unconfig(iface):
+def netmap_unconfig(test):
+    iface = get_iface(test)
     with settings(warn_only=True):
         if env.uname[env.host_string] == "Linux":
             sudo("ifconfig %s down; "
@@ -148,7 +162,8 @@ def start_server(test, busywait, cksum, kind):
             log = "/dev/null"
         sudo("/usr/bin/nohup %s 3 "
              "%s/bin/%sinetd -i %s %s %s 2>&1 > %s &" %
-             (pin, env.builddir, kind, test["iface"], busywait, cksum, log))
+             (pin, env.builddir, kind, test["server_iface"], busywait,
+              cksum, log))
 
 
 @task
@@ -185,8 +200,8 @@ def start_client(test, busywait, cksum, kind):
             log = "/dev/null"
         sudo("%s 3 "
              "%s/bin/%sping -i %s -d %s %s %s -l 50 -p 0 -e 512000 > %s 2> %s" %
-             (pin, env.builddir, kind, test["iface"], env.ip[test["server"]],
-              busywait, cksum, file, log))
+             (pin, env.builddir, kind, test["client_iface"],
+              env.ip[test["server"]], busywait, cksum, file, log))
 
 
 @task(default=True)
@@ -200,19 +215,19 @@ def bench():
             execute(uname)
             execute(build)
             execute(stop)
-            execute(netmap_unconfig, t["iface"])
-            execute(ip_unconfig, t["iface"])
-            execute(ip_config, t["iface"])
+            execute(netmap_unconfig, t)
+            execute(ip_unconfig, t)
+            execute(ip_config, t)
 
             # XXX need to test sock before warp, otherwise 40G sock perf sucks?
-            for k in ["sock", "warp"]:
+            for k in ["warp", "sock"]:
                 if k == "warp":
-                    execute(netmap_config, t["iface"])
+                    execute(netmap_config, t)
                 for c in ["", "-z"]:
                     for w in ["-b", ""]:
                         execute(start_server, t, w, c, k)
                         execute(start_client, t, w, c, k)
                         execute(stop)
                 if k == "warp":
-                    execute(netmap_unconfig, t["iface"])
-            execute(ip_unconfig, t["iface"])
+                    execute(netmap_unconfig, t)
+            execute(ip_unconfig, t)
