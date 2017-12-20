@@ -43,6 +43,12 @@
 #include <warpcore/warpcore.h>
 
 
+struct payload {
+    uint32_t len;
+    struct timespec ts __attribute__((packed));
+};
+
+
 static void usage(const char * const name,
                   const uint32_t start,
                   const uint32_t inc,
@@ -58,8 +64,9 @@ static void usage(const char * const name,
     printf("\t[-n buffers]            packet buffers to allocate "
            "(default %u)\n",
            nbufs);
-    printf("\t[-s start packet len]   starting packet length (default %u)\n",
-           start);
+    printf("\t[-s start packet len]   starting packet length (default %u, max "
+           "%lu)\n",
+           start, sizeof(struct payload));
     printf("\t[-p increment]          packet length increment; 0 = exponential "
            "(default %u)\n",
            inc);
@@ -101,12 +108,6 @@ static void timeout(int signum __attribute__((unused)))
 }
 
 
-struct payload {
-    uint32_t len;
-    struct timespec ts __attribute__((packed));
-};
-
-
 int main(const int argc, char * const argv[])
 {
     const char * ifname = 0;
@@ -142,7 +143,8 @@ int main(const int argc, char * const argv[])
             loops = (uint32_t)MIN(UINT32_MAX, strtoul(optarg, 0, 10));
             break;
         case 's':
-            start = (uint32_t)MIN(UINT32_MAX, MAX(1, strtoul(optarg, 0, 10)));
+            start = (uint32_t)MIN(UINT32_MAX, MAX(sizeof(struct payload),
+                                                  strtoul(optarg, 0, 10)));
             break;
         case 'p':
             inc = (uint32_t)MIN(UINT32_MAX, strtoul(optarg, 0, 10));
