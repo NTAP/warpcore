@@ -131,7 +131,8 @@ def netmap_unconfig(test):
 def clear_logs():
     with cd("~/warpcore"):
         with settings(warn_only=True):
-            sudo("rm warp*.log sock*.log warp*.txt sock*.txt 2> /dev/null")
+            sudo("rm warp*.log sock*.log warp*.txt sock*.txt warp*.grof.* "
+                 "sock*.gprof.* 2> /dev/null")
 
 
 @roles("client", "server")
@@ -157,12 +158,14 @@ def start_server(test, busywait, cksum, kind):
     else:
         pin = "/usr/bin/cpuset -l"
     with cd(env.builddir):
-        log = "../%sinetd-%s%s%s.log" % (kind, test["speed"], busywait, cksum)
+        prefix = "../%sinetd-%s%s%s" % (kind, test["speed"], busywait, cksum)
+        log = prefix + ".log"
+        prof = prefix + ".gprof"
         if not env.keeplog:
             log = "/dev/null"
-        sudo("/usr/bin/nohup %s 3 "
+        sudo("/usr/bin/nohup %s 3 env GMON_OUT_PREFIX=%s "
              "%s/bin/%sinetd -i %s %s %s 2>&1 > %s &" %
-             (pin, env.builddir, kind, test["server_iface"], busywait,
+             (pin, prof, env.builddir, kind, test["server_iface"], busywait,
               cksum, log))
 
 
@@ -196,11 +199,12 @@ def start_client(test, busywait, cksum, kind):
         prefix = "../%sping-%s%s%s" % (kind, test["speed"], busywait, cksum)
         file = prefix + ".txt"
         log = prefix + ".log"
+        prof = prefix + ".gprof"
         if not env.keeplog:
             log = "/dev/null"
-        sudo("%s 3 "
+        sudo("%s 3 env GMON_OUT_PREFIX=%s "
              "%s/bin/%sping -i %s -d %s %s %s -l 50 -p 0 -e 512000 > %s 2> %s" %
-             (pin, env.builddir, kind, test["client_iface"],
+             (pin, prof, env.builddir, kind, test["client_iface"],
               env.ip[test["server"]], busywait, cksum, file, log))
 
 
