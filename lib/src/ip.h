@@ -34,11 +34,10 @@
 #include <arpa/inet.h>
 #endif
 
-#include "eth.h"
-
 struct w_iov;
 struct w_engine;
 struct netmap_ring;
+
 
 #define IP_ECN_NOT_ECT 0x00 ///< ECN was not enabled.
 #define IP_ECN_ECT_1 0x01   ///< ECN capable packet.

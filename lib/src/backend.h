@@ -37,48 +37,6 @@
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
-#include "eth.h"
-#include "ip.h"
-#include "udp.h"
-
-struct backend;
-
-/// For a given buffer index, get a pointer to its beginning.
-///
-/// Since netmap uses a macro for this, we also need to use a macro for the
-/// socket backend.
-///
-/// @param      w     Backend engine.
-/// @param      i     Buffer index.
-///
-/// @return     Memory region associated with buffer @p i.
-///
-#ifdef WITH_NETMAP
-#define IDX2BUF(w, i)                                                          \
-    ((uint8_t *)NETMAP_BUF(NETMAP_TXRING((w)->b->nif, 0), (i)))
-#else
-#define IDX2BUF(w, i) (((uint8_t *)w->mem + (i * w->mtu)))
-#endif
-
-
-/// A warpcore template packet header structure.
-///
-struct w_hdr {
-    struct eth_hdr eth;                       ///< Ethernet header.
-    struct ip_hdr ip __attribute__((packed)); ///< IPv4 header.
-    struct udp_hdr udp;                       ///< UDP header.
-};
-
-
-static inline int8_t w_sock_cmp(const struct w_sock * const a,
-                                const struct w_sock * const b)
-{
-    return (a->hdr->udp.sport > b->hdr->udp.sport) -
-           (a->hdr->udp.sport < b->hdr->udp.sport);
-}
-
-
-SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
 
 
 struct w_backend {
@@ -111,6 +69,54 @@ struct w_backend {
 };
 
 
+#define is_pipe(w)                                                             \
+    unlikely(((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_MASTER ||    \
+             ((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_SLAVE)
+
+
+/// For a given buffer index, get a pointer to its beginning.
+///
+/// Since netmap uses a macro for this, we also need to use a macro for the
+/// socket backend.
+///
+/// @param      w     Backend engine.
+/// @param      i     Buffer index.
+///
+/// @return     Memory region associated with buffer @p i.
+///
+#ifdef WITH_NETMAP
+#define IDX2BUF(w, i)                                                          \
+    ((uint8_t *)NETMAP_BUF(NETMAP_TXRING((w)->b->nif, 0), (i)))
+#else
+#define IDX2BUF(w, i) (((uint8_t *)w->mem + (i * w->mtu)))
+#endif
+
+
+#include "eth.h"
+#include "ip.h"
+#include "udp.h"
+
+
+/// A warpcore template packet header structure.
+///
+struct w_hdr {
+    struct eth_hdr eth;                       ///< Ethernet header.
+    struct ip_hdr ip __attribute__((packed)); ///< IPv4 header.
+    struct udp_hdr udp;                       ///< UDP header.
+};
+
+
+static inline int8_t w_sock_cmp(const struct w_sock * const a,
+                                const struct w_sock * const b)
+{
+    return (a->hdr->udp.sport > b->hdr->udp.sport) -
+           (a->hdr->udp.sport < b->hdr->udp.sport);
+}
+
+
+SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
+
+
 /// Global list of initialized warpcore engines.
 ///
 extern sl_head(w_engines, w_engine) engines;
@@ -134,11 +140,6 @@ extern sl_head(w_engines, w_engine) engines;
 /// @return     The IPv4 prefix associated with @p ip and @p mask.
 ///
 #define mk_net(ip, mask) ((ip) & (mask))
-
-
-#define is_pipe(w)                                                             \
-    unlikely(((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_MASTER ||    \
-             ((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_SLAVE)
 
 
 #define init_iov(ww, v)                                                        \
