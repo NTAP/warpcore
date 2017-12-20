@@ -27,9 +27,7 @@
 
 #pragma once
 
-// IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
 #include <netinet/if_ether.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -79,6 +77,9 @@ ether_ntoa_r(const struct ether_addr * const addr, char * const buf);
 
 
 #ifdef WITH_NETMAP
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
+
 #include "backend.h" // IWYU pragma: keep
 
 
