@@ -93,11 +93,11 @@ ggsave(plot=my_plot(dt, "byte", "rx", "UDP Payload Size [B]",
        height=1.75, width=7.15, units="in", filename="latency.pdf")
 
 ggsave(plot=my_plot(dt, "byte", "2*byte/rx", "UDP Payload Size [B]",
-                    "Throughput [GB/s]", gbps),
+                    "Throughput [Gb/s]", gbps),
        height=1.75, width=7.15, units="in", filename="thruput.pdf")
 
 ggsave(plot=my_plot(dt, "pkts", "2*pkts/rx", "Packets [#]",
-                    "Packets/Second [Mpps]", mpps),
+                    "Packet Rate [Mp/s]", mpps),
        height=1.75, width=7.15, units="in", filename="pps.pdf")
 
 short = dt[dt$byte < 1600]
@@ -108,5 +108,5 @@ ggsave(plot=my_plot(short, "byte", "rx", "UDP Payload Size [B]",
 
 ggsave(plot=my_plot(short, "byte", "2*byte/rx",
                     "UDP Payload Size [B]",
-                    "Throughput [GB/s]", gbps),
+                    "Throughput [Gb/s]", gbps),
        height=1.75, width=7.15, units="in", filename="thruput-1500.pdf")
