@@ -20,9 +20,12 @@ env.ip = {"phobos1": "10.11.12.3",
 
 env.tests = [
     # phobos Linux
-    # {"speed": 1, "client": "phobos1", "server": "phobos2", "iface": "eno2"},
-    # {"speed": 10, "client": "phobos1", "server": "phobos2", "iface": "enp8s0f0"},
-    # {"speed": 40, "client": "phobos1", "server": "phobos2", "iface": "enp4s0f0"},
+    # {"speed": 1, "iter": 10, "client": "phobos1", "server": "phobos2",
+    #  "client_iface": "eno2", "server_iface": "eno2"},
+    # {"speed": 10, "iter": 50, "client": "phobos1", "server": "phobos2",
+    #  "client_iface": "enp7s0f1", "server_iface": "enp7s0f1"},
+    # {"speed": 40, "iter": 100, "client": "phobos1", "server": "phobos2",
+    #  "client_iface": "enp4s0f0", "server_iface": "enp4s0f0"},
 
     # mora FreeBSD
     # {"speed": 1, "client": "mora1", "server": "mora2", "iface": "igb5"},
