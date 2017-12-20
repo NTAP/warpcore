@@ -70,8 +70,13 @@ struct w_hdr {
 };
 
 
-extern int16_t __attribute__((nonnull))
-w_sock_cmp(const struct w_sock * const a, const struct w_sock * const b);
+static inline int8_t w_sock_cmp(const struct w_sock * const a,
+                                const struct w_sock * const b)
+{
+    return (a->hdr->udp.sport > b->hdr->udp.sport) -
+           (a->hdr->udp.sport < b->hdr->udp.sport);
+}
+
 
 SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
 
