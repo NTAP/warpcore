@@ -1,13 +1,13 @@
 enable_testing()
 
-if(NOT HAVE_BENCHMARK_H AND NOT DEFINED ENV{CONTINUOUS_INTEGRATION}
-   AND NOT CONTINUOUS_INTEGRATION)
+if(NOT HAVE_BENCHMARK_H AND (DEFINED ENV{BENCHMARKING} OR BENCHMARKING))
   include(ExternalProject)
 
   externalproject_add(google-benchmark
     UPDATE_COMMAND ""
     GIT_REPOSITORY https://github.com/google/benchmark
     GIT_SHALLOW 1
+    GIT_TAG v1.3.0
     CMAKE_ARGS
       -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}
       -DCMAKE_BUILD_TYPE=Release
