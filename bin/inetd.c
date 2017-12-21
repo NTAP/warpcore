@@ -71,8 +71,9 @@ static void terminate(int signum __attribute__((unused)))
 
 
 struct payload {
+    uint32_t nonce;
     uint32_t len;
-    struct timespec ts __attribute__((packed));
+    struct timespec ts;
 };
 
 
@@ -133,8 +134,6 @@ int main(const int argc, char * const argv[])
 #if 0
         w_bind(w, htons(7), flags),
         w_bind(w, htons(9), flags),
-        w_bind(w, htons(13), flags),
-        w_bind(w, htons(37), flags)
 #endif
         w_bind(w, htons(55555), flags)
     };
@@ -156,66 +155,58 @@ int main(const int argc, char * const argv[])
             w_rx(s, &i);
             if (sq_empty(&i))
                 continue;
-            warn(INF, "received %u bytes", w_iov_sq_len(&i));
+            warn(DBG, "received %u bytes", w_iov_sq_len(&i));
 
             struct w_iov_sq o = w_iov_sq_initializer(o);
             uint16_t t = 0;
 #if 0
             if (s == srv[t++]) {
                 // echo received data back to sender (zero-copy)
-                sq_concat(o, i);
-            } else if (s == srv[t++]) {
+                sq_concat(&o, &i);
+            }
+             else if (s == srv[t++]) {
                 // discard; nothing to do
-            } else if (s == srv[t++]) {
-                // daytime
-                const time_t t = time(0);
-                const char * ct = ctime(&t);
-                const uint16_t l = (uint16_t)strlen(ct);
-                struct w_iov * v;
-                sq_foreach (v, i, next) {
-                    memcpy(v->buf, c, l); // write a timestamp
-                    v->len = l;
-                }
-                sq_concat(o, i);
-            } else if (s == srv[t++]) {
-                // time
-                const time_t t = time(0);
-                struct w_iov * v;
-                sq_foreach (v, i, next) {
-                    memcpy(v->buf, &t, sizeof(t)); // write a timestamp
-                    v->len = sizeof(t);
-                }
-                sq_concat(o, i);
-
             } else
 #endif
             if (s == srv[t++]) {
-                // our benchmark
+                static struct w_iov_sq tmp = w_iov_sq_initializer(tmp);
+                static uint32_t tmp_len = 0;
+                static uint32_t nonce = 0;
 
-                // if o is empty, the target len is in the first buf of the
-                // incoming tail queue; otherwise, it's in the first buf of o
-                const struct w_iov * const head =
-                    sq_first(sq_empty(&o) ? &i : &o);
-                const uint32_t len =
-                    ntohl(((struct payload *)(void *)head->buf)->len);
+                if (unlikely(nonce == 0))
+                    nonce =
+                        ((struct payload *)(void *)sq_first(&i)->buf)->nonce;
 
+                bool tx = false;
                 while (!sq_empty(&i)) {
-                    static struct w_iov_sq tmp = w_iov_sq_initializer(tmp);
-                    static uint32_t tmp_len = 0;
+                    struct w_iov * const v = sq_first(&i);
 
-                    while (tmp_len < len && !sq_empty(&i)) {
-                        struct w_iov * const v = sq_first(&i);
+                    const struct payload * const p =
+                        (struct payload *)(void *)v->buf;
+
+                    if (unlikely(nonce != p->nonce)) {
+                        // this packet belongs to a new flight
+                        nonce = p->nonce;
+                        tx = true;
+                        break;
+                    }
+
+                    if (likely(tmp_len < p->len)) {
                         sq_remove_head(&i, next);
                         sq_insert_tail(&tmp, v, next);
                         tmp_len += v->len;
                     }
 
-                    // did we receive all data?
-                    if (tmp_len == len) {
-                        sq_concat(&o, &tmp);
-                        tmp_len = 0;
-                    } else
+                    if (unlikely(tmp_len == p->len)) {
+                        // flight is done
+                        tx = true;
                         break;
+                    }
+                }
+
+                if (tx) {
+                    sq_concat(&o, &tmp);
+                    nonce = tmp_len = 0;
                 }
 
             } else {

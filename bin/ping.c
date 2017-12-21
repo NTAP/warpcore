@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
 #include <inttypes.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -44,8 +43,9 @@
 
 
 struct payload {
+    uint32_t nonce;
     uint32_t len;
-    struct timespec ts __attribute__((packed));
+    struct timespec ts;
 };
 
 
@@ -65,7 +65,7 @@ static void usage(const char * const name,
            "(default %u)\n",
            nbufs);
     printf("\t[-s start packet len]   starting packet length (default %u, max "
-           "%lu)\n",
+           "%zu)\n",
            start, sizeof(struct payload));
     printf("\t[-p increment]          packet length increment; 0 = exponential "
            "(default %u)\n",
@@ -219,13 +219,13 @@ int main(const int argc, char * const argv[])
 
     // set a timer handler (used with busywait)
     ensure(signal(SIGALRM, &timeout) != SIG_ERR, "signal");
-    const struct itimerval timer = {.it_value.tv_sec = 1};
+    const struct itimerval timer = {.it_value.tv_usec = 250000};
 
     // send packet trains of sizes between "start" and "end"
     puts("byte\tpkts\ttx\trx");
 
     // send "loops" number of payloads of len "len" and wait for reply
-    for (uint32_t len = start; len <= end; len += (inc ? inc : .483 * len)) {
+    for (uint32_t len = start; len <= end; len += (inc ? inc : len)) {
         // allocate tx tail queue
         struct w_iov_sq o = w_iov_sq_initializer(o);
         w_alloc_len(w, &o, len, 0, 0);
@@ -237,10 +237,12 @@ int main(const int argc, char * const argv[])
                    "clock_gettime");
 
             // stamp the data
-            struct w_iov * v;
+            const uint32_t nonce = (uint32_t)w_rand();
+            struct w_iov * v = 0;
             sq_foreach (v, &o, next) {
                 struct payload * const p = (void *)v->buf;
-                p->len = htonl(len);
+                p->nonce = nonce;
+                p->len = len;
                 p->ts = before_tx;
             }
 
@@ -281,24 +283,32 @@ int main(const int argc, char * const argv[])
             const struct itimerval stop = {{0, 0}, {0, 0}};
             ensure(setitimer(ITIMER_REAL, &stop, 0) == 0, "setitimer");
 
-            const uint32_t i_len = w_iov_sq_len(&i);
-            if (i_len != len) {
-                warn(WRN, "received %u/%u byte%s", i_len, len, plural(i_len));
-                continue;
+            ensure(w_iov_sq_len(&i) == len || (w_iov_sq_len(&i) < len && done),
+                   "data len OK");
+
+            sq_foreach (v, &o, next) {
+                struct payload * const p = (void *)v->buf;
+                ensure(p->nonce == nonce, "nonce mismatch");
+                ensure(p->len == len, "len mismatch");
             }
+
+            const uint32_t i_len = w_iov_sq_len(&i);
+            if (i_len != len)
+                warn(WRN, "received %u/%u byte%s", i_len, len, plural(i_len));
 
             // compute time difference between the packet and the current time
             struct timespec diff;
             char rx[256] = "NA";
             if (i_len == len) {
                 time_diff(&diff, &after_rx, &before_tx);
-                ensure(diff.tv_sec == 0, "time difference > 1 sec");
+                ensure(diff.tv_sec == 0, "time difference > %u sec",
+                       diff.tv_sec);
                 snprintf(rx, 256, "%ld", diff.tv_nsec);
             }
-            const uint64_t pkts = w_iov_sq_cnt(&o);
+            const uint64_t pkts = w_iov_sq_cnt(&i);
             time_diff(&diff, &after_tx, &before_tx);
-            ensure(diff.tv_sec == 0, "time difference > 1 sec");
-            printf("%d\t%" PRIu64 "\t%ld\t%s\n", len, pkts, diff.tv_nsec, rx);
+            ensure(diff.tv_sec == 0, "time difference > %u sec", diff.tv_sec);
+            printf("%d\t%" PRIu64 "\t%ld\t%s\n", i_len, pkts, diff.tv_nsec, rx);
 
             // we are done with the received data
             w_free(&i);
