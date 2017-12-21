@@ -93,12 +93,12 @@ ether_ntoa_r(const struct ether_addr * const addr, char * const buf);
 ///
 /// @return     True if the buffer was placed into a TX ring, false otherwise.
 ///
-static inline bool __attribute__((nonnull))
+static inline bool __attribute__((nonnull, always_inline))
 eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
 {
     // find a tx ring with space
     struct netmap_ring * txr = 0;
-    for (uint32_t r = 0; r < w->b->nif->ni_tx_rings; r++) {
+    for (uint32_t r = 0; likely(r < w->b->nif->ni_tx_rings); r++) {
         txr = NETMAP_TXRING(w->b->nif, w->b->cur_txr);
         if (likely(nm_ring_space(txr)))
             // we have space in this ring
