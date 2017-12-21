@@ -245,7 +245,7 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
         warn(INF, "unhandled ARP hardware format %d with len %d", hrd,
              arp->hln);
 
-    if (arp->pro != ETH_TYPE_IP || arp->pln == IP_ADDR_LEN)
+    if (arp->pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN)
         warn(INF, "unhandled ARP protocol format %d with len %d",
              ntohs(arp->pro), arp->pln);
 
