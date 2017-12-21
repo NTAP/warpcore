@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <time.h>
 
 #if !defined(NDEBUG)
 #ifdef DCOMPONENT
@@ -293,7 +294,7 @@ void util_warn(const unsigned dlevel,
 
 // See the rwarn() macro.
 //
-void util_rwarn(unsigned int * const rt0,
+void util_rwarn(time_t * const rt0,
                 unsigned int * const rcnt,
                 const unsigned dlevel,
                 const unsigned lps,
