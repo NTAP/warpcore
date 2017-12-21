@@ -163,18 +163,22 @@ extern void __attribute__((nonnull(3, 4))) util_warn(const unsigned dlevel,
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
         if (unlikely(DLEVEL >= dlevel && util_dlevel >= dlevel)) {             \
-            util_rwarn(dlevel, lps, __func__, __FILE__, __LINE__,              \
-                       __VA_ARGS__);                                           \
+            static unsigned int __rt0, __rcnt;                                 \
+            util_rwarn(&__rt0, &__rcnt, dlevel, lps, __func__, __FILE__,       \
+                       __LINE__, __VA_ARGS__);                                 \
         }                                                                      \
     } while (0) // NOLINT
 
 
-extern void __attribute__((nonnull(3, 4))) util_rwarn(const unsigned dlevel,
-                                                      const unsigned lps,
-                                                      const char * const func,
-                                                      const char * const file,
-                                                      const unsigned line,
-                                                      ...);
+extern void __attribute__((nonnull(1, 2, 5, 6)))
+util_rwarn(unsigned int * const rt0,
+           unsigned int * const rcnt,
+           const unsigned dlevel,
+           const unsigned lps,
+           const char * const func,
+           const char * const file,
+           const unsigned line,
+           ...);
 
 #else
 
@@ -182,7 +186,7 @@ extern void __attribute__((nonnull(3, 4))) util_rwarn(const unsigned dlevel,
     do {                                                                       \
     } while (0) // NOLINT
 
-#define twarn(...)                                                              \
+#define twarn(...)                                                             \
     do {                                                                       \
     } while (0) // NOLINT
 

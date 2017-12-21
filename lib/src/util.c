@@ -36,10 +36,6 @@
 #include <string.h>
 #include <sys/time.h>
 
-#ifndef __FreeBSD__
-#include <time.h>
-#endif
-
 #if !defined(NDEBUG)
 #ifdef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
@@ -297,21 +293,22 @@ void util_warn(const unsigned dlevel,
 
 // See the rwarn() macro.
 //
-void util_rwarn(const unsigned dlevel,
+void util_rwarn(unsigned int * const rt0,
+                unsigned int * const rcnt,
+                const unsigned dlevel,
                 const unsigned lps,
                 const char * const func,
                 const char * const file,
                 const unsigned line,
                 ...)
 {
-    static time_t rt0, rcnt;
     struct timeval rts = {0, 0};
     gettimeofday(&rts, 0);
-    if (rt0 != rts.tv_sec) {
-        rt0 = rts.tv_sec;
-        rcnt = 0;
+    if (*rt0 != rts.tv_sec) {
+        *rt0 = rts.tv_sec;
+        *rcnt = 0;
     }
-    if (rcnt++ < lps
+    if ((*rcnt)++ < lps
 #ifdef DCOMPONENT
         && !regexec(&util_comp, file, 0, 0, 0)
 #endif
