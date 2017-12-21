@@ -30,11 +30,11 @@ env.tests = [
     # {"speed": 40, "client": "mora1", "server": "mora2", "iface": "ixl0"},
 
     # mora Linux
-    {"speed": 1, "client": "mora1", "server": "mora2",
+    {"speed": 1, "iter": 10, "client": "mora1", "server": "mora2",
      "client_iface": "eno3", "server_iface": "eno3"},
-    {"speed": 10, "client": "mora1", "server": "mora2",
+    {"speed": 10, "iter": 50, "client": "mora1", "server": "mora2",
      "client_iface": "enp2s0f1", "server_iface": "enp8s0f1"},
-    {"speed": 40, "client": "mora1", "server": "mora2",
+    {"speed": 40, "iter": 100, "client": "mora1", "server": "mora2",
      "client_iface": "enp4s0f0", "server_iface": "enp4s0f0"},
 ]
 
@@ -203,9 +203,14 @@ def start_client(test, busywait, cksum, kind):
         if not env.keeplog:
             log = "/dev/null"
         sudo("%s 3 env GMON_OUT_PREFIX=%s "
-             "%s/bin/%sping -i %s -d %s %s %s -l 50 -p 0 -e 512000 > %s 2> %s" %
-             (pin, prof, env.builddir, kind, test["client_iface"],
-              env.ip[test["server"]], busywait, cksum, file, log))
+#             "valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes "
+#             "--callgrind-out-file=%s.callgrind "
+             "%s/bin/%sping -i %s -d %s %s %s -l %s -s 32 -p 0 -e 17000000 "
+             "> %s 2> %s" %
+             (pin, prof,
+#              prefix,
+              env.builddir, kind, test["client_iface"], env.ip[test["server"]],
+              busywait, cksum, test["iter"], file, log))
 
 
 @task(default=True)
