@@ -188,8 +188,9 @@ bool plat_get_link(const struct ifaddrs * i)
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifm_name, i->ifa_name, IFNAMSIZ);
     ifr.ifm_name[IFNAMSIZ - 1] = 0;
-    if (strncmp("vboxnet", i->ifa_name, 7) == 0)
-        //  SIOCGIFMEDIA not supported by VirtualBox interfaces
+    if (strncmp("vboxnet", i->ifa_name, 7) == 0 ||
+        strncmp("utun", i->ifa_name, 4) == 0)
+        //  SIOCGIFMEDIA not supported by some interfaces
         link = true;
     else {
         ensure(ioctl(s, SIOCGIFMEDIA, &ifr) >= 0, "%s ioctl", i->ifa_name);
