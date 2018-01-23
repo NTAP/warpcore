@@ -27,6 +27,13 @@ check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
                         HAVE_BENCHMARK_H)
 cmake_reset_check_state()
 
+# See if we have google gperftools
+include(CheckSymbolExists)
+set(CMAKE_REQUIRED_LIBRARIES profiler)
+check_symbol_exists(ProfilerStart gperftools/profiler.h
+                    HAVE_PROFILER)
+cmake_reset_check_state()
+
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
   add_definitions(-D_GNU_SOURCE)
 endif()
@@ -178,6 +185,11 @@ else()
   # check for INTERPROCEDURAL_OPTIMIZATION support
   include(CheckIPOSupported)
   check_ipo_supported(RESULT IPO)
+endif()
+
+if(NOT CMAKE_BUILD_TYPE MATCHES Release AND HAVE_PROFILER)
+  set(CMAKE_C_STANDARD_LIBRARIES "-lprofiler -ltcmalloc")
+  set(CMAKE_CXX_STANDARD_LIBRARIES ${CMAKE_C_STANDARD_LIBRARIES})
 endif()
 
 # flags for "Release" builds
