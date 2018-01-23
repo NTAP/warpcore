@@ -351,7 +351,7 @@ void util_hexdump(const void * const ptr,
                 DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM " " BLU
                                     "0x%04lx:  " NRM,
                 DTHREAD_ID, elapsed.tv_sec % 1000,
-                (long long)(elapsed.tv_usec / 1000), i);
+                (long long)(elapsed.tv_usec / 1000), (unsigned long)i);
         for (size_t j = 0; j < 16; j++) {
             if (i + j < len)
                 fprintf(stderr, "%02hhx", buf[i + j]);
