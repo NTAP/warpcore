@@ -122,6 +122,9 @@
 
 /* Generates prototypes and inline functions */
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-functionl"
+
 #define SPLAY_PROTOTYPE(name, type, field, cmp)                                \
     void name##_splay(struct name *, struct type *);                           \
     void name##_splay_minmax(struct name *, int);                              \
@@ -132,7 +135,6 @@
     static __inline struct type * name##_splay_find(struct name * head,        \
                                                     struct type * elm)         \
     {                                                                          \
-        (void)name##_splay_find;                                               \
         if (splay_empty(head))                                                 \
             return (NULL);                                                     \
         name##_splay(head, elm);                                               \
@@ -144,7 +146,6 @@
     static __inline struct type * name##_splay_next(struct name * head,        \
                                                     struct type * elm)         \
     {                                                                          \
-        (void)name##_splay_next;                                               \
         name##_splay(head, elm);                                               \
         if (splay_right(elm, field) != NULL) {                                 \
             elm = splay_right(elm, field);                                     \
@@ -159,7 +160,6 @@
     static __inline struct type * name##_splay_prev(struct name * head,        \
                                                     struct type * elm)         \
     {                                                                          \
-        (void)name##_splay_prev;                                               \
         name##_splay(head, elm);                                               \
         if (splay_left(elm, field) != NULL) {                                  \
             elm = splay_left(elm, field);                                      \
@@ -174,10 +174,11 @@
     static __inline struct type * name##_splay_min_max(struct name * head,     \
                                                        int val)                \
     {                                                                          \
-        (void)name##_splay_min_max;                                            \
         name##_splay_minmax(head, val);                                        \
         return (splay_root(head));                                             \
     }
+
+#pragma clang diagnostic pop
 
 /* Main splay operation.
  * Moves node close to the key of elm to top
