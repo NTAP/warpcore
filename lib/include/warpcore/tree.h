@@ -123,7 +123,7 @@
 /* Generates prototypes and inline functions */
 
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-functionl"
+#pragma clang diagnostic ignored "-Wunused-function"
 
 #define SPLAY_PROTOTYPE(name, type, field, cmp)                                \
     void name##_splay(struct name *, struct type *);                           \
