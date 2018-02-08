@@ -33,12 +33,12 @@ env.tests = [
     # {"speed": 40, "client": "mora1", "server": "mora2", "iface": "ixl0"},
 
     # mora Linux
-    {"speed": 1, "iter": 10, "client": "mora1", "server": "mora2",
-     "client_iface": "eno3", "server_iface": "eno3"},
-    {"speed": 10, "iter": 50, "client": "mora1", "server": "mora2",
-     "client_iface": "enp2s0f1", "server_iface": "enp8s0f1"},
+    # {"speed": 1, "iter": 10, "client": "mora1", "server": "mora2",
+    #  "client_iface": "eno3", "server_iface": "eno3"},
+    # {"speed": 10, "iter": 50, "client": "mora1", "server": "mora2",
+    #  "client_iface": "enp2s0f0", "server_iface": "enp2s0f0"},
     {"speed": 40, "iter": 100, "client": "mora1", "server": "mora2",
-     "client_iface": "enp4s0f0", "server_iface": "enp4s0f0"},
+     "client_iface": "enp6s0f0", "server_iface": "enp6s0f0"},
 ]
 
 
