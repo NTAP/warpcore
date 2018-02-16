@@ -129,8 +129,7 @@
     void name##_splay(struct name * const, const struct type * const);         \
     void name##_splay_minmax(struct name *, int);                              \
     struct type * name##_splay_insert(struct name *, struct type *);           \
-    const struct type * name##_splay_remove(struct name * const,               \
-                                            const struct type * const);        \
+    struct type * name##_splay_remove(struct name *, struct type *);           \
                                                                                \
     /* Finds the node with the same key as elm */                              \
     static __inline struct type * name##_splay_find(                           \
@@ -209,8 +208,7 @@ _Pragma("clang diagnostic pop")
         return (NULL);                                                         \
     }                                                                          \
                                                                                \
-    const struct type * name##_splay_remove(struct name * const head,          \
-                                            const struct type * const elm)     \
+    struct type * name##_splay_remove(struct name * head, struct type * elm)   \
     {                                                                          \
         struct type * __tmp;                                                   \
         if (splay_empty(head))                                                 \
