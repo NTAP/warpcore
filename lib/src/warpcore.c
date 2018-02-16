@@ -82,8 +82,7 @@ struct w_engines engines = sl_head_initializer(engines);
 ///
 struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
 {
-    struct w_hdr h = {.udp.sport = port};
-    struct w_sock s = {.hdr = &h};
+    const struct w_sock s = {.hdr = &(struct w_hdr){.udp.sport = port}};
     return splay_find(sock, &w->sock, &s);
 }
 

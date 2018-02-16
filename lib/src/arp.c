@@ -64,7 +64,7 @@ SPLAY_GENERATE(arp_cache, arp_entry, next, arp_cache_cmp)
 static struct arp_entry * __attribute__((nonnull))
 arp_cache_find(struct w_engine * w, const uint32_t ip)
 {
-    struct arp_entry a = {.ip = ip};
+    const struct arp_entry a = {.ip = ip};
     return splay_find(arp_cache, &w->b->arp_cache, &a);
 }
 

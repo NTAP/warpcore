@@ -126,14 +126,15 @@
     _Pragma("clang diagnostic push")                                           \
     _Pragma("clang diagnostic ignored \"-Wunused-function\"")                  \
                                                                                \
-    void name##_splay(struct name *, struct type *);                           \
+    void name##_splay(struct name * const, const struct type * const);         \
     void name##_splay_minmax(struct name *, int);                              \
     struct type * name##_splay_insert(struct name *, struct type *);           \
-    struct type * name##_splay_remove(struct name *, struct type *);           \
+    const struct type * name##_splay_remove(struct name * const,               \
+                                            const struct type * const);        \
                                                                                \
     /* Finds the node with the same key as elm */                              \
-    static __inline struct type * name##_splay_find(struct name * head,        \
-                                                    struct type * elm)         \
+    static __inline struct type * name##_splay_find(                           \
+        struct name * const head, const struct type * const elm)               \
     {                                                                          \
         if (splay_empty(head))                                                 \
             return (NULL);                                                     \
@@ -208,7 +209,8 @@ _Pragma("clang diagnostic pop")
         return (NULL);                                                         \
     }                                                                          \
                                                                                \
-    struct type * name##_splay_remove(struct name * head, struct type * elm)   \
+    const struct type * name##_splay_remove(struct name * const head,          \
+                                            const struct type * const elm)     \
     {                                                                          \
         struct type * __tmp;                                                   \
         if (splay_empty(head))                                                 \
@@ -228,7 +230,7 @@ _Pragma("clang diagnostic pop")
         return (NULL);                                                         \
     }                                                                          \
                                                                                \
-    void name##_splay(struct name * head, struct type * elm)                   \
+    void name##_splay(struct name * const head, const struct type * const elm) \
     {                                                                          \
         struct type __node, *__left, *__right, *__tmp;                         \
         int __comp;                                                            \
