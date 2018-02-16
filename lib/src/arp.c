@@ -88,7 +88,7 @@ void arp_cache_update(struct w_engine * w,
     }
     a->mac = mac;
 #ifndef NDEBUG
-    char ip_str[INET_ADDRSTRLEN];
+    char ip_str[INET_ADDRSTRLEN]; // NOLINT
     warn(INF, "ARP cache entry: %s is at %s",
          inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN), ether_ntoa(&mac));
 #endif
