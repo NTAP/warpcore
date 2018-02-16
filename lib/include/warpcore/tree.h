@@ -132,8 +132,8 @@
     struct type * name##_splay_remove(struct name *, struct type *);           \
                                                                                \
     /* Finds the node with the same key as elm */                              \
-    static __inline struct type * name##_splay_find(                           \
-        struct name * const head, const struct type * const elm)               \
+    static __inline struct type * name##_splay_find(struct name * head,        \
+                                                    const struct type * elm)   \
     {                                                                          \
         if (splay_empty(head))                                                 \
             return (NULL);                                                     \
