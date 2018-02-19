@@ -100,7 +100,7 @@ eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
     struct netmap_ring * txr = 0;
     for (uint32_t r = 0; likely(r < w->b->nif->ni_tx_rings); r++) {
         txr = NETMAP_TXRING(w->b->nif, w->b->cur_txr);
-        if (likely(nm_ring_space(txr)))
+        if (likely(!nm_ring_empty(txr)))
             // we have space in this ring
             break;
 
@@ -117,8 +117,15 @@ eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
 
     struct netmap_slot * const s = &txr->slot[txr->cur];
     w->b->slot_buf[txr->ringid][txr->cur] = v;
-    s->flags = NS_BUF_CHANGED;
     s->len = len + sizeof(struct eth_hdr);
+
+    if (unlikely(nm_ring_space(txr) == 1 || sq_next(v, next) == 0)) {
+        // we are using the last slot in this ring, or this is the last w_iov in
+        // this batch - mark the slot for reporting
+        s->flags = NS_REPORT | NS_BUF_CHANGED;
+    } else
+        s->flags = NS_BUF_CHANGED;
+
     warn(DBG, "%s iov idx %u into tx ring %u slot %d (%s %u)",
          is_pipe(w) ? "copying" : "placing", v->idx, w->b->cur_txr, txr->cur,
          is_pipe(w) ? "idx" : "swap with", s->buf_idx);

@@ -148,6 +148,7 @@ extern sl_head(w_engines, w_engine) engines;
         (v)->buf = IDX2BUF((ww), (v)->idx);                                    \
         (v)->len = (ww)->mtu;                                                  \
         (v)->o = 0;                                                            \
+        sq_next((v), next) = 0;                                                \
     } while (0)
 
 
