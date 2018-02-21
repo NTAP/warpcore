@@ -10,7 +10,6 @@ add_library(obj_all
 
 add_library(obj_sock OBJECT src/backend_sock.c src/warpcore.c)
 add_library(sockcore $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>)
-target_link_libraries(sockcore PUBLIC dl)
 
 install(DIRECTORY include/warpcore
   DESTINATION include
@@ -35,7 +34,6 @@ endif()
 set(TARGETS obj_all obj_sock sockcore)
 if(HAVE_NETMAP_H)
   set(TARGETS ${TARGETS} obj_warp warpcore)
-  target_link_libraries(warpcore PUBLIC dl)
 endif()
 foreach(TARGET ${TARGETS})
   target_include_directories(${TARGET}
@@ -51,6 +49,7 @@ foreach(TARGET ${TARGETS})
       VERSION ${PROJECT_VERSION}
       SOVERSION ${PROJECT_VERSION_MAJOR}
       INTERPROCEDURAL_OPTIMIZATION ${IPO}
+      INTERFACE_LINK_LIBRARIES dl
   )
   if(NOT ${TARGET} MATCHES "obj_")
     if(DSYMUTIL AND BUILD_SHARED_LIBS)
