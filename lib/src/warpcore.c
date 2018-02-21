@@ -509,3 +509,15 @@ void w_free_iov(struct w_iov * const v)
     sq_insert_head(&v->w->iov, v, next);
     ASAN_POISON_MEMORY_REGION(IDX2BUF(v->w, v->idx), v->w->mtu);
 }
+
+
+/// Return the local port a w_sock is bound to.
+///
+/// @param[in]  s     Pointer to w_sock.
+///
+/// @return     Local port number in network byte-order, or zero if unbound.
+///
+uint16_t w_get_sport(const struct w_sock * const s)
+{
+    return s->hdr->udp.sport;
+}

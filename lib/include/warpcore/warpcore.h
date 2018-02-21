@@ -246,6 +246,8 @@ extern void __attribute__((nonnull)) w_free(struct w_iov_sq * const q);
 
 extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
 
+extern uint16_t __attribute__((nonnull))
+w_get_sport(const struct w_sock * const s);
 
 extern uint64_t w_rand_state[2];
 
