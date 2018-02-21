@@ -74,6 +74,11 @@ foreach(TARGET sock iov hexdump queue)
       POSITION_INDEPENDENT_CODE ON
       INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
+  if(DSYMUTIL)
+    add_custom_command(TARGET test_${TARGET} POST_BUILD
+      COMMAND ${DSYMUTIL} ARGS $<TARGET_FILE:test_${TARGET}>
+    )
+  endif()
   add_test(test_${TARGET} test_${TARGET})
 endforeach()
 
@@ -87,5 +92,10 @@ if(HAVE_NETMAP_H)
       POSITION_INDEPENDENT_CODE ON
       INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
+  if(DSYMUTIL)
+    add_custom_command(TARGET test_warp POST_BUILD
+      COMMAND ${DSYMUTIL} ARGS $<TARGET_FILE:test_warp>
+    )
+  endif()
   add_test(test_warp test_warp)
 endif()
