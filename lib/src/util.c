@@ -27,6 +27,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <ctype.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -93,6 +94,10 @@ static pthread_t util_master;
 #endif
 
 
+/// Stores a pointer to name of the executable, i.e., argv[0].
+static const char * util_executable;
+
+
 /// Stores the timeval at the start of the program, used to print relative times
 /// in warn(), die(), etc.
 ///
@@ -121,10 +126,17 @@ static struct timeval util_epoch;
 /// Constructor function to initialize the debug framework before main()
 /// executes.
 ///
-static void __attribute__((constructor)) premain()
+/// @param[in]  argc  Same argc as main().
+/// @param      argv  Same argv as main().
+///
+static void __attribute__((constructor))
+premain(const int argc __attribute__((unused)), char * const argv[])
 {
     // Get the current time
     gettimeofday(&util_epoch, 0);
+
+    // Remember executable name
+    util_executable = argv[0];
 
 #ifdef DTHREADED
     // Initialize a recursive logging lock
@@ -199,7 +211,38 @@ void util_die(const char * const func,
     const int n = backtrace(bt_buf, sizeof(bt_buf));
     char ** const bt_sym = backtrace_symbols(bt_buf, n);
     for (int j = 0; j < n; j++) {
-        fprintf(stderr, DTHREAD_GAP "%s\n", bt_sym[j]);
+        Dl_info dli;
+        dladdr(bt_buf[j], &dli);
+        bool translated = false;
+
+        // on some platforms, dli_fname is an absolute path
+        if (strlen(dli.dli_fname) > strlen(util_executable))
+            // only compare final path components
+            dli.dli_fname += strlen(dli.dli_fname) - strlen(util_executable);
+
+        if (strcmp(util_executable, dli.dli_fname) == 0) {
+            char cmd[8192];
+#ifdef __APPLE__
+            snprintf(cmd, sizeof(cmd),
+                     "atos -fullPath -o %s -l %p %p 2> /dev/null",
+                     util_executable, dli.dli_fbase, bt_buf[j]);
+#else
+            snprintf(cmd, sizeof(cmd),
+                     "addr2line -C -f -i -p -e %s %p 2> /dev/null",
+                     util_executable,
+                     (void *)((char *)bt_buf[j] - (char *)dli.dli_fbase));
+#endif
+            FILE * const fp = popen(cmd, "r"); // NOLINT
+            char info[8192];
+            while (fgets(info, sizeof(info), fp)) {
+                translated = true;
+                fprintf(stderr, DTHREAD_GAP BLU "%s" NRM, info);
+            }
+            pclose(fp);
+        }
+
+        if (translated == false)
+            fprintf(stderr, DTHREAD_GAP "%s\n", bt_sym[j]);
     }
     free(bt_sym);
 #endif
