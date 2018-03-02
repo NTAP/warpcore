@@ -200,8 +200,6 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags);
 extern void __attribute__((nonnull))
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
 
-extern void __attribute__((nonnull)) w_disconnect(struct w_sock * const s);
-
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_alloc_len(struct w_engine * const w,

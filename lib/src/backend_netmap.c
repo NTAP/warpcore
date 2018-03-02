@@ -218,7 +218,7 @@ void backend_cleanup(struct w_engine * const w)
 ///
 void backend_bind(struct w_sock * s)
 {
-    if (s->hdr->udp.sport)
+    if (unlikely(s->hdr->udp.sport))
         return;
 
     // compute a random local port number per RFC 6056, Section 3.3.5
@@ -230,7 +230,7 @@ void backend_bind(struct w_sock * s)
     do {
         s->w->b->next_eph += (w_rand() % N) + 1;
         const uint16_t port = htons(min_eph + (s->w->b->next_eph % num_eph));
-        if (get_sock(s->w, port) == 0) {
+        if (get_sock(s->w, port, 0) == 0) {
             s->hdr->udp.sport = port;
             return;
         }

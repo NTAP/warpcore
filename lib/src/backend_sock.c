@@ -155,7 +155,8 @@ void backend_bind(struct w_sock * const s)
                                .sin_port = s->hdr->udp.sport,
                                .sin_addr = {.s_addr = s->hdr->ip.src}};
     ensure(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
-           "bind failed on port %u", ntohs(s->hdr->udp.sport));
+           "bind failed on %s:%u", inet_ntoa(addr.sin_addr),
+           ntohs(s->hdr->udp.sport));
 
     // enable ECN
     ensure(setsockopt(s->fd, IPPROTO_IP, IP_RECVTOS, &(int){1}, sizeof(int)) >=
@@ -189,7 +190,15 @@ void backend_bind(struct w_sock * const s)
 ///
 /// @param      s     The w_sock to connect.
 ///
-void backend_connect(struct w_sock * const s __attribute__((unused))) {}
+void backend_connect(struct w_sock * const s)
+{
+    struct sockaddr_in addr = {.sin_family = AF_INET,
+                               .sin_port = s->hdr->udp.dport,
+                               .sin_addr = {.s_addr = s->hdr->ip.dst}};
+    ensure(connect(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
+           "connect failed to %s:%u", inet_ntoa(addr.sin_addr),
+           ntohs(s->hdr->udp.dport));
+}
 
 
 /// Close the socket.
@@ -250,24 +259,25 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
     do {
         size_t i;
         for (i = 0; i < SEND_SIZE && v; i++) {
-            ensure(w_connected(s) || v->ip && v->port,
-                   "no destination information");
 
             // for sendmmsg, we populate the parameters
             msg[i] = (struct iovec){.iov_base = v->buf, .iov_len = v->len};
             // if w_sock is disconnected, use destination IP and port from w_iov
             // instead of the one in the template header
-            dst[i] = (struct sockaddr_in){
-                .sin_family = AF_INET,
-                .sin_port = w_connected(s) ? s->hdr->udp.dport : v->port,
-                .sin_addr = {w_connected(s) ? s->hdr->ip.dst : v->ip}};
+            if (w_connected(s) == false) {
+                ensure(v->ip && v->port, "no destination information");
+                dst[i] = (struct sockaddr_in){.sin_family = AF_INET,
+                                              .sin_port = v->port,
+                                              .sin_addr = {v->ip}};
+            }
 #ifdef HAVE_SENDMMSG
             msgvec[i].msg_hdr =
 #else
             msgvec[i] =
 #endif
-                (struct msghdr){.msg_name = &dst[i],
-                                .msg_namelen = sizeof(dst[i]),
+                (struct msghdr){.msg_name = w_connected(s) ? 0 : &dst[i],
+                                .msg_namelen =
+                                    w_connected(s) ? 0 : sizeof(dst[i]),
                                 .msg_iov = &msg[i],
                                 .msg_iovlen = 1};
 
@@ -302,7 +312,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #else
             sendmsg(s->fd, msgvec, 0);
 #endif
-        ensure(r > 0, "sendmsg/sendmmsg");
+        ensure(r > 0, "sendmsg/sendmmsg %d", r);
     } while (v);
 }
 

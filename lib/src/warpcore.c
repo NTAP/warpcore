@@ -73,16 +73,20 @@ SPLAY_GENERATE(sock, w_sock, next, w_sock_cmp)
 struct w_engines engines = sl_head_initializer(engines);
 
 
-/// Get the socket bound to local port @p port.
+/// Get the socket bound to the <sport, dport> pair. The @p dport parameter can
+/// be zero.
 ///
-/// @param      w     Backend engine.
-/// @param[in]  port  The port number.
+/// @param      w      Backend engine.
+/// @param[in]  sport  The local (source) port number.
+/// @param[in]  dport  The remote (destination) port number.
 ///
 /// @return     The w_sock bound to @p port.
 ///
-struct w_sock * get_sock(struct w_engine * const w, const uint16_t port)
+struct w_sock *
+get_sock(struct w_engine * const w, const uint16_t sport, const uint16_t dport)
 {
-    const struct w_sock s = {.hdr = &(struct w_hdr){.udp.sport = port}};
+    const struct w_sock s = {
+        .hdr = &(struct w_hdr){.udp.sport = sport, .udp.dport = dport}};
     return splay_find(sock, &w->sock, &s);
 }
 
@@ -198,10 +202,7 @@ uint32_t w_iov_sq_len(const struct w_iov_sq * const q)
 /// ARP.
 ///
 /// Calling w_connect() will make subsequent w_tx() operations on the w_sock
-/// enqueue payload data towards that destination. Unlike with the Socket API,
-/// w_connect() can be called several times, which will re-bind a connected
-/// w_sock and allows a server application to send data to multiple peers over a
-/// w_sock.
+/// enqueue payload data towards that destination.
 ///
 /// @param      s     w_sock to connect.
 /// @param[in]  ip    Destination IPv4 address to bind to.
@@ -209,6 +210,9 @@ uint32_t w_iov_sq_len(const struct w_iov_sq * const q)
 ///
 void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 {
+    ensure(s->hdr->ip.dst == 0 && s->hdr->udp.dport == 0,
+           "socket already connected");
+
     s->hdr->ip.dst = ip;
     s->hdr->udp.dport = port;
     backend_connect(s);
@@ -218,15 +222,6 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
     warn(DBG, "socket connected to %s port %d",
          inet_ntop(AF_INET, &ip, str, INET_ADDRSTRLEN), ntohs(port));
 #endif
-}
-
-
-void w_disconnect(struct w_sock * const s)
-{
-    s->hdr->ip.dst = 0;
-    s->hdr->udp.dport = 0;
-
-    warn(DBG, "socket disconnected");
 }
 
 
@@ -242,10 +237,10 @@ void w_disconnect(struct w_sock * const s)
 struct w_sock *
 w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 {
-    struct w_sock * s = get_sock(w, port);
+    struct w_sock * s = get_sock(w, port, 0);
     if (unlikely(s)) {
-        warn(WRN, "UDP source port %d already in bound", ntohs(port));
-        return 0;
+        warn(INF, "UDP source port %d already in bound", ntohs(port));
+        return s;
     }
 
     ensure((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");

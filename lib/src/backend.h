@@ -106,11 +106,12 @@ struct w_hdr {
 };
 
 
-static inline int8_t w_sock_cmp(const struct w_sock * const a,
-                                const struct w_sock * const b)
+static inline int w_sock_cmp(const struct w_sock * const a,
+                             const struct w_sock * const b)
 {
-    return (a->hdr->udp.sport > b->hdr->udp.sport) -
-           (a->hdr->udp.sport < b->hdr->udp.sport);
+    const uint32_t ap = ((uint32_t)a->hdr->udp.sport << 16) + a->hdr->udp.dport;
+    const uint32_t bp = ((uint32_t)b->hdr->udp.sport << 16) + b->hdr->udp.dport;
+    return (ap > bp) - (ap < bp);
 }
 
 
@@ -165,7 +166,7 @@ extern sl_head(w_engines, w_engine) engines;
 
 
 extern struct w_sock * __attribute__((nonnull))
-get_sock(struct w_engine * const w, const uint16_t port);
+get_sock(struct w_engine * const w, const uint16_t sport, const uint16_t dport);
 
 extern void __attribute__((nonnull)) backend_bind(struct w_sock * const s);
 

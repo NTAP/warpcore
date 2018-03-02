@@ -102,13 +102,16 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
         }
     }
 
-    struct w_sock * const s = get_sock(w, udp->dport);
+    struct w_sock * s = get_sock(w, udp->dport, udp->sport);
     if (unlikely(s == 0)) {
-        // nobody bound to this port locally
-        // send an ICMP unreachable reply, if this was not a broadcast
-        if (ip->dst == w->ip)
-            icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
-        return;
+        s = get_sock(w, udp->dport, 0);
+        if (unlikely(s == 0)) {
+            // nobody bound to this port locally
+            // send an ICMP unreachable reply, if this was not a broadcast
+            if (ip->dst == w->ip)
+                icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
+            return;
+        }
     }
 
     // grab an unused iov for the data in this packet
