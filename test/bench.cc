@@ -66,7 +66,7 @@ static void BM_ip_cksum(benchmark::State & state)
 static void BM_random(benchmark::State & state)
 {
     for (auto _ : state)
-        benchmark::DoNotOptimize(random());
+        benchmark::DoNotOptimize(random()); // NOLINT
 }
 
 
