@@ -214,8 +214,12 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
     ensure(s->hdr->ip.dst == 0 && s->hdr->udp.dport == 0,
            "socket already connected");
 
+    // need to update the socket splay, since dport is changing
+    splay_remove(sock, &s->w->sock, s);
     s->hdr->ip.dst = ip;
     s->hdr->udp.dport = port;
+    splay_insert(sock, &s->w->sock, s);
+
     backend_connect(s);
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
