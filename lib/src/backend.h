@@ -165,9 +165,6 @@ extern sl_head(w_engines, w_engine) engines;
     })
 
 
-extern struct w_sock * __attribute__((nonnull))
-get_sock(struct w_engine * const w, const uint16_t sport, const uint16_t dport);
-
 extern void __attribute__((nonnull)) backend_bind(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) backend_close(struct w_sock * const s);

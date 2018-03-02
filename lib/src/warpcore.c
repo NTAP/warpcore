@@ -82,8 +82,9 @@ struct w_engines engines = sl_head_initializer(engines);
 ///
 /// @return     The w_sock bound to @p port.
 ///
-struct w_sock *
-get_sock(struct w_engine * const w, const uint16_t sport, const uint16_t dport)
+struct w_sock * w_get_sock(struct w_engine * const w,
+                           const uint16_t sport,
+                           const uint16_t dport)
 {
     const struct w_sock s = {
         .hdr = &(struct w_hdr){.udp.sport = sport, .udp.dport = dport}};
@@ -237,7 +238,7 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 struct w_sock *
 w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 {
-    struct w_sock * s = get_sock(w, port, 0);
+    struct w_sock * s = w_get_sock(w, port, 0);
     if (unlikely(s)) {
         warn(INF, "UDP source port %d already in bound", ntohs(port));
         return 0;

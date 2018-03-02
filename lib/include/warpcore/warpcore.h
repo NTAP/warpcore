@@ -247,6 +247,11 @@ extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
 extern uint16_t __attribute__((nonnull))
 w_get_sport(const struct w_sock * const s);
 
+extern struct w_sock * __attribute__((nonnull))
+w_get_sock(struct w_engine * const w,
+           const uint16_t sport,
+           const uint16_t dport);
+
 extern uint64_t w_rand_state[2];
 
 /// Return a random number. Fast, but not cryptographically secure. Implements

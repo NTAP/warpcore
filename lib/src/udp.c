@@ -102,9 +102,9 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
         }
     }
 
-    struct w_sock * s = get_sock(w, udp->dport, udp->sport);
+    struct w_sock * s = w_get_sock(w, udp->dport, udp->sport);
     if (unlikely(s == 0)) {
-        s = get_sock(w, udp->dport, 0);
+        s = w_get_sock(w, udp->dport, 0);
         if (unlikely(s == 0)) {
             // nobody bound to this port locally
             // send an ICMP unreachable reply, if this was not a broadcast
