@@ -240,7 +240,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
     struct w_sock * s = get_sock(w, port, 0);
     if (unlikely(s)) {
         warn(INF, "UDP source port %d already in bound", ntohs(port));
-        return s;
+        return 0;
     }
 
     ensure((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");
