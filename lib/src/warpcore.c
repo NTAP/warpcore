@@ -272,16 +272,13 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 }
 
 
-/// Close a warpcore socket. This dequeues all data from w_sock::iv.
+/// Close a warpcore socket.
 ///
 /// @param      s     w_sock to close.
 ///
 void w_close(struct w_sock * const s)
 {
     backend_close(s);
-
-    // make iovs of the socket available again
-    w_free(&s->iv);
 
     // remove the socket from list of sockets
     splay_remove(sock, &s->w->sock, s);
