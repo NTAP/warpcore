@@ -376,7 +376,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
         ensure(n != -1 || errno == EAGAIN, "recvmmsg");
 #else
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
-        ensure(n != -1 || errno == EAGAIN, "recvmsg");
+        ensure(n != -1 || errno == EAGAIN || errno == ECONNRESET, "recvmsg");
 #endif
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
