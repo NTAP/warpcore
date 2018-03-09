@@ -203,8 +203,8 @@ void util_die(const char * const func,
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     vfprintf(stderr, fmt, ap);
 #pragma clang diagnostic pop
-    fprintf(stderr, " %s%s%s" NRM "\n", (e ? "[" : ""), (e ? strerror(e) : ""),
-            (e ? "]" : ""));
+    fprintf(stderr, " %serrno %d = %s%s" NRM "\n", (e ? "[" : ""), e,
+            (e ? strerror(e) : ""), (e ? "]" : ""));
 
 #ifdef HAVE_BACKTRACE
     void * bt_buf[128];
