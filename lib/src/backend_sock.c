@@ -373,10 +373,10 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #ifdef HAVE_RECVMMSG
         n = (ssize_t)recvmmsg(s->fd, msgvec, (unsigned int)nbufs, MSG_DONTWAIT,
                               0);
-        ensure(n != -1 || errno == EAGAIN, "recvmmsg");
+        ensure(n != -1 || errno == EAGAIN || errno == ETIMEDOUT, "recvmmsg");
 #else
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
-        ensure(n != -1 || errno == EAGAIN || errno == ECONNRESET, "recvmsg");
+        ensure(n != -1 || errno == EAGAIN || errno == ETIMEDOUT, "recvmsg");
 #endif
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
@@ -416,7 +416,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 sq_insert_tail(i, v[j], next);
             }
         } else
-            // in case EAGAIN was returned (n == -1)
+            // in case EAGAIN/ETIMEDOUT was returned (n == -1)
             n = 0;
 
         // return any unused buffers
