@@ -373,10 +373,14 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #ifdef HAVE_RECVMMSG
         n = (ssize_t)recvmmsg(s->fd, msgvec, (unsigned int)nbufs, MSG_DONTWAIT,
                               0);
-        ensure(n != -1 || errno == EAGAIN || errno == ETIMEDOUT, "recvmmsg");
+        ensure(n != -1 || errno == EAGAIN || errno == ETIMEDOUT ||
+                   errno == ECONNREFUSED,
+               "recvmmsg");
 #else
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
-        ensure(n != -1 || errno == EAGAIN || errno == ETIMEDOUT, "recvmsg");
+        ensure(n != -1 || errno == EAGAIN || errno == ETIMEDOUT ||
+                   errno == ECONNREFUSED,
+               "recvmsg");
 #endif
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
