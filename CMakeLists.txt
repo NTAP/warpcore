@@ -162,11 +162,14 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       set(CLANG_TIDY_CHECKS *
           -google-readability-braces-around-statements
           -readability-braces-around-statements
+          -hicpp-braces-around-statements
           -google-readability-todo
           -cppcoreguidelines-pro-type-vararg
+          -cppcoreguidelines-owning-memory
           -clang-diagnostic-unused-command-line-argument
           -cert-err58-cpp
           -google-runtime-references
+          -hicpp-signed-bitwise
       )
       string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
       set(CMAKE_C_CLANG_TIDY ${CLANGTIDY}
