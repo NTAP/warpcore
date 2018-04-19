@@ -40,7 +40,7 @@ static void BM_io(benchmark::State & state)
             state.SkipWithError("ran out of bufs or saw packet loss");
             break;
         }
-    state.SetBytesProcessed(state.iterations() * len * w_mtu(w_serv));
+    state.SetBytesProcessed(int64_t(state.iterations() * len * w_mtu(w_serv)));
 }
 
 
@@ -51,7 +51,7 @@ static void BM_ip_cksum(benchmark::State & state)
     memset(buf, 'x', len);
     for (auto _ : state)
         benchmark::DoNotOptimize(ip_cksum(buf, len));
-    state.SetBytesProcessed(state.iterations() * len);
+    state.SetBytesProcessed(int64_t(state.iterations() * len));
     delete[] buf;
 }
 
