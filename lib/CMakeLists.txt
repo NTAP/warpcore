@@ -20,16 +20,15 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/warpcore/config.h
   DESTINATION include/warpcore
 )
 
-
 if(DPDK_FOUND)
   add_library(obj_dpdk
     OBJECT
       src/arp.c src/eth.c src/icmp.c src/in_cksum.c src/ip.c
       src/udp.c src/backend_dpdk.c src/warpcore.c
   )
-  target_compile_definitions(obj_dpdk PRIVATE -DWITH_NETMAP)
+  target_compile_definitions(obj_dpdk PUBLIC -DWITH_DPDK -DWITH_NETMAP)
+  target_include_directories(obj_dpdk PUBLIC ${DPDK_INCLUDE})
   add_library(dpdkcore $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_dpdk>)
-  target_compile_definitions(dpdkcore PRIVATE -DWITH_DPDK)
 endif()
 
 if(HAVE_NETMAP_H)
@@ -38,9 +37,8 @@ if(HAVE_NETMAP_H)
       src/arp.c src/eth.c src/icmp.c src/in_cksum.c src/ip.c
       src/udp.c src/backend_netmap.c src/warpcore.c
   )
-  target_compile_definitions(obj_warp PRIVATE -DWITH_NETMAP)
+  target_compile_definitions(obj_warp PUBLIC -DWITH_NETMAP)
   add_library(warpcore $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>)
-  target_compile_definitions(warpcore PRIVATE -DWITH_NETMAP)
 endif()
 
 set(TARGETS obj_all obj_sock sockcore)
