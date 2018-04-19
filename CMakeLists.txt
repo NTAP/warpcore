@@ -20,6 +20,47 @@ check_include_file(net/netmap_user.h HAVE_NETMAP_H)
 include(CMakePushCheckState)
 cmake_reset_check_state()
 
+# Look for DPDK
+find_path(DPDK_INCLUDE_DIR rte_config.h
+  PATH_SUFFIXES dpdk HINTS $ENV{DPDK_DIR}/include
+)
+
+set(DPDK_COMPONENTS
+  pci bus_pci cmdline eal ethdev hash kvargs mbuf mempool mempool_ring
+  mempool_stack pmd_bond pmd_vmxnet3_uio pmd_ixgbe pmd_i40e pmd_ring
+  pmd_af_packet ring
+)
+
+foreach(c ${DPDK_COMPONENTS})
+  find_library(DPDK_RTE_${c}_LIBRARY rte_${c} HINTS $ENV{DPDK_DIR}/lib)
+endforeach()
+
+foreach(c ${DPDK_COMPONENTS})
+  list(APPEND DPDK_LIBRARIES "${DPDK_RTE_${c}_LIBRARY}")
+endforeach()
+
+mark_as_advanced(DPDK_INCLUDE_DIR ${DPDK_LIBRARIES})
+
+# if (EXISTS ${WITH_DPDK_MLX5})
+#   find_library(DPDK_RTE_pmd_mlx5_LIBRARY rte_pmd_mlx5)
+#   list(APPEND DPDK_LIBRARIES ${DPDK_RTE_pmd_mlx5_LIBRARY})
+#   mark_as_advanced(DPDK_RTE_pmd_mlx5_LIBRARY)
+# endif()
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(dpdk DEFAULT_MSG
+  DPDK_INCLUDE_DIR
+  DPDK_LIBRARIES
+)
+
+# if(DPDK_FOUND)
+#   # if(EXISTS ${WITH_DPDK_MLX5})
+#   #   list(APPEND DPDK_LIBRARIES -libverbs)
+#   # endif()
+#   set(DPDK_LIBRARIES
+#     -Wl,--whole-archive ${DPDK_LIBRARIES} -Wl,--no-whole-archive)
+# endif()
+
 # See if we have google benchmark
 include(CheckCXXSymbolExists)
 set(CMAKE_REQUIRED_LIBRARIES benchmark)

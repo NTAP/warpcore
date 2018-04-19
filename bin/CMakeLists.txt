@@ -8,6 +8,20 @@ if("${isSystemDir}" STREQUAL "-1")
   set(CMAKE_INSTALL_RPATH ${LIB})
 endif()
 
+if(DPDK_FOUND)
+  foreach(TARGET ping inetd)
+    add_executable(dpdk${TARGET} ${TARGET}.c)
+    target_compile_definitions(dpdk${TARGET} PRIVATE -DWITH_NETMAP)
+    target_link_libraries(dpdk${TARGET} PUBLIC dpdkcore)
+    install(TARGETS dpdk${TARGET} DESTINATION bin)
+    if(DSYMUTIL)
+      add_custom_command(TARGET dpdk${TARGET} POST_BUILD
+        COMMAND ${DSYMUTIL} ARGS $<TARGET_FILE:dpdk${TARGET}>
+      )
+    endif()
+  endforeach()
+endif()
+
 if(HAVE_NETMAP_H)
   foreach(TARGET ping inetd)
     add_executable(warp${TARGET} ${TARGET}.c)
