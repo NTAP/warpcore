@@ -3,7 +3,7 @@ Vagrant.configure("2") do |config|
   # OS to use for the VM
   config.vm.box = "ubuntu/artful64"
 
-  # config.vm.network "private_network", type: "dhcp"
+  config.vm.network "private_network", type: "dhcp", auto_config: false
 
   config.vm.provision "file", source: "/etc/letsencrypt/live/slate.eggert.org",
     destination: "~/slate.eggert.org"
@@ -11,8 +11,8 @@ Vagrant.configure("2") do |config|
   # hardware configuration of the VM
   config.vm.provider "virtualbox" do |vb|
     vb.gui = false
-    vb.memory = "1024"
-    vb.cpus = 2
+    vb.memory = 1024
+    vb.cpus = 1
     vb.linked_clone = true
     vb.name = config.vm.hostname
 
@@ -24,11 +24,16 @@ Vagrant.configure("2") do |config|
       "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold", 100 ]
   end
 
+  if Vagrant.has_plugin?("vagrant-cachier")
+    config.cache.scope = :box
+    config.cache.synced_folder_opts = { owner: "_apt" }
+  end
+
   # apply some fixes to the VM OS, update it, and install some tools
   config.vm.provision "shell", inline: <<-SHELL
     export DEBIAN_FRONTEND=noninteractive
 
-    # resize disk
+    # resize disk (needs "vagrant plugin install vagrant-disksize")
     resize2fs /dev/sda1
 
     git config --global user.email lars@netapp.com
@@ -40,22 +45,22 @@ Vagrant.configure("2") do |config|
 
     # install some tools that are needed
     apt-get -y install git cmake ninja-build libev-dev libssl-dev g++ \
-      libhttp-parser-dev libbsd-dev pkg-config mercurial
+      libhttp-parser-dev libbsd-dev pkg-config mercurial dpdk dpdk-dev
 
     # install some tools that are useful
     apt-get -y install tmux fish gdb htop silversearcher-ag valgrind
 
     # change shell to fish
-    chsh -s /usr/bin/fish ubuntu
+    chsh -s /usr/bin/fish vagrant
 
     # get Linux kernel sources, for building netmap
     apt-get source linux-image-$(uname -r)
 
     # compile and install netmap
     git clone https://github.com/luigirizzo/netmap
-    cd /home/vagrant/netmap
+    cd netmap
     ./configure --driver-suffix=-netmap --no-ext-drivers \
-      --kernel-sources=/home/ubuntu/linux-$(uname -r | cut -d- -f1)
+      --kernel-sources=/home/vagrant/linux-$(uname -r | cut -d- -f1)
     make
     make install
 
@@ -75,6 +80,9 @@ Vagrant.configure("2") do |config|
     echo '*   hard  memlock   unlimited' >> /etc/security/limits.conf
     echo '*   soft  core      unlimited' >> /etc/security/limits.conf
     echo '*   hard  core      unlimited' >> /etc/security/limits.conf
+
+    # enable DPDK
+    echo 'echo 64 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages' >> /etc/rc.local
 
     # build a new initrd
     depmod -a
