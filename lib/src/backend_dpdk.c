@@ -47,14 +47,7 @@
 #include <sanitizer/asan_interface.h>
 #endif
 
-#if defined(HAVE_KQUEUE)
-#include <sys/event.h>
-#include <time.h>
-#elif defined(HAVE_EPOLL)
-#include <sys/epoll.h>
-#else
-#include <poll.h>
-#endif
+#include <rte_eal.h>
 
 #include "backend.h"
 #include "ip.h"
@@ -80,6 +73,11 @@ void backend_init(struct w_engine * const w,
                   const bool is_left __attribute__((unused)))
 {
     w->backend_name = backend_name;
+
+    // fake a command line for rte_eal_init()
+    char * argv[] = {"warpcore"}; //, "--log-level=0"};
+    ensure(rte_eal_init(sizeof(argv) / sizeof(*argv), argv) != -1,
+           "rte_eal_init");
 }
 
 
