@@ -61,7 +61,8 @@ Vagrant.configure("2") do |config|
     # install some tools that are needed
     apt-get -y install git cmake ninja-build libev-dev libssl-dev g++ \
       libhttp-parser-dev libbsd-dev pkg-config mercurial dpdk dpdk-dev \
-      python-pyelftools dpdk-igb-uio-dkms dpdk-rte-kni-dkms
+      python-pyelftools dpdk-igb-uio-dkms dpdk-rte-kni-dkms \
+      linux-image-extra-$(uname -r | cut -d- -f1)
 
     # install some tools that are useful
     apt-get -y install tmux fish gdb htop silversearcher-ag valgrind hugepages
@@ -84,7 +85,6 @@ Vagrant.configure("2") do |config|
     echo 'netmap' >> /etc/modules-load.d/modules.conf
     echo 'e1000-netmap' >> /etc/modules-load.d/modules.conf
     echo 'blacklist e1000' >> /etc/modprobe.d/blacklist-netmap.conf
-    # echo 'blacklist virtio' >> /etc/modprobe.d/blacklist-netmap.conf
 
     # create rc.local
     echo '#!/bin/bash' >> /etc/rc.local
@@ -95,21 +95,31 @@ Vagrant.configure("2") do |config|
     echo 'echo 1000000 > /sys/module/netmap/parameters/buf_num' >> /etc/rc.local
 
     # various changes to /etc to let normal users use netmap
-    echo 'KERNEL=="netmap", MODE="0666"' > /etc/udev/rules.d/netmap.rules
+    echo 'KERNEL=="netmap", MODE="0777"' >> /etc/udev/rules.d/netmap.rules
     echo '*   soft  memlock   unlimited' >> /etc/security/limits.conf
     echo '*   hard  memlock   unlimited' >> /etc/security/limits.conf
     echo '*   soft  core      unlimited' >> /etc/security/limits.conf
     echo '*   hard  core      unlimited' >> /etc/security/limits.conf
 
-    # enable IOMMU and hugepages
+    # enable DPDK, IOMMU and hugepages
     sed -i'' -e 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX="iommu=pt intel_iommu=on hugepages=512"/' /etc/default/grub
     update-grub
     echo 512 > /proc/sys/vm/nr_hugepages
     echo 112640 > /proc/sys/vm/min_free_kbytes
     echo 2634022912 > /proc/sys/kernel/shmmax
-
-    echo 'vfio-pci' >> /etc/modules-load.d/modules.conf
     echo 'igb_uio' >> /etc/modules-load.d/modules.conf
+    echo 'rte_kni' >> /etc/modules-load.d/modules.conf
+    echo 'uio_pci_generic' >> /etc/modules-load.d/modules.conf
+    echo 'vfio-pci' >> /etc/modules-load.d/modules.conf
+
+    # various changes to /etc to let normal users run DPDK apps
+    echo 'KERNEL=="hpet", MODE="0777"' >> /etc/udev/rules.d/dpdk.rules
+    echo 'KERNEL=="hugepages", MODE="0777"' >> /etc/udev/rules.d/dpdk.rules
+    echo 'KERNEL=="kni", MODE="0777"' >> /etc/udev/rules.d/dpdk.rules
+    echo 'SUBSYSTEM=="uio", MODE="0777"' >> /etc/udev/rules.d/dpdk.rules
+    echo 'SUBSYSTEM=="vfio", MODE="0777"' >> /etc/udev/rules.d/dpdk.rules
+    echo 'vm.hugetlb_shm_group=1000' >> /etc/sysctl.conf
+    echo 'chmod a+rwx /dev/hugepages' >> /etc/rc.local
 
     # build a new initrd
     depmod -a
