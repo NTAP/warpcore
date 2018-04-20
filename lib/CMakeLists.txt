@@ -26,7 +26,7 @@ if(DPDK_FOUND)
       src/arp.c src/eth.c src/icmp.c src/in_cksum.c src/ip.c
       src/udp.c src/backend_dpdk.c src/warpcore.c
   )
-  target_compile_definitions(obj_dpdk PUBLIC -DWITH_DPDK -DWITH_NETMAP)
+  target_compile_definitions(obj_dpdk PUBLIC -DWITH_DPDK)
   target_include_directories(obj_dpdk PUBLIC ${DPDK_INCLUDE})
   add_library(dpdkcore $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_dpdk>)
 endif()

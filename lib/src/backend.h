@@ -40,12 +40,14 @@
 
 
 struct w_backend {
+#if defined(WITH_NETMAP) || defined (WITH_DPDK)
+    struct arp_cache arp_cache; ///< The ARP cache.
+#endif
 #ifdef WITH_NETMAP
     int fd;                     ///< Netmap file descriptor.
     uint32_t cur_txr;           ///< Index of the TX ring currently active.
     struct netmap_if * nif;     ///< Netmap interface.
     struct nmreq * req;         ///< Netmap request structure.
-    struct arp_cache arp_cache; ///< The ARP cache.
     uint32_t * tail;            ///< TX ring tails after last NIOCTXSYNC call.
     struct w_iov *** slot_buf;  ///< For each ring slot, a pointer to its w_iov.
     uint16_t next_eph;          ///< State for random port number generation.

@@ -56,6 +56,7 @@ char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
 #endif
 
 
+#ifdef WITH_NETMAP
 /// Receive an Ethernet frame. This is the lowest-level RX function, called
 /// for each new inbound frame from w_rx(). Dispatches the frame to either
 /// ip_rx() or arp_rx(), based on its EtherType.
@@ -91,3 +92,12 @@ void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
     else
         warn(INF, "unhandled ethertype 0x%04x", ntohs(eth->type));
 }
+#endif
+
+#ifdef WITH_DPDK
+void eth_rx(struct w_engine * const w
+            __attribute__((unused)) /*, struct netmap_ring * const r*/)
+{
+}
+
+#endif

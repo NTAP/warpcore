@@ -67,9 +67,6 @@ struct eth_hdr {
 extern void __attribute__((nonnull))
 eth_tx_rx_cur(struct w_engine * w, void * const buf, const uint16_t len);
 
-extern void __attribute__((nonnull))
-eth_rx(struct w_engine * const w, struct netmap_ring * const r);
-
 #ifndef HAVE_ETHER_NTOA_R
 extern char * __attribute__((nonnull))
 ether_ntoa_r(const struct ether_addr * const addr, char * const buf);
@@ -81,6 +78,9 @@ ether_ntoa_r(const struct ether_addr * const addr, char * const buf);
 #include <net/netmap_user.h> // IWYU pragma: keep
 
 #include "backend.h" // IWYU pragma: keep
+
+extern void __attribute__((nonnull))
+eth_rx(struct w_engine * const w, struct netmap_ring * const r);
 
 
 /// Places an Ethernet frame into a TX ring. The Ethernet frame is contained in
@@ -150,5 +150,20 @@ eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
     // advance tx ring
     txr->head = txr->cur = nm_ring_next(txr, txr->cur);
     return true;
+}
+#endif
+
+
+#ifdef WITH_DPDK
+
+extern void __attribute__((nonnull))
+eth_rx(struct w_engine * const w/*, struct netmap_ring * const r*/);
+
+static inline bool __attribute__((nonnull, always_inline))
+eth_tx(struct w_engine * const w __attribute__((unused)),
+       struct w_iov * const v __attribute__((unused)),
+       const uint16_t len __attribute__((unused)))
+{
+    return false;
 }
 #endif

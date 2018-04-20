@@ -25,33 +25,34 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
-#include <errno.h>
+// #include <arpa/inet.h>
+// #include <errno.h>
 
-#if defined(__linux__)
-#include <limits.h>
-#endif
+// #if defined(__linux__)
+// #include <limits.h>
+// #endif
 
-#include <netinet/in.h>
+// #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/uio.h>
-#include <unistd.h>
+// #include <stdlib.h>
+// #include <sys/param.h>
+// #include <sys/socket.h>
+// #include <sys/uio.h>
+// #include <unistd.h>
 
 #include <warpcore/warpcore.h>
 
-#ifdef HAVE_ASAN
-#include <sanitizer/asan_interface.h>
-#endif
+// #ifdef HAVE_ASAN
+// #include <sanitizer/asan_interface.h>
+// #endif
 
 #include <rte_eal.h>
+// #include <rte_ethdev.h>
 
 #include "backend.h"
-#include "ip.h"
-#include "udp.h"
+// #include "ip.h"
+// #include "udp.h"
 
 
 /// The backend name.
@@ -72,12 +73,22 @@ void backend_init(struct w_engine * const w,
                   const bool is_lo __attribute__((unused)),
                   const bool is_left __attribute__((unused)))
 {
+    struct w_backend * const b = w->b;
     w->backend_name = backend_name;
+    splay_init(&b->arp_cache);
 
     // fake a command line for rte_eal_init()
-    char * argv[] = {"warpcore"}; //, "--log-level=0"};
+    char * argv[] = {"warpcore", "--log-level=5"};
     ensure(rte_eal_init(sizeof(argv) / sizeof(*argv), argv) != -1,
            "rte_eal_init");
+
+    // switch interface to DPDK mode
+    warn(DBG, "diddling %s", w->ifname);
+
+    // uint16_t port;
+    // RTE_ETH_FOREACH_DEV (port) {
+    //     warn(ERR, "port %u");
+    // }
 }
 
 
