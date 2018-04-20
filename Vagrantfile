@@ -61,11 +61,12 @@ Vagrant.configure("2") do |config|
     # install some tools that are needed
     apt-get -y install git cmake ninja-build libev-dev libssl-dev g++ \
       libhttp-parser-dev libbsd-dev pkg-config mercurial dpdk dpdk-dev \
-      python-pyelftools dpdk-igb-uio-dkms dpdk-rte-kni-dkms \
+      dpdk-igb-uio-dkms dpdk-rte-kni-dkms \
       linux-image-extra-$(uname -r | cut -d- -f1)
 
     # install some tools that are useful
-    apt-get -y install tmux fish gdb htop silversearcher-ag valgrind hugepages
+    apt-get -y install tmux fish gdb htop silversearcher-ag valgrind hugepages \
+      iwyu libclang-common-4.0-dev python-pyelftools
 
     # change shell to fish
     chsh -s /usr/bin/fish vagrant
