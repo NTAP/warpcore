@@ -40,20 +40,24 @@
 
 
 struct w_backend {
-#if defined(WITH_NETMAP) || defined (WITH_DPDK)
+#if defined(WITH_NETMAP) || defined(WITH_DPDK)
     struct arp_cache arp_cache; ///< The ARP cache.
 #endif
-#ifdef WITH_NETMAP
-    int fd;                     ///< Netmap file descriptor.
-    uint32_t cur_txr;           ///< Index of the TX ring currently active.
-    struct netmap_if * nif;     ///< Netmap interface.
-    struct nmreq * req;         ///< Netmap request structure.
-    uint32_t * tail;            ///< TX ring tails after last NIOCTXSYNC call.
-    struct w_iov *** slot_buf;  ///< For each ring slot, a pointer to its w_iov.
-    uint16_t next_eph;          ///< State for random port number generation.
+#if defined(WITH_NETMAP)
+    int fd;                    ///< Netmap file descriptor.
+    uint32_t cur_txr;          ///< Index of the TX ring currently active.
+    struct netmap_if * nif;    ///< Netmap interface.
+    struct nmreq * req;        ///< Netmap request structure.
+    uint32_t * tail;           ///< TX ring tails after last NIOCTXSYNC call.
+    struct w_iov *** slot_buf; ///< For each ring slot, a pointer to its w_iov.
+    uint16_t next_eph;         ///< State for random port number generation.
     /// @cond
     uint8_t _unused[6]; ///< @internal Padding.
     /// @endcond
+#elif defined(WITH_DPDK)
+    char * orig_driver;
+    char * dev_id;
+    void ** buf_base;
 #else
 #if defined(HAVE_KQUEUE)
     int kq;
@@ -86,9 +90,11 @@ struct w_backend {
 ///
 /// @return     Memory region associated with buffer @p i.
 ///
-#ifdef WITH_NETMAP
+#if defined(WITH_NETMAP)
 #define IDX2BUF(w, i)                                                          \
     ((uint8_t *)NETMAP_BUF(NETMAP_TXRING((w)->b->nif, 0), (i)))
+#elif defined(WITH_DPDK)
+#define IDX2BUF(w, i) ((uint8_t *)((w)->b->buf_base[i]))
 #else
 #define IDX2BUF(w, i) (((uint8_t *)w->mem + (i * w->mtu)))
 #endif

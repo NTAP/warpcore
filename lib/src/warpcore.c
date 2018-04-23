@@ -436,6 +436,10 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // loopback interfaces can have huge MTUs, so cap to something more sensible
     w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
 
+    // allocate space to track buffers
+    w->bufs = calloc(nbufs, sizeof(*w->bufs));
+    ensure(w->bufs != 0, "cannot alloc bufs");
+
     // backend-specific init
     w->b = calloc(1, sizeof(*w->b));
     ensure(w->b, "cannot alloc backend");

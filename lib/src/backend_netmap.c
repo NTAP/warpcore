@@ -150,9 +150,6 @@ void backend_init(struct w_engine * const w,
 #endif
 
     // save the indices of the extra buffers in the warpcore structure
-    w->bufs = calloc(b->req->nr_arg3, sizeof(*w->bufs));
-    ensure(w->bufs != 0, "cannot allocate w_iov");
-
     uint32_t n, i;
     for (n = 0, i = b->nif->ni_bufs_head; likely(n < b->req->nr_arg3); n++) {
         w->bufs[n].idx = i;

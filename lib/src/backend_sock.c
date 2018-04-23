@@ -84,8 +84,6 @@ void backend_init(struct w_engine * const w,
 
     ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
            "cannot alloc %u * %u buf mem", nbufs, w->mtu);
-    ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
-           "cannot alloc bufs");
     w->backend_name = backend_name;
 
     for (uint32_t i = 0; i < nbufs; i++) {

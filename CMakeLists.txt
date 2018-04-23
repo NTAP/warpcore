@@ -24,7 +24,7 @@ cmake_reset_check_state()
 find_path(DPDK_INCLUDE rte_eal.h PATH_SUFFIXES dpdk)
 
 set(DPDK_COMPONENTS
-    eal
+    eal ethdev mbuf mempool
   # pci bus_pci cmdline eal ethdev hash kvargs mbuf mempool mempool_ring
   # mempool_stack pmd_bond pmd_vmxnet3_uio pmd_ixgbe pmd_i40e pmd_ring
   # pmd_af_packet ring

@@ -25,30 +25,36 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// #include <arpa/inet.h>
-// #include <errno.h>
-
-// #if defined(__linux__)
-// #include <limits.h>
-// #endif
-
-// #include <netinet/in.h>
+#include <fcntl.h>
+#include <linux/ethtool.h>
+#include <linux/sockios.h>
+#include <net/if.h>
 #include <stdbool.h>
 #include <stdint.h>
-// #include <stdlib.h>
-// #include <sys/param.h>
-// #include <sys/socket.h>
-// #include <sys/uio.h>
-// #include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <warpcore/warpcore.h>
 
-// #ifdef HAVE_ASAN
-// #include <sanitizer/asan_interface.h>
-// #endif
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 
 #include <rte_eal.h>
-// #include <rte_ethdev.h>
+// This #define prevents inclusion of rte_ether.h from rte_ethdev.h, because it
+// conflicts with the net/ethernet.h system header - WTF, DPDK!?
+#define _RTE_ETHER_H_
+#include "rte_mempool.h"
+#include <rte_lcore.h>
+#include <rte_mbuf.h>
+#include <rte_memory.h> // IWYU pragma: keep
+
+#include <rte_ethdev.h>
 
 #include "backend.h"
 // #include "ip.h"
@@ -60,6 +66,49 @@
 static char backend_name[] = "dpdk";
 
 
+static void unbind_driver(struct w_backend * const b)
+{
+    // get current driver name
+    char path[MAXPATHLEN], link[MAXPATHLEN];
+    snprintf(path, MAXPATHLEN, "/sys/bus/pci/devices/%s/driver", b->dev_id);
+    int ret = readlink(path, link, MAXPATHLEN);
+    ensure(ret >= 0, "%s readlink", path);
+    link[ret] = 0;
+    if (b->orig_driver == 0)
+        b->orig_driver = strdup(basename(link));
+
+    // unbind
+    snprintf(path, MAXPATHLEN, "/sys/bus/pci/devices/%s/driver/unbind",
+             b->dev_id);
+    const int fd = open(path, O_WRONLY);
+    ensure(fd >= 0, "open %s", path);
+    ret = write(fd, b->dev_id, strlen(b->dev_id));
+    ensure(ret >= 0, "%s unbind %s", path, b->dev_id);
+    close(fd);
+}
+
+
+static void bind_driver(struct w_backend * const b, const char * const driver)
+{
+    char path[MAXPATHLEN];
+    snprintf(path, MAXPATHLEN, "/sys/bus/pci/devices/%s/driver_override",
+             b->dev_id);
+    int fd = open(path, O_WRONLY);
+    ensure(fd >= 0, "open %s", path);
+    int ret = write(fd, driver, strlen(driver));
+    ensure(ret >= 0, "%s driver_override %s", path, driver);
+    close(fd);
+
+    // bind the DPDK driver to the device
+    snprintf(path, MAXPATHLEN, "/sys/bus/pci/drivers/%s/bind", driver);
+    fd = open(path, O_WRONLY);
+    ensure(fd >= 0, "open %s", path);
+    ret = write(fd, b->dev_id, strlen(b->dev_id));
+    ensure(ret >= 0, "%s bind", path, b->dev_id);
+    close(fd);
+}
+
+
 /// Initialize the warpcore socket backend for engine @p w. Sets up the extra
 /// buffers.
 ///
@@ -69,7 +118,7 @@ static char backend_name[] = "dpdk";
 /// @param[in]  is_left  Unused.
 ///
 void backend_init(struct w_engine * const w,
-                  const uint32_t nbufs,
+                  const uint32_t nbufs __attribute__((unused)),
                   const bool is_lo __attribute__((unused)),
                   const bool is_left __attribute__((unused)))
 {
@@ -77,13 +126,50 @@ void backend_init(struct w_engine * const w,
     w->backend_name = backend_name;
     splay_init(&b->arp_cache);
 
+    // find PCI ID of interface
+    const int s = socket(AF_INET, SOCK_DGRAM, 0);
+    ensure(s >= 0, "%s socket", w->ifname);
+
+    struct ifreq ifr = {0};
+    strncpy(ifr.ifr_name, w->ifname, IFNAMSIZ);
+    ifr.ifr_name[IFNAMSIZ - 1] = 0;
+
+    struct ethtool_drvinfo edata;
+    ifr.ifr_data = (char *)&edata;
+    edata.cmd = ETHTOOL_GDRVINFO;
+    int ret = ioctl(s, SIOCETHTOOL, &ifr);
+    ensure(ret >= 0, "%s ioctl", w->ifname);
+    close(s);
+    b->dev_id = strdup(edata.bus_info);
+
+    // switch interface to DPDK mode
+    unbind_driver(b);
+    bind_driver(b, "igb_uio");
+    warn(DBG, "bound %s at %s to %s (was %s)", w->ifname, b->dev_id, "igb_uio",
+         b->orig_driver);
+
     // fake a command line for rte_eal_init()
     char * argv[] = {"warpcore", "--log-level=5"};
     ensure(rte_eal_init(sizeof(argv) / sizeof(*argv), argv) != -1,
            "rte_eal_init");
+    ensure(rte_eth_dev_count() == 1, "iface ready");
 
-    // switch interface to DPDK mode
-    warn(DBG, "diddling %s", w->ifname);
+    // allocate buffers
+    w->mem = rte_pktmbuf_pool_create("w", nbufs, 0, 0, w->mtu, rte_socket_id());
+    ensure(w->mem, "rte_pktmbuf_pool_create");
+
+    // allocate space to track buffers
+    b->buf_base = calloc(nbufs, sizeof(*b->buf_base));
+    ensure(b->buf_base, "cannot alloc buf_base");
+
+    for (uint32_t i = 0; i < nbufs; i++) {
+        ensure(rte_mempool_get(w->mem, &(b->buf_base[i])) == 0,
+               "rte_mempool_get");
+        w->bufs[i].idx = i;
+        init_iov(w, &w->bufs[i]);
+        sq_insert_head(&w->iov, &w->bufs[i], next);
+        ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, w->mtu);
+    }
 
     // uint16_t port;
     // RTE_ETH_FOREACH_DEV (port) {
@@ -96,7 +182,18 @@ void backend_init(struct w_engine * const w,
 ///
 /// @param      w     Backend engine.
 ///
-void backend_cleanup(struct w_engine * const w) {}
+void backend_cleanup(struct w_engine * const w)
+{
+    struct w_backend * const b = w->b;
+
+    unbind_driver(b);
+    bind_driver(b, b->orig_driver);
+    warn(DBG, "bound %s at %s to %s (was %s)", w->ifname, b->dev_id,
+         b->orig_driver, "igb_uio");
+
+    free(b->orig_driver);
+    free(b->dev_id);
+}
 
 
 /// Bind a warpcore socket-backend socket. Calls the underlying Socket API.
