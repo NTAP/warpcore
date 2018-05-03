@@ -80,7 +80,7 @@ bool io(const uint32_t len)
     } while (ilen < olen);
     ensure(ilen == olen, "wrong length");
 
-    // validate data
+    // validate data (o was sent by client, i is received by server)
     struct w_iov * iv = sq_first(&i);
     ov = sq_first(&o);
     while (ov && iv) {
@@ -94,6 +94,12 @@ bool io(const uint32_t len)
         ensure(ov->flags == iv->flags, "TOS byte 0x%02x != 0x%02x", ov->flags,
                iv->flags);
 #endif
+        ensure(iv->port == w_get_sport(s_clnt), "port %u != port %u",
+               ntohs(iv->port), ntohs(w_get_sport(s_clnt)));
+
+        ensure(iv->ip == ov->ip, "IP %08x != IP %08x", ntohl(iv->ip),
+               ntohl(ov->ip)); // only works over loopback
+
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);
     }
