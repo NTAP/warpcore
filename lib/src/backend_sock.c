@@ -255,7 +255,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #endif
     o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
 
-    const struct w_iov * v = sq_first(o);
+    struct w_iov * v = sq_first(o);
     do {
         size_t i;
         for (i = 0; i < SEND_SIZE && v; i++) {
@@ -269,6 +269,9 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
                 dst[i] = (struct sockaddr_in){.sin_family = AF_INET,
                                               .sin_port = v->port,
                                               .sin_addr = {v->ip}};
+            } else {
+                v->ip = s->hdr->ip.dst;
+                v->port = s->hdr->udp.dport;
             }
 #ifdef HAVE_SENDMMSG
             msgvec[i].msg_hdr =
