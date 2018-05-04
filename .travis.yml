@@ -46,7 +46,7 @@ addons:
       cd build
       ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$MYCC \
         -DCMAKE_CXX_COMPILER=$MYCXX -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-        -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
+        -DCMAKE_INSTALL_PREFIX:PATH=/tmp -DNO_SANITIZERS=True ..
     build_command: ninja
     branch_pattern: coverity
 
@@ -74,7 +74,7 @@ script:
     cd build
     ../bin/cmake -GNinja -DCMAKE_C_COMPILER=$MYCC \
       -DCMAKE_CXX_COMPILER=$MYCXX -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-      -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
+      -DCMAKE_INSTALL_PREFIX:PATH=/tmp -DNO_SANITIZERS=True ..
     ninja
 
 after_success:
