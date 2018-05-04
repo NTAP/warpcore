@@ -31,7 +31,7 @@ addons:
     sources:
       - ubuntu-toolchain-r-test
       - llvm-toolchain-trusty-5.0
-      - llvm-toolchain-trusty
+      - llvm-toolchain-trusty-7.0
     packages:
       - cmake
       - g++-4.9
