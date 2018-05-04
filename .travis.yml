@@ -33,6 +33,7 @@ addons:
       - llvm-toolchain-trusty-5.0
       - llvm-toolchain-trusty-6.0
     packages:
+      - cmake
       - g++-4.8
       - g++-7
       - clang-5.0
@@ -58,16 +59,17 @@ addons:
 
 before_install:
   # manually install latest cmake
-  # - |
-  #   wget -q https://cmake.org/files/v3.10/cmake-3.10.0-Linux-x86_64.sh
-  #   sh cmake-3.10.0-Linux-x86_64.sh --skip-license
-  #   ls -lta
+  - |
+    travis_retry wget \
+      -q https://cmake.org/files/v3.11/cmake-3.11.1-Linux-x86_64.sh
+    sh cmake-3.11.1-Linux-x86_64.sh --skip-license
+    ls -lta
   # download netmap headers, to build the relevant backend
   - |
     cd $TRAVIS_BUILD_DIR
     mkdir -p lib/include/net
     cd lib/include/net
-    wget -q \
+    travis_retry wget -q \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h
 
