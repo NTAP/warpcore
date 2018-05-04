@@ -33,7 +33,6 @@ addons:
       - llvm-toolchain-trusty-5.0
       - llvm-toolchain-trusty-6.0
     packages:
-      - cmake
       - g++-4.9
       - g++-7
       - clang-5.0
