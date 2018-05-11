@@ -129,6 +129,9 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
 /// extra space before @p buf in each w_iov. This is meant for upper-level
 /// protocols that wish to reserve space for their headers.
 ///
+/// If there aren't enough buffers available to fulfill the request, @p q will
+/// be shorter than requested. It is up to the caller to check this.
+///
 /// @param      w     Backend engine.
 /// @param[out] q     Tail queue of w_iov structs.
 /// @param[in]  qlen  Amount of payload bytes in the returned tail queue.
@@ -164,6 +167,9 @@ void w_alloc_len(struct w_engine * const w,
 /// the MTU and this value. If a @p off offset is specified, leave this much
 /// extra space before @p buf in each w_iov. This is meant for upper-level
 /// protocols that wish to reserve space for their headers.
+///
+/// If there aren't enough buffers available to fulfill the request, @p q will
+/// be shorter than requested. It is up to the caller to check this.
 ///
 /// @param      w      Backend engine.
 /// @param[out] q      Tail queue of w_iov structs.
