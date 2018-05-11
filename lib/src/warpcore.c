@@ -142,9 +142,11 @@ void w_alloc_len(struct w_engine * const w,
                  const uint16_t off)
 {
     uint32_t needed = qlen;
-    while (needed) {
+    while (likely(needed)) {
         struct w_iov * const v = w_alloc_iov(w, len, off);
-        if (needed > v->len)
+        if (unlikely(v == 0))
+            return;
+        if (likely(needed > v->len))
             needed -= v->len;
         else {
             // warn(DBG, "adjust last to %u", needed);
@@ -175,8 +177,10 @@ void w_alloc_cnt(struct w_engine * const w,
                  const uint16_t len,
                  const uint16_t off)
 {
-    for (uint32_t needed = 0; needed < count; needed++) {
+    for (uint32_t needed = 0; likely(needed < count); needed++) {
         struct w_iov * const v = w_alloc_iov(w, len, off);
+        if (unlikely(v == 0))
+            return;
         sq_insert_tail(q, v, next);
     }
 }
