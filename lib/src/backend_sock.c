@@ -316,7 +316,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
             sendmsg(s->fd, msgvec, 0);
 #endif
         ensure(r > 0 || errno == EAGAIN || errno == ETIMEDOUT ||
-                   errno == ECONNREFUSED,
+                   errno == ECONNREFUSED || errno == EHOSTUNREACH,
                "sendmsg/sendmmsg");
     } while (v);
 }
