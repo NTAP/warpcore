@@ -1,7 +1,7 @@
 Vagrant.configure("2") do |config|
 
   # OS to use for the VM
-  config.vm.box = "ubuntu/artful64"
+  config.vm.box = "ubuntu/bionic64"
 
   config.vm.network "private_network", type: "dhcp", auto_config: false
 
@@ -26,7 +26,10 @@ Vagrant.configure("2") do |config|
 
   if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
-    config.cache.synced_folder_opts = { owner: "_apt" }
+    config.cache.synced_folder_opts = {
+      owner: "_apt",
+      mount_options: ["dmode=777", "fmode=666"]
+    }
   end
 
   # apply some fixes to the VM OS, update it, and install some tools
@@ -45,7 +48,8 @@ Vagrant.configure("2") do |config|
 
     # install some tools that are needed
     apt-get -y install git cmake ninja-build libev-dev libssl-dev g++ \
-      libhttp-parser-dev libbsd-dev pkg-config mercurial dpdk dpdk-dev
+      libhttp-parser-dev libbsd-dev pkg-config mercurial dpdk dpdk-dev \
+      libelf-dev
 
     # install some tools that are useful
     apt-get -y install tmux fish gdb htop silversearcher-ag valgrind
@@ -54,7 +58,7 @@ Vagrant.configure("2") do |config|
     chsh -s /usr/bin/fish vagrant
 
     # get Linux kernel sources, for building netmap
-    apt-get source linux-image-$(uname -r)
+    apt-get source linux
 
     # compile and install netmap
     git clone https://github.com/luigirizzo/netmap
