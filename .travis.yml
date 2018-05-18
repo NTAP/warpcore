@@ -53,7 +53,10 @@ addons:
       ../bin/cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
         -DNO_SANITIZERS=True ..
-    build_command: make
+    build_command: |
+      make
+      ls -lta
+      cat cov-int/build-log.txt
     branch_pattern: coverity
 
 before_install:
@@ -62,7 +65,6 @@ before_install:
     travis_retry wget \
       -q https://cmake.org/files/v3.11/cmake-3.11.1-Linux-x86_64.sh
     sh cmake-3.11.1-Linux-x86_64.sh --skip-license
-    ls -lta
   # download netmap headers, to build the relevant backend
   - |
     cd $TRAVIS_BUILD_DIR
