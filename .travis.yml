@@ -54,7 +54,7 @@ addons:
       ../bin/cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
         -DNO_SANITIZERS=True ..
-    build_command: make; ls -lta; cat cov-int/build-log.txt
+    build_command: make
     branch_pattern: coverity
 
 before_install:
