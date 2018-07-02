@@ -135,8 +135,8 @@ premain(const int argc __attribute__((unused)), char * const argv[])
     // Get the current time
     gettimeofday(&util_epoch, 0);
 
-    // Remember executable name
-    util_executable = argv[0];
+    // Remember executable name (musl doesn't pass argv?)
+    util_executable = argv ? argv[0] : "???";
 
 #ifdef DTHREADED
     // Initialize a recursive logging lock
