@@ -47,7 +47,7 @@ extern "C" {
 struct w_iov_sq {
     sq_head(, w_iov);    ///< Head of the w_iov tail queue.
     uint32_t tx_pending; ///< Counter of untransmitted w_iovs. Only valid on TX.
-};
+} __attribute__((aligned(64)));
 
 
 /// Initializer for struct w_iov_sq.
@@ -81,7 +81,7 @@ struct w_engine {
     sl_entry(w_engine) next;   ///< Pointer to next engine.
     char * ifname;             ///< Name of the interface of this engine.
     const char * backend_name; ///< Name of the backend in @p b.
-};
+} __attribute__((aligned(64)));
 
 
 /// A chain of w_sock socket.
@@ -125,7 +125,7 @@ struct w_sock {
     /// @endcond
 
     int fd; ///< Socket descriptor underlying the engine.
-};
+} __attribute__((aligned(64)));
 
 
 /// The I/O vector structure that warpcore uses at the center of its API. It is
@@ -167,7 +167,7 @@ struct w_iov {
 
     ///< Pointer to the w_iov_sq this w_iov resides in. Only valid on TX.
     struct w_iov_sq * o;
-};
+} __attribute__((aligned(64)));
 
 
 /// Return the index of w_iov @p v.

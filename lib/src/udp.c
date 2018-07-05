@@ -92,7 +92,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
         return;
     }
 
-    if (udp->cksum) {
+    if (likely(udp->cksum)) {
         // validate the checksum
         const uint16_t cksum = udp_cksum(ip, udp_len + sizeof(*ip));
         if (unlikely(udp->cksum != cksum)) {
@@ -181,7 +181,7 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
     }
 
     // compute the checksum, unless disabled by a socket option
-    if ((s->flags & W_ZERO_CHKSUM) == 0)
+    if (unlikely((s->flags & W_ZERO_CHKSUM) == 0))
         udp->cksum = udp_cksum(ip, len + sizeof(*ip));
 
     udp_log(udp);

@@ -496,7 +496,7 @@ bool w_connected(const struct w_sock * const s)
 ///
 void w_free(struct w_iov_sq * const q)
 {
-    if (sq_empty(q))
+    if (unlikely(sq_empty(q)))
         return;
     struct w_engine * const w = sq_first(q)->w;
     sq_concat(&w->iov, q);
