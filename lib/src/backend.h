@@ -66,7 +66,7 @@ struct w_backend {
     uint8_t _unused_2[4];
     /// @endcond
 #endif
-} __attribute__((aligned(64)));
+};
 
 
 #define is_pipe(w)                                                             \
