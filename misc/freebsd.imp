@@ -4,6 +4,7 @@
         { include: ["<sys/_cpuset.h>", "private", "<sys/cpuset.h>", "public"] },
         { include: ["<sys/_iovec.h>", "private", "<sys/uio.h>", "public"] },
         { include: ["<sys/_pthreadtypes.h>", "private", "<pthread.h>", "public"] },
+        { include: ["<sys/_stdarg.h>", "private", "<stdarg.h>", "public"] },
         { include: ["<sys/_stdint.h>", "private", "<stdint.h>", "public"] },
         { include: ["<sys/_timespec.h>", "private", "<time.h>", "public"] },
         { include: ["<sys/_timeval.h>", "private", "<sys/time.h>", "public"] },

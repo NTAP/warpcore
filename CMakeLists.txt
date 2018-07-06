@@ -155,8 +155,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND
       CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Use clang-tidy for extra warnings, if it's installed
-    find_program(CLANGTIDY NAMES clang-tidy clang-tidy40 clang-tidy39
-                 clang-tidy38 clang-tidy37)
+    find_program(CLANGTIDY NAMES clang-tidy clang-tidy50 clang-tidy40
+                 clang-tidy39 clang-tidy38 clang-tidy37)
     if(CLANGTIDY)
       message(STATUS "Found clang-tidy: ${CLANGTIDY}")
       set(CLANG_TIDY_CHECKS *
@@ -170,6 +170,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
           -cert-err58-cpp
           -google-runtime-references
           -hicpp-signed-bitwise
+          -google-readability-casting
       )
       string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
       set(CMAKE_C_CLANG_TIDY ${CLANGTIDY}

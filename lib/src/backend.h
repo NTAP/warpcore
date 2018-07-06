@@ -37,6 +37,7 @@
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
+#include "udp.h"
 
 
 struct w_backend {

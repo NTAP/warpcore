@@ -35,10 +35,6 @@
 #include <string.h>
 #include <sys/param.h>
 
-#ifndef __linux__
-#include <sys/types.h>
-#endif
-
 #include "arp.h"
 #include "backend.h"
 #include "eth.h"

@@ -34,7 +34,6 @@
 #include <arpa/inet.h>
 #endif
 
-struct w_iov;
 struct w_engine;
 struct netmap_ring;
 

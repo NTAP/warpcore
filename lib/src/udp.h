@@ -31,8 +31,6 @@
 #include <stdint.h>
 
 struct netmap_ring;
-struct w_iov;
-struct w_sock;
 struct w_engine;
 
 

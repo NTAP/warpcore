@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -39,14 +38,15 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-// IWYU pragma: no_include <sys/queue.h>
 #include <warpcore/warpcore.h>
 
+#ifndef __linux__
+#include <arpa/inet.h>
 #if !defined(NDEBUG) && DLEVEL >= NTE
 #include <netinet/if_ether.h>
 #endif
+#endif
 
-// IWYU pragma: no_include <net/netmap.h>
 #ifdef WITH_NETMAP
 #include <net/netmap_user.h> // IWYU pragma: keep
 #endif

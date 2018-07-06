@@ -33,10 +33,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#ifndef __linux__
-#include <sys/types.h>
-#endif
-
 #include <warpcore/warpcore.h> // IWYU pragma: keep
 
 

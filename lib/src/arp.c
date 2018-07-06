@@ -42,7 +42,6 @@
 #include "backend.h"
 #include "eth.h"
 #include "ip.h"
-#include "udp.h"
 
 
 int8_t __attribute__((nonnull)) arp_cache_cmp(const struct arp_entry * const a,

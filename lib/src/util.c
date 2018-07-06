@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: BSD-2-Clause
 //
 // Copyright (c) 2014-2018, NetApp, Inc.
@@ -27,7 +26,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <ctype.h>
-#include <dlfcn.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -36,7 +34,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+
+#ifndef __FreeBSD__
+#include <dlfcn.h>
 #include <time.h>
+#endif
 
 #if !defined(NDEBUG)
 #ifdef DCOMPONENT
@@ -130,13 +132,23 @@ static struct timeval util_epoch;
 /// @param      argv  Same argv as main().
 ///
 static void __attribute__((constructor))
-premain(const int argc __attribute__((unused)), char * const argv[])
+premain(const int argc __attribute__((unused)),
+        char * const argv[]
+#ifdef __FreeBSD__
+        __attribute__((unused))
+#endif
+)
 {
     // Get the current time
     gettimeofday(&util_epoch, 0);
 
-    // Remember executable name (musl doesn't pass argv?)
-    util_executable = argv ? argv[0] : "???";
+    // Remember executable name (musl doesn't pass argv, and FreeBSD crashes on
+    // accessing it)
+    util_executable =
+#ifndef __FreeBSD__
+        argv ? argv[0] :
+#endif
+             0;
 
 #ifdef DTHREADED
     // Initialize a recursive logging lock
@@ -207,44 +219,47 @@ void util_die(const char * const func,
             (e ? strerror(e) : ""), (e ? "]" : ""));
 
 #ifdef HAVE_BACKTRACE
-    void * bt_buf[128];
-    const int n = backtrace(bt_buf, sizeof(bt_buf));
-    char ** const bt_sym = backtrace_symbols(bt_buf, n);
-    for (int j = 0; j < n; j++) {
-        Dl_info dli;
-        dladdr(bt_buf[j], &dli);
-        bool translated = false;
+    if (util_executable) {
+        void * bt_buf[128];
+        const int n = backtrace(bt_buf, sizeof(bt_buf));
+        char ** const bt_sym = backtrace_symbols(bt_buf, n);
+        for (int j = 0; j < n; j++) {
+            Dl_info dli;
+            dladdr(bt_buf[j], &dli);
+            bool translated = false;
 
-        // on some platforms, dli_fname is an absolute path
-        if (strlen(dli.dli_fname) > strlen(util_executable))
-            // only compare final path components
-            dli.dli_fname += strlen(dli.dli_fname) - strlen(util_executable);
+            // on some platforms, dli_fname is an absolute path
+            if (strlen(dli.dli_fname) > strlen(util_executable))
+                // only compare final path components
+                dli.dli_fname +=
+                    strlen(dli.dli_fname) - strlen(util_executable);
 
-        if (strcmp(util_executable, dli.dli_fname) == 0) {
-            char cmd[8192];
+            if (strcmp(util_executable, dli.dli_fname) == 0) {
+                char cmd[8192];
 #ifdef __APPLE__
-            snprintf(cmd, sizeof(cmd),
-                     "atos -fullPath -o %s -l %p %p 2> /dev/null",
-                     util_executable, dli.dli_fbase, bt_buf[j]);
+                snprintf(cmd, sizeof(cmd),
+                         "atos -fullPath -o %s -l %p %p 2> /dev/null",
+                         util_executable, dli.dli_fbase, bt_buf[j]);
 #else
-            snprintf(cmd, sizeof(cmd),
-                     "addr2line -C -f -i -p -e %s %p 2> /dev/null",
-                     util_executable,
-                     (void *)((char *)bt_buf[j] - (char *)dli.dli_fbase));
+                snprintf(cmd, sizeof(cmd),
+                         "addr2line -C -f -i -p -e %s %p 2> /dev/null",
+                         util_executable,
+                         (void *)((char *)bt_buf[j] - (char *)dli.dli_fbase));
 #endif
-            FILE * const fp = popen(cmd, "r"); // NOLINT
-            char info[8192];
-            while (fgets(info, sizeof(info), fp)) {
-                translated = true;
-                fprintf(stderr, DTHREAD_GAP BLU "%s" NRM, info);
+                FILE * const fp = popen(cmd, "r"); // NOLINT
+                char info[8192];
+                while (fgets(info, sizeof(info), fp)) {
+                    translated = true;
+                    fprintf(stderr, DTHREAD_GAP BLU "%s" NRM, info);
+                }
+                pclose(fp);
             }
-            pclose(fp);
-        }
 
-        if (translated == false)
-            fprintf(stderr, DTHREAD_GAP "%s\n", bt_sym[j]);
+            if (translated == false)
+                fprintf(stderr, DTHREAD_GAP "%s\n", bt_sym[j]);
+        }
+        free(bt_sym);
     }
-    free(bt_sym);
 #endif
 
     fflush(stderr);
