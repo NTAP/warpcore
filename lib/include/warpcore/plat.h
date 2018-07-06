@@ -63,3 +63,8 @@ plat_get_mbps(const struct ifaddrs * const i);
 
 extern bool __attribute__((nonnull))
 plat_get_link(const struct ifaddrs * const i);
+
+extern void __attribute__((nonnull))
+plat_get_iface_driver(const struct ifaddrs * const i,
+                      char * const name,
+                      const size_t name_len);

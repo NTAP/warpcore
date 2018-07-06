@@ -74,12 +74,14 @@ struct w_engine {
     uint32_t mask;        ///< IPv4 netmask of this interface.
     uint32_t rip;         ///< Our default IPv4 router IP address.
     uint16_t mtu;         ///< MTU of this interface.
+    uint32_t mbps;        ///< Link speed of this interface in Mb/s.
     struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
     struct sock sock;      ///< List of open (bound) w_sock sockets.
     struct w_iov_sq iov;   ///< Tail queue of w_iov buffers available.
 
     sl_entry(w_engine) next;   ///< Pointer to next engine.
     char * ifname;             ///< Name of the interface of this engine.
+    char * drvname;            ///< Name of the driver of this interface.
     const char * backend_name; ///< Name of the backend in @p b.
 } __attribute__((aligned(64)));
 
@@ -300,7 +302,7 @@ static inline uint64_t
 #define w_engine(s) (s)->w
 
 
-/// Return name of interface associated with warpcore engine. Must not be
+/// Return name of interface associated with a warpcore engine. Must not be
 /// modified by caller.
 ///
 /// @param      w     Backend engine.
@@ -310,7 +312,7 @@ static inline uint64_t
 #define w_ifname(w) (w)->ifname
 
 
-/// Return MTU of w_engine @p w.
+/// Return MTU of w_engine @p w. Must not be modified by caller.
 ///
 /// @param[in]  w     Backend engine.
 ///
@@ -327,6 +329,24 @@ static inline uint64_t
 ///
 #define w_iov_sq_cnt(q) sq_len(q)
 
+
+/// Return link speed of w_engine @p w in Mb/s. Must not be modified by caller.
+///
+/// @param[in]  w     Backend engine.
+///
+/// @return     Link speed of @p w.
+///
+#define w_mbps(w) (w)->mbps
+
+
+/// Return name of teh driver associated with the interface of a warpcore
+/// engine. Must not be modified by caller.
+///
+/// @param[in]  w     Backend engine.
+///
+/// @return     Driver name @p w.
+///
+#define w_drvname(w) (w)->drvname
 
 #ifdef __cplusplus
 }

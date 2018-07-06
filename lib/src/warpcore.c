@@ -325,6 +325,7 @@ void w_cleanup(struct w_engine * const w)
     backend_cleanup(w);
     sl_remove(&engines, w, w_engine, next);
     free(w->ifname);
+    free(w->drvname);
     free(w->b);
     free(w);
 }
@@ -388,11 +389,14 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
                 plat_get_mac(&w->mac, i);
                 w->mtu = plat_get_mtu(i);
                 link_up = plat_get_link(i);
-#if !defined(NDEBUG) && DLEVEL >= NTE
                 // mpbs can be zero on generic platforms and loopback interfaces
-                const uint32_t mbps = plat_get_mbps(i);
+                w->mbps = plat_get_mbps(i);
+                char drvname[32];
+                plat_get_iface_driver(i, drvname, sizeof(drvname));
+                w->drvname = strdup(drvname);
+#if !defined(NDEBUG) && DLEVEL >= NTE
                 warn(NTE, "%s addr %s, MTU %d, speed %uG, link %s", i->ifa_name,
-                     ether_ntoa(&w->mac), w->mtu, mbps / 1000,
+                     ether_ntoa(&w->mac), w->mtu, w->mbps / 1000,
                      link_up ? "up" : "down");
 #endif
                 break;

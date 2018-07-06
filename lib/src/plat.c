@@ -208,3 +208,59 @@ bool plat_get_link(const struct ifaddrs * i)
 #endif
     return link;
 }
+
+
+/// Return the short name of the driver associated with interface @p i.
+///
+/// @param[in]  i         A network interface.
+/// @param      name      A string to return the interface name in.
+/// @param[in]  name_len  The length of @p name.
+///
+extern void __attribute__((nonnull))
+plat_get_iface_driver(const struct ifaddrs * const i
+#if !defined(__linux__) && !defined(__FreeBSD__)
+                      __attribute__((unused))
+#endif
+                      ,
+                      char * const name,
+                      const size_t name_len)
+{
+#if defined(__linux__)
+    const int s = socket(AF_INET, SOCK_DGRAM, 0);
+    ensure(s >= 0, "%s socket", i->ifa_name);
+
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, i->ifa_name, IFNAMSIZ);
+    ifr.ifr_name[IFNAMSIZ - 1] = 0;
+
+    // if this is loopback interface, SIOCETHTOOL will fail, so just return a
+    // placeholder value
+    ensure(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
+    if (ifr.ifr_flags & IFF_LOOPBACK) {
+        strncpy(name, "lo", name_len);
+        goto done;
+    }
+
+    struct ethtool_drvinfo edata;
+    ifr.ifr_data = (char *)&edata;
+    edata.cmd = ETHTOOL_GDRVINFO;
+    const int err = ioctl(s, SIOCETHTOOL, &ifr);
+    if (err == -1 && errno == ENOTSUP)
+        // the ioctl can fail for virtual NICs
+        goto done;
+    ensure(err >= 0, "%s ioctl", i->ifa_name);
+
+    strncpy(name, edata.driver, name_len);
+
+done:
+    close(s);
+#elif defined(__FreeBSD__)
+    // XXX: this assumes that the interface has not been renamed!
+    const size_t pos = strcspn(i->ifa_name, "0123456789");
+    strncpy(name, i->ifa_name, name_len);
+    name[pos] = 0;
+#else
+    strncpy(name, "unknown", name_len);
+#endif
+}

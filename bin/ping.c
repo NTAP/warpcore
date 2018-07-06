@@ -222,7 +222,7 @@ int main(const int argc, char * const argv[])
     const struct itimerval timer = {.it_value.tv_usec = 250000};
 
     // send packet trains of sizes between "start" and "end"
-    puts("byte\tpkts\ttx\trx");
+    puts("iface\tdriver\tmbps\tbyte\tpkts\ttx\trx");
 
     // send "loops" number of payloads of len "len" and wait for reply
     for (uint32_t len = start; len <= end; len += (inc ? inc : len)) {
@@ -308,7 +308,8 @@ int main(const int argc, char * const argv[])
             const uint64_t pkts = w_iov_sq_cnt(&i);
             time_diff(&diff, &after_tx, &before_tx);
             ensure(diff.tv_sec == 0, "time difference > %u sec", diff.tv_sec);
-            printf("%d\t%" PRIu64 "\t%ld\t%s\n", i_len, pkts, diff.tv_nsec, rx);
+            printf("%s\t%s\t%u\t%d\t%" PRIu64 "\t%ld\t%s\n", w_ifname(w),
+                   w_drvname(w), w_mbps(w), i_len, pkts, diff.tv_nsec, rx);
 
             // we are done with the received data
             w_free(&i);
