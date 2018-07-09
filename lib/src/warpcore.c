@@ -367,13 +367,16 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     char pipe[IFNAMSIZ];
     snprintf(pipe, IFNAMSIZ, "warp-%s", ifname);
 
-    // get interface config
-    struct ifaddrs * ifap;
-    ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface info", ifname);
-
     // we mostly loop here because the link may be down
     bool link_up = false, is_loopback = false, have_pipe = false;
-    while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0) {
+    while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0 ||
+           w->mbps == 0) {
+
+        // get interface config
+        struct ifaddrs * ifap;
+        ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface info",
+               ifname);
+
         struct ifaddrs * i;
         for (i = ifap; i; i = i->ifa_next) {
             if (strcmp(i->ifa_name, pipe) == 0)
@@ -419,7 +422,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
         }
         // ensure(i, "unknown interface %s", ifname);
 
-        if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0) {
+        if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0 ||
+            w->mbps) {
             // sleep for a bit, so we don't burn the CPU when link is down
             warn(WRN,
                  "%s: could not obtain required interface "
@@ -427,8 +431,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
                  ifname);
             sleep(1);
         }
+        freeifaddrs(ifap);
     }
-    freeifaddrs(ifap);
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
     char ip_str[INET_ADDRSTRLEN];

@@ -109,7 +109,8 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 }
 
 
-/// Return the link speed in Mb/s of network interface @p i.
+/// Return the link speed in Mb/s of network interface @p i. Note that at least
+/// on FreeBSD, since often returns "100 Mb/s" erroneously for fast interfaces.
 ///
 /// @param[in]  i     A network interface.
 ///
