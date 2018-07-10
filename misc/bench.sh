@@ -4,7 +4,7 @@ set -e
 
 warpcore=/home/elars/warpcore
 
-declare -A test1=(
+declare -A -x test1=(
         [speed]=1
         [iter]=10
         [clnt]=mora1
@@ -13,11 +13,11 @@ declare -A test1=(
         # [serv_if]=igb1
         [clnt_if]=eno3
         [serv_if]=eno3
-        [clnt_ip]=10.11.12.1
-        [serv_ip]=10.11.12.2
+        [clnt_ip]=10.11.12.7
+        [serv_ip]=10.11.12.8
 )
 
-declare -A test10=(
+declare -A -x test10=(
         [speed]=10
         [iter]=50
         [clnt]=mora1
@@ -26,11 +26,11 @@ declare -A test10=(
         # [serv_if]=ix0
         [clnt_if]=enp2s0f0
         [serv_if]=enp2s0f0
-        [clnt_ip]=10.11.12.1
-        [serv_ip]=10.11.12.2
+        [clnt_ip]=10.11.12.7
+        [serv_ip]=10.11.12.8
 )
 
-declare -A test40=(
+declare -A -x test40=(
         [speed]=40
         [iter]=100
         [clnt]=mora1
@@ -39,8 +39,8 @@ declare -A test40=(
         # [serv_if]=ixl0
         [clnt_if]=enp6s0f0
         [serv_if]=enp6s0f0
-        [clnt_ip]=10.11.12.1
-        [serv_ip]=10.11.12.2
+        [clnt_ip]=10.11.12.7
+        [serv_ip]=10.11.12.8
 )
 
 tests=(test1 test10 test40)
@@ -61,10 +61,10 @@ function run() {
 
 function ip_unconf() {
         local t=$1
-        typeset -n host=$t[$2]
-        typeset -n host_if=$t[$2_if]
-        typeset -n host_ip=$t[$2_ip]
-        typeset -n host_os=$host[os]
+        declare -n host="${t}[$2]"
+        declare -n host_if="${t}[$2_if]"
+        declare -n host_ip="${t}[$2_ip]"
+        declare -n host_os="${host}[os]"
         cmd=""
         if [ "$host_os" == Linux ]; then
                 for i in $(run "$host" "ls /sys/class/net"); do
@@ -75,26 +75,26 @@ function ip_unconf() {
         else
                 for i in $(run "$host" "ifconfig -l"); do
                         [ -z "$host_ip" ] && exit 1
-                        cmd="$cmd sudo ifconfig $i -alias $host_ip"
+                        cmd="$cmd sudo ifconfig $i -alias $host_ip &"
                 done
         fi
-        run "$host" "$cmd & wait" 2> /dev/null || true
+        run "$host" "$cmd wait" #2> /dev/null || true
 }
 
 
 function ip_conf() {
         local t=$1
-        typeset -n host=$t[$2]
-        typeset -n host_if=$t[$2_if]
-        typeset -n host_ip=$t[$2_ip]
-        typeset -n host_os=$host[os]
+        declare -n host="${t}[$2]"
+        declare -n host_if="${t}[$2_if]"
+        declare -n host_ip="${t}[$2_ip]"
+        declare -n host_os="${host}[os]"
         cmd=""
         if [ "$host_os" == Linux ]; then
                 cmd="sudo ifconfig $host_if down; \
-                     sudo sysctl net.core.rmem_max=26214400 & \
-                     sudo sysctl net.core.wmem_max=26214400 & \
-                     sudo sysctl net.core.rmem_default=26214400 & \
-                     sudo sysctl net.core.wmem_default=26214400 & \
+                     sudo sysctl net.core.rmem_max=26214400 \
+                                 net.core.wmem_max=26214400 \
+                                 net.core.rmem_default=26214400 \
+                                 net.core.wmem_default=26214400 & \
                      sudo ethtool -C $host_if adaptive-rx off adaptive-tx off \
                              rx-usecs 0 tx-usecs 0 & \
                      sudo ethtool -C $host_if rx-frames-irq 1 \
@@ -102,40 +102,42 @@ function ip_conf() {
                      sudo ethtool -G $host_if rx 2048 tx 2048 & \
                      sudo ethtool -A $host_if rx off tx off & \
                      sudo ethtool -L $host_if combined 2 & \
-                     sudo ethtool --set-eee $host_if eee off & wait; \
-                     sudo ifconfig $host_if up"
+                     sudo ethtool --set-eee $host_if eee off & wait"
         else
                 cmd="sudo pkill -f 'dhclient: $host_if'"
         fi
         cmd="$cmd; sudo ifconfig $host_if $host_ip/24 up"
-        run "$host" "$cmd" #2> /dev/null || true
+        run "$host" "$cmd"
 }
 
 
 function build() {
         local t=$1
-        typeset -n host=$t[$2]
-        typeset -n os=$host[os]
+        declare -n host="${t}[$2]"
+        declare -n host_os="${host}[os]"
+        declare -n built="${host}[built]"
+        [ -n "$built" ] && return
         run "$host" "mkdir -p $warpcore/$os-benchmarking; \
                      cd $warpcore/$os-benchmarking; \
                      cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo ..; \
                      ninja"
+        built=1
 }
 
 
 function stop() {
         local t=$1
-        typeset -n host=$t[$2]
+        declare -n host="${t}[$2]"
         run "$host" "sudo pkill inetd; \
-                     pkill '(warp|sock)(ping|inetd)'" || true
+                     pkill '(warp|sock)(ping|inetd)'"
 }
 
 
 function netmap_unconf() {
         local t=$1
-        typeset -n host=$t[$2]
-        typeset -n host_if=$t[$2_if]
-        typeset -n host_os=$host[os]
+        declare -n host="${t}[$2]"
+        declare -n host_if="${t}[$2_if]"
+        declare -n host_os="${host}[os]"
         cmd=""
         if [ "$host_os" == Linux ]; then
                 cmd="sudo ifconfig $host_if down; \
@@ -147,15 +149,15 @@ function netmap_unconf() {
         else
                 cmd="sudo ifconfig $host_if rxcsum txcsum tso lro"
         fi
-        run "$host" "$cmd & wait" #2> /dev/null || true
+        run "$host" "$cmd & wait"
 }
 
 
 function netmap_conf() {
         local t=$1
-        typeset -n host=$t[$2]
-        typeset -n host_if=$t[$2_if]
-        typeset -n host_os=$host[os]
+        declare -n host="${t}[$2]"
+        declare -n host_if="${t}[$2_if]"
+        declare -n host_os="${host}[os]"
         cmd=""
         if [ "$host_os" == Linux ]; then
                 cmd="echo 4096 > \
@@ -174,7 +176,7 @@ function netmap_conf() {
                      sudo sysctl dev.netmap.buf_num=1000000 & \
                      sudo ifconfig $host_if -rxcsum -txcsum -tso -lro"
         fi
-        run "$host" "$cmd & wait" #2> /dev/null || true
+        run "$host" "$cmd & wait"
 
 }
 
@@ -184,17 +186,18 @@ function start_clnt() {
         local busywait=$2
         local cksum=$3
         local kind=$4
-        typeset -n clnt=$t[clnt]
-        typeset -n speed=$t[speed]
-        typeset -n clnt_if=$t[clnt_if]
-        typeset -n serv_ip=$t[serv_ip]
-        typeset -n iter=$t[iter]
-        typeset -n clnt_os=$clnt[os]
+        declare -n clnt="${t}[clnt]"
+        declare -n speed="${t}[speed]"
+        declare -n clnt_if="${t}[clnt_if]"
+        declare -n serv_ip="${t}[serv_ip]"
+        declare -n iter="${t}[iter]"
+        declare -n clnt_os="${clnt}[os]"
 
         prefix="../${kind}ping-${speed}${busywait}${cksum}"
         file="${prefix}.txt"
         log="${prefix}.log"
         run "$clnt" "cd $warpcore/$os-benchmarking; \
+                     rm -f $file $log; \
                      ${pin[$clnt_os]} bin/${kind}ping \
                              -i $clnt_if -d $serv_ip $busywait $cksum -l $iter \
                              s 32 -p 0 -e 17000000 > $file 2> $log"
@@ -206,18 +209,19 @@ function start_serv() {
         local busywait=$2
         local cksum=$3
         local kind=$4
-        typeset -n serv=$t[serv]
-        typeset -n speed=$t[speed]
-        typeset -n serv_if=$t[serv_if]
-        typeset -n serv_os=$serv[os]
+        declare -n serv="${t}[serv]"
+        declare -n speed="${t}[speed]"
+        declare -n serv_if="${t}[serv_if]"
+        declare -n serv_os="${serv}[os]"
 
         prefix="../${kind}inetd-${speed}${busywait}${cksum}"
         file="${prefix}.txt"
         log="${prefix}.log"
         run "$serv" "cd $warpcore/$os-benchmarking; \
+                     rm -f $log; \
                      /usr/bin/nohup ${pin[$serv_os]} bin/${kind}inetd \
                              -i $serv_if $busywait $cksum \
-                     < /dev/null > /dev/null 2> $log  &"
+                     < /dev/null > /dev/null 2> $log &"
 }
 
 
@@ -226,29 +230,30 @@ function clean_logs() {
         local busywait=$2
         local cksum=$3
         local kind=$4
-        typeset -n serv=$t[serv]
-        typeset -n speed=$t[speed]
+        declare -n serv="${t}[serv]"
+        declare -n speed="${t}[speed]"
 
         clnt_log="${kind}ping-${speed}${busywait}${cksum}.log"
         serv_log="${kind}inetd-${speed}${busywait}${cksum}.log"
         run "$serv" "cd $warpcore; \
-                     [ ! -s $clnt_log ] && rm $clnt_log; \
-                     [ ! -s $serv_log ] && rm $serv_log;"
+                     [ ! -s $clnt_log ] && rm -f $clnt_log; \
+                     [ ! -s $serv_log ] && rm -f $serv_log;"
 }
 
 
 for t in "${tests[@]}"; do
-        typeset -n clnt=$t[clnt]
-        typeset -n serv=$t[serv]
+        declare -n tt="$t"
+        declare -n clnt=${tt[clnt]}
+        declare -n serv=${tt[serv]}
 
         for h in clnt serv; do
                 # define per-host hashes
-                typeset -n host=$t[$h]
-                declare -A "$host"
+                declare -n host="${tt[$h]}"
+                declare -A "${!host}"
 
                 # set host OS
-                typeset -n os=$host[os]
-                [ -z "$os" ] && os=$(run "$host" "uname -s")
+                declare -n os="${!host}[os]"
+                [ -z "$os" ] && os=$(run "${!host}" "uname -s")
         done
 
         echo "Baseline config"
@@ -261,11 +266,10 @@ for t in "${tests[@]}"; do
         [ ! -z "$1" ] && exit
 
         echo "Building"
-        typeset -n clnt_os=$clnt[os]
-        typeset -n serv_os=$serv[os]
-        build "$t" clnt &
-        [ "$clnt_os" != "$serv_os" ] && build "$t" serv &
-        wait
+        declare -n clnt_os="${!clnt}[os]"
+        declare -n serv_os="${!serv}[os]"
+        build "$t" clnt
+        [ "$clnt_os" != "$serv_os" ] && build "$t" serv
 
         for k in warp sock; do
                 if [ $k == warp ]; then
@@ -279,7 +283,7 @@ for t in "${tests[@]}"; do
                         for w in -b ""; do
                                 echo "Benchmark $k $c $w"
                                 start_serv "$t" "$w" "$c" "$k"
-                                sleep 1
+                                sleep 3
                                 start_clnt "$t" "$w" "$c" "$k"
                                 stop "$t" clnt &
                                 stop "$t" serv &
