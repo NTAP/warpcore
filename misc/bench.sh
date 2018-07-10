@@ -55,6 +55,7 @@ declare -A pin=(
 function run() {
         local dst=$1
         local cmd=$2
+        (>&2 echo "[$dst] $cmd" | fmt -s)
         ssh "$dst" "bash -c \"$cmd\""
 }
 
@@ -94,14 +95,14 @@ function ip_conf() {
                      sudo sysctl net.core.rmem_max=26214400 \
                                  net.core.wmem_max=26214400 \
                                  net.core.rmem_default=26214400 \
-                                 net.core.wmem_default=26214400 & \
+                                 net.core.wmem_default=26214400 &\
                      sudo ethtool -C $host_if adaptive-rx off adaptive-tx off \
-                             rx-usecs 0 tx-usecs 0 & \
+                             rx-usecs 0 tx-usecs 0 &\
                      sudo ethtool -C $host_if rx-frames-irq 1 \
-                             tx-frames-irq 1 & \
-                     sudo ethtool -G $host_if rx 2048 tx 2048 & \
-                     sudo ethtool -A $host_if rx off tx off & \
-                     sudo ethtool -L $host_if combined 2 & \
+                             tx-frames-irq 1 &\
+                     sudo ethtool -G $host_if rx 512 tx 512 &\
+                     sudo ethtool -A $host_if rx off tx off &\
+                     sudo ethtool -L $host_if combined 2 &\
                      sudo ethtool --set-eee $host_if eee off & wait"
         else
                 cmd="sudo pkill -f 'dhclient: $host_if'"
@@ -129,7 +130,7 @@ function stop() {
         local t=$1
         declare -n host="${t}[$2]"
         run "$host" "sudo pkill inetd; \
-                     pkill '(warp|sock)(ping|inetd)'"
+                     pkill '(warp|sock)(ping|inetd)'" || true
 }
 
 
@@ -145,11 +146,12 @@ function netmap_unconf() {
                              sg on rx on tx on tso on gro on lro on & \
                      sudo ethtool -C $host_if \
                              adaptive-rx on adaptive-tx on rx-usecs 10 & \
+                     wait; \
                      sudo ifconfig $host_if up"
         else
                 cmd="sudo ifconfig $host_if rxcsum txcsum tso lro"
         fi
-        run "$host" "$cmd & wait"
+        run "$host" "$cmd"
 }
 
 
@@ -166,7 +168,8 @@ function netmap_conf() {
                              sudo tee /sys/module/netmap/parameters/admode & \
                      echo 1000000 > \
                              sudo tee /sys/module/netmap/parameters/buf_num & \
-                     sudo ifconfig $host_if down; \
+                     sudo ifconfig $host_if down & \
+                     wait; \
                      sudo ethtool -K $host_if sg off rx off tx off tso off \
                              gro off lro off;\
                      sudo ifconfig $host_if up"
@@ -174,9 +177,10 @@ function netmap_conf() {
                 cmd="sudo sysctl dev.netmap.if_size=4096 & \
                      sudo sysctl dev.netmap.admode=1 & \
                      sudo sysctl dev.netmap.buf_num=1000000 & \
-                     sudo ifconfig $host_if -rxcsum -txcsum -tso -lro"
+                     sudo ifconfig $host_if -rxcsum -txcsum -tso -lro & \
+                     wait"
         fi
-        run "$host" "$cmd & wait"
+        run "$host" "$cmd"
 
 }
 
@@ -200,7 +204,7 @@ function start_clnt() {
                      rm -f $file $log; \
                      ${pin[$clnt_os]} bin/${kind}ping \
                              -i $clnt_if -d $serv_ip $busywait $cksum -l $iter \
-                             s 32 -p 0 -e 17000000 > $file 2> $log"
+                             -s 32 -p 0 -e 17000000 > $file 2> $log"
 }
 
 
@@ -258,9 +262,13 @@ for t in "${tests[@]}"; do
 
         echo "Baseline config"
         for h in clnt serv; do
-                (stop "$t" $h; netmap_unconf "$t" $h) &
-                (ip_unconf "$t" $h; ip_conf "$t" $h) &
+                stop "$t" $h &
+                netmap_unconf "$t" $h &
+                ip_unconf "$t" $h &
         done
+        wait
+        ip_conf "$t" clnt &
+        ip_conf "$t" serv &
         wait
 
         [ ! -z "$1" ] && exit
@@ -279,7 +287,7 @@ for t in "${tests[@]}"; do
                         wait
                 fi
 
-                for c in "" -z; do
+                for c in -z ""; do
                         for w in -b ""; do
                                 echo "Benchmark $k $c $w"
                                 start_serv "$t" "$w" "$c" "$k"

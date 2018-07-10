@@ -7,7 +7,7 @@ from time import *
 env.colorize_errors = True
 env.use_ssh_config = True
 env.builddir = ""
-env.keeplog = True
+env.keeplog = False
 env.uname = {}
 
 env.ip = {"phobos1": "10.11.12.3",
@@ -57,16 +57,16 @@ def ip_config(test):
     with settings(warn_only=True):
         cmd = ""
         if env.uname[env.host_string] == "Linux":
-            cmd += ("sysctl -w net.core.rmem_max=26214400; "
-                    "sysctl -w net.core.wmem_max=26214400; "
-                    "sysctl -w net.core.rmem_default=26214400; "
-                    "sysctl -w net.core.wmem_default=26214400; "
+            cmd += ("sysctl net.core.rmem_max=26214400"
+                    "       net.core.wmem_max=26214400"
+                    "       net.core.rmem_default=26214400"
+                    "       net.core.wmem_default=26214400; "
                     "ifconfig %s down; "
                     "ethtool -C %s adaptive-rx off adaptive-tx off "
                     "rx-usecs 0 tx-usecs 0; "
-                    "ethtool -C %s rx-frames-irq 1 tx-frames-irq 1 "
-                    "ethtool -G %s rx 2048 tx 2048; "
-                    "ethtool -A %s rx off tx off ; "
+                    "ethtool -C %s rx-frames-irq 1 tx-frames-irq 1; "
+                    "ethtool -G %s rx 512 tx 512; "
+                    "ethtool -A %s rx off tx off; "
                     "ethtool -L %s combined 2; "
                     "ethtool --set-eee %s eee off; "
                     "ifconfig %s up; " % ((iface, ) * 8))
@@ -87,7 +87,7 @@ def ip_unconfig(test):
             for i in run("ls /sys/class/net").split():
                 cmd += ("ip addr del %s/24 dev %s; " %
                         (env.ip[env.host_string], i))
-            cmd += ("ethtool -G %s rx 512 tx 512; " % (i))
+                cmd += ("ethtool -G %s rx 512 tx 512; " % (i))
         else:
             for i in run("ifconfig -l").split():
                 cmd += "ifconfig %s -alias %s; " % (i, env.ip[env.host_string])
@@ -107,10 +107,10 @@ def netmap_config(test):
                  "ethtool -K %s sg off rx off tx off tso off gro off lro off; "
                  "ifconfig %s up; " % ((iface, ) * 3))
         else:
-            sudo("sysctl -q -w hw.ix.enable_aim=0; "
-                 "sysctl -q -w dev.netmap.if_size=4096; "
-                 "sysctl -q -w dev.netmap.admode=1; "
-                 "sysctl -q -w dev.netmap.buf_num=1000000; "
+            sudo("sysctl hw.ix.enable_aim=0; "
+                 "sysctl dev.netmap.if_size=4096; "
+                 "sysctl dev.netmap.admode=1; "
+                 "sysctl dev.netmap.buf_num=1000000; "
                  "ifconfig %s -rxcsum -txcsum -tso -lro; " % (iface))
 
 
@@ -126,7 +126,7 @@ def netmap_unconfig(test):
                  "rx-usecs 10 ; "
                  "ifconfig %s up; " % ((iface, ) * 4))
         else:
-            sudo("sysctl -q -w hw.ix.enable_aim=1; "
+            sudo("sysctl hw.ix.enable_aim=1; "
                  "ifconfig %s rxcsum txcsum tso lro; " % (iface))
 
 
@@ -235,9 +235,10 @@ def bench():
             for k in ["warp", "sock"]:
                 if k == "warp":
                     execute(netmap_config, t)
-                for c in ["", "-z"]:
+                for c in ["-z", ""]:
                     for w in ["-b", ""]:
                         execute(start_server, t, w, c, k)
+                        sleep(3)  # switch needs some time to settle
                         execute(start_client, t, w, c, k)
                         execute(stop)
                 if k == "warp":
