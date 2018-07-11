@@ -169,7 +169,7 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
     case ICMP_TYPE_UNREACH: {
 #if !defined(NDEBUG) && DLEVEL >= WRN
         const struct ip_hdr * const payload_ip =
-            (const void *)(ip_data(buf) + sizeof(*icmp) + 4);
+            (const void *)(ip_data(buf) + sizeof(*icmp));
 #endif
         switch (icmp->code) {
         case ICMP_UNREACH_PROTOCOL:
@@ -181,7 +181,8 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
         case ICMP_UNREACH_PORT: {
 #if !defined(NDEBUG) && DLEVEL >= WRN
             const struct udp_hdr * const payload_udp =
-                (const void *)((const uint8_t *)ip + ip_hl(ip));
+                (const void *)((const uint8_t *)payload_ip +
+                               sizeof(*payload_ip));
             rwarn(WRN, 10, "received ICMP IP proto %d port %d unreachable",
                   payload_ip->p, ntohs(payload_udp->dport));
 #endif
