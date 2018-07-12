@@ -111,6 +111,7 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 
 /// Return the link speed in Mb/s of network interface @p i. Note that at least
 /// on FreeBSD, since often returns "100 Mb/s" erroneously for fast interfaces.
+/// Returns UINT32_MAX when the speed could not be determined.
 ///
 /// @param[in]  i     A network interface.
 ///
@@ -121,7 +122,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
 #if defined(__FreeBSD__)
     const struct if_data * const ifa_data = i->ifa_data;
     if ((ifa_data->ifi_link_state & LINK_STATE_UP) != LINK_STATE_UP)
-        return 0;
+        return UINT32_MAX;
     return (uint32_t)(ifa_data->ifi_baudrate / 1000000);
 #elif defined(__APPLE__)
     const struct if_data * const ifa_data = i->ifa_data;
@@ -141,7 +142,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     ensure(ioctl(s, SIOCGIFFLAGS, &ifr) >= 0, "%s ioctl", i->ifa_name);
     if (ifr.ifr_flags & IFF_LOOPBACK) {
         close(s);
-        return 0;
+        return UINT32_MAX;
     }
 
     struct ethtool_cmd edata;
@@ -151,14 +152,14 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     if (err == -1 && errno == ENOTSUP) {
         // the ioctl can fail for virtual NICs
         close(s);
-        return 0;
+        return UINT32_MAX;
     }
     ensure(err >= 0, "%s ioctl", i->ifa_name);
 
     close(s);
 
     if (edata.speed == (uint16_t)SPEED_UNKNOWN)
-        return 0;
+        return UINT32_MAX;
     return ethtool_cmd_speed(&edata);
 #endif
 }
