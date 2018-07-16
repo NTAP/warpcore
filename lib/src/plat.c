@@ -126,7 +126,8 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     return (uint32_t)(ifa_data->ifi_baudrate / 1000000);
 #elif defined(__APPLE__)
     const struct if_data * const ifa_data = i->ifa_data;
-    // XXX this seems to contain garbage?
+    if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
+        return UINT32_MAX;
     return ifa_data->ifi_baudrate / 1000000;
 #else
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
