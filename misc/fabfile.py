@@ -7,7 +7,7 @@ from time import *
 env.colorize_errors = True
 env.use_ssh_config = True
 env.builddir = ""
-env.keeplog = False
+env.keeplog = True
 env.uname = {}
 
 env.ip = {"phobos1": "10.11.12.3",
@@ -33,10 +33,10 @@ env.tests = [
     # {"speed": 40, "client": "mora1", "server": "mora2", "iface": "ixl0"},
 
     # mora Linux
-    # {"speed": 1, "iter": 10, "client": "mora1", "server": "mora2",
-    #  "client_iface": "eno3", "server_iface": "eno3"},
-    # {"speed": 10, "iter": 50, "client": "mora1", "server": "mora2",
-    #  "client_iface": "enp2s0f0", "server_iface": "enp2s0f0"},
+    {"speed": 1, "iter": 10, "client": "mora1", "server": "mora2",
+     "client_iface": "eno3", "server_iface": "eno3"},
+    {"speed": 10, "iter": 50, "client": "mora1", "server": "mora2",
+     "client_iface": "enp2s0f0", "server_iface": "enp2s0f0"},
     {"speed": 40, "iter": 100, "client": "mora1", "server": "mora2",
      "client_iface": "enp6s0f0", "server_iface": "enp6s0f0"},
 ]

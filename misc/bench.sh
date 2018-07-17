@@ -35,15 +35,15 @@ declare -A -x test40=(
         [iter]=100
         [clnt]=mora1
         [serv]=mora2
-        # [clnt_if]=ixl0
-        # [serv_if]=ixl0
-        [clnt_if]=enp6s0f0
-        [serv_if]=enp6s0f0
+        [clnt_if]=ixl0
+        [serv_if]=ixl0
+        # [clnt_if]=enp6s0f0
+        # [serv_if]=enp6s0f0
         [clnt_ip]=10.11.12.7
         [serv_ip]=10.11.12.8
 )
 
-tests=(test1 test10 test40)
+tests=(test40)
 
 
 declare -A pin=(
@@ -52,10 +52,17 @@ declare -A pin=(
 )
 
 
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+blue=$(tput setaf 4)
+bold=$(tput bold)
+norm=$(tput sgr0)
+
+
 function run() {
         local dst=$1
         local cmd=$2
-        (>&2 echo "[$dst] $cmd" | fmt -s)
+        (echo "${green}${bold}[$dst]${norm}${blue} $cmd${norm}" | tr -s " " >&2)
         ssh "$dst" "bash -c \"$cmd\""
 }
 
@@ -66,20 +73,17 @@ function ip_unconf() {
         declare -n host_if="${t}[$2_if]"
         declare -n host_ip="${t}[$2_ip]"
         declare -n host_os="${host}[os]"
-        cmd=""
         if [ "$host_os" == Linux ]; then
+                cmd="sudo ethtool --set-channels $host_if combined 10;"
                 for i in $(run "$host" "ls /sys/class/net"); do
-                        [ -z "$host_ip" ] && exit 1
                         cmd="$cmd sudo ip addr del $host_ip/24 dev $i &"
-                        cmd="$cmd sudo ethtool -G $i rx 512 tx 512 &"
                 done
         else
                 for i in $(run "$host" "ifconfig -l"); do
-                        [ -z "$host_ip" ] && exit 1
                         cmd="$cmd sudo ifconfig $i -alias $host_ip &"
                 done
         fi
-        run "$host" "$cmd wait" #2> /dev/null || true
+        run "$host" "$cmd wait"
 }
 
 
@@ -89,21 +93,19 @@ function ip_conf() {
         declare -n host_if="${t}[$2_if]"
         declare -n host_ip="${t}[$2_ip]"
         declare -n host_os="${host}[os]"
-        cmd=""
         if [ "$host_os" == Linux ]; then
-                cmd="sudo ifconfig $host_if down; \
-                     sudo sysctl net.core.rmem_max=26214400 \
-                                 net.core.wmem_max=26214400 \
-                                 net.core.rmem_default=26214400 \
-                                 net.core.wmem_default=26214400 &\
-                     sudo ethtool -C $host_if adaptive-rx off adaptive-tx off \
-                             rx-usecs 0 tx-usecs 0 &\
-                     sudo ethtool -C $host_if rx-frames-irq 1 \
-                             tx-frames-irq 1 &\
-                     sudo ethtool -G $host_if rx 512 tx 512 &\
-                     sudo ethtool -A $host_if rx off tx off &\
-                     sudo ethtool -L $host_if combined 2 &\
-                     sudo ethtool --set-eee $host_if eee off & wait"
+                cmd="sudo sysctl net.core.rmem_max=26214400 \
+                             net.core.wmem_max=26214400 \
+                             net.core.rmem_default=26214400 \
+                             net.core.wmem_default=26214400; \
+                     sudo ethtool --set-channels $host_if combined 2; \
+                     sudo ethtool --set-eee $host_if eee off; \
+                     sudo ethtool --pause $host_if \
+                             autoneg off rx off tx off; \
+                     sudo ethtool --coalesce $host_if \
+                             adaptive-rx off adaptive-tx off \
+                             rx-usecs 0 tx-usecs 0 \
+                             rx-frames-irq 1 tx-frames-irq 1"
         else
                 cmd="sudo pkill -f 'dhclient: $host_if'"
         fi
@@ -118,8 +120,10 @@ function build() {
         declare -n host_os="${host}[os]"
         declare -n built="${host}[built]"
         [ -n "$built" ] && return
+        echo "${red}Building $host/$host_os${norm}"
         run "$host" "mkdir -p $warpcore/$os-benchmarking; \
                      cd $warpcore/$os-benchmarking; \
+                     git pull; \
                      cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo ..; \
                      ninja"
         built=1
@@ -129,8 +133,7 @@ function build() {
 function stop() {
         local t=$1
         declare -n host="${t}[$2]"
-        run "$host" "sudo pkill inetd; \
-                     pkill '(warp|sock)(ping|inetd)'" || true
+        run "$host" "pkill '(warp|sock)(ping|inetd)'" || true
 }
 
 
@@ -139,15 +142,9 @@ function netmap_unconf() {
         declare -n host="${t}[$2]"
         declare -n host_if="${t}[$2_if]"
         declare -n host_os="${host}[os]"
-        cmd=""
         if [ "$host_os" == Linux ]; then
-                cmd="sudo ifconfig $host_if down; \
-                     sudo ethtool -K $host_if \
-                             sg on rx on tx on tso on gro on lro on & \
-                     sudo ethtool -C $host_if \
-                             adaptive-rx on adaptive-tx on rx-usecs 10 & \
-                     wait; \
-                     sudo ifconfig $host_if up"
+                cmd="sudo ethtool --features $host_if \
+                             sg on rx on tx on tso on gro on lro on"
         else
                 cmd="sudo ifconfig $host_if rxcsum txcsum tso lro"
         fi
@@ -160,25 +157,18 @@ function netmap_conf() {
         declare -n host="${t}[$2]"
         declare -n host_if="${t}[$2_if]"
         declare -n host_os="${host}[os]"
-        cmd=""
         if [ "$host_os" == Linux ]; then
-                cmd="echo 4096 > \
-                             sudo tee /sys/module/netmap/parameters/if_size & \
-                     echo 1 > \
-                             sudo tee /sys/module/netmap/parameters/admode & \
-                     echo 1000000 > \
-                             sudo tee /sys/module/netmap/parameters/buf_num & \
-                     sudo ifconfig $host_if down & \
-                     wait; \
-                     sudo ethtool -K $host_if sg off rx off tx off tso off \
-                             gro off lro off;\
-                     sudo ifconfig $host_if up"
+                cmd="cd /sys/module/netmap/parameters; \
+                     echo 4096 | sudo tee if_size > /dev/null; \
+                     echo 1 | sudo tee admode > /dev/null; \
+                     echo 1000000 | sudo tee buf_num > /dev/null; \
+                     sudo ethtool --features $host_if \
+                             sg off rx off tx off tso off gro off lro off"
         else
-                cmd="sudo sysctl dev.netmap.if_size=4096 & \
-                     sudo sysctl dev.netmap.admode=1 & \
-                     sudo sysctl dev.netmap.buf_num=1000000 & \
-                     sudo ifconfig $host_if -rxcsum -txcsum -tso -lro & \
-                     wait"
+                cmd="sudo sysctl dev.netmap.if_size=4096; \
+                     sudo sysctl dev.netmap.admode=1; \
+                     sudo sysctl dev.netmap.buf_num=1000000; \
+                     sudo ifconfig $host_if -rxcsum -txcsum -tso -lro"
         fi
         run "$host" "$cmd"
 
@@ -260,7 +250,7 @@ for t in "${tests[@]}"; do
                 [ -z "$os" ] && os=$(run "${!host}" "uname -s")
         done
 
-        echo "Baseline config"
+        echo "${red}Baseline config${norm}"
         for h in clnt serv; do
                 stop "$t" $h &
                 netmap_unconf "$t" $h &
@@ -273,7 +263,6 @@ for t in "${tests[@]}"; do
 
         [ ! -z "$1" ] && exit
 
-        echo "Building"
         declare -n clnt_os="${!clnt}[os]"
         declare -n serv_os="${!serv}[os]"
         build "$t" clnt
@@ -281,7 +270,7 @@ for t in "${tests[@]}"; do
 
         for k in warp sock; do
                 if [ $k == warp ]; then
-                        echo "netmap config"
+                        echo "${red}netmap config${norm}"
                         netmap_conf "$t" clnt &
                         netmap_conf "$t" serv &
                         wait
@@ -289,7 +278,7 @@ for t in "${tests[@]}"; do
 
                 for c in -z ""; do
                         for w in -b ""; do
-                                echo "Benchmark $k $c $w"
+                                echo "${red}Benchmark $t $k $c $w${norm}"
                                 start_serv "$t" "$w" "$c" "$k"
                                 sleep 3
                                 start_clnt "$t" "$w" "$c" "$k"
@@ -301,14 +290,14 @@ for t in "${tests[@]}"; do
                 done
 
                 if [ $k == warp ]; then
-                        echo "Undo netmap config"
+                        echo "${red}Undo netmap config${norm}"
                         netmap_unconf "$t" clnt &
                         netmap_unconf "$t" serv &
                         wait
                 fi
         done
 
-        echo "Undo config"
+        echo "${red}Undo config${norm}"
         ip_unconf "$t" clnt &
         ip_unconf "$t" serv &
         wait
