@@ -48,6 +48,7 @@
 #endif
 
 #ifdef WITH_NETMAP
+#include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #endif
 

@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/types.h>
 
 #include "arp.h"
 #include "backend.h"

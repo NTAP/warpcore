@@ -32,7 +32,8 @@
 
 struct netmap_ring;
 struct w_engine;
-
+struct w_iov;
+struct w_sock;
 
 /// A representation of a UDP header; see
 /// [RFC768](https://tools.ietf.org/html/rfc768).

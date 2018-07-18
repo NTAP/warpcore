@@ -36,6 +36,7 @@
 
 struct w_engine;
 struct netmap_ring;
+struct w_iov;
 
 
 #define IP_ECN_NOT_ECT 0x00 ///< ECN was not enabled.
