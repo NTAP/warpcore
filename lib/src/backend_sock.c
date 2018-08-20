@@ -431,7 +431,13 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
         // return any unused buffers
         for (ssize_t j = n; likely(j < nbufs); j++)
             sq_insert_head(&s->w->iov, v[j], next);
-    } while (n == RECV_SIZE);
+    } while (
+#ifdef HAVE_RECVMMSG
+        n == RECV_SIZE
+#else
+        n < RECV_SIZE
+#endif
+    );
 }
 
 

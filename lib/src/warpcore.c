@@ -115,7 +115,7 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
         v->buf += off;
         v->len -= off;
         ensure(len <= v->len, "len %u > v->len %u", len, v->len);
-        v->len = len ? len : v->len;
+        v->len = len ? len : w->mtu;
         // warn(DBG, "alloc w_iov off %u len %u",
         //      v->buf - IDX2BUF(w, w_iov_idx(v)), v->len);
     }
