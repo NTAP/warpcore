@@ -124,9 +124,9 @@
 
 #define SPLAY_PROTOTYPE(name, type, field, cmp)                                \
     _Pragma("clang diagnostic push")                                           \
-    _Pragma("clang diagnostic ignored \"-Wunused-function\"")                  \
+        _Pragma("clang diagnostic ignored \"-Wunused-function\"")              \
                                                                                \
-    void name##_splay(struct name *, const struct type *);                     \
+            void name##_splay(struct name *, const struct type *);             \
     void name##_splay_minmax(struct name *, int);                              \
     struct type * name##_splay_insert(struct name *, struct type *);           \
     struct type * name##_splay_remove(struct name *, struct type *);           \

@@ -32,7 +32,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 
 #include <warpcore/warpcore.h>
 
@@ -84,7 +83,7 @@
 void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    const struct ip_hdr * const ip = (const void *)eth_data(buf);
+    struct ip_hdr * const ip = (void *)eth_data(buf);
     ip_log(ip);
 
     // make sure the packet is for us (or broadcast)
@@ -145,7 +144,7 @@ bool ip_tx(struct w_engine * const w,
            struct w_iov * const v,
            const uint16_t len)
 {
-    struct ip_hdr * const ip = (void *)eth_data(IDX2BUF(w, v->idx));
+    struct ip_hdr * const ip = (void *)eth_data(idx_to_buf(w, v->idx));
     const uint16_t l = len + sizeof(*ip);
 
     // fill in remaining header fields

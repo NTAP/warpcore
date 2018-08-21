@@ -103,7 +103,7 @@ void arp_cache_update(struct w_engine * w,
 ///                   Ethernet frame
 ///
 static void __attribute__((nonnull))
-arp_is_at(struct w_engine * const w, const uint8_t * const buf)
+arp_is_at(struct w_engine * const w, uint8_t * const buf)
 {
     // grab iov for reply
     struct w_iov * const v = w_alloc_iov_base(w);
@@ -114,7 +114,7 @@ arp_is_at(struct w_engine * const w, const uint8_t * const buf)
     struct arp_hdr * const reply = (void *)eth_data(v->buf);
 
     // construct ARP header
-    const struct arp_hdr * const req = (const void *)eth_data(buf);
+    struct arp_hdr * const req = (void *)eth_data(buf);
 
     reply->hrd = htons(ARP_HRD_ETHER);
     reply->pro = ETH_TYPE_IP;

@@ -58,7 +58,11 @@ struct eth_hdr {
 ///
 /// @return     Pointer to the first data byte inside @p buf.
 ///
-#define eth_data(buf) ((buf) + sizeof(struct eth_hdr))
+static inline __attribute__((always_inline, nonnull)) uint8_t *
+eth_data(uint8_t * const buf)
+{
+    return buf + sizeof(struct eth_hdr);
+}
 
 
 extern void __attribute__((nonnull))
@@ -128,7 +132,7 @@ eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
          is_pipe(w) ? "idx" : "swap with", s->buf_idx);
     if (unlikely(is_pipe(w)))
         // for netmap pipes, we need to copy the buffer into the slot
-        memcpy(NETMAP_BUF(txr, s->buf_idx), IDX2BUF(w, v->idx), s->len);
+        memcpy(NETMAP_BUF(txr, s->buf_idx), idx_to_buf(w, v->idx), s->len);
     else {
         // for NIC rings, temporarily place v into the current tx ring
         const uint32_t slot_idx = s->buf_idx;

@@ -70,9 +70,20 @@ struct w_backend {
 };
 
 
-#define is_pipe(w)                                                             \
-    unlikely(((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_MASTER ||    \
-             ((w)->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_SLAVE)
+static inline __attribute__((always_inline, nonnull)) bool
+is_pipe(const struct w_engine * const w
+#ifndef WITH_NETMAP
+        __attribute__((unused))
+#endif
+)
+{
+#ifdef WITH_NETMAP
+    return unlikely((w->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_MASTER ||
+                    (w->b->req->nr_flags & NR_REG_MASK) == NR_REG_PIPE_SLAVE);
+#else
+    return false;
+#endif
+}
 
 
 /// For a given buffer index, get a pointer to its beginning.
@@ -85,12 +96,15 @@ struct w_backend {
 ///
 /// @return     Memory region associated with buffer @p i.
 ///
+static inline __attribute__((always_inline, nonnull)) uint8_t *
+idx_to_buf(const struct w_engine * const w, const uint32_t i)
+{
 #ifdef WITH_NETMAP
-#define IDX2BUF(w, i)                                                          \
-    ((uint8_t *)NETMAP_BUF(NETMAP_TXRING((w)->b->nif, 0), (i)))
+    return (uint8_t *)NETMAP_BUF(NETMAP_TXRING(w->b->nif, 0), i);
 #else
-#define IDX2BUF(w, i) (((uint8_t *)w->mem + (i * w->mtu)))
+    return (uint8_t *)w->mem + (i * w->mtu);
 #endif
+}
 
 
 #include "eth.h"
@@ -131,7 +145,11 @@ extern sl_head(w_engines, w_engine) engines;
 ///
 /// @return     The IPv4 broadcast address associated with @p ip and @p mask.
 ///
-#define mk_bcast(ip, mask) ((ip) | (~mask))
+static inline __attribute__((always_inline, const)) uint32_t
+mk_bcast(const uint32_t ip, const uint32_t mask)
+{
+    return ip | (~mask);
+}
 
 
 /// The IPv4 network prefix for the given IPv4 address and netmask.
@@ -141,29 +159,35 @@ extern sl_head(w_engines, w_engine) engines;
 ///
 /// @return     The IPv4 prefix associated with @p ip and @p mask.
 ///
-#define mk_net(ip, mask) ((ip) & (mask))
+static inline __attribute__((always_inline, const)) uint32_t
+mk_net(const uint32_t ip, const uint32_t mask)
+{
+    return ip & mask;
+}
 
 
-#define init_iov(ww, v)                                                        \
-    do {                                                                       \
-        (v)->w = (ww);                                                         \
-        (v)->buf = IDX2BUF((ww), (v)->idx);                                    \
-        (v)->len = (ww)->mtu;                                                  \
-        (v)->o = 0;                                                            \
-        sq_next((v), next) = 0;                                                \
-    } while (0)
+static inline __attribute__((always_inline, nonnull)) void
+init_iov(struct w_engine * const w, struct w_iov * const v)
+{
+    v->w = w;
+    v->buf = idx_to_buf(w, v->idx);
+    v->len = w->mtu;
+    v->o = 0;
+    sq_next(v, next) = 0;
+}
 
 
-#define w_alloc_iov_base(w)                                                    \
-    __extension__({                                                            \
-        struct w_iov * const _v = sq_first(&(w)->iov);                         \
-        if (likely(_v)) {                                                      \
-            sq_remove_head(&(w)->iov, next);                                   \
-            init_iov((w), _v);                                                 \
-            ASAN_UNPOISON_MEMORY_REGION(IDX2BUF((w), _v->idx), _v->len);       \
-        }                                                                      \
-        _v;                                                                    \
-    })
+static inline __attribute__((always_inline, nonnull)) struct w_iov *
+w_alloc_iov_base(struct w_engine * const w)
+{
+    struct w_iov * const v = sq_first(&w->iov);
+    if (likely(v)) {
+        sq_remove_head(&w->iov, next);
+        init_iov(w, v);
+        ASAN_UNPOISON_MEMORY_REGION(idx_to_buf(w, v->idx), v->len);
+    }
+    return v;
+}
 
 
 extern void __attribute__((nonnull)) backend_bind(struct w_sock * const s);

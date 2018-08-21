@@ -37,7 +37,7 @@
 #include "backend.h"
 #include "common.h"
 
-#define beg(v) IDX2BUF(w, w_iov_idx(v))
+#define beg(v) idx_to_buf(w, w_iov_idx(v))
 
 
 int main(void)
@@ -54,7 +54,8 @@ int main(void)
         warn(INF, "off %u", x);
         v = w_alloc_iov(w, 0, x);
         ensure(v->len == w->mtu - x, "v len != %u", w->mtu - x);
-        ensure(v->buf == beg(v) + x, "start incorrect");
+        ensure(v->buf == beg(v) + x, "start incorrect %p != %p", v->buf,
+               beg(v) + x);
         w_free_iov(v);
     }
 

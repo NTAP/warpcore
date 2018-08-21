@@ -187,7 +187,7 @@ void backend_cleanup(struct w_engine * const w)
 
     // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
-        uint32_t * const buf = (void *)IDX2BUF(w, w->bufs[n].idx);
+        uint32_t * const buf = (void *)idx_to_buf(w, w->bufs[n].idx);
         ASAN_UNPOISON_MEMORY_REGION(buf, w->mtu);
         if (likely(n < sq_len(&w->iov) - 1))
             *buf = w->bufs[n + 1].idx;

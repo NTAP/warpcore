@@ -70,7 +70,7 @@ void icmp_tx(struct w_engine * const w,
     dst_icmp->code = code;
     rwarn(INF, 10, "sending ICMP type %d, code %d", type, code);
 
-    const struct ip_hdr * const src_ip = (const void *)eth_data(buf);
+    struct ip_hdr * const src_ip = (void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
     uint16_t data_len =
         MIN(ntohs(src_ip->len),
@@ -151,7 +151,7 @@ void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
     rwarn(DBG, 10, "received ICMP type %d, code %d", icmp->type, icmp->code);
 
     // validate the ICMP checksum
-    const struct ip_hdr * const ip = (const void *)eth_data(buf);
+    struct ip_hdr * const ip = (void *)eth_data(buf);
     const uint16_t icmp_len =
         MIN(ip_data_len(ip), r->slot[r->cur].len - sizeof(struct eth_hdr) -
                                  sizeof(struct ip_hdr));

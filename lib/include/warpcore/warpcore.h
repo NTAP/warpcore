@@ -178,7 +178,11 @@ struct w_iov {
 ///
 /// @return     Index between 0-nfbus.
 ///
-#define w_iov_idx(v) ((v) - (v)->w->bufs)
+static inline __attribute__((always_inline, nonnull)) uint32_t
+w_iov_idx(const struct w_iov * const v)
+{
+    return v - v->w->bufs;
+}
 
 
 /// Return a pointer to the w_iov with index @p i.
@@ -188,7 +192,11 @@ struct w_iov {
 ///
 /// @return     Pointer to w_iov.
 ///
-#define w_iov(w, i) (&(w)->bufs[(i)])
+static inline __attribute__((always_inline, nonnull)) struct w_iov *
+w_iov(const struct w_engine * const w, const uint32_t i)
+{
+    return &w->bufs[i];
+}
 
 
 extern struct w_engine * __attribute__((nonnull))
@@ -290,7 +298,11 @@ static inline uint64_t
 ///
 /// @return     Number of w_iov structs not yet transmitted.
 ///
-#define w_tx_pending(q) (q)->tx_pending
+static inline __attribute__((always_inline, nonnull)) uint32_t
+w_tx_pending(const struct w_iov_sq * const q)
+{
+    return q->tx_pending;
+}
 
 
 /// Return warpcore engine serving w_sock @p s.
@@ -299,7 +311,11 @@ static inline uint64_t
 ///
 /// @return     The warpcore engine for w_sock @p s.
 ///
-#define w_engine(s) (s)->w
+static inline __attribute__((always_inline, nonnull)) struct w_engine *
+w_engine(const struct w_sock * const s)
+{
+    return s->w;
+}
 
 
 /// Return name of interface associated with a warpcore engine. Must not be
@@ -309,7 +325,11 @@ static inline uint64_t
 ///
 /// @return     Interface name.
 ///
-#define w_ifname(w) (w)->ifname
+static inline __attribute__((always_inline, nonnull)) char *
+w_ifname(const struct w_engine * const w)
+{
+    return w->ifname;
+}
 
 
 /// Return MTU of w_engine @p w. Must not be modified by caller.
@@ -318,7 +338,11 @@ static inline uint64_t
 ///
 /// @return     MTU value in use by engine @p w.
 ///
-#define w_mtu(w) (w)->mtu
+static inline __attribute__((always_inline, nonnull)) uint16_t
+w_mtu(const struct w_engine * const w)
+{
+    return w->mtu;
+}
 
 
 /// Return the number of w_iov structures in the w_iov tail queue @p c.
@@ -327,7 +351,11 @@ static inline uint64_t
 ///
 /// @return     Number of w_iov structs in @p q.
 ///
-#define w_iov_sq_cnt(q) sq_len(q)
+static inline __attribute__((always_inline, nonnull)) uint32_t
+w_iov_sq_cnt(const struct w_iov_sq * const q)
+{
+    return sq_len(q);
+}
 
 
 /// Return link speed of w_engine @p w in Mb/s. Must not be modified by caller.
@@ -336,7 +364,11 @@ static inline uint64_t
 ///
 /// @return     Link speed of @p w.
 ///
-#define w_mbps(w) (w)->mbps
+static inline __attribute__((always_inline, nonnull)) uint32_t
+w_mbps(const struct w_engine * const w)
+{
+    return w->mbps;
+}
 
 
 /// Return name of teh driver associated with the interface of a warpcore
@@ -346,7 +378,11 @@ static inline uint64_t
 ///
 /// @return     Driver name @p w.
 ///
-#define w_drvname(w) (w)->drvname
+static inline __attribute__((always_inline, nonnull)) char *
+w_drvname(const struct w_engine * const w)
+{
+    return w->drvname;
+}
 
 #ifdef __cplusplus
 }

@@ -48,7 +48,6 @@
 #endif
 
 #ifdef WITH_NETMAP
-#include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #endif
 
@@ -117,7 +116,7 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
         ensure(len <= v->len, "len %u > v->len %u", len, v->len);
         v->len = len ? len : v->len;
         // warn(DBG, "alloc w_iov off %u len %u",
-        //      v->buf - IDX2BUF(w, w_iov_idx(v)), v->len);
+        //      v->buf - idx_to_buf(w, w_iov_idx(v)), v->len);
     }
     return v;
 }
@@ -480,7 +479,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 uint16_t w_iov_max_len(const struct w_iov * const v)
 {
     const uint16_t offset = (const uint16_t)(
-        (const uint8_t *)v->buf - (const uint8_t *)IDX2BUF(v->w, v->idx));
+        (const uint8_t *)v->buf - (const uint8_t *)idx_to_buf(v->w, v->idx));
     return v->w->mtu - offset;
 }
 
@@ -511,7 +510,7 @@ void w_free(struct w_iov_sq * const q)
     sq_concat(&w->iov, q);
     struct w_iov * v;
     sq_foreach (v, q, next)
-        ASAN_POISON_MEMORY_REGION(IDX2BUF(w, v->idx), w->mtu);
+        ASAN_POISON_MEMORY_REGION(idx_to_buf(w, v->idx), w->mtu);
 }
 
 
@@ -523,7 +522,7 @@ void w_free(struct w_iov_sq * const q)
 void w_free_iov(struct w_iov * const v)
 {
     sq_insert_head(&v->w->iov, v, next);
-    ASAN_POISON_MEMORY_REGION(IDX2BUF(v->w, v->idx), v->w->mtu);
+    ASAN_POISON_MEMORY_REGION(idx_to_buf(v->w, v->idx), v->w->mtu);
 }
 
 

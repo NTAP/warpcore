@@ -87,7 +87,11 @@ struct ip_hdr {
 ///
 /// @return     IP version number.
 ///
-#define ip_v(ip) (uint8_t)((((const struct ip_hdr *)(ip))->vhl & 0xf0) >> 4)
+static inline __attribute__((always_inline, nonnull)) uint8_t
+ip_v(const struct ip_hdr * const ip)
+{
+    return (ip->vhl & 0xf0) >> 4;
+}
 
 
 /// Extract the IP header length out of an ip_hdr::vhl field.
@@ -96,8 +100,11 @@ struct ip_hdr {
 ///
 /// @return     IP header length in bytes.
 ///
-#define ip_hl(ip)                                                              \
-    (uint8_t)((((const struct ip_hdr *)(const void *)(ip))->vhl & 0x0f) * 4)
+static inline __attribute__((always_inline, nonnull)) uint8_t
+ip_hl(const struct ip_hdr * const ip)
+{
+    return (ip->vhl & 0x0f) * 4;
+}
 
 
 /// Extract the DSCP out of an ip_hdr::tos field.
@@ -106,7 +113,11 @@ struct ip_hdr {
 ///
 /// @return     DSCP.
 ///
-#define ip_dscp(ip) (uint8_t)((((const struct ip_hdr *)(ip))->tos & 0xfc) >> 2)
+static inline __attribute__((always_inline, nonnull)) uint8_t
+ip_dscp(const struct ip_hdr * const ip)
+{
+    return (ip->tos & 0xfc) >> 2;
+}
 
 
 /// Extract the ECN bits out of an ip_hdr::tos field.
@@ -115,8 +126,13 @@ struct ip_hdr {
 ///
 /// @return     ECN bits.
 ///
-#define ip_ecn(ip) (uint8_t)(((const struct ip_hdr *)(ip))->tos & 0x02)
+static inline __attribute__((always_inline, nonnull)) uint8_t
+ip_ecn(const struct ip_hdr * const ip)
+{
+    return ip->tos & 0x02;
+}
 
+#include "eth.h" // IWYU pragma: keep
 
 /// Return a pointer to the payload data of the IPv4 packet in a buffer. It is
 /// up to the caller to ensure that the packet buffer does in fact contain an
@@ -126,7 +142,12 @@ struct ip_hdr {
 ///
 /// @return     Pointer to the first payload byte.
 ///
-#define ip_data(buf) (eth_data(buf) + ip_hl((buf) + sizeof(struct eth_hdr)))
+static inline __attribute__((always_inline, nonnull)) uint8_t *
+ip_data(uint8_t * const buf)
+{
+    return eth_data(buf) + ip_hl((struct ip_hdr *)(void *)buf) +
+           sizeof(struct eth_hdr);
+}
 
 
 /// Calculates the length of the payload data for the given IPv4 header @p ip.
@@ -135,22 +156,27 @@ struct ip_hdr {
 ///
 /// @return     { description_of_the_return_value }
 ///
-#define ip_data_len(ip) ((ntohs((ip)->len) - ip_hl(ip)))
+static inline __attribute__((always_inline, nonnull)) uint16_t
+ip_data_len(const struct ip_hdr * const ip)
+{
+    return ntohs(ip->len) - ip_hl(ip);
+}
 
 
 /// Initialize the static fields in an IPv4 ip_hdr header.
 ///
 /// @param      ip    Pointer to the ip_hdr to initialize.
 ///
-#define ip_hdr_init(ip)                                                        \
-    do {                                                                       \
-        (ip)->vhl = (4 << 4) + 5;                                              \
-        (ip)->tos = IP_ECN_ECT_0;                                              \
-        (ip)->off = htons(IP_DF);                                              \
-        (ip)->ttl = 64; /* XXX this should be configurable */                  \
-        (ip)->p = IP_P_UDP;                                                    \
-        (ip)->cksum = 0;                                                       \
-    } while (0)
+static inline __attribute__((always_inline, nonnull)) void
+ip_hdr_init(struct ip_hdr * const ip)
+{
+    ip->vhl = (4 << 4) + 5;
+    ip->tos = IP_ECN_ECT_0;
+    ip->off = htons(IP_DF);
+    ip->ttl = 64; /* XXX this should be configurable */
+    ip->p = IP_P_UDP;
+    ip->cksum = 0;
+}
 
 
 extern void __attribute__((nonnull)) ip_tx_with_rx_buf(struct w_engine * w,

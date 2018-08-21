@@ -34,7 +34,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
-#include <sys/types.h>
 
 #include "arp.h"
 #include "backend.h"
@@ -160,7 +159,7 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     // copy template header into buffer and fill in remaining fields
-    uint8_t * const buf = IDX2BUF(s->w, v->idx);
+    uint8_t * const buf = idx_to_buf(s->w, v->idx);
     memcpy(buf, s->hdr, sizeof(*s->hdr));
 
     struct ip_hdr * const ip = (void *)eth_data(buf);
