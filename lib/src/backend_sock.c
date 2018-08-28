@@ -435,7 +435,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #ifdef HAVE_RECVMMSG
         n == RECV_SIZE
 #else
-        n < RECV_SIZE
+        n == 1
 #endif
     );
 }
