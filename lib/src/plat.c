@@ -126,8 +126,10 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     return (uint32_t)(ifa_data->ifi_baudrate / 1000000);
 #elif defined(__APPLE__)
     const struct if_data * const ifa_data = i->ifa_data;
-    if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
+    if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP) ||
+        ifa_data->ifi_baudrate == 0)
         return UINT32_MAX;
+    warn(ERR, "%d", ifa_data->ifi_baudrate);
     return ifa_data->ifi_baudrate / 1000000;
 #else
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -192,7 +194,8 @@ bool plat_get_link(const struct ifaddrs * i)
     strncpy(ifr.ifm_name, i->ifa_name, IFNAMSIZ);
     ifr.ifm_name[IFNAMSIZ - 1] = 0;
     if (strncmp("vboxnet", i->ifa_name, 7) == 0 ||
-        strncmp("utun", i->ifa_name, 4) == 0)
+        strncmp("utun", i->ifa_name, 4) == 0 ||
+        strncmp("vmnet", i->ifa_name, 5) == 0)
         //  SIOCGIFMEDIA not supported by some interfaces
         link = true;
     else {
