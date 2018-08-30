@@ -279,11 +279,7 @@ struct qm_trace {
     for ((varp) = &sl_first((head)); ((var) = *(varp)) != NULL;                \
          (varp) = &sl_next((var), field))
 
-#define sl_init(head)                                                          \
-    do {                                                                       \
-        sl_first((head)) = NULL;                                               \
-        (head)->stqh_len = 0;                                                  \
-    } while (0)
+#define sl_init(head) (sl_first((head)) = NULL)
 
 #define sl_insert_after(slistelm, elm, field)                                  \
     do {                                                                       \
