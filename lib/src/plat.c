@@ -129,7 +129,6 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
     if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP) ||
         ifa_data->ifi_baudrate == 0)
         return UINT32_MAX;
-    warn(ERR, "%d", ifa_data->ifi_baudrate);
     return ifa_data->ifi_baudrate / 1000000;
 #else
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
