@@ -63,9 +63,6 @@ struct w_backend {
     uint8_t _unused_2[4];
     /// @endcond
 #endif
-    /// @cond
-    uint8_t _unused_2[4];
-    /// @endcond
 #endif
 };
 
