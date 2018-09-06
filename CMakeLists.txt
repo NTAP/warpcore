@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.21.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.22.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
@@ -184,8 +184,27 @@ else()
   endif()
 
   # check for INTERPROCEDURAL_OPTIMIZATION support
-  include(CheckIPOSupported)
-  check_ipo_supported(RESULT IPO)
+  # (except on older gcc where that breaks)
+  if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT IPO)
+  else()
+    set(IPO False)
+  endif()
+endif()
+
+if(FUZZER)
+  # check if we have a fuzzer
+  set(CMAKE_REQUIRED_FLAGS -fsanitize=fuzzer)
+  check_c_compiler_flag(-fsanitize=fuzzer HAVE_FUZZER)
+  cmake_reset_check_state()
+  if(HAVE_FUZZER)
+    add_definitions(-DFUZZING)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=fuzzer,address,undefined")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=fuzzer,address,undefined")
+  else()
+    message(FATAL_ERROR "No fuzzer available")
+  endif()
 endif()
 
 if(NOT CMAKE_BUILD_TYPE MATCHES Release AND HAVE_PROFILER)

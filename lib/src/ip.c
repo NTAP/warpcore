@@ -110,7 +110,7 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
     ensure(ip_hl(ip) == 20, "no support for IP options");
 
     // TODO: handle IP fragments
-    ensure((ntohs(ip->off) & IP_OFF_MASK) == 0, "no support for IP fragments");
+    ensure((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP fragments");
 
     if (likely(ip->p == IP_P_UDP))
         udp_rx(w, r);

@@ -162,9 +162,6 @@ void backend_bind(struct w_sock * const s)
     ensure(setsockopt(s->fd, IPPROTO_IP, IP_RECVTOS, &(int){1}, sizeof(int)) >=
                0,
            "cannot setsockopt IP_RECVTOS");
-    ensure(setsockopt(s->fd, IPPROTO_IP, IP_TOS, &(int){IP_ECN_ECT_0},
-                      sizeof(int)) >= 0,
-           "cannot setsockopt IP_TOS");
 
     // if we're binding to a random port, find out what it is
     if (s->hdr->udp.sport == 0) {
