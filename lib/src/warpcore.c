@@ -280,7 +280,9 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 
     backend_bind(s);
 
+#ifndef FUZZING
     warn(NTE, "socket bound to port %d", ntohs(s->hdr->udp.sport));
+#endif
 
     return s;
 }

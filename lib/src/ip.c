@@ -130,7 +130,9 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
     else if (ip->p == IP_P_ICMP)
         icmp_rx(w, r);
     else {
+#ifndef FUZZING
         warn(INF, "unhandled IP protocol %d", ip->p);
+#endif
         // be standards compliant and send an ICMP unreachable
         icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PROTOCOL, buf);
     }

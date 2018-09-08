@@ -60,7 +60,9 @@ void icmp_tx(struct w_engine * const w,
 {
     struct w_iov * const v = w_alloc_iov_base(w);
     if (unlikely(v == 0)) {
+#ifndef FUZZING
         warn(CRT, "no more bufs; ICMP not sent (type %d, code %d)", type, code);
+#endif
         return;
     }
 
