@@ -99,3 +99,26 @@ if(HAVE_NETMAP_H)
   endif()
   add_test(test_warp test_warp)
 endif()
+
+
+if(HAVE_FUZZER)
+  foreach(TARGET fuzz)
+    add_executable(${TARGET} ${TARGET}.c)
+    target_compile_definitions(${TARGET} PRIVATE -DWITH_NETMAP)
+    target_link_libraries(${TARGET} PUBLIC warpcore)
+    target_include_directories(${TARGET}
+      SYSTEM PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/include
+        ${CMAKE_BINARY_DIR}/lib/include
+        ${CMAKE_SOURCE_DIR}/lib/src
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/external/include>
+        ${OPENSSL_ROOT_DIR}/include
+      )
+    set_target_properties(${TARGET}
+      PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
+        INTERPROCEDURAL_OPTIMIZATION ${IPO}
+        LINK_FLAGS -fsanitize=fuzzer,address,undefined
+    )
+  endforeach()
+endif()

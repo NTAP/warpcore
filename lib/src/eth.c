@@ -63,7 +63,14 @@ char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
 void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     struct eth_hdr * const eth = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-#ifndef NDEBUG
+    if (unlikely(r->slot[r->cur].len < ETHER_ADDR_LEN)) {
+#ifndef FUZZING
+        warn(ERR, "buf len %u < eth hdr len", r->slot[r->cur].len);
+#endif
+        return;
+    }
+
+#if !defined(NDEBUG) && !defined(FUZZING)
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
     warn(DBG, "Eth %s -> %s, type %d, len %d", ether_ntoa_r(&eth->src, src),
@@ -74,14 +81,18 @@ void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
     if (unlikely((memcmp(&eth->dst, &w->mac, ETHER_ADDR_LEN) != 0) &&
                  (memcmp(&eth->dst, "\xff\xff\xff\xff\xff\xff",
                          ETHER_ADDR_LEN) != 0))) {
+#ifndef FUZZING
         warn(INF, "Ethernet packet to %s not destined to us (%s); ignoring",
              ether_ntoa_r(&eth->dst, dst), ether_ntoa_r(&w->mac, src));
+#endif
         return;
     }
     if (likely(eth->type == ETH_TYPE_IP))
         ip_rx(w, r);
     else if (eth->type == ETH_TYPE_ARP)
         arp_rx(w, r);
+#ifndef FUZZING
     else
         warn(INF, "unhandled ethertype 0x%04x", ntohs(eth->type));
+#endif
 }

@@ -241,13 +241,21 @@ void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
     const struct arp_hdr * const arp = (const void *)eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 
-    if (hrd != ARP_HRD_ETHER || arp->hln != ETHER_ADDR_LEN)
+    if (hrd != ARP_HRD_ETHER || arp->hln != ETHER_ADDR_LEN) {
+#ifndef FUZZING
         warn(INF, "unhandled ARP hardware format %d with len %d", hrd,
              arp->hln);
+#endif
+        return;
+    }
 
-    if (arp->pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN)
+    if (arp->pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN) {
+#ifndef FUZZING
         warn(INF, "unhandled ARP protocol format %d with len %d",
              ntohs(arp->pro), arp->pln);
+#endif
+        return;
+    }
 
     const uint16_t op = ntohs(arp->op);
     switch (op) {

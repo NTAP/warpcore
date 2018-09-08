@@ -84,12 +84,13 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     struct ip_hdr * const ip = (void *)eth_data(buf);
+#ifndef FUZZING
     ip_log(ip);
-
+#endif
     // make sure the packet is for us (or broadcast)
     if (unlikely(ip->dst != w->ip && ip->dst != mk_bcast(w->ip, w->mask) &&
                  ip->dst != IP_BCAST)) {
-#ifndef NDEBUG
+#if !defined(NDEBUG) && !defined(FUZZING)
         char src[INET_ADDRSTRLEN];
         char dst[INET_ADDRSTRLEN];
         warn(INF, "IP packet from %s to %s (not us); ignoring",
@@ -101,16 +102,28 @@ void ip_rx(struct w_engine * const w, struct netmap_ring * const r)
 
     // validate the IP checksum
     if (unlikely(ip_cksum(ip, sizeof(*ip)) != 0)) {
+#ifndef FUZZING
         warn(WRN, "invalid IP checksum, received 0x%04x != 0x%04x",
              ntohs(ip->cksum), ip_cksum(ip, sizeof(*ip)));
+#endif
         return;
     }
 
-    // TODO: handle IP options
-    ensure(ip_hl(ip) == 20, "no support for IP options");
+    if (unlikely(ip_hl(ip) != 20)) {
+        // TODO: handle IP options
+#ifndef FUZZING
+        warn(WRN, "no support for IP options");
+#endif
+        return;
+    }
 
-    // TODO: handle IP fragments
-    ensure((ntohs(ip->off) & IP_OFFMASK) == 0, "no support for IP fragments");
+    if (unlikely(ntohs(ip->off) & IP_OFFMASK)) {
+        // TODO: handle IP fragments
+#ifndef FUZZING
+        warn(WRN, "no support for IP fragments");
+#endif
+        return;
+    }
 
     if (likely(ip->p == IP_P_UDP))
         udp_rx(w, r);
