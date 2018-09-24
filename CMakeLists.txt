@@ -162,6 +162,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       set(CLANG_TIDY_CHECKS *
           -cert-err58-cpp
           -cppcoreguidelines-owning-memory
+          -fuchsia-statically-constructed-objects
           -google-readability-braces-around-statements
           -google-readability-todo
           -google-runtime-references
@@ -171,8 +172,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       )
       string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
       set(CMAKE_C_CLANG_TIDY ${CLANGTIDY}
-          -analyze-temporary-dtors -system-headers
-          -checks=${CLANG_TIDY_CHECKS}
+          -system-headers -checks=${CLANG_TIDY_CHECKS}
       )
       set(CMAKE_CXX_CLANG_TIDY ${CMAKE_C_CLANG_TIDY})
     endif()

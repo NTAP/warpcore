@@ -321,6 +321,7 @@ void w_cleanup(struct w_engine * const w)
     struct w_sock *s, *tmp;
     for (s = splay_min(sock, &w->sock); s != 0; s = tmp) {
         tmp = splay_next(sock, &w->sock, s);
+        splay_remove(sock, &w->sock, s);
         w_close(s);
     }
 
