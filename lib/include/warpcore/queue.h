@@ -50,7 +50,7 @@ typedef uintptr_t __uintptr_t;
 
 #ifndef __containerof
 #define __containerof(x, s, m)                                                 \
-    ({                                                                         \
+    __extension__({                                                            \
         const volatile __typeof(((s *)0)->m) * __x = (x);                      \
         __DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));       \
     })
