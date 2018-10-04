@@ -70,7 +70,9 @@ before_install:
     cd lib/include/net
     travis_retry wget -q \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap.h \
-      https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h
+      https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_legacy.h \
+      https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h \
+      https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_virt.h
 
 script:
   - |
