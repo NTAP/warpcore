@@ -1,5 +1,6 @@
 *.log
 *.pyc
+*.sublime-workspace
 
 ._*
 .DS_Store

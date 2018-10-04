@@ -1,0 +1,39 @@
+{
+    "folders":
+    [
+        {
+            "path": ".",
+            "file_include_patterns": [
+                "*.c", "*.cc", "*.h", "*.sh", "*.txt", "*.dot", "*.imp", "*.in",
+                "*.result", "*.yml", "*.md", "*.sublime-project",
+                ".gitignore", ".clang-format", ".editorconfig", ".dockerignore",
+                "Vagrantfile"
+            ],
+            "folder_exclude_patterns": [
+                ".vagrant", "Darwin*", "Linux*", "corpus*", "qvalve-tests"
+            ],
+        },
+    ],
+
+    "settings":
+    {
+        "SublimeLinter.linters.clang.I": [
+            "/usr/local/include",
+            "./lib/include",
+            "./Darwin/lib/include",
+        ],
+        "SublimeLinter.linters.clang++.I": [
+            "/usr/local/include",
+            "./lib/include",
+            "./Darwin/lib/include",
+        ],
+    },
+
+    "build_systems":
+    [
+        {
+            "name": "Ninja",
+            "shell_cmd": "cd Darwin && ninja"
+        }
+    ]
+}
