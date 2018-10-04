@@ -123,7 +123,10 @@
 /* Generates prototypes and inline functions */
 
 #define SPLAY_PROTOTYPE(name, type, field, cmp)                                \
-    void name##_splay(struct name *, const struct type *);                     \
+    _Pragma("clang diagnostic push")                                           \
+        _Pragma("clang diagnostic ignored \"-Wunused-function\"")              \
+                                                                               \
+            void name##_splay(struct name *, const struct type *);             \
     void name##_splay_minmax(struct name *, int);                              \
     struct type * name##_splay_insert(struct name *, struct type *);           \
     struct type * name##_splay_remove(struct name *, struct type *);           \
@@ -173,7 +176,9 @@
     {                                                                          \
         name##_splay_minmax(head, val);                                        \
         return (splay_root(head));                                             \
-    }
+    }                                                                          \
+                                                                               \
+    _Pragma("clang diagnostic pop")
 
 /* Main splay operation.
  * Moves node close to the key of elm to top
