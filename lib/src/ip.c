@@ -37,6 +37,7 @@
 
 #include "backend.h"
 #include "eth.h"
+#include "eth_tx.h"
 #include "icmp.h"
 #include "in_cksum.h"
 #include "ip.h"

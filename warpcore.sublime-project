@@ -18,14 +18,14 @@
     "settings":
     {
         "SublimeLinter.linters.clang.I": [
-            "/usr/local/include",
-            "./lib/include",
-            "./Darwin/lib/include",
+            "${project_path}/lib/include",
+            "${project_path}/lib/src", "${project_path}/Darwin/lib/include",
         ],
-        "SublimeLinter.linters.clang++.I": [
-            "/usr/local/include",
-            "./lib/include",
-            "./Darwin/lib/include",
+        "SublimeLinter.linters.clang.args": [
+            "-DWITH_NETMAP",
+            "-fsyntax-only", "-fno-caret-diagnostics", "-std=gnu11", "-Wall",
+            "-Wextra", "-Wpedantic", "-Wno-pragma-once-outside-header",
+            "-Wno-empty-translation-unit", "-Wno-unused-function"
         ],
     },
 

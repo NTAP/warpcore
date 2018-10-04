@@ -26,9 +26,12 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
 #include <string.h>
+#include <sys/types.h>
 
+#include <net/netmap_user.h> // IWYU pragma: keep
+
+#include <net/netmap.h>
 #include <warpcore/warpcore.h>
 
 #include "arp.h"

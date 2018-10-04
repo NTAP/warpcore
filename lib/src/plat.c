@@ -179,7 +179,7 @@ bool plat_get_link(const struct ifaddrs * i)
     if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
         return true;
 #endif
-    bool link = false;
+    bool link;
 #ifdef __FreeBSD__
     const struct if_data * const ifa_data = i->ifa_data;
     link = ((ifa_data->ifi_link_state & LINK_STATE_UP) == LINK_STATE_UP);

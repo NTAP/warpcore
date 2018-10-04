@@ -41,6 +41,7 @@
 #include "arp.h"
 #include "backend.h"
 #include "eth.h"
+#include "eth_tx.h"
 #include "ip.h"
 #include "udp.h"
 

@@ -34,6 +34,7 @@
 #define ASAN_UNPOISON_MEMORY_REGION(x, y)
 #endif
 
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
@@ -102,20 +103,6 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
     return (uint8_t *)w->mem + (i * w->mtu);
 #endif
 }
-
-
-#include "eth.h"
-#include "ip.h"
-#include "udp.h"
-
-
-/// A warpcore template packet header structure.
-///
-struct w_hdr {
-    struct eth_hdr eth;                       ///< Ethernet header.
-    struct ip_hdr ip __attribute__((packed)); ///< IPv4 header.
-    struct udp_hdr udp;                       ///< UDP header.
-};
 
 
 static inline int w_sock_cmp(const struct w_sock * const a,
