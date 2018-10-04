@@ -176,9 +176,9 @@
     {                                                                          \
         name##_splay_minmax(head, val);                                        \
         return (splay_root(head));                                             \
-    }
-
-_Pragma("clang diagnostic pop")
+    }                                                                          \
+                                                                               \
+    _Pragma("clang diagnostic pop")
 
 /* Main splay operation.
  * Moves node close to the key of elm to top
