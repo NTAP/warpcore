@@ -27,6 +27,16 @@
 
 #pragma once
 
+// IWYU pragma: no_include <net/netmap.h>
+
+#include <net/netmap_user.h>
+#include <stdbool.h>
+
+#include <warpcore/warpcore.h>
+
+#include "backend.h"
+#include "udp.h"
+
 
 /// Places an Ethernet frame into a TX ring. The Ethernet frame is contained in
 /// the w_iov @p v, and will be placed into an available slot in a TX ring or -

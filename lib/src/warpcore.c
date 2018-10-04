@@ -47,10 +47,6 @@
 #endif
 #endif
 
-#ifdef WITH_NETMAP
-#include <net/netmap_user.h> // IWYU pragma: keep
-#endif
-
 #ifdef HAVE_ASAN
 #include <sanitizer/asan_interface.h>
 #endif

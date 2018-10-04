@@ -25,13 +25,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+// IWYU pragma: no_include <net/netmap.h>
+
 #include <arpa/inet.h>
+#include <net/netmap_user.h>
 #include <string.h>
 #include <sys/types.h>
 
-#include <net/netmap_user.h> // IWYU pragma: keep
-
-#include <net/netmap.h>
 #include <warpcore/warpcore.h>
 
 #include "arp.h"

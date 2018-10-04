@@ -29,7 +29,7 @@
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap_user.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>

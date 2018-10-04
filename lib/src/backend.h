@@ -34,7 +34,9 @@
 #define ASAN_UNPOISON_MEMORY_REGION(x, y)
 #endif
 
-#include <net/netmap_user.h> // IWYU pragma: keep
+// IWYU pragma: no_include <net/netmap.h>
+
+#include <net/netmap_user.h>
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
