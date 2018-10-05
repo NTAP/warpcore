@@ -45,7 +45,7 @@ extern "C" {
 /// tracks how many w_iovs have not yet been transmitted by the NIC.
 ///
 struct w_iov_sq {
-    sq_head(, w_iov);    ///< Head of the w_iov tail queue.
+    __extension__ sq_head(, w_iov); ///< Head of the w_iov tail queue.
     uint32_t tx_pending; ///< Counter of untransmitted w_iovs. Only valid on TX.
 };
 
