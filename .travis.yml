@@ -89,7 +89,7 @@ script:
 after_success:
   # update the documentation
   - |
-    if [ $BUILD = "Debug" -a $MYCC = "gcc-7"]; then
+    if [ $BUILD = "Debug" -a $MYCC = "gcc-7" ]; then
       cd $TRAVIS_BUILD_DIR/build
       git clone -b gh-pages https://git@github.com/NTAP/$PROJECT.git gh-pages
       cd gh-pages
