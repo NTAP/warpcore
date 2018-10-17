@@ -60,16 +60,18 @@
 #define splay_head(name, type)                                                 \
     struct name {                                                              \
         struct type * sph_root; /* root of the tree */                         \
+        uint64_t sph_cnt;       /* number of nodes in the tree */              \
     }
 
 #define splay_initializer(root)                                                \
     {                                                                          \
-        NULL                                                                   \
+        NULL, 0                                                                \
     }
 
 #define splay_init(root)                                                       \
     do {                                                                       \
         (root)->sph_root = NULL;                                               \
+        (root)->sph_cnt = 0;                                                   \
     } while (/*CONSTCOND*/ 0)
 
 #define splay_entry(type)                                                      \
@@ -82,6 +84,7 @@
 #define splay_right(elm, field) (elm)->field.spe_right
 #define splay_root(head) (head)->sph_root
 #define splay_empty(head) (splay_root(head) == NULL)
+#define splay_count(head) (head)->sph_cnt
 
 /* splay_rotate_{left,right} expect that tmp hold splay_{right,left} */
 #define splay_rotate_right(head, tmp, field)                                   \
@@ -204,6 +207,7 @@
             } else                                                             \
                 return ((head)->sph_root);                                     \
         }                                                                      \
+        splay_count(head)++;                                                   \
         (head)->sph_root = (elm);                                              \
         return (NULL);                                                         \
     }                                                                          \
@@ -223,6 +227,7 @@
                 name##_splay(head, elm);                                       \
                 splay_right((head)->sph_root, field) = __tmp;                  \
             }                                                                  \
+            splay_count(head)--;                                               \
             return (elm);                                                      \
         }                                                                      \
         return (NULL);                                                         \
