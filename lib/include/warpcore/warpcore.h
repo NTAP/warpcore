@@ -165,10 +165,10 @@ struct w_iov {
 
     /// Can be used by application to maintain arbitrary data. Not used by
     /// warpcore.
-    uint8_t user_data;
+    uint16_t user_data;
 
     /// @cond
-    uint8_t _unused[2]; ///< @internal Padding.
+    uint8_t _unused; ///< @internal Padding.
     /// @endcond
 
     ///< Pointer to the w_iov_sq this w_iov resides in. Only valid on TX.
