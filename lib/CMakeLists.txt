@@ -4,12 +4,11 @@ configure_file(src/config.c.in src/config.c)
 
 include(GNUInstallDirs)
 
-add_library(obj_all
-  OBJECT src/plat.c src/util.c ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
-)
+add_library(obj_all OBJECT src/plat.c src/util.c)
 
 add_library(obj_sock OBJECT src/backend_sock.c src/warpcore.c)
-add_library(sockcore $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>)
+add_library(sockcore ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
+            $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>)
 
 install(DIRECTORY include/warpcore
   DESTINATION include
@@ -27,7 +26,8 @@ if(HAVE_NETMAP_H)
       src/udp.c src/backend_netmap.c src/warpcore.c
   )
   target_compile_definitions(obj_warp PRIVATE -DWITH_NETMAP)
-  add_library(warpcore $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>)
+  add_library(warpcore ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
+              $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>)
   target_compile_definitions(warpcore PRIVATE -DWITH_NETMAP)
 endif()
 
@@ -41,11 +41,10 @@ foreach(TARGET ${TARGETS})
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   )
-  string(REGEX REPLACE "_dyn|_stat" "core" OUTPUT ${TARGET})
   set_target_properties(${TARGET}
     PROPERTIES
       POSITION_INDEPENDENT_CODE ON
-      OUTPUT_NAME ${OUTPUT}
+      OUTPUT_NAME ${TARGET}
       VERSION ${PROJECT_VERSION}
       SOVERSION ${PROJECT_VERSION_MAJOR}
       INTERPROCEDURAL_OPTIMIZATION ${IPO}

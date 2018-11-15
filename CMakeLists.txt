@@ -99,7 +99,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 
   # See if we can use the address sanitizer
   check_include_file(sanitizer/asan_interface.h HAVE_ASAN)
-  if(HAVE_ASAN AND NOT NO_SANITIZERS)
+  if(HAVE_ASAN AND NOT NO_SANITIZERS AND NOT CMAKE_GENERATOR STREQUAL Xcode)
     set(CMAKE_REQUIRED_FLAGS -fsanitize=address)
     check_c_compiler_flag("" _fsanitize_address)
     if(_fsanitize_address)
