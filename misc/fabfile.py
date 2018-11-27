@@ -1,6 +1,5 @@
 from __future__ import with_statement
 from fabric.api import *
-from fabric.contrib.console import confirm
 from fabric.contrib.files import *
 from time import *
 
@@ -87,7 +86,7 @@ def ip_unconfig(test):
             for i in run("ls /sys/class/net").split():
                 cmd += ("ip addr del %s/24 dev %s; " %
                         (env.ip[env.host_string], i))
-                cmd += ("ethtool -G %s rx 512 tx 512; " % (i))
+                cmd += ("ethtool -G %s rx 512 tx 512; " % (iface))
         else:
             for i in run("ifconfig -l").split():
                 cmd += "ifconfig %s -alias %s; " % (i, env.ip[env.host_string])

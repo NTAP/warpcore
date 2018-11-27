@@ -137,7 +137,7 @@ int main(const int argc, char * const argv[])
 #endif
         w_bind(w, htons(55555), flags)
     };
-    uint16_t n = 0;
+    const uint16_t n = sizeof(srv) / sizeof(srv[0]);
 
     // serve requests on the four sockets until an interrupt occurs
     while (done == false) {
