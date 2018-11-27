@@ -1,12 +1,9 @@
 Vagrant.configure("2") do |config|
 
   # OS to use for the VM
-  config.vm.box = "ubuntu/bionic64"
+  config.vm.box = "ubuntu/cosmic64"
 
   config.vm.network "private_network", type: "dhcp", auto_config: false
-
-  config.vm.provision "file", source: "/etc/letsencrypt/live/slate.eggert.org",
-    destination: "~/slate.eggert.org"
 
   # hardware configuration of the VM
   config.vm.provider "virtualbox" do |vb|
@@ -18,6 +15,7 @@ Vagrant.configure("2") do |config|
 
     # use virtio for uplink, in case there is an issue with netmap's e1000
     vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+    vb.customize ["modifyvm", :id, "--nictype2", "82545EM"]
 
     # better clock synchronization (to within 100ms)
     vb.customize [ "guestproperty", "set", :id,
@@ -43,6 +41,8 @@ Vagrant.configure("2") do |config|
     git config --global user.name "Lars Eggert"
 
     # update the box
+    grep deb-src /etc/apt/sources.list | \
+      sed -e 's/#.*deb-src/deb-src/g' > /etc/apt/sources.list.d/sources.list
     apt-get -y update
     apt-get -y upgrade
 
@@ -74,6 +74,10 @@ Vagrant.configure("2") do |config|
     echo 'blacklist e1000' >> /etc/modprobe.d/blacklist-netmap.conf
     echo 'blacklist virtio' >> /etc/modprobe.d/blacklist-netmap.conf
 
+    # make /etc/rc.local
+    echo '#! /bin/bash' > /etc/rc.local
+    chmod +x /etc/rc.local
+
     # configure netmap
     echo 'echo 1 > /sys/module/netmap/parameters/admode' >> /etc/rc.local
     echo 'echo 1000000 > /sys/module/netmap/parameters/buf_num' >> /etc/rc.local
@@ -91,6 +95,9 @@ Vagrant.configure("2") do |config|
     # build a new initrd
     depmod -a
     update-initramfs -u
+
+    # enable rc.local execution on boot
+    systemctl enable rc-local
 
     echo Please restart via \"vagrant up\"
     shutdown -P now
