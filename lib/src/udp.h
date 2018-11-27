@@ -47,7 +47,7 @@ struct udp_hdr {
     uint16_t dport; ///< Destination port.
     uint16_t len;   ///< UDP length (header + data).
     uint16_t cksum; ///< UDP checksum.
-};
+} __attribute__((packed, aligned(1)));
 
 // #include "udp.h"
 
@@ -55,10 +55,10 @@ struct udp_hdr {
 /// A warpcore template packet header structure.
 ///
 struct w_hdr {
-    struct eth_hdr eth;                       ///< Ethernet header.
-    struct ip_hdr ip __attribute__((packed)); ///< IPv4 header.
-    struct udp_hdr udp;                       ///< UDP header.
-};
+    struct eth_hdr eth; ///< Ethernet header.
+    struct ip_hdr ip;   ///< IPv4 header.
+    struct udp_hdr udp; ///< UDP header.
+} __attribute__((aligned(1)));
 
 
 extern void __attribute__((nonnull))
