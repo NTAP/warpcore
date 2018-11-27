@@ -462,7 +462,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     sl_insert_head(&engines, w, next);
 
     warn(INF, "%s/%s %s using %u %u-byte bufs on %s", warpcore_name,
-         w->backend_name, warpcore_version, nbufs, w->mtu, w->ifname);
+         w->backend_name, warpcore_version, sq_len(&w->iov), w->mtu, w->ifname);
     return w;
 }
 
