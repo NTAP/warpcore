@@ -85,7 +85,7 @@ void arp_cache_update(struct w_engine * w,
         a = calloc(1, sizeof(*a));
         ensure(a, "cannot allocate arp_entry");
         a->ip = ip;
-        splay_insert(arp_cache, &w->b->arp_cache, a);
+        ensure(splay_insert(arp_cache, &w->b->arp_cache, a) == 0, "inserted");
     }
     a->mac = mac;
 #ifndef NDEBUG
@@ -321,7 +321,7 @@ void free_arp_cache(struct w_engine * const w)
     struct arp_entry *a, *n;
     for (a = splay_min(arp_cache, &w->b->arp_cache); a; a = n) {
         n = splay_next(arp_cache, &w->b->arp_cache, a);
-        splay_remove(arp_cache, &w->b->arp_cache, a);
+        ensure(splay_remove(arp_cache, &w->b->arp_cache, a) != 0, "removed");
         free(a);
     }
 }

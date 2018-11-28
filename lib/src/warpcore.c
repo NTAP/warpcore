@@ -221,10 +221,10 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
            "socket already connected");
 
     // need to update the socket splay, since dport is changing
-    splay_remove(sock, &s->w->sock, s);
+    ensure(splay_remove(sock, &s->w->sock, s) != 0, "removed");
     s->hdr->ip.dst = ip;
     s->hdr->udp.dport = port;
-    splay_insert(sock, &s->w->sock, s);
+    ensure(splay_insert(sock, &s->w->sock, s) == 0, "inserted");
 
     backend_connect(s);
 
@@ -271,7 +271,7 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
     // s->hdr->ip.dst is set on w_connect()
 
     s->w = w;
-    splay_insert(sock, &w->sock, s);
+    ensure(splay_insert(sock, &w->sock, s) == 0, "inserted");
     sq_init(&s->iv);
 
     backend_bind(s);
@@ -293,7 +293,7 @@ void w_close(struct w_sock * const s)
     backend_close(s);
 
     // remove the socket from list of sockets
-    splay_remove(sock, &s->w->sock, s);
+    ensure(splay_remove(sock, &s->w->sock, s) != 0, "removed");
 
     // free the template header
     free(s->hdr);
@@ -317,7 +317,7 @@ void w_cleanup(struct w_engine * const w)
     struct w_sock *s, *tmp;
     for (s = splay_min(sock, &w->sock); s != 0; s = tmp) {
         tmp = splay_next(sock, &w->sock, s);
-        splay_remove(sock, &w->sock, s);
+        ensure(splay_remove(sock, &w->sock, s) != 0, "removed");
         w_close(s);
     }
 
