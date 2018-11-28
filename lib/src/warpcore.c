@@ -314,12 +314,8 @@ void w_cleanup(struct w_engine * const w)
     warn(NTE, "warpcore shutting down");
 
     // close all sockets
-    struct w_sock *s, *tmp;
-    for (s = splay_min(sock, &w->sock); s != 0; s = tmp) {
-        tmp = splay_next(sock, &w->sock, s);
-        ensure(splay_remove(sock, &w->sock, s) != 0, "removed");
-        w_close(s);
-    }
+    while (!splay_empty(&w->sock))
+        w_close(splay_root(&w->sock)); // NOLINT
 
     backend_cleanup(w);
     sl_remove(&engines, w, w_engine, next);
