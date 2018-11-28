@@ -66,9 +66,9 @@
 
 
 static inline uint32_t __attribute__((always_inline))
-csum_oc16(const uint8_t * const data, const uint32_t data_len)
+csum_oc16(const uint8_t * const restrict data, const uint32_t data_len)
 {
-    const uint16_t * data16 = (const uint16_t *)(const void *)data;
+    const uint16_t * restrict data16 = (const uint16_t *)(const void *)data;
     uint32_t sum = 0;
 
     for (uint32_t n = 0; n < (data_len / sizeof(uint16_t)); n++)
@@ -81,7 +81,7 @@ csum_oc16(const uint8_t * const data, const uint32_t data_len)
 }
 
 
-static inline uint16_t __attribute__((always_inline))
+static inline uint16_t __attribute__((always_inline, const))
 csum_oc16_reduce(uint32_t sum)
 {
     while (sum >> 16)
