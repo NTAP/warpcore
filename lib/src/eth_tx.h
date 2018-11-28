@@ -81,7 +81,7 @@ eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
     } else
         s->flags = NS_BUF_CHANGED;
 
-    warn(DBG, "placing iov idx %u into tx ring %u slot %d (swp with %u)",
+    warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
          v->idx, w->b->cur_txr, txr->cur, s->buf_idx);
     // temporarily place v into the current tx ring
     const uint32_t slot_idx = s->buf_idx;
