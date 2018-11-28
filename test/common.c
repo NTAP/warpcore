@@ -45,8 +45,10 @@ bool io(const uint32_t len)
     // allocate a w_iov chain for tx
     struct w_iov_sq o = w_iov_sq_initializer(o);
     w_alloc_cnt(w_clnt, &o, len, 512, OFFSET);
-    if (w_iov_sq_cnt(&o) != len)
+    if (w_iov_sq_cnt(&o) != len) {
+        w_free(&o);
         return false;
+    }
 
     // fill it with data
     struct w_iov * ov;
@@ -59,18 +61,20 @@ bool io(const uint32_t len)
 
     // tx
     w_tx(s_clnt, &o);
-    while (w_tx_pending(&o))
+    while (w_tx_pending(&o)) {
         w_nic_tx(w_clnt);
+        w_nic_rx(w_serv, 0); // warpcore over loopback pipe needs this
+    }
     ensure(olen == w_iov_sq_len(&o), "same length");
 
     // read the chain back
     struct w_iov_sq i = w_iov_sq_initializer(i);
     uint32_t ilen = 0;
     do {
-        w_nic_rx(w_serv, 1000);
+        w_nic_rx(w_serv, 100);
         w_rx(s_serv, &i);
         const uint32_t new_ilen = w_iov_sq_len(&i);
-        if (ilen == new_ilen) {
+        if (ilen == new_ilen && ilen != olen) {
             // we ran out of buffers or there was packet loss; abort
             w_free(&o);
             w_free(&i);
@@ -78,7 +82,9 @@ bool io(const uint32_t len)
         }
         ilen = new_ilen;
     } while (ilen < olen);
-    ensure(ilen == olen, "wrong length");
+    ensure(w_iov_sq_cnt(&i) == w_iov_sq_cnt(&o), "icnt %u != ocnt %u",
+           w_iov_sq_cnt(&i), w_iov_sq_cnt(&o));
+    ensure(ilen == olen, "ilen %u != olen %u", ilen, olen);
 
     // validate data (o was sent by client, i is received by server)
     struct w_iov * iv = sq_first(&i);
@@ -97,8 +103,8 @@ bool io(const uint32_t len)
         ensure(iv->port == w_get_sport(s_clnt), "port %u != port %u",
                ntohs(iv->port), ntohs(w_get_sport(s_clnt)));
 
-        ensure(iv->ip == ov->ip, "IP %08x != IP %08x", ntohl(iv->ip),
-               ntohl(ov->ip)); // only works over loopback
+        ensure(ov->ip == 0 || iv->ip == ov->ip, "IP %08x != IP %08x",
+               ntohl(iv->ip), ntohl(ov->ip));
 
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);

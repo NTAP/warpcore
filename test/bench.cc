@@ -38,22 +38,22 @@ static void BM_io(benchmark::State & state)
     for (auto _ : state)
         if (!io(len)) {
             state.SkipWithError("ran out of bufs or saw packet loss");
-            break;
+            return;
         }
     state.SetBytesProcessed(int64_t(state.iterations()) * len * w_mtu(w_serv));
 }
 
 
-static void BM_ip_cksum(benchmark::State & state)
-{
-    const auto len = uint16_t(state.range(0));
-    auto * buf = new char[len];
-    memset(buf, 'x', len);
-    for (auto _ : state)
-        benchmark::DoNotOptimize(ip_cksum(buf, len));
-    state.SetBytesProcessed(int64_t(state.iterations()) * len);
-    delete[] buf;
-}
+// static void BM_ip_cksum(benchmark::State & state)
+// {
+//     const auto len = uint16_t(state.range(0));
+//     auto * buf = new char[len];
+//     memset(buf, 'x', len);
+//     for (auto _ : state)
+//         benchmark::DoNotOptimize(ip_cksum(buf, len));
+//     state.SetBytesProcessed(int64_t(state.iterations()) * len);
+//     delete[] buf;
+// }
 
 
 // static void BM_arc4random(benchmark::State & state)
@@ -63,25 +63,25 @@ static void BM_ip_cksum(benchmark::State & state)
 // }
 
 
-static void BM_random(benchmark::State & state)
-{
-    for (auto _ : state)
-        benchmark::DoNotOptimize(random()); // NOLINT
-}
+// static void BM_random(benchmark::State & state)
+// {
+//     for (auto _ : state)
+//         benchmark::DoNotOptimize(random()); // NOLINT
+// }
 
 
-static void BM_w_rand(benchmark::State & state)
-{
-    for (auto _ : state)
-        benchmark::DoNotOptimize(w_rand());
-}
+// static void BM_w_rand(benchmark::State & state)
+// {
+//     for (auto _ : state)
+//         benchmark::DoNotOptimize(w_rand());
+// }
 
 
-BENCHMARK(BM_io)->RangeMultiplier(2)->Range(16, 8192);
-BENCHMARK(BM_ip_cksum)->RangeMultiplier(2)->Range(64, 2048);
+BENCHMARK(BM_io)->RangeMultiplier(2)->Range(1, 512);
+// BENCHMARK(BM_ip_cksum)->RangeMultiplier(2)->Range(64, 2048);
 // BENCHMARK(BM_arc4random);
-BENCHMARK(BM_random);
-BENCHMARK(BM_w_rand);
+// BENCHMARK(BM_random);
+// BENCHMARK(BM_w_rand);
 
 
 // BENCHMARK_MAIN()

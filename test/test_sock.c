@@ -28,14 +28,20 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <warpcore/warpcore.h>
+
 #include "common.h"
 
 
 int main(void)
 {
     init(64 * 1024);
-    for (uint32_t i = 1; i < 64 * 1024; i <<= 1)
-        if (io(i) == false)
+    for (uint32_t i = 1; i <= 512; i <<= 1) {
+        if (io(i) == false) {
+            warn(INF, "test len %u failed", i);
             break;
+        }
+        warn(INF, "test len %u ok", i);
+    }
     cleanup();
 }
