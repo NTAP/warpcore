@@ -137,7 +137,7 @@ static inline __attribute__((always_inline, nonnull)) uint8_t *
 ip_data(uint8_t * const buf)
 {
     uint8_t * const ed = eth_data(buf);
-    return ed + ip_hl((struct ip_hdr *)ed);
+    return ed + ip_hl((struct ip_hdr *)(void *)ed);
 }
 
 
