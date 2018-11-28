@@ -70,18 +70,12 @@ bool io(const uint32_t len)
     // read the chain back
     struct w_iov_sq i = w_iov_sq_initializer(i);
     uint32_t ilen = 0;
-    do {
-        w_nic_rx(w_serv, 100);
+    while (ilen < olen) {
         w_rx(s_serv, &i);
-        const uint32_t new_ilen = w_iov_sq_len(&i);
-        if (ilen == new_ilen && ilen != olen) {
-            // we ran out of buffers or there was packet loss; abort
-            w_free(&o);
-            w_free(&i);
-            return false;
-        }
-        ilen = new_ilen;
-    } while (ilen < olen);
+        ilen = w_iov_sq_len(&i);
+        if (ilen < olen)
+            w_nic_rx(w_serv, -1);
+    }
     ensure(w_iov_sq_cnt(&i) == w_iov_sq_cnt(&o), "icnt %u != ocnt %u",
            w_iov_sq_cnt(&i), w_iov_sq_cnt(&o));
     ensure(ilen == olen, "ilen %u != olen %u", ilen, olen);

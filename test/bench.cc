@@ -77,7 +77,7 @@ static void BM_io(benchmark::State & state)
 // }
 
 
-BENCHMARK(BM_io)->RangeMultiplier(2)->Range(1, 512);
+BENCHMARK(BM_io)->RangeMultiplier(2)->Range(1, 64);
 // BENCHMARK(BM_ip_cksum)->RangeMultiplier(2)->Range(64, 2048);
 // BENCHMARK(BM_arc4random);
 // BENCHMARK(BM_random);
