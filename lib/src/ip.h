@@ -65,7 +65,7 @@ struct ip_hdr {
     uint16_t cksum; ///< IP checksum.
     uint32_t src;   ///< Source IPv4 address.
     uint32_t dst;   ///< Destination IPv4 address.
-} __attribute__((packed, aligned(1)));
+} __attribute__((aligned(1)));
 
 #define IP_P_ICMP 1 ///< IP protocol number for ICMP
 #define IP_P_UDP 17 ///< IP protocol number for UDP
@@ -136,7 +136,8 @@ ip_ecn(const struct ip_hdr * const ip)
 static inline __attribute__((always_inline, nonnull)) uint8_t *
 ip_data(uint8_t * const buf)
 {
-    return eth_data(buf) + ip_hl((struct ip_hdr *)(void *)buf);
+    uint8_t * const ed = eth_data(buf);
+    return ed + ip_hl((struct ip_hdr *)ed);
 }
 
 

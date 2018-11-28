@@ -75,7 +75,7 @@ struct arp_hdr {
     /// The target protocol (i.e., IPv4) address of the ARP operation.
     ///
     uint32_t tpa;
-};
+} __attribute__((aligned(1)));
 
 
 #define ARP_HRD_ETHER 1  ///< Ethernet hardware address format.

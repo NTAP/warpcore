@@ -42,7 +42,7 @@ struct eth_hdr {
     struct ether_addr dst; ///< Destination MAC address.
     struct ether_addr src; ///< Source MAC address.
     uint16_t type;         ///< EtherType of the payload data.
-} __attribute__((packed, aligned(1)));
+} __attribute__((aligned(1)));
 
 
 #define ETH_TYPE_IP htons(0x0800)  ///< EtherType for IPv4.
