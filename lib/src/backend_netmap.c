@@ -351,6 +351,10 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
     }
+
+    if (unlikely(is_pipe(w)))
+        ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
+
     return true;
 }
 
@@ -377,15 +381,12 @@ void w_nic_tx(struct w_engine * const w)
              likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
             struct w_iov * const v = w->b->slot_buf[r->ringid][j];
-            if (likely(!is_pipe(w))) {
-                warn(DBG,
-                     "move idx %u from ring %u slot %u to w_iov (swap w/%u)",
-                     s->buf_idx, i, j, v->idx);
-                const uint32_t slot_idx = s->buf_idx;
-                s->buf_idx = v->idx;
-                v->idx = slot_idx;
-                s->flags = NS_BUF_CHANGED;
-            }
+            warn(DBG, "move idx %u from ring %u slot %u to w_iov (swap w/%u)",
+                 s->buf_idx, i, j, v->idx);
+            const uint32_t slot_idx = s->buf_idx;
+            s->buf_idx = v->idx;
+            v->idx = slot_idx;
+            s->flags = NS_BUF_CHANGED;
             w->b->slot_buf[i][j] = 0;
 
             // update tx_pending
