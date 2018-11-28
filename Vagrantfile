@@ -5,6 +5,8 @@ Vagrant.configure("2") do |config|
 
   config.vm.network "private_network", type: "dhcp", auto_config: false
 
+  config.ssh.forward_x11 = true
+
   # hardware configuration of the VM
   config.vm.provider "virtualbox" do |vb|
     vb.gui = false
