@@ -501,9 +501,11 @@ void w_free(struct w_iov_sq * const q)
         return;
     struct w_engine * const w = sq_first(q)->w;
     sq_concat(&w->iov, q);
+#ifndef NDEBUG
     struct w_iov * v;
     sq_foreach (v, q, next)
         ASAN_POISON_MEMORY_REGION(idx_to_buf(w, v->idx), w->mtu);
+#endif
 }
 
 
