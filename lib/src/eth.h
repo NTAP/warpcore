@@ -31,7 +31,7 @@
 #include <netinet/if_ether.h>
 #include <stdint.h>
 
-#include <warpcore/warpcore.h>
+#include <warpcore/warpcore.h> // IWYU pragma: keep
 
 struct netmap_ring;
 

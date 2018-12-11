@@ -31,6 +31,10 @@
 #include <net/netmap_user.h>
 #include <string.h>
 
+#ifdef __APPLE__
+#include <sys/types.h>
+#endif
+
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
