@@ -27,13 +27,10 @@
 
 #pragma once
 
+#include <arpa/inet.h>
 #include <netinet/ip.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-#ifndef __linux__
-#include <arpa/inet.h>
-#endif
 
 struct w_engine;
 struct netmap_ring;

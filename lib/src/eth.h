@@ -31,9 +31,9 @@
 #include <netinet/if_ether.h>
 #include <stdint.h>
 
-struct netmap_ring;
-struct w_engine;
+#include <warpcore/warpcore.h>
 
+struct netmap_ring;
 
 /// An [Ethernet II MAC
 /// header](https://en.wikipedia.org/wiki/Ethernet_frame#Ethernet_II).

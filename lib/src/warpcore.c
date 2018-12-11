@@ -25,6 +25,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -40,11 +41,8 @@
 
 #include <warpcore/warpcore.h>
 
-#ifndef __linux__
-#include <arpa/inet.h>
 #if !defined(NDEBUG) && DLEVEL >= NTE
 #include <netinet/if_ether.h>
-#endif
 #endif
 
 #ifdef HAVE_ASAN

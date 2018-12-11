@@ -32,6 +32,8 @@
 
 #include <warpcore/warpcore.h>
 
+// IWYU pragma: no_include "arp.h"
+
 struct netmap_ring;
 
 

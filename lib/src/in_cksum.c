@@ -58,6 +58,10 @@
 #include <stdint.h>
 #include <tmmintrin.h>
 
+#ifdef __FreeBSD__
+#include <sys/socket.h> // IWYU pragma: keep
+#endif
+
 #include <warpcore/warpcore.h>
 
 #include "in_cksum.h"

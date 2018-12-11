@@ -30,7 +30,6 @@
 #include <arpa/inet.h>
 #include <net/netmap_user.h>
 #include <string.h>
-#include <sys/types.h>
 
 #include <warpcore/warpcore.h>
 
