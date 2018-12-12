@@ -6,5 +6,5 @@
 .DS_Store
 .vagrant
 
-shim*.txt
+sock*.txt
 warp*.txt
