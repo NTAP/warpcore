@@ -23,6 +23,10 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef __APPLE__
+#include <cstdint>
+#endif
+
 #include <benchmark/benchmark.h>
 #include <warpcore/warpcore.h>
 
