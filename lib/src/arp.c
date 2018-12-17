@@ -236,7 +236,11 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
 /// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void arp_rx(struct w_engine * const w, struct netmap_ring * const r)
+void
+#if defined(__clang__)
+    __attribute__((no_sanitize("alignment")))
+#endif
+    arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct arp_hdr * const arp = (const void *)eth_data(buf);

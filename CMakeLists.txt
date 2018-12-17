@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.22.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.23.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
@@ -54,7 +54,7 @@ set(CMAKE_C_STANDARD 11)
 # Set general compile flags, if they are supported
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
-foreach(FLAG -march=native -Wextra -Wpedantic -Weverything -Werror
+foreach(FLAG -pipe -march=native -Wextra -Wpedantic -Weverything -Werror
         -fcolor-diagnostics -fdiagnostics-color=always
         -Wno-missing-field-initializers -Wno-disabled-macro-expansion
         -Wno-gnu-folding-constant -Wno-cpp
@@ -110,9 +110,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 
     # Set some additional flags for Debug builds
     set(FLAGS -fno-omit-frame-pointer -fsanitize-address-use-after-scope
-        -fno-optimize-sibling-calls
+        -fno-optimize-sibling-calls -fno-common
         -fsanitize=undefined -fsanitize=unsigned-integer-overflow
-        -fno-sanitize=alignment -fno-common
+        -fsanitize=implicit-conversion -fsanitize=nullability
     )
     foreach(FLAG ${FLAGS})
       string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
@@ -125,10 +125,6 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
       endif()
     endforeach()
-  endif()
-
-  if(APPLE)
-    find_program(DSYMUTIL dsymutil)
   endif()
 
   find_program(CPPCHECK NAMES cppcheck)
@@ -185,13 +181,20 @@ else()
 
   # check for INTERPROCEDURAL_OPTIMIZATION support
   # (except on older gcc where that breaks)
-  if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+  if(NOT CMAKE_COMPILER_IS_GNUCC
+      OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT IPO)
   else()
     set(IPO False)
   endif()
 endif()
+
+
+if(APPLE AND NOT IPO)
+  find_program(DSYMUTIL dsymutil)
+endif()
+
 
 if(FUZZER)
   # check if we have a fuzzer
@@ -200,15 +203,16 @@ if(FUZZER)
   cmake_reset_check_state()
   if(HAVE_FUZZER)
     add_definitions(-DFUZZING)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=fuzzer,address")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=fuzzer,address")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=fuzzer,address,undefined")
+    set(CMAKE_CXX_FLAGS
+        "${CMAKE_CXX_FLAGS} -fsanitize=fuzzer,address,undefined")
   else()
     message(FATAL_ERROR "No fuzzer available")
   endif()
 endif()
 
 if(NOT CMAKE_BUILD_TYPE MATCHES Release AND HAVE_PROFILER)
-  set(CMAKE_C_STANDARD_LIBRARIES "-lprofiler -ltcmalloc")
+  set(CMAKE_C_STANDARD_LIBRARIES "-lprofiler")
   set(CMAKE_CXX_STANDARD_LIBRARIES ${CMAKE_C_STANDARD_LIBRARIES})
 endif()
 

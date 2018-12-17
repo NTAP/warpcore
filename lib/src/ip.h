@@ -74,7 +74,7 @@ struct ip_hdr {
 ///
 /// @return     IP version number.
 ///
-static inline __attribute__((always_inline, nonnull)) uint8_t
+static inline uint8_t __attribute__((always_inline, nonnull))
 ip_v(const struct ip_hdr * const ip)
 {
     return (ip->vhl & 0xf0) >> 4;
@@ -87,7 +87,13 @@ ip_v(const struct ip_hdr * const ip)
 ///
 /// @return     IP header length in bytes.
 ///
-static inline __attribute__((always_inline, nonnull)) uint8_t
+static inline uint8_t __attribute__((always_inline,
+                                     nonnull
+#if defined(__clang__)
+                                     ,
+                                     no_sanitize("alignment")
+#endif
+                                         ))
 ip_hl(const struct ip_hdr * const ip)
 {
     const uint8_t hl = (ip->vhl & 0x0f) * 4;
@@ -101,7 +107,7 @@ ip_hl(const struct ip_hdr * const ip)
 ///
 /// @return     DSCP.
 ///
-static inline __attribute__((always_inline, nonnull)) uint8_t
+static inline uint8_t __attribute__((always_inline, nonnull))
 ip_dscp(const struct ip_hdr * const ip)
 {
     return (ip->tos & 0xfc) >> 2;
@@ -114,7 +120,7 @@ ip_dscp(const struct ip_hdr * const ip)
 ///
 /// @return     ECN bits.
 ///
-static inline __attribute__((always_inline, nonnull)) uint8_t
+static inline uint8_t __attribute__((always_inline, nonnull))
 ip_ecn(const struct ip_hdr * const ip)
 {
     return ip->tos & 0x02;
@@ -130,7 +136,7 @@ ip_ecn(const struct ip_hdr * const ip)
 ///
 /// @return     Pointer to the first payload byte.
 ///
-static inline __attribute__((always_inline, nonnull)) uint8_t *
+static inline uint8_t * __attribute__((always_inline, nonnull))
 ip_data(uint8_t * const buf)
 {
     uint8_t * const ed = eth_data(buf);
@@ -144,7 +150,7 @@ ip_data(uint8_t * const buf)
 ///
 /// @return     { description_of_the_return_value }
 ///
-static inline __attribute__((always_inline, nonnull)) uint16_t
+static inline uint16_t __attribute__((always_inline, nonnull))
 ip_data_len(const struct ip_hdr * const ip)
 {
     return ntohs(ip->len) - ip_hl(ip);
@@ -155,8 +161,13 @@ ip_data_len(const struct ip_hdr * const ip)
 ///
 /// @param      ip    Pointer to the ip_hdr to initialize.
 ///
-static inline __attribute__((always_inline, nonnull)) void
-ip_hdr_init(struct ip_hdr * const ip)
+static inline void __attribute__((always_inline,
+                                  nonnull
+#if defined(__clang__)
+                                  ,
+                                  no_sanitize("alignment")
+#endif
+                                      )) ip_hdr_init(struct ip_hdr * const ip)
 {
     ip->vhl = (4 << 4) + 5;
     ip->off = htons(IP_DF);
