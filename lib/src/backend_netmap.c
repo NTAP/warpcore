@@ -43,6 +43,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define klib_unused
+
+#include <khash.h>
 #include <warpcore/warpcore.h>
 
 #ifdef HAVE_ASAN
@@ -82,7 +85,7 @@ void backend_init(struct w_engine * const w,
            "cannot open /dev/netmap");
     w->backend_name = backend_name;
 
-    splay_init(&b->arp_cache);
+    b->arp_cache = kh_init(arp_cache);
 
     // switch interface to netmap mode
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");

@@ -25,6 +25,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#define klib_unused
+
+#include <khash.h>
 #include <warpcore/warpcore.h>
 
 // IWYU pragma: no_include <net/netmap.h>
@@ -46,15 +49,6 @@
 #include "udp.h"
 
 
-int8_t __attribute__((nonnull)) arp_cache_cmp(const struct arp_entry * const a,
-                                              const struct arp_entry * const b)
-{
-    return (a->ip > b->ip) - (a->ip < b->ip);
-}
-
-SPLAY_GENERATE(arp_cache, arp_entry, next, arp_cache_cmp)
-
-
 /// Find the ARP cache entry associated with IPv4 address @p ip.
 ///
 /// @param      w     Backend engine.
@@ -65,8 +59,10 @@ SPLAY_GENERATE(arp_cache, arp_entry, next, arp_cache_cmp)
 static struct arp_entry * __attribute__((nonnull))
 arp_cache_find(struct w_engine * w, const uint32_t ip)
 {
-    const struct arp_entry a = {.ip = ip};
-    return splay_find(arp_cache, &w->b->arp_cache, &a);
+    const khiter_t k = kh_get(arp_cache, w->b->arp_cache, ip);
+    if (unlikely(k == kh_end(w->b->arp_cache)))
+        return 0;
+    return kh_val(w->b->arp_cache, k);
 }
 
 
@@ -84,8 +80,10 @@ void arp_cache_update(struct w_engine * w,
     if (unlikely(a == 0)) {
         a = calloc(1, sizeof(*a));
         ensure(a, "cannot allocate arp_entry");
-        a->ip = ip;
-        ensure(splay_insert(arp_cache, &w->b->arp_cache, a) == 0, "inserted");
+        int ret;
+        const khiter_t k = kh_put(arp_cache, w->b->arp_cache, ip, &ret);
+        ensure(ret >= 0, "inserted");
+        kh_val(w->b->arp_cache, k) = a;
     }
     a->mac = mac;
 #ifndef NDEBUG
@@ -322,10 +320,7 @@ void
 ///
 void free_arp_cache(struct w_engine * const w)
 {
-    struct arp_entry *a, *n;
-    for (a = splay_min(arp_cache, &w->b->arp_cache); a; a = n) {
-        n = splay_next(arp_cache, &w->b->arp_cache, a);
-        ensure(splay_remove(arp_cache, &w->b->arp_cache, a) != 0, "removed");
-        free(a);
-    }
+    struct arp_entry * a;
+    kh_foreach_value (w->b->arp_cache, a, { free(a); })
+        kh_destroy(arp_cache, w->b->arp_cache);
 }

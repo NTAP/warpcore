@@ -37,6 +37,7 @@ if(HAVE_BENCHMARK_H)
       ${CMAKE_SOURCE_DIR}/lib/include
       ${CMAKE_BINARY_DIR}/lib/include
       ${CMAKE_SOURCE_DIR}/lib/src
+      ${CMAKE_SOURCE_DIR}/lib/src/klib
     )
   set_target_properties(bench_sock
     PROPERTIES
@@ -54,6 +55,7 @@ if(HAVE_BENCHMARK_H)
       ${CMAKE_SOURCE_DIR}/lib/include
       ${CMAKE_BINARY_DIR}/lib/include
       ${CMAKE_SOURCE_DIR}/lib/src
+      ${CMAKE_SOURCE_DIR}/lib/src/klib
     )
     set_target_properties(bench_warp
       PROPERTIES
@@ -68,7 +70,10 @@ endif()
 foreach(TARGET sock iov hexdump queue)
   add_executable(test_${TARGET} common.c test_${TARGET}.c)
   target_link_libraries(test_${TARGET} PUBLIC sockcore)
-  target_include_directories(test_${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/lib/src)
+  target_include_directories(test_${TARGET}
+    PRIVATE ${CMAKE_SOURCE_DIR}/lib/src
+    SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/lib/src/klib
+  )
   set_target_properties(test_${TARGET}
     PROPERTIES
       POSITION_INDEPENDENT_CODE ON
@@ -111,8 +116,7 @@ if(HAVE_FUZZER)
         ${CMAKE_SOURCE_DIR}/lib/include
         ${CMAKE_BINARY_DIR}/lib/include
         ${CMAKE_SOURCE_DIR}/lib/src
-        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/external/include>
-        ${OPENSSL_ROOT_DIR}/include
+        ${CMAKE_SOURCE_DIR}/lib/src/klib
       )
     set_target_properties(${TARGET}
       PROPERTIES

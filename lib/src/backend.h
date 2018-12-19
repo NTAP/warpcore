@@ -39,6 +39,11 @@
 #include <net/netmap_user.h>
 #endif
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreserved-id-macro"
+#include <khash.h>
+#pragma clang diagnostic pop
+
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
@@ -47,14 +52,14 @@
 
 struct w_backend {
 #ifdef WITH_NETMAP
-    int fd;                     ///< Netmap file descriptor.
-    uint32_t cur_txr;           ///< Index of the TX ring currently active.
-    struct netmap_if * nif;     ///< Netmap interface.
-    struct nmreq * req;         ///< Netmap request structure.
-    struct arp_cache arp_cache; ///< The ARP cache.
-    uint32_t * tail;            ///< TX ring tails after last NIOCTXSYNC call.
-    struct w_iov *** slot_buf;  ///< For each ring slot, a pointer to its w_iov.
-    uint16_t next_eph;          ///< State for random port number generation.
+    int fd;                       ///< Netmap file descriptor.
+    uint32_t cur_txr;             ///< Index of the TX ring currently active.
+    struct netmap_if * nif;       ///< Netmap interface.
+    struct nmreq * req;           ///< Netmap request structure.
+    khash_t(arp_cache) * arp_cache; ///< The ARP cache.
+    uint32_t * tail;              ///< TX ring tails after last NIOCTXSYNC call.
+    struct w_iov *** slot_buf; ///< For each ring slot, a pointer to its w_iov.
+    uint16_t next_eph;         ///< State for random port number generation.
     /// @cond
     uint8_t _unused[6]; ///< @internal Padding.
     /// @endcond
