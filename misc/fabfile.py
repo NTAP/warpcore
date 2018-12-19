@@ -144,7 +144,7 @@ def build():
         dir = "%s-benchmarking" % env.uname[env.host_string]
         run("mkdir -p %s" % dir)
         with cd(dir):
-            run("git pull; "
+            run("git pull --recurse-submodules; "
                 "cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja ..; ninja")
             with settings(warn_only=True):
                 sudo("rm *core")
