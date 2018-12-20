@@ -10,6 +10,7 @@ using <- function(...) {
     }
 }
 
+.libPaths(new="~/.R")
 using("tools", "cowplot", "scales", "tidyverse")
 
 options(width=255)
