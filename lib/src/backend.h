@@ -74,8 +74,8 @@ struct w_backend {
     /// @endcond
 #else
 #if defined(HAVE_KQUEUE)
-    int kq;
     struct kevent ev[64]; // XXX arbitrary value
+    int kq;
 #elif defined(HAVE_EPOLL)
     int ep;
     struct epoll_event ev[64]; // XXX arbitrary value
@@ -84,9 +84,11 @@ struct w_backend {
     struct w_sock ** socks;
 #endif
     int n;
+#ifndef HAVE_KQUEUE
     /// @cond
     uint8_t _unused[4]; ///< @internal Padding.
     /// @endcond
+#endif
 #endif
 };
 
