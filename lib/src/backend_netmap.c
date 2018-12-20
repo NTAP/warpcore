@@ -350,7 +350,8 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
             // process the current slot
             warn(DBG, "rx idx %u from ring %u slot %u", r->slot[r->cur].buf_idx,
                  i, r->cur);
-            eth_rx(w, r);
+            eth_rx(w, &r->slot[r->cur],
+                   (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx));
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
     }

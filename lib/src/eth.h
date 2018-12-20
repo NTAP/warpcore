@@ -33,7 +33,7 @@
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
 
-struct netmap_ring;
+struct netmap_slot;
 
 /// An [Ethernet II MAC
 /// header](https://en.wikipedia.org/wiki/Ethernet_frame#Ethernet_II).
@@ -63,11 +63,9 @@ eth_data(uint8_t * const buf)
 }
 
 
-extern void __attribute__((nonnull))
-eth_tx_rx_cur(struct w_engine * w, void * const buf, const uint16_t len);
-
-extern void __attribute__((nonnull))
-eth_rx(struct w_engine * const w, struct netmap_ring * const r);
+extern void __attribute__((nonnull)) eth_rx(struct w_engine * const w,
+                                            struct netmap_slot * const s,
+                                            uint8_t * const buf);
 
 #ifndef HAVE_ETHER_NTOA_R
 extern char * __attribute__((nonnull))

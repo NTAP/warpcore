@@ -56,22 +56,22 @@ char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
 #endif
 
 
-/// Receive an Ethernet frame. This is the lowest-level RX function, called
-/// for each new inbound frame from w_rx(). Dispatches the frame to either
-/// ip_rx() or arp_rx(), based on its EtherType.
-///
-/// The Ethernet frame to operate on is in the current netmap lot of the
-/// indicated RX ring.
+/// Receive an Ethernet frame. This is the lowest-level RX function, called for
+/// each new inbound frame from w_rx(). Dispatches the frame to either ip_rx()
+/// or arp_rx(), based on its EtherType.
 ///
 /// @param      w     Backend engine.
-/// @param      r     Currently active netmap RX ring.
+/// @param      s     Currently active netmap RX slot.
+/// @param      buf   Incoming packet.
 ///
-void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
+void eth_rx(struct w_engine * const w,
+            struct netmap_slot * const s,
+            uint8_t * const buf)
 {
-    struct eth_hdr * const eth = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
-    if (unlikely(r->slot[r->cur].len < ETHER_ADDR_LEN)) {
+    struct eth_hdr * const eth = (void *)buf;
+    if (unlikely(s->len < ETHER_ADDR_LEN)) {
 #ifndef FUZZING
-        warn(ERR, "buf len %u < eth hdr len", r->slot[r->cur].len);
+        warn(ERR, "buf len %u < eth hdr len", s->len);
 #endif
         return;
     }
@@ -80,7 +80,7 @@ void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
     warn(DBG, "Eth %s -> %s, type %d, len %d", ether_ntoa_r(&eth->src, src),
-         ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), r->slot[r->cur].len);
+         ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), s->len);
 #endif
 
     // make sure the packet is for us (or broadcast)
@@ -94,9 +94,9 @@ void eth_rx(struct w_engine * const w, struct netmap_ring * const r)
         return;
     }
     if (likely(eth->type == ETH_TYPE_IP))
-        ip_rx(w, r);
+        ip_rx(w, s, buf);
     else if (eth->type == ETH_TYPE_ARP)
-        arp_rx(w, r);
+        arp_rx(w, buf);
 #ifndef FUZZING
     else
         warn(INF, "unhandled ethertype 0x%04x", ntohs(eth->type));

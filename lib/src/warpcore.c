@@ -492,7 +492,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 ///
 uint16_t w_iov_max_len(const struct w_iov * const v)
 {
-    const uint16_t offset = (const uint16_t)((const uint8_t *)v->buf - v->base);
+    const uint16_t offset = (const uint16_t)(v->buf - v->base);
     return v->w->mtu - offset;
 }
 

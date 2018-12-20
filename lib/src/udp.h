@@ -34,7 +34,7 @@
 #include "ip.h"
 
 
-struct netmap_ring;
+struct netmap_slot;
 struct w_engine;
 struct w_iov;
 struct w_sock;
@@ -61,8 +61,9 @@ struct w_hdr {
 } __attribute__((aligned(1)));
 
 
-extern void __attribute__((nonnull))
-udp_rx(struct w_engine * const w, struct netmap_ring * const r);
+extern void __attribute__((nonnull)) udp_rx(struct w_engine * const w,
+                                            struct netmap_slot * const s,
+                                            uint8_t * const buf);
 
 extern bool __attribute__((nonnull))
 udp_tx(const struct w_sock * const s, struct w_iov * const v);

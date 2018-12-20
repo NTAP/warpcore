@@ -73,21 +73,20 @@
 /// Receive processing for an IPv4 packet. Verifies the checksum and dispatches
 /// the packet to udp_rx() or icmp_rx(), as appropriate.
 ///
-/// The Ethernet frame to operate on is in the current netmap lot of the
-/// indicated RX ring.
-///
 /// IPv4 options are currently unsupported; as are IPv4 fragments.
 ///
 /// @param      w     Backend engine.
-/// @param      r     Currently active netmap RX ring.
+/// @param      s     Currently active netmap RX slot.
+/// @param      buf   Incoming packet.
 ///
 void
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
     __attribute__((no_sanitize("alignment")))
 #endif
-    ip_rx(struct w_engine * const w, struct netmap_ring * const r)
+    ip_rx(struct w_engine * const w,
+          struct netmap_slot * const s,
+          uint8_t * const buf)
 {
-    uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     struct ip_hdr * const ip = (void *)eth_data(buf);
 #ifndef FUZZING
     ip_log(ip);
@@ -131,9 +130,9 @@ void
     }
 
     if (likely(ip->p == IP_P_UDP))
-        udp_rx(w, r);
+        udp_rx(w, s, buf);
     else if (ip->p == IP_P_ICMP)
-        icmp_rx(w, r);
+        icmp_rx(w, s, buf);
     else {
 #ifndef FUZZING
         warn(INF, "unhandled IP protocol %d", ip->p);

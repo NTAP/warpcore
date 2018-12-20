@@ -29,7 +29,7 @@
 
 #include <stdint.h>
 
-struct netmap_ring;
+struct netmap_slot;
 struct w_engine;
 
 #define ICMP_TYPE_ECHOREPLY 0 ///< ICMP echo reply type.
@@ -58,4 +58,4 @@ extern void __attribute__((nonnull)) icmp_tx(struct w_engine * w,
                                              uint8_t * const buf);
 
 extern void __attribute__((nonnull))
-icmp_rx(struct w_engine * w, struct netmap_ring * const r);
+icmp_rx(struct w_engine * w, struct netmap_slot * const s, uint8_t * const buf);

@@ -29,7 +29,7 @@
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/netmap_user.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -71,20 +71,22 @@
 /// indicated RX ring.
 ///
 /// @param      w     Backend engine.
-/// @param      r     Currently active netmap RX ring.
+/// @param      s     Currently active netmap RX slot.
+/// @param      buf   Incoming packet.
 ///
 void
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
     __attribute__((no_sanitize("alignment")))
 #endif
-    udp_rx(struct w_engine * const w, struct netmap_ring * const r)
+    udp_rx(struct w_engine * const w,
+           struct netmap_slot * const s,
+           uint8_t * const buf)
 {
-    uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
     struct udp_hdr * const udp = (void *)ip_data(buf);
     const uint16_t udp_len =
-        MIN(ntohs(udp->len), r->slot[r->cur].len - sizeof(struct eth_hdr) -
-                                 sizeof(struct ip_hdr));
+        MIN(ntohs(udp->len),
+            s->len - sizeof(struct eth_hdr) - sizeof(struct ip_hdr));
     udp_log(udp);
 
     if (unlikely(udp_len < 8)) {
@@ -102,8 +104,8 @@ void
         }
     }
 
-    struct w_sock * s = get_sock(w, udp->dport);
-    if (unlikely(s == 0)) {
+    struct w_sock * ws = get_sock(w, udp->dport);
+    if (unlikely(ws == 0)) {
         // nobody bound to this port locally
         // send an ICMP unreachable reply, if this was not a broadcast
         if (ip->dst == w->ip)
@@ -120,10 +122,8 @@ void
         warn(CRT, "no more bufs; UDP packet RX failed");
         return;
     }
-    struct netmap_slot * const rxs = &r->slot[r->cur];
 
-    warn(DBG, "swapping rx ring %u slot %d (buf %d) and spare buf %u",
-         r->ringid, r->cur, rxs->buf_idx, i->idx);
+    warn(DBG, "swapping rx slot idx  %d and spare idx %u", s->buf_idx, i->idx);
 
     // remember index of this buffer
     const uint32_t tmp_idx = i->idx;
@@ -132,7 +132,7 @@ void
     i->base = buf;
     i->buf = ip_data(buf) + sizeof(*udp);
     i->len = udp_len - sizeof(*udp);
-    i->idx = rxs->buf_idx;
+    i->idx = s->buf_idx;
 
     // tag the iov with sender information and metadata
     i->ip = ip->src;
@@ -140,11 +140,11 @@ void
     i->flags = ip->tos;
 
     // append the iov to the socket
-    sq_insert_tail(&s->iv, i, next);
+    sq_insert_tail(&ws->iv, i, next);
 
     // put the original buffer of the iov into the receive ring
-    rxs->buf_idx = tmp_idx;
-    rxs->flags = NS_BUF_CHANGED;
+    s->buf_idx = tmp_idx;
+    s->flags = NS_BUF_CHANGED;
 }
 
 

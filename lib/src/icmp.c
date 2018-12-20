@@ -29,7 +29,7 @@
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/netmap_user.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
@@ -144,19 +144,21 @@ void icmp_tx(struct w_engine * const w,
 /// indicated RX ring.
 ///
 /// @param      w     Backend engine.
-/// @param      r     Currently active netmap RX ring.
+/// @param      s     Currently active netmap RX slot.
+/// @param      buf   Incoming packet.
 ///
-void icmp_rx(struct w_engine * const w, struct netmap_ring * const r)
+void icmp_rx(struct w_engine * const w,
+             struct netmap_slot * const s,
+             uint8_t * const buf)
 {
-    uint8_t * const buf = (void *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     struct icmp_hdr * const icmp = (void *)ip_data(buf);
     rwarn(DBG, 10, "received ICMP type %d, code %d", icmp->type, icmp->code);
 
     // validate the ICMP checksum
     struct ip_hdr * const ip = (void *)eth_data(buf);
     const uint16_t icmp_len =
-        MIN(ip_data_len(ip), r->slot[r->cur].len - sizeof(struct eth_hdr) -
-                                 sizeof(struct ip_hdr));
+        MIN(ip_data_len(ip),
+            s->len - sizeof(struct eth_hdr) - sizeof(struct ip_hdr));
 
     if (ip_cksum(icmp, icmp_len) != 0) {
         warn(WRN, "invalid ICMP checksum, received 0x%04x", ntohs(icmp->cksum));

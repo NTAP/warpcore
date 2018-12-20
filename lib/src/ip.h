@@ -33,7 +33,7 @@
 #include <stdint.h>
 
 struct w_engine;
-struct netmap_ring;
+struct netmap_slot;
 struct w_iov;
 
 
@@ -195,8 +195,9 @@ extern void __attribute__((nonnull)) ip_tx_with_rx_buf(struct w_engine * w,
                                                        void * const buf,
                                                        const uint16_t len);
 
-extern void __attribute__((nonnull))
-ip_rx(struct w_engine * const w, struct netmap_ring * const r);
+extern void __attribute__((nonnull)) ip_rx(struct w_engine * const w,
+                                           struct netmap_slot * const s,
+                                           uint8_t * const buf);
 
 extern bool __attribute__((nonnull))
 ip_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len);

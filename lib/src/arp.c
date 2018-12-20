@@ -32,7 +32,7 @@
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/netmap_user.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -237,19 +237,15 @@ struct ether_addr
 /// local interface, respond appropriately. For incoming ARP replies, updates
 /// the information in the w_sock structures of all open connections, as needed.
 ///
-/// The Ethernet frame to operate on is in the current netmap lot of the
-/// indicated RX ring.
-///
 /// @param      w     Backend engine.
-/// @param      r     Currently active netmap RX ring.
+/// @param      buf   Incoming packet.
 ///
 void
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
     __attribute__((no_sanitize("alignment")))
 #endif
-    arp_rx(struct w_engine * const w, struct netmap_ring * const r)
+    arp_rx(struct w_engine * const w, uint8_t * const buf)
 {
-    uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct arp_hdr * const arp = (const void *)eth_data(buf);
     const uint16_t hrd = ntohs(arp->hrd);
 

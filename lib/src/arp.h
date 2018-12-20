@@ -34,7 +34,6 @@
 
 // IWYU pragma: no_include "arp.h"
 
-struct netmap_ring;
 struct w_engine;
 
 
@@ -87,7 +86,7 @@ struct arp_hdr {
 
 
 extern void __attribute__((nonnull))
-arp_rx(struct w_engine * w, struct netmap_ring * const r);
+arp_rx(struct w_engine * w, uint8_t * const buf);
 
 extern struct ether_addr __attribute__((nonnull))
 arp_who_has(struct w_engine * const w, const uint32_t dip);
