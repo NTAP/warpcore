@@ -143,6 +143,7 @@ struct w_iov {
     /// Pointer back to the warpcore instance associated with this w_iov.
     struct w_engine * w;
 
+    uint8_t * base;       ///< Absolute start of buffer.
     uint8_t * buf;        ///< Start of payload data.
     sq_entry(w_iov) next; ///< Next w_iov in a w_iov_sq.
     uint32_t idx;         ///< Index of netmap buffer.

@@ -132,8 +132,7 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
         v->len -= off;
         ensure(len <= v->len, "len %u > v->len %u", len, v->len);
         v->len = len ? len : v->len;
-        // warn(DBG, "alloc w_iov off %u len %u",
-        //      v->buf - idx_to_buf(w, w_iov_idx(v)), v->len);
+        // warn(DBG, "alloc w_iov off %u len %u", v->buf - v->base, v->len);
     }
     return v;
 }
@@ -493,8 +492,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
 ///
 uint16_t w_iov_max_len(const struct w_iov * const v)
 {
-    const uint16_t offset = (const uint16_t)(
-        (const uint8_t *)v->buf - (const uint8_t *)idx_to_buf(v->w, v->idx));
+    const uint16_t offset = (const uint16_t)((const uint8_t *)v->buf - v->base);
     return v->w->mtu - offset;
 }
 
@@ -526,7 +524,7 @@ void w_free(struct w_iov_sq * const q)
 #ifndef NDEBUG
     struct w_iov * v;
     sq_foreach (v, q, next)
-        ASAN_POISON_MEMORY_REGION(idx_to_buf(w, v->idx), w->mtu);
+        ASAN_POISON_MEMORY_REGION(v->base, w->mtu);
 #endif
 }
 
@@ -539,7 +537,7 @@ void w_free(struct w_iov_sq * const q)
 void w_free_iov(struct w_iov * const v)
 {
     sq_insert_head(&v->w->iov, v, next);
-    ASAN_POISON_MEMORY_REGION(idx_to_buf(v->w, v->idx), v->w->mtu);
+    ASAN_POISON_MEMORY_REGION(v->base, v->w->mtu);
 }
 
 

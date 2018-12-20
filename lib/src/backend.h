@@ -174,7 +174,9 @@ static inline __attribute__((always_inline, nonnull)) void
 init_iov(struct w_engine * const w, struct w_iov * const v)
 {
     v->w = w;
-    v->buf = idx_to_buf(w, v->idx);
+    if (unlikely(v->base == 0))
+        v->base = idx_to_buf(w, v->idx);
+    v->buf = v->base;
     v->len = w->mtu;
     v->o = 0;
     sq_next(v, next) = 0;
@@ -188,7 +190,7 @@ w_alloc_iov_base(struct w_engine * const w)
     if (likely(v)) {
         sq_remove_head(&w->iov, next);
         init_iov(w, v);
-        ASAN_UNPOISON_MEMORY_REGION(idx_to_buf(w, v->idx), v->len);
+        ASAN_UNPOISON_MEMORY_REGION(v->buf, v->len);
     }
     return v;
 }

@@ -156,18 +156,17 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     // copy template header into buffer and fill in remaining fields
-    uint8_t * const buf = idx_to_buf(s->w, v->idx);
-    memcpy(buf, s->hdr, sizeof(*s->hdr));
+    memcpy(v->base, s->hdr, sizeof(*s->hdr));
 
-    struct ip_hdr * const ip = (void *)eth_data(buf);
-    struct udp_hdr * const udp = (void *)ip_data(buf);
+    struct ip_hdr * const ip = (void *)eth_data(v->base);
+    struct udp_hdr * const udp = (void *)ip_data(v->base);
     const uint16_t len = v->len + sizeof(*udp);
     udp->len = htons(len);
 
     // if w_sock is disconnected, use destination IP and port from w_iov
     // instead of the one in the template header
     if (!w_connected(s)) {
-        struct eth_hdr * const e = (void *)buf;
+        struct eth_hdr * const e = (void *)v->base;
         e->dst = arp_who_has(s->w, v->ip);
         ip->dst = v->ip;
         udp->dport = v->port;
