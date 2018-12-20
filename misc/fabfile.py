@@ -6,7 +6,6 @@ from time import *
 env.colorize_errors = True
 env.use_ssh_config = True
 env.builddir = ""
-env.keeplog = True
 env.uname = {}
 
 env.ip = {"phobos1": "10.11.12.3",
@@ -133,8 +132,8 @@ def netmap_unconfig(test):
 def clear_logs():
     with cd("~/warpcore"):
         with settings(warn_only=True):
-            sudo("rm warp*.log sock*.log warp*.txt sock*.txt warp*.grof.* "
-                 "sock*.gprof.* 2> /dev/null")
+            sudo("rm warp*.log sock*.log warp*.txt sock*.txt "
+                 "warp*.prof sock*.prof > /dev/null")
 
 
 @roles("client", "server")
@@ -145,7 +144,8 @@ def build():
         run("mkdir -p %s" % dir)
         with cd(dir):
             run("git pull --recurse-submodules; "
-                "cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -GNinja ..; ninja")
+                "cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBENCHMARKING=1 "
+                "-GNinja ..; ninja")
             with settings(warn_only=True):
                 sudo("rm *core")
             env.builddir = run("pwd")
@@ -157,18 +157,19 @@ def start_server(test, busywait, cksum, kind):
     pin = ""
     if env.uname[env.host_string] == "Linux":
         pin = "/usr/bin/taskset -c"
+        preload = "/usr/lib/x86_64-linux-gnu/libprofiler.so"
     else:
         pin = "/usr/bin/cpuset -l"
+        preload = ""
     with cd(env.builddir):
         prefix = "../%sinetd-%s%s%s" % (kind, test["speed"], busywait, cksum)
         log = prefix + ".log"
-        prof = prefix + ".gprof"
-        if not env.keeplog:
-            log = "/dev/null"
-        sudo("/usr/bin/nohup %s 3 env GMON_OUT_PREFIX=%s "
-             "%s/bin/%sinetd -i %s %s %s 2>&1 > %s &" %
-             (pin, prof, env.builddir, kind, test["server_iface"], busywait,
-              cksum, log))
+        prof = prefix + ".prof"
+        sudo("(/usr/bin/nohup %s 3 env LD_PRELOAD=%s "
+             "CPUPROFILE=%s CPUPROFILE_FREQUENCY=10000 "
+             "%s/bin/%sinetd -i %s %s %s) 2>&1 > %s &" %
+             (pin, preload, prof, env.builddir, kind, test["server_iface"],
+              busywait, cksum, log))
 
 
 @task
@@ -176,12 +177,19 @@ def start_server(test, busywait, cksum, kind):
 @roles("client", "server")
 def stop(flag=""):
     with settings(warn_only=True):
-        sudo('''pkill %s inetd ; while : ; do \
-                pkill %s '(warp|sock)(ping|inetd)'; \
-                pgrep "(warp|sock)(ping|inetd)"; \
-                [ "$?" == 1 ] && break; \
-                sleep 3; \
-            done''' % (flag, flag))
+        with cd("~/warpcore"):
+            sudo('''pkill %s inetd ; \
+                    while : ; do \
+                        pkill %s '(warp|sock)(ping|inetd)'; \
+                        pgrep "(warp|sock)(ping|inetd)"; \
+                        [ "$?" == 1 ] && break; \
+                        sleep 3; \
+                    done; \
+                    for log in *.log; do \
+                        sed -E -i'' '/^(PROFILE: interrupts.*)?$/d' "$log"; \
+                        [ ! -s "$log" ] && rm "$log"; \
+                    done; \
+                ''' % (flag, flag))
 
 
 @task
@@ -195,24 +203,22 @@ def start_client(test, busywait, cksum, kind):
     pin = ""
     if env.uname[env.host_string] == "Linux":
         pin = "/usr/bin/taskset -c"
+        preload = "/usr/lib/x86_64-linux-gnu/libprofiler.so"
     else:
         pin = "/usr/bin/cpuset -l"
+        preload = ""
     with cd(env.builddir):
         prefix = "../%sping-%s%s%s" % (kind, test["speed"], busywait, cksum)
         file = prefix + ".txt"
         log = prefix + ".log"
-        prof = prefix + ".gprof"
-        if not env.keeplog:
-            log = "/dev/null"
-        sudo("%s 3 env GMON_OUT_PREFIX=%s "
-#             "valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes "
-#             "--callgrind-out-file=%s.callgrind "
-             "%s/bin/%sping -i %s -d %s %s %s -l %s -s 32 -p 0 -e 17000000 "
-             "> %s 2> %s" %
-             (pin, prof,
-#              prefix,
-              env.builddir, kind, test["client_iface"], env.ip[test["server"]],
-              busywait, cksum, test["iter"], file, log))
+        prof = prefix + ".prof"
+        sudo("(%s 3 env LD_PRELOAD=%s "
+             "CPUPROFILE=%s CPUPROFILE_FREQUENCY=10000 "
+             "%s/bin/%sping -i %s -d %s %s %s -l %s "
+             "-s 32 -p 0 -e 17000000) > %s 2> %s" %
+             (pin, preload, prof, env.builddir, kind, test["client_iface"],
+              env.ip[test["server"]], busywait, cksum, test["iter"],
+              file, log))
 
 
 @task(default=True)
