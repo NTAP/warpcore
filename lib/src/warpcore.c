@@ -42,6 +42,7 @@
 #define klib_unused
 
 #include <khash.h>
+#include <krng.h>
 #include <warpcore/warpcore.h>
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
@@ -59,7 +60,7 @@
 
 
 // w_init() must initialize this so that it is not all zero
-uint64_t w_rand_state[2];
+static krng_t w_rand_state;
 
 
 /// A global list of netmap engines that have been initialized for different
@@ -375,9 +376,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // init state for w_rand()
     struct timeval now;
     gettimeofday(&now, 0);
-    srandom((unsigned)(now.tv_sec | now.tv_usec));
-    w_rand_state[0] = ((uint64_t)random() << 32) | (uint64_t)random(); // NOLINT
-    w_rand_state[1] = ((uint64_t)random() << 32) | (uint64_t)random(); // NOLINT
+    kr_srand_r(&w_rand_state, (uint64_t)now.tv_usec);
 
     // construct interface name of a netmap pipe for this interface
     char pipe[IFNAMSIZ];
@@ -553,4 +552,15 @@ void w_free_iov(struct w_iov * const v)
 uint16_t w_get_sport(const struct w_sock * const s)
 {
     return s->hdr->udp.sport;
+}
+
+
+/// Return a random number. Fast, but not cryptographically secure. Implements
+/// xoroshiro128+; see https://en.wikipedia.org/wiki/Xoroshiro128%2B.
+///
+/// @return     Random number.
+///
+uint64_t w_rand(void)
+{
+    return kr_rand_r(&w_rand_state);
 }

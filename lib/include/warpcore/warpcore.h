@@ -258,30 +258,7 @@ extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
 extern uint16_t __attribute__((nonnull))
 w_get_sport(const struct w_sock * const s);
 
-extern uint64_t w_rand_state[2];
-
-/// Return a random number. Fast, but not cryptographically secure. Implements
-/// xoroshiro128+; see https://en.wikipedia.org/wiki/Xoroshiro128%2B.
-///
-/// @return     Random number.
-///
-static inline uint64_t __attribute__((no_sanitize("unsigned-integer-overflow")))
-w_rand(void)
-{
-#define rotl(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
-
-    const uint64_t s0 = w_rand_state[0];
-    uint64_t s1 = w_rand_state[1];
-    const uint64_t result = s0 + s1;
-
-    s1 ^= s0;
-    w_rand_state[0] = rotl(s0, 55) ^ s1 ^ (s1 << 14);
-    w_rand_state[1] = rotl(s1, 36);
-
-#undef rotl
-
-    return result;
-}
+extern uint64_t w_rand(void);
 
 
 /// Return the number of w_iov structs in @p q that are still waiting for
