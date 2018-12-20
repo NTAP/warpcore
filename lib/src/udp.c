@@ -129,6 +129,7 @@ void
     const uint32_t tmp_idx = i->idx;
 
     // adjust the buffer offset to the received data into the iov
+    i->base = buf;
     i->buf = ip_data(buf) + sizeof(*udp);
     i->len = udp_len - sizeof(*udp);
     i->idx = rxs->buf_idx;
