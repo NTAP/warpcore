@@ -101,7 +101,12 @@ void arp_cache_update(struct w_engine * w,
 /// @param      buf   Buffer containing an incoming ARP request inside an
 ///                   Ethernet frame
 ///
-static void __attribute__((nonnull))
+static void __attribute__((nonnull
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+                           ,
+                           no_sanitize("alignment")
+#endif
+                               ))
 arp_is_at(struct w_engine * const w, uint8_t * const buf)
 {
     // grab iov for reply

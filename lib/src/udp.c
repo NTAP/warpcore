@@ -73,7 +73,11 @@
 /// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
+void
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+    __attribute__((no_sanitize("alignment")))
+#endif
+    udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
@@ -153,7 +157,11 @@ void udp_rx(struct w_engine * const w, struct netmap_ring * const r)
 ///
 /// @return     True if the payloads was sent, false otherwise.
 ///
-bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
+bool
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+    __attribute__((no_sanitize("alignment")))
+#endif
+    udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
     // copy template header into buffer and fill in remaining fields
     memcpy(v->base, s->hdr, sizeof(*s->hdr));
