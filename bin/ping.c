@@ -108,11 +108,8 @@ static void timeout(int signum __attribute__((unused)))
 }
 
 
-int
-#if defined(__clang__)
-    __attribute__((no_sanitize("alignment")))
-#endif
-    main(const int argc, char * const argv[])
+int __attribute__((no_sanitize("alignment")))
+main(const int argc, char * const argv[])
 {
     const char * ifname = 0;
     const char * dst = 0;

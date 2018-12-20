@@ -81,11 +81,8 @@
 /// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void
-#if defined(__clang__)
-    __attribute__((no_sanitize("alignment")))
-#endif
-    ip_rx(struct w_engine * const w, struct netmap_ring * const r)
+void __attribute__((no_sanitize("alignment")))
+ip_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     struct ip_hdr * const ip = (void *)eth_data(buf);
