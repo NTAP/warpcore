@@ -46,18 +46,27 @@
 
 #include <warpcore/warpcore.h>
 
+#if defined(HAVE_KQUEUE)
+#include <sys/event.h>
+#include <time.h>
+#elif defined(HAVE_EPOLL)
+#include <sys/epoll.h>
+#else
+#include <poll.h>
+#endif
+
 #include "arp.h"
 #include "udp.h"
 
 
 struct w_backend {
 #ifdef WITH_NETMAP
-    int fd;                       ///< Netmap file descriptor.
-    uint32_t cur_txr;             ///< Index of the TX ring currently active.
-    struct netmap_if * nif;       ///< Netmap interface.
-    struct nmreq * req;           ///< Netmap request structure.
+    int fd;                         ///< Netmap file descriptor.
+    uint32_t cur_txr;               ///< Index of the TX ring currently active.
+    struct netmap_if * nif;         ///< Netmap interface.
+    struct nmreq * req;             ///< Netmap request structure.
     khash_t(arp_cache) * arp_cache; ///< The ARP cache.
-    uint32_t * tail;              ///< TX ring tails after last NIOCTXSYNC call.
+    uint32_t * tail;           ///< TX ring tails after last NIOCTXSYNC call.
     struct w_iov *** slot_buf; ///< For each ring slot, a pointer to its w_iov.
     uint16_t next_eph;         ///< State for random port number generation.
     /// @cond
@@ -66,13 +75,18 @@ struct w_backend {
 #else
 #if defined(HAVE_KQUEUE)
     int kq;
+    struct kevent ev[64]; // XXX arbitrary value
 #elif defined(HAVE_EPOLL)
     int ep;
+    struct epoll_event ev[64]; // XXX arbitrary value
 #else
-    /// @cond
-    uint8_t _unused_2[4];
-    /// @endcond
+    struct pollfd * fds;
+    struct w_sock ** socks;
 #endif
+    int n;
+    /// @cond
+    uint8_t _unused[4]; ///< @internal Padding.
+    /// @endcond
 #endif
 };
 
@@ -121,9 +135,6 @@ static inline int w_sock_cmp(const struct w_sock * const a,
     const uint32_t bp = ((uint32_t)b->hdr->udp.sport << 16) + b->hdr->udp.dport;
     return (ap > bp) - (ap < bp);
 }
-
-
-SPLAY_PROTOTYPE(sock, w_sock, next, w_sock_cmp)
 
 
 /// Global list of initialized warpcore engines.
@@ -182,6 +193,9 @@ w_alloc_iov_base(struct w_engine * const w)
     return v;
 }
 
+extern struct w_sock * __attribute__((nonnull))
+get_sock(struct w_engine * const w, const uint16_t sport);
+
 
 extern void __attribute__((nonnull)) backend_bind(struct w_sock * const s);
 
@@ -195,3 +209,5 @@ extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
                                                   const bool is_left);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);
+
+KHASH_MAP_INIT_INT(sock, struct w_sock *)

@@ -235,7 +235,7 @@ void backend_bind(struct w_sock * s)
     do {
         s->w->b->next_eph += (w_rand() % N) + 1;
         const uint16_t port = htons(min_eph + (s->w->b->next_eph % num_eph));
-        if (w_get_sock(s->w, port, 0) == 0) {
+        if (get_sock(s->w, port) == 0) {
             s->hdr->udp.sport = port;
             return;
         }
@@ -419,11 +419,11 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     // insert all sockets with pending inbound data
     struct w_sock * s;
     uint32_t n = 0;
-    splay_foreach (s, sock, &w->sock)
+    kh_foreach_value ((khash_t(sock) *)w->sock, s, {
         if (!sq_empty(&s->iv)) {
             sl_insert_head(sl, s, next_rx);
             n++;
         }
-
-    return n;
+    })
+        return n;
 }

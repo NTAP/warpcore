@@ -62,8 +62,6 @@ struct w_iov_sq {
     }
 
 
-splay_head(sock, w_sock);
-
 /// A warpcore backend engine.
 ///
 struct w_engine {
@@ -76,7 +74,7 @@ struct w_engine {
     uint16_t mtu;         ///< MTU of this interface.
     uint32_t mbps;        ///< Link speed of this interface in Mb/s.
     struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
-    struct sock sock;      ///< List of open (bound) w_sock sockets.
+    void * sock;           ///< List of open (bound) w_sock sockets.
     struct w_iov_sq iov;   ///< Tail queue of w_iov buffers available.
 
     sl_entry(w_engine) next;   ///< Pointer to next engine.
@@ -112,8 +110,7 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     struct w_engine * w;
 
-    struct w_iov_sq iv;       ///< Tail queue containing incoming unread data.
-    splay_entry(w_sock) next; ///< Next socket associated with this engine.
+    struct w_iov_sq iv; ///< Tail queue containing incoming unread data.
 
     /// The template header to be used for outbound packets on this
     /// w_sock.
@@ -261,11 +258,6 @@ extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
 extern uint16_t __attribute__((nonnull))
 w_get_sport(const struct w_sock * const s);
 
-extern struct w_sock * __attribute__((nonnull))
-w_get_sock(struct w_engine * const w,
-           const uint16_t sport,
-           const uint16_t dport);
-
 extern uint64_t w_rand_state[2];
 
 /// Return a random number. Fast, but not cryptographically secure. Implements
@@ -273,11 +265,8 @@ extern uint64_t w_rand_state[2];
 ///
 /// @return     Random number.
 ///
-static inline uint64_t
-#if defined(__clang__)
-    __attribute__((no_sanitize("unsigned-integer-overflow")))
-#endif
-    w_rand(void)
+static inline uint64_t __attribute__((no_sanitize("unsigned-integer-overflow")))
+w_rand(void)
 {
 #define rotl(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
 

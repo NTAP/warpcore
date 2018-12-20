@@ -43,6 +43,10 @@
 
 #include <warpcore/warpcore.h>
 
+#if !defined(HAVE_KQUEUE) && !defined(HAVE_EPOLL)
+#include <khash.h>
+#endif
+
 #ifdef HAVE_ASAN
 #include <sanitizer/asan_interface.h>
 #endif
@@ -135,6 +139,10 @@ void backend_init(struct w_engine * const w,
 ///
 void backend_cleanup(struct w_engine * const w)
 {
+#if !defined(HAVE_KQUEUE) && !defined(HAVE_EPOLL)
+    free(w->b->fds);
+    free(w->b->socks);
+#endif
     free(w->mem);
     free(w->bufs);
 }
@@ -455,42 +463,50 @@ void w_nic_tx(struct w_engine * const w __attribute__((unused))) {}
 ///
 bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 {
-    int n = 0;
+    struct w_backend * const b = w->b;
 
 #if defined(HAVE_KQUEUE)
     const struct timespec timeout = {msec / 1000000, (msec % 1000000) * 1000};
-    struct kevent ev;
-    n = kevent(w->b->kq, 0, 0, &ev, 1, msec == -1 ? 0 : &timeout);
+    b->n = kevent(b->kq, 0, 0, b->ev, sizeof(b->ev) / sizeof(b->ev[0]),
+                  msec == -1 ? 0 : &timeout);
+    return b->n > 0;
 
 #elif defined(HAVE_EPOLL)
-    struct epoll_event ev;
-    n = epoll_wait(w->b->ep, &ev, 1, msec);
+    b->n = epoll_wait(b->ep, b->ev, sizeof(b->ev) / sizeof(b->ev[0]), msec);
+    return b->n > 0;
 
 #else
-    // XXX: this is super-duper inefficient, but just a fallback
-
-    // count sockets
-    struct w_sock * s = 0;
-    splay_foreach (s, sock, &w->sock)
-        n++;
-    if (n == 0)
+    const size_t cur_n = kh_size((khash_t(sock) *)w->sock);
+    if (unlikely(cur_n == 0)) {
+        free(b->fds);
+        free(b->socks);
+        b->fds = 0;
+        b->socks = 0;
+        b->n = 0;
         return false;
-
-    // allocate and fill pollfd
-    struct pollfd * fds = calloc((unsigned long)n, sizeof(*fds));
-    ensure(fds, "could not calloc");
-    s = splay_min(sock, &w->sock);
-    for (int i = 0; i < n && s; i++) {
-        fds[i] = (struct pollfd){.fd = s->fd, .events = POLLIN};
-        s = splay_next(sock, &w->sock, s);
     }
 
-    // poll
-    n = poll(fds, (nfds_t)n, msec);
-    free(fds);
-#endif
+    // allocate and fill pollfd
+    if (unlikely(b->n == 0 || b->n < (int)cur_n)) {
+        b->n = (int)cur_n;
+        b->fds = realloc(b->fds, cur_n * sizeof(*b->fds));
+        b->socks = realloc(b->socks, cur_n * sizeof(*b->socks));
+        ensure(b->fds && b->socks, "could not realloc");
+    }
+
+    struct w_sock * s = 0;
+    int n = 0;
+    kh_foreach_value ((khash_t(sock) *)w->sock, s, {
+        b->fds[n].fd = s->fd;
+        b->fds[n].events = POLLIN;
+        b->socks[n++] = s;
+    })
+
+        // poll
+        n = poll(b->fds, (nfds_t)cur_n, msec);
 
     return n > 0;
+#endif
 }
 
 
@@ -508,63 +524,39 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 ///
 uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
 {
-    uint32_t n = 0;
+    struct w_backend * const b = w->b;
 
 #if defined(HAVE_KQUEUE)
-#define EV_SIZE 64
-    const struct timespec timeout = {0, 0};
-    struct kevent ev[EV_SIZE];
-    const int r = kevent(w->b->kq, 0, 0, &ev[0], EV_SIZE, &timeout);
-    n = r >= 0 ? (uint32_t)r : 0;
-    for (uint32_t i = 0; i < n; i++)
-        sl_insert_head(sl, (struct w_sock *)ev[i].udata, next_rx);
+    if (b->n <= 0) {
+        const struct timespec timeout = {0, 0};
+        b->n = kevent(b->kq, 0, 0, b->ev, sizeof(b->ev) / sizeof(b->ev[0]),
+                      &timeout);
+    }
+
+    int i;
+    for (i = 0; i < b->n; i++)
+        sl_insert_head(sl, (struct w_sock *)b->ev[i].udata, next_rx);
+    b->n = 0;
+    return (uint32_t)i;
 
 #elif defined(HAVE_EPOLL)
-#define EV_SIZE 64
-    struct epoll_event ev[EV_SIZE];
-    const int r = epoll_wait(w->b->ep, &ev[0], EV_SIZE, 0);
-    n = r >= 0 ? (uint32_t)r : 0;
-    for (uint32_t i = 0; i < n; i++)
-        sl_insert_head(sl, (struct w_sock *)ev[i].data.ptr, next_rx);
+    if (b->n <= 0)
+        b->n = epoll_wait(b->ep, b->ev, sizeof(b->ev) / sizeof(b->ev[0]), 0);
+
+    int i;
+    for (i = 0; i < b->n; i++)
+        sl_insert_head(sl, (struct w_sock *)b->ev[i].data.ptr, next_rx);
+    b->n = 0;
+    return (uint32_t)i;
 
 #else
-    // XXX: this is super-duper inefficient, but just a fallback
 
-    // count sockets
-    unsigned long sock_cnt = 0;
-    struct w_sock * s = 0;
-    splay_foreach (s, sock, &w->sock)
-        sock_cnt++;
-    if (sock_cnt == 0)
-        return 0;
-
-    // allocate and fill pollfd
-    struct pollfd * fds = calloc(sock_cnt, sizeof(*fds));
-    struct w_sock ** ss = calloc(sock_cnt, sizeof(*ss));
-    ensure(fds && ss, "could not calloc");
-    s = splay_min(sock, &w->sock);
-    for (uint32_t i = 0; i < sock_cnt && s; i++) {
-        fds[i] = (struct pollfd){.fd = s->fd, .events = POLLIN};
-        ss[i] = s;
-        s = splay_next(sock, &w->sock, s);
-    }
-
-    // find ready descriptors
-    poll(fds,
-#ifndef __linux__
-         (nfds_t)
-#endif
-             sock_cnt,
-         0);
-    for (uint32_t i = 0; i < sock_cnt; i++) {
-        if (fds[i].revents & POLLIN && ss[i]) {
-            sl_insert_head(sl, ss[i], next_rx);
+    uint32_t n = 0;
+    for (int i = 0; i < b->n; i++)
+        if (b->fds[i].revents & POLLIN && b->socks[i]) {
+            sl_insert_head(sl, b->socks[i], next_rx);
             n++;
         }
-    }
-    free(ss);
-    free(fds);
-#endif
-
     return n;
+#endif
 }

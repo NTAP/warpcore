@@ -39,6 +39,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#define klib_unused
+
+#include <khash.h>
 #include <warpcore/warpcore.h>
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
@@ -58,8 +61,6 @@
 // w_init() must initialize this so that it is not all zero
 uint64_t w_rand_state[2];
 
-SPLAY_GENERATE(sock, w_sock, next, w_sock_cmp)
-
 
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
@@ -72,17 +73,38 @@ struct w_engines engines = sl_head_initializer(engines);
 ///
 /// @param      w      Backend engine.
 /// @param[in]  sport  The local (source) port number.
-/// @param[in]  dport  The remote (destination) port number.
 ///
 /// @return     The w_sock bound to @p port.
 ///
-struct w_sock * w_get_sock(struct w_engine * const w,
-                           const uint16_t sport,
-                           const uint16_t dport)
+struct w_sock * get_sock(struct w_engine * const w, const uint16_t sport)
 {
-    const struct w_sock s = {
-        .hdr = &(struct w_hdr){.udp.sport = sport, .udp.dport = dport}};
-    return splay_find(sock, &w->sock, &s);
+    khash_t(sock) * const sock = w->sock;
+    const khiter_t k = kh_get(sock, sock, sport);
+    if (unlikely(k == kh_end(sock)))
+        return 0;
+    return kh_val(sock, k);
+}
+
+
+static inline void __attribute__((nonnull)) ins_sock(struct w_engine * const w,
+                                                     const uint16_t sport,
+                                                     struct w_sock * const s)
+{
+    khash_t(sock) * const sock = w->sock;
+    int ret;
+    const khiter_t k = kh_put(sock, sock, sport, &ret);
+    ensure(ret >= 0, "inserted");
+    kh_val(sock, k) = s;
+}
+
+
+static inline void __attribute__((nonnull))
+rem_sock(struct w_engine * const w, const uint16_t sport)
+{
+    khash_t(sock) * const sock = w->sock;
+    const khiter_t k = kh_get(sock, sock, sport);
+    ensure(k != kh_end(sock), "found");
+    kh_del(sock, sock, k);
 }
 
 
@@ -218,11 +240,11 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
     ensure(s->hdr->ip.dst == 0 && s->hdr->udp.dport == 0,
            "socket already connected");
 
-    // need to update the socket splay, since dport is changing
-    ensure(splay_remove(sock, &s->w->sock, s) != 0, "removed");
+    // need to update the socket khash, since dport is changing
+    rem_sock(s->w, s->hdr->udp.sport);
     s->hdr->ip.dst = ip;
     s->hdr->udp.dport = port;
-    ensure(splay_insert(sock, &s->w->sock, s) == 0, "inserted");
+    ins_sock(s->w, s->hdr->udp.sport, s);
 
     backend_connect(s);
 
@@ -246,7 +268,7 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 struct w_sock *
 w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
 {
-    struct w_sock * s = w_get_sock(w, port, 0);
+    struct w_sock * s = get_sock(w, port);
     if (unlikely(s)) {
         warn(INF, "UDP source port %d already in bound", ntohs(port));
         return 0;
@@ -269,10 +291,10 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
     // s->hdr->ip.dst is set on w_connect()
 
     s->w = w;
-    ensure(splay_insert(sock, &w->sock, s) == 0, "inserted");
     sq_init(&s->iv);
 
     backend_bind(s);
+    ins_sock(w, s->hdr->udp.sport, s);
 
 #ifndef FUZZING
     warn(NTE, "socket bound to port %d", ntohs(s->hdr->udp.sport));
@@ -291,7 +313,7 @@ void w_close(struct w_sock * const s)
     backend_close(s);
 
     // remove the socket from list of sockets
-    ensure(splay_remove(sock, &s->w->sock, s) != 0, "removed");
+    rem_sock(s->w, s->hdr->udp.sport);
 
     // free the template header
     free(s->hdr);
@@ -312,8 +334,9 @@ void w_cleanup(struct w_engine * const w)
     warn(NTE, "warpcore shutting down");
 
     // close all sockets
-    while (!splay_empty(&w->sock))
-        w_close(splay_root(&w->sock)); // NOLINT
+    struct w_sock * s;
+    kh_foreach_value ((khash_t(sock) *)w->sock, s, { w_close(s); })
+        kh_destroy(sock, (khash_t(sock) *)w->sock);
 
     backend_cleanup(w);
     sl_remove(&engines, w, w_engine, next);
@@ -346,7 +369,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
 
     // initialize lists of sockets and iovs
-    splay_init(&w->sock);
+    w->sock = kh_init(sock);
     sq_init(&w->iov);
 
     // init state for w_rand()

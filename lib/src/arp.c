@@ -234,11 +234,8 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
 /// @param      w     Backend engine.
 /// @param      r     Currently active netmap RX ring.
 ///
-void
-#if defined(__clang__)
-    __attribute__((no_sanitize("alignment")))
-#endif
-    arp_rx(struct w_engine * const w, struct netmap_ring * const r)
+void __attribute__((no_sanitize("alignment")))
+arp_rx(struct w_engine * const w, struct netmap_ring * const r)
 {
     uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx);
     const struct arp_hdr * const arp = (const void *)eth_data(buf);
@@ -292,7 +289,7 @@ void
         // check if any socket has an IP address matching this ARP
         // reply, and if so, change its destination MAC
         struct w_sock * s;
-        splay_foreach (s, sock, &w->sock) {
+        kh_foreach_value ((khash_t(sock) *)w->sock, s, {
             if ( // is local-net socket and ARP src IP matches its dst
                 ((mk_net(s->w->ip, s->w->mask) ==
                       mk_net(s->hdr->ip.dst, s->w->mask) &&
@@ -304,8 +301,8 @@ void
                      inet_ntop(AF_INET, &arp->spa, ip_str, INET_ADDRSTRLEN));
                 s->hdr->eth.dst = arp->sha;
             }
-        }
-        break;
+        })
+            break;
     }
 
     default:
