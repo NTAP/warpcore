@@ -77,8 +77,11 @@ struct payload {
 };
 
 
-int __attribute__((no_sanitize("alignment")))
-main(const int argc, char * const argv[])
+int
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+    __attribute__((no_sanitize("alignment")))
+#endif
+    main(const int argc, char * const argv[])
 {
     const char * ifname = 0;
     bool busywait = false;
