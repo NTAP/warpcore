@@ -159,7 +159,11 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf)
 ///
 /// @return     Ethernet MAC address of @p dip.
 ///
-struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
+struct ether_addr
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+    __attribute__((no_sanitize("alignment")))
+#endif
+    arp_who_has(struct w_engine * const w, const uint32_t dip)
 {
     struct arp_entry * a = arp_cache_find(w, dip);
     while (a == 0) {
@@ -235,7 +239,7 @@ struct ether_addr arp_who_has(struct w_engine * const w, const uint32_t dip)
 /// @param      r     Currently active netmap RX ring.
 ///
 void
-#if defined(__clang__) || (defined (__GNUC__) && __GNUC__ >= 8)
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
     __attribute__((no_sanitize("alignment")))
 #endif
     arp_rx(struct w_engine * const w, struct netmap_ring * const r)

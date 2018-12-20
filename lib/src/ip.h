@@ -107,7 +107,13 @@ ip_hl(const struct ip_hdr * const ip)
 ///
 /// @return     DSCP.
 ///
-static inline uint8_t __attribute__((always_inline, nonnull))
+static inline uint8_t __attribute__((always_inline,
+                                     nonnull
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+                                     ,
+                                     no_sanitize("alignment")
+#endif
+                                         ))
 ip_dscp(const struct ip_hdr * const ip)
 {
     return (ip->tos & 0xfc) >> 2;
@@ -120,7 +126,14 @@ ip_dscp(const struct ip_hdr * const ip)
 ///
 /// @return     ECN bits.
 ///
-static inline uint8_t __attribute__((always_inline, nonnull))
+static inline uint8_t __attribute__((always_inline,
+                                     nonnull
+
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+                                     ,
+                                     no_sanitize("alignment")
+#endif
+                                         ))
 ip_ecn(const struct ip_hdr * const ip)
 {
     return ip->tos & 0x02;

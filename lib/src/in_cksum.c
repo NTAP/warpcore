@@ -131,7 +131,11 @@ ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data)
 }
 
 
-uint16_t udp_cksum(const void * const buf, const uint16_t len)
+uint16_t
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+    __attribute__((no_sanitize("alignment")))
+#endif
+    udp_cksum(const void * const buf, const uint16_t len)
 {
     const struct ip_hdr * const ip = (const struct ip_hdr *)buf;
     const struct udp_hdr * const udp =

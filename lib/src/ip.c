@@ -160,9 +160,11 @@ void
 /// @return     Passes on the return value from eth_tx(), which indicates
 ///             whether @p v was successfully placed into a TX ring.
 ///
-bool ip_tx(struct w_engine * const w,
-           struct w_iov * const v,
-           const uint16_t len)
+bool
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+    __attribute__((no_sanitize("alignment")))
+#endif
+    ip_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
 {
     struct ip_hdr * const ip = (void *)eth_data(v->base);
     const uint16_t l = len + sizeof(*ip);
