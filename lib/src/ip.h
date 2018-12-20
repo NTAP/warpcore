@@ -87,9 +87,14 @@ ip_v(const struct ip_hdr * const ip)
 ///
 /// @return     IP header length in bytes.
 ///
-static inline uint8_t
-    __attribute__((always_inline, nonnull, no_sanitize("alignment")))
-    ip_hl(const struct ip_hdr * const ip)
+static inline uint8_t __attribute__((always_inline,
+                                     nonnull
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+                                     ,
+                                     no_sanitize("alignment")
+#endif
+                                         ))
+ip_hl(const struct ip_hdr * const ip)
 {
     const uint8_t hl = (ip->vhl & 0x0f) * 4;
     return hl ? hl : sizeof(*ip);
@@ -156,9 +161,13 @@ ip_data_len(const struct ip_hdr * const ip)
 ///
 /// @param      ip    Pointer to the ip_hdr to initialize.
 ///
-static inline void
-    __attribute__((always_inline, nonnull, no_sanitize("alignment")))
-    ip_hdr_init(struct ip_hdr * const ip)
+static inline void __attribute__((always_inline,
+                                  nonnull
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+                                  ,
+                                  no_sanitize("alignment")
+#endif
+                                      )) ip_hdr_init(struct ip_hdr * const ip)
 {
     ip->vhl = (4 << 4) + 5;
     ip->off = htons(IP_DF);
