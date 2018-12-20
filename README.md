@@ -24,6 +24,7 @@ Warpcore uses [cmake](https://cmake.org/) as a build system. To do an
 out-of-source build of warpcore (best practice with `cmake`), do the following
 to build with `make` as a generator:
 
+    git submodule update --init --recursive
     mkdir Debug
     cd Debug
     cmake ..
@@ -49,6 +50,7 @@ implementing the [`echo`](https://www.ietf.org/rfc/rfc862.txt),
 The default build (per above) is without optimizations and with extensive debug
 logging enabled. In order to build an optimized build, do this:
 
+    git submodule update --init --recursive
     mkdir Release
     cd Release
     cmake -DCMAKE_BUILD_TYPE=Release ..
