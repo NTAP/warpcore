@@ -1,0 +1,6 @@
+# ignore overflows in krng.h
+fun:kr_drand_r
+fun:kr_jump_r
+fun:kr_rand_r
+fun:kr_splitmix64
+fun:kr_srand_r

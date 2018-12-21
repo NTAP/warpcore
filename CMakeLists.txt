@@ -100,18 +100,27 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   # See if we can use the address sanitizer
   check_include_file(sanitizer/asan_interface.h HAVE_ASAN)
   if(HAVE_ASAN AND NOT NO_SANITIZERS AND NOT CMAKE_GENERATOR STREQUAL Xcode)
-    set(CMAKE_REQUIRED_FLAGS -fsanitize=address)
-    check_c_compiler_flag("" _fsanitize_address)
-    if(_fsanitize_address)
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+    set(CMAKE_REQUIRED_FLAGS -fsanitize=address,undefined)
+    check_c_compiler_flag("" _fsanitize_address_undefined)
+    if(_fsanitize_address_undefined)
+      string(CONCAT CMAKE_C_FLAGS "${CMAKE_C_FLAGS} "
+              "-fsanitize=address,undefined")
+      string(CONCAT CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} "
+              "-fsanitize=address,undefined")
+      string(CONCAT BLACKLIST "-fsanitize-blacklist="
+              "${PROJECT_SOURCE_DIR}/misc/sanitize-blacklist.txt")
+      check_c_compiler_flag(${BLACKLIST} _fsanitize_blacklist)
+      if(_fsanitize_blacklist)
+        string(CONCAT CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${BLACKLIST}")
+        string(CONCAT CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${BLACKLIST}")
+      endif()
     endif()
     unset(CMAKE_REQUIRED_FLAGS)
 
     # Set some additional flags for Debug builds
     set(FLAGS -fno-omit-frame-pointer -fsanitize-address-use-after-scope
         -fno-optimize-sibling-calls -fno-common
-        -fsanitize=undefined -fsanitize=unsigned-integer-overflow
+        -fsanitize=unsigned-integer-overflow
         -fsanitize=implicit-conversion -fsanitize=nullability
     )
     foreach(FLAG ${FLAGS})
