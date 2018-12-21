@@ -27,7 +27,6 @@
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/netmap_user.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>

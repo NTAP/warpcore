@@ -254,9 +254,9 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
     struct sockaddr_in dst[SEND_SIZE];
 #ifdef __linux__
     // kernels below 4.9 can't deal with getting an uint8_t passed in, sigh
-    uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(int))];
+    __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(int))];
 #else
-    uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(uint8_t))];
+    __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(uint8_t))];
 #endif
     o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
 
@@ -351,7 +351,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
         struct sockaddr_in peer[RECV_SIZE];
         struct w_iov * v[RECV_SIZE];
         struct iovec msg[RECV_SIZE];
-        uint8_t ctrl[RECV_SIZE][CMSG_SPACE(sizeof(uint8_t))];
+        __extension__ uint8_t ctrl[RECV_SIZE][CMSG_SPACE(sizeof(uint8_t))];
 #ifdef HAVE_RECVMMSG
         struct mmsghdr msgvec[RECV_SIZE];
 #else
