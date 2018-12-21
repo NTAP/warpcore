@@ -235,7 +235,7 @@ void backend_bind(struct w_sock * s)
     do {
         s->w->b->next_eph += (w_rand() % N) + 1;
         const uint16_t port = htons(min_eph + (s->w->b->next_eph % num_eph));
-        if (get_sock(s->w, port) == 0) {
+        if (w_get_sock(s->w, port) == 0) {
             s->hdr->udp.sport = port;
             return;
         }
