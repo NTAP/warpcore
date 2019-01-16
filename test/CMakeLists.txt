@@ -9,18 +9,18 @@ if(NOT HAVE_BENCHMARK_H AND (DEFINED ENV{BENCHMARKING} OR BENCHMARKING))
     GIT_SHALLOW 1
     GIT_TAG v1.4.1
     CMAKE_ARGS
-      -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}
+      -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR}
       -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF
-    BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/lib/libbenchmark.a
+    BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/lib/libbenchmark.a
   )
 
-  file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include ${CMAKE_BINARY_DIR}/lib)
+  file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/include ${PROJECT_BINARY_DIR}/lib)
 
   add_library(benchmark STATIC IMPORTED GLOBAL)
 
   set_target_properties(benchmark PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/lib/libbenchmark.a
-    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_BINARY_DIR}/include
+    IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libbenchmark.a
+    INTERFACE_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/include
     POSITION_INDEPENDENT_CODE ON
     INTERPROCEDURAL_OPTIMIZATION ${IPO}
   )
@@ -30,14 +30,14 @@ if(NOT HAVE_BENCHMARK_H AND (DEFINED ENV{BENCHMARKING} OR BENCHMARKING))
 endif()
 
 if(HAVE_BENCHMARK_H)
-  add_executable(bench_sock bench.cc common.c ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
+  add_executable(bench_sock bench.cc common.c ${PROJECT_SOURCE_DIR}/lib/src/in_cksum.c)
   target_link_libraries(bench_sock PUBLIC benchmark pthread sockcore)
   target_include_directories(bench_sock
     SYSTEM PRIVATE
-      ${CMAKE_SOURCE_DIR}/lib/include
-      ${CMAKE_BINARY_DIR}/lib/include
-      ${CMAKE_SOURCE_DIR}/lib/src
-      ${CMAKE_SOURCE_DIR}/lib/src/klib
+      ${PROJECT_SOURCE_DIR}/lib/include
+      ${PROJECT_BINARY_DIR}/lib/include
+      ${PROJECT_SOURCE_DIR}/lib/src
+      ${PROJECT_SOURCE_DIR}/lib/src/klib
     )
   set_target_properties(bench_sock
     PROPERTIES
@@ -47,15 +47,15 @@ if(HAVE_BENCHMARK_H)
   add_test(bench_sock bench_sock)
 
   if(HAVE_NETMAP_H)
-    add_executable(bench_warp bench.cc common.c ${CMAKE_SOURCE_DIR}/lib/src/in_cksum.c)
+    add_executable(bench_warp bench.cc common.c ${PROJECT_SOURCE_DIR}/lib/src/in_cksum.c)
     target_compile_definitions(bench_warp PRIVATE -DWITH_NETMAP)
     target_link_libraries(bench_warp PUBLIC benchmark pthread warpcore)
     target_include_directories(bench_warp
     SYSTEM PRIVATE
-      ${CMAKE_SOURCE_DIR}/lib/include
-      ${CMAKE_BINARY_DIR}/lib/include
-      ${CMAKE_SOURCE_DIR}/lib/src
-      ${CMAKE_SOURCE_DIR}/lib/src/klib
+      ${PROJECT_SOURCE_DIR}/lib/include
+      ${PROJECT_BINARY_DIR}/lib/include
+      ${PROJECT_SOURCE_DIR}/lib/src
+      ${PROJECT_SOURCE_DIR}/lib/src/klib
     )
     set_target_properties(bench_warp
       PROPERTIES
@@ -71,8 +71,8 @@ foreach(TARGET sock iov hexdump queue)
   add_executable(test_${TARGET} common.c test_${TARGET}.c)
   target_link_libraries(test_${TARGET} PUBLIC sockcore)
   target_include_directories(test_${TARGET}
-    PRIVATE ${CMAKE_SOURCE_DIR}/lib/src
-    SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/lib/src/klib
+    PRIVATE ${PROJECT_SOURCE_DIR}/lib/src
+    SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/lib/src/klib
   )
   set_target_properties(test_${TARGET}
     PROPERTIES
@@ -113,10 +113,10 @@ if(HAVE_FUZZER)
     target_link_libraries(${TARGET} PUBLIC warpcore)
     target_include_directories(${TARGET}
       SYSTEM PRIVATE
-        ${CMAKE_SOURCE_DIR}/lib/include
-        ${CMAKE_BINARY_DIR}/lib/include
-        ${CMAKE_SOURCE_DIR}/lib/src
-        ${CMAKE_SOURCE_DIR}/lib/src/klib
+        ${PROJECT_SOURCE_DIR}/lib/include
+        ${PROJECT_BINARY_DIR}/lib/include
+        ${PROJECT_SOURCE_DIR}/lib/src
+        ${PROJECT_SOURCE_DIR}/lib/src/klib
       )
     set_target_properties(${TARGET}
       PROPERTIES

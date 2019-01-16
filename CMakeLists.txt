@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.26.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.27.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
@@ -14,7 +14,7 @@ check_function_exists(backtrace HAVE_BACKTRACE)
 # Look for netmap
 include(CheckIncludeFile)
 set(CMAKE_REQUIRED_INCLUDES
-    /usr/include /usr/local/include ${CMAKE_SOURCE_DIR}/lib/include
+    /usr/include /usr/local/include ${PROJECT_SOURCE_DIR}/lib/include
 )
 check_include_file(net/netmap_user.h HAVE_NETMAP_H)
 include(CMakePushCheckState)
@@ -231,7 +231,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELEASE} -g3")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
 
-add_definitions(-DDLEVEL=${DLEVEL})
+add_definitions("-UDLEVEL -DDLEVEL=${DLEVEL}")
 
 add_subdirectory(doc)
 add_subdirectory(bin)
