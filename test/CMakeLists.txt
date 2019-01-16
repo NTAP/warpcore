@@ -103,26 +103,25 @@ if(HAVE_NETMAP_H)
     )
   endif()
   add_test(test_warp test_warp)
-endif()
 
-
-if(HAVE_FUZZER)
-  foreach(TARGET fuzz)
-    add_executable(${TARGET} ${TARGET}.c)
-    target_compile_definitions(${TARGET} PRIVATE -DWITH_NETMAP)
-    target_link_libraries(${TARGET} PUBLIC warpcore)
-    target_include_directories(${TARGET}
-      SYSTEM PRIVATE
-        ${PROJECT_SOURCE_DIR}/lib/include
-        ${PROJECT_BINARY_DIR}/lib/include
-        ${PROJECT_SOURCE_DIR}/lib/src
-        ${PROJECT_SOURCE_DIR}/lib/src/klib
+  if(HAVE_FUZZER)
+    foreach(TARGET fuzz)
+      add_executable(${TARGET} ${TARGET}.c)
+      target_compile_definitions(${TARGET} PRIVATE -DWITH_NETMAP)
+      target_link_libraries(${TARGET} PUBLIC warpcore)
+      target_include_directories(${TARGET}
+        SYSTEM PRIVATE
+          ${PROJECT_SOURCE_DIR}/lib/include
+          ${PROJECT_BINARY_DIR}/lib/include
+          ${PROJECT_SOURCE_DIR}/lib/src
+          ${PROJECT_SOURCE_DIR}/lib/src/klib
+        )
+      set_target_properties(${TARGET}
+        PROPERTIES
+          POSITION_INDEPENDENT_CODE ON
+          INTERPROCEDURAL_OPTIMIZATION ${IPO}
+          LINK_FLAGS -fsanitize=fuzzer,address,undefined
       )
-    set_target_properties(${TARGET}
-      PROPERTIES
-        POSITION_INDEPENDENT_CODE ON
-        INTERPROCEDURAL_OPTIMIZATION ${IPO}
-        LINK_FLAGS -fsanitize=fuzzer,address,undefined
-    )
-  endforeach()
+    endforeach()
+  endif()
 endif()
