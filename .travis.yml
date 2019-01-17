@@ -37,7 +37,7 @@ addons:
       - ubuntu-toolchain-r-test
       - llvm-toolchain-trusty-5.0
       - llvm-toolchain-trusty-6.0
-      - llvm-toolchain-trusty-7.0
+      - llvm-toolchain-trusty-7
     packages:
       - g++-4.9
       - g++-7
