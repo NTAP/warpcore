@@ -120,6 +120,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         -fno-optimize-sibling-calls -fno-common
         -fsanitize=unsigned-integer-overflow
         -fsanitize=implicit-conversion -fsanitize=nullability
+        -fsanitize=memory -fsanitize-memory-track-origins
+        -fsanitize-memory-use-after-dtor
     )
     foreach(FLAG ${FLAGS})
       string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
