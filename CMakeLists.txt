@@ -214,7 +214,7 @@ if(FUZZER)
     set(CMAKE_CXX_FLAGS
         "${CMAKE_CXX_FLAGS} -fsanitize=fuzzer,address,undefined")
   else()
-    message(FATAL_ERROR "No fuzzer available")
+    message(WARNING "No fuzzer available")
   endif()
 endif()
 
