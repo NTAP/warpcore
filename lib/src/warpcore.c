@@ -375,7 +375,13 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // init state for w_rand()
     struct timeval now;
     gettimeofday(&now, 0);
-    kr_srand_r(&w_rand_state, (uint64_t)now.tv_usec);
+    kr_srand_r(&w_rand_state,
+#ifndef FUZZING
+               (uint64_t)now.tv_usec
+#else
+               0
+#endif
+    );
 
     // construct interface name of a netmap pipe for this interface
     char pipe[IFNAMSIZ];

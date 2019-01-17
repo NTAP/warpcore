@@ -39,7 +39,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+
+#ifndef FUZZING
 #include <unistd.h>
+#endif
 
 #include "arp.h"
 #include "backend.h"
@@ -147,7 +150,9 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf)
     const uint32_t orig_idx = v->idx;
     eth_tx(w, v, sizeof(*reply));
     do {
+#ifndef FUZZING
         usleep(100);
+#endif
         w_nic_tx(w);
     } while (v->idx != orig_idx);
     sq_insert_head(&w->iov, v, next);
@@ -217,7 +222,9 @@ struct ether_addr
         const uint32_t orig_idx = v->idx;
         eth_tx(w, v, sizeof(*eth) + sizeof(*arp));
         do {
+#ifndef FUZZING
             usleep(100);
+#endif
             w_nic_tx(w);
         } while (v->idx != orig_idx);
         sq_insert_head(&w->iov, v, next);

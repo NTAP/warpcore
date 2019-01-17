@@ -31,6 +31,9 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
+#define klib_unused
+
+#include <khash.h>
 #include <net/netmap.h>
 #include <net/netmap_user.h>
 #include <warpcore/warpcore.h>
@@ -53,6 +56,8 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
 #ifndef NDEBUG
     util_dlevel = DBG;
 #endif
+
+    w.sock = kh_init(sock);
 
     // init the interface shim
     i = calloc(1, sizeof(*i) + 8192);
@@ -95,11 +100,11 @@ int LLVMFuzzerTestOneInput(const uint8_t * data, const size_t size)
     r->cur = r->head = 1;
     r->tail = 0;
     struct netmap_slot * const s = &r->slot[r->cur];
-    char * const buf = NETMAP_BUF(r, r->cur);
+    uint8_t * const buf = (uint8_t *)NETMAP_BUF(r, r->cur);
 
     s->len = (uint16_t)MIN(size, r->nr_buf_size);
     memcpy(buf, data, s->len);
 
-    eth_rx(&w, r);
+    eth_rx(&w, s, buf);
     return 0;
 }

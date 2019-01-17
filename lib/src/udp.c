@@ -33,7 +33,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/param.h>
 
 #include "arp.h"
 #include "backend.h"
@@ -84,16 +83,21 @@ void
 {
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
     struct udp_hdr * const udp = (void *)ip_data(buf);
-    const uint16_t udp_len =
-        MIN(ntohs(udp->len),
-            s->len - sizeof(struct eth_hdr) - sizeof(struct ip_hdr));
-    udp_log(udp);
 
-    if (unlikely(udp_len < 8)) {
-        warn(WRN, "received invalid UDP len %u", udp_len);
+    if (unlikely(s->len <=
+                 sizeof(struct eth_hdr) + sizeof(*ip) + sizeof(*udp))) {
+#ifndef FUZZING
+        warn(WRN, "IP len %u too short for UDP", s->len);
+#endif
         return;
     }
 
+    const uint16_t udp_len =
+        s->len - sizeof(struct eth_hdr) - sizeof(*ip) - sizeof(*udp);
+    udp_log(udp);
+
+
+#ifndef FUZZING
     if (likely(udp->cksum)) {
         // validate the checksum
         const uint16_t cksum = udp_cksum(ip, udp_len + sizeof(*ip));
@@ -103,6 +107,7 @@ void
             return;
         }
     }
+#endif
 
     struct w_sock * ws = w_get_sock(w, udp->dport);
     if (unlikely(ws == 0)) {

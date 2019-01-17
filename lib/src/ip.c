@@ -103,14 +103,14 @@ void
         return;
     }
 
+#ifndef FUZZING
     // validate the IP checksum
     if (unlikely(ip_cksum(ip, sizeof(*ip)) != 0)) {
-#ifndef FUZZING
         warn(WRN, "invalid IP checksum, received 0x%04x != 0x%04x",
              ntohs(ip->cksum), ip_cksum(ip, sizeof(*ip)));
-#endif
         return;
     }
+#endif
 
     if (unlikely(ip_hl(ip) != 20)) {
         // TODO: handle IP options

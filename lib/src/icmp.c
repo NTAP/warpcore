@@ -33,7 +33,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
+
+#ifndef FUZZING
 #include <unistd.h>
+#endif
 
 #include "backend.h"
 #include "eth.h"
@@ -128,7 +131,9 @@ void icmp_tx(struct w_engine * const w,
     const uint32_t orig_idx = v->idx;
     ip_tx(w, v, sizeof(*dst_icmp) + data_len);
     do {
+#ifndef FUZZING
         usleep(100);
+#endif
         w_nic_tx(w);
     } while (v->idx != orig_idx);
     sq_insert_head(&w->iov, v, next);
@@ -148,12 +153,19 @@ void icmp_tx(struct w_engine * const w,
 /// @param      buf   Incoming packet.
 ///
 void icmp_rx(struct w_engine * const w,
-             struct netmap_slot * const s,
+             struct netmap_slot * const s
+#ifdef FUZZING
+             __attribute__((unused))
+#endif
+             ,
              uint8_t * const buf)
 {
     struct icmp_hdr * const icmp = (void *)ip_data(buf);
+#ifndef FUZZING
     rwarn(DBG, 10, "received ICMP type %d, code %d", icmp->type, icmp->code);
+#endif
 
+#ifndef FUZZING
     // validate the ICMP checksum
     struct ip_hdr * const ip = (void *)eth_data(buf);
     const uint16_t icmp_len =
@@ -164,6 +176,7 @@ void icmp_rx(struct w_engine * const w,
         warn(WRN, "invalid ICMP checksum, received 0x%04x", ntohs(icmp->cksum));
         return;
     }
+#endif
 
     switch (icmp->type) {
     case ICMP_TYPE_ECHO:
@@ -193,11 +206,17 @@ void icmp_rx(struct w_engine * const w,
             break;
         }
         default:
-            die("unhandled ICMP code %d", icmp->code);
+#ifndef FUZZING
+            rwarn(WRN, 10, "unhandled ICMP code %d", icmp->code)
+#endif
+                ;
         }
         break;
     }
     default:
-        die("unhandled ICMP type %d", icmp->type);
+#ifndef FUZZING
+        rwarn(WRN, 10, "unhandled ICMP type %d", icmp->type)
+#endif
+            ;
     }
 }
