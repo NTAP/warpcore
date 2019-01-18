@@ -74,7 +74,7 @@ bool io(const uint32_t len)
         w_rx(s_serv, &i);
         ilen = w_iov_sq_len(&i);
         if (ilen < olen)
-            w_nic_rx(w_serv, -1);
+            return false;
     }
     ensure(w_iov_sq_cnt(&i) == w_iov_sq_cnt(&o), "icnt %u != ocnt %u",
            w_iov_sq_cnt(&i), w_iov_sq_cnt(&o));
