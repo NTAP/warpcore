@@ -258,15 +258,16 @@ void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 
 /// Bind a w_sock to the given local UDP port number.
 ///
-/// @param      w      The w_sock to bind.
-/// @param[in]  port   The local port number to bind to, in network byte order.
-///                    If port is zero, a random local port will be chosen.
-/// @param[in]  flags  Flags for this socket.
+/// @param      w     The w_sock to bind.
+/// @param[in]  port  The local port number to bind to, in network byte order.
+///                   If port is zero, a random local port will be chosen.
+/// @param[in]  opt   Socket options for this socket. Can be zero.
 ///
 /// @return     Pointer to a bound w_sock.
 ///
-struct w_sock *
-w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
+struct w_sock * w_bind(struct w_engine * const w,
+                       const uint16_t port,
+                       const struct w_sockopt * const opt)
 {
     struct w_sock * s = w_get_sock(w, port);
     if (unlikely(s)) {
@@ -277,8 +278,9 @@ w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags)
     ensure((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");
     ensure((s->hdr = calloc(1, sizeof(*s->hdr))) != 0, "cannot allocate w_hdr");
 
-    // initialize flags
-    s->flags = flags;
+    if (opt)
+        // initialize socket options
+        s->opt = *opt;
 
     // initialize the non-zero fields of outgoing template header
     s->hdr->eth.type = ETH_TYPE_IP;

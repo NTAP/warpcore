@@ -30,6 +30,7 @@
 // IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
@@ -129,7 +130,7 @@ void icmp_tx(struct w_engine * const w,
 
     // now send the packet, and make sure it went out before returning it
     const uint32_t orig_idx = v->idx;
-    ip_tx(w, v, sizeof(*dst_icmp) + data_len);
+    ip_tx(w, v, sizeof(*dst_icmp) + data_len, false);
     do {
 #ifndef FUZZING
         usleep(100);

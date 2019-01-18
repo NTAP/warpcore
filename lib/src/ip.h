@@ -199,5 +199,7 @@ extern void __attribute__((nonnull)) ip_rx(struct w_engine * const w,
                                            struct netmap_slot * const s,
                                            uint8_t * const buf);
 
-extern bool __attribute__((nonnull))
-ip_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len);
+extern bool __attribute__((nonnull)) ip_tx(struct w_engine * const w,
+                                           struct w_iov * const v,
+                                           const uint16_t len,
+                                           const bool enable_ecn);

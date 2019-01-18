@@ -33,6 +33,8 @@
 #endif
 
 #include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/udp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -166,10 +168,28 @@ void backend_bind(struct w_sock * const s)
            "bind failed on %s:%u", inet_ntoa(addr.sin_addr),
            ntohs(s->hdr->udp.sport));
 
-    // enable ECN
+#ifdef __linux__
+    ensure(setsockopt(s->fd, SOL_SOCKET, SO_NO_CHECK,
+                      &(int){s->opt.enable_udp_zero_checksums},
+                      sizeof(int)) >= 0,
+           "cannot setsockopt SO_NO_CHECK");
+#else
+    ensure(setsockopt(s->fd, IPPROTO_UDP, UDP_NOCKSUM,
+                      &(int){s->opt.enable_udp_zero_checksums},
+                      sizeof(int)) >= 0,
+           "cannot setsockopt UDP_NOCKSUM");
+#endif
+
+    // always enable receiving TOS information
     ensure(setsockopt(s->fd, IPPROTO_IP, IP_RECVTOS, &(int){1}, sizeof(int)) >=
                0,
            "cannot setsockopt IP_RECVTOS");
+
+    if (s->opt.enable_ecn)
+        // set ECT(0) by default
+        ensure(setsockopt(s->fd, IPPROTO_IP, IP_TOS, &(int){IPTOS_ECN_ECT0},
+                          sizeof(int)) >= 0,
+               "cannot setsockopt IP_TOS");
 
     // if we're binding to a random port, find out what it is
     if (s->hdr->udp.sport == 0) {

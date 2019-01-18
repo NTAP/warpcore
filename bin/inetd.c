@@ -85,7 +85,7 @@ int
 {
     const char * ifname = 0;
     bool busywait = false;
-    uint8_t flags = 0;
+    struct w_sockopt opt = {0};
     uint32_t nbufs = 500000;
 
     // handle arguments
@@ -103,7 +103,7 @@ int
             busywait = true;
             break;
         case 'z':
-            flags |= W_ZERO_CHKSUM;
+            opt.enable_udp_zero_checksums = true;
             break;
         case 'n':
             nbufs = (uint32_t)MIN(900000, MAX(1, strtoul(optarg, 0, 10)));
@@ -136,10 +136,10 @@ int
     // start four inetd-like "small services" and one benchmark of our own
     struct w_sock * const srv[] = {
 #if 0
-        w_bind(w, htons(7), flags),
-        w_bind(w, htons(9), flags),
+        w_bind(w, htons(7), &opt),
+        w_bind(w, htons(9), &opt),
 #endif
-        w_bind(w, htons(55555), flags)
+        w_bind(w, htons(55555), &opt)
     };
     const uint16_t n = sizeof(srv) / sizeof(srv[0]);
 

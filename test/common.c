@@ -70,11 +70,17 @@ bool io(const uint32_t len)
     // read the chain back
     struct w_iov_sq i = w_iov_sq_initializer(i);
     uint32_t ilen = 0;
+    bool again = true;
     while (ilen < olen) {
         w_rx(s_serv, &i);
         ilen = w_iov_sq_len(&i);
-        if (ilen < olen)
-            return false;
+        if (ilen < olen) {
+            if (again) {
+                w_nic_rx(w_serv, 100);
+                again = false;
+            } else
+                return false;
+        }
     }
     ensure(w_iov_sq_cnt(&i) == w_iov_sq_cnt(&o), "icnt %u != ocnt %u",
            w_iov_sq_cnt(&i), w_iov_sq_cnt(&o));

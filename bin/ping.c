@@ -123,7 +123,7 @@ int
     uint32_t end = 1458;
     uint32_t conns = 1;
     bool busywait = false;
-    uint8_t flags = 0;
+    struct w_sockopt opt = {0};
     uint32_t nbufs = 500000;
 
     // handle arguments
@@ -166,7 +166,7 @@ int
             busywait = true;
             break;
         case 'z':
-            flags |= W_ZERO_CHKSUM;
+            opt.enable_udp_zero_checksums = true;
             break;
 #ifndef NDEBUG
         case 'v':
@@ -211,7 +211,7 @@ int
 
     for (uint32_t c = 0; c < conns; c++) {
         // connect to the peer
-        s[c] = w_bind(w, 0, flags);
+        s[c] = w_bind(w, 0, &opt);
         w_connect(
             s[c],
             ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,

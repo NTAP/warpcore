@@ -186,10 +186,10 @@ bool
     }
 
     // compute the checksum, unless disabled by a socket option
-    if (unlikely((s->flags & W_ZERO_CHKSUM) == 0))
+    if (unlikely(s->opt.enable_udp_zero_checksums == false))
         udp->cksum = udp_cksum(ip, len + sizeof(*ip));
 
     udp_log(udp);
 
-    return ip_tx(s->w, v, len);
+    return ip_tx(s->w, v, len, s->opt.enable_ecn);
 }

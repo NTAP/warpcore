@@ -98,10 +98,15 @@ sl_head(w_sock_slist, w_sock);
 #define w_sock_slist_initializer(l) sl_head_initializer(l)
 
 
-/// Do not compute a UDP checksum for outgoing packets. Has no effect for the
-/// socket engine.
+/// Socket options.
 ///
-#define W_ZERO_CHKSUM 1
+struct w_sockopt {
+    /// Do not compute a UDP checksum for outgoing packets.
+    uint32_t enable_udp_zero_checksums : 1;
+    /// Enable ECN, by setting ECT(0) on all packets.
+    uint32_t enable_ecn : 1;
+    uint32_t : 30;
+};
 
 
 /// A warpcore socket.
@@ -117,7 +122,7 @@ struct w_sock {
     struct w_hdr * hdr;
 
     sl_entry(w_sock) next_rx; ///< Next socket with unread data.
-    uint8_t flags;            ///< Socket flags.
+    struct w_sockopt opt;     ///< Socket options.
 
     /// @cond
     uint8_t _unused[3]; ///< @internal Padding.
@@ -206,8 +211,10 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs);
 
 extern void __attribute__((nonnull)) w_cleanup(struct w_engine * const w);
 
-extern struct w_sock * __attribute__((nonnull))
-w_bind(struct w_engine * const w, const uint16_t port, const uint8_t flags);
+extern struct w_sock * __attribute__((nonnull(1)))
+w_bind(struct w_engine * const w,
+       const uint16_t port,
+       const struct w_sockopt * const opt);
 
 extern void __attribute__((nonnull))
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);

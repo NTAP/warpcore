@@ -151,9 +151,10 @@ void
 /// IPv4 header, calculates the checksum, sets the TOS bits and passes the
 /// packet to eth_tx().
 ///
-/// @param      w     Backend engine.
-/// @param      v     The w_iov containing the data to transmit.
-/// @param[in]  len   The length of the payload data in @p v.
+/// @param      w           Backend engine.
+/// @param      v           The w_iov containing the data to transmit.
+/// @param[in]  len         The length of the payload data in @p v.
+/// @param[in]  enable_ecn  Whether ECN should be enabled for this packet.
 ///
 /// @return     Passes on the return value from eth_tx(), which indicates
 ///             whether @p v was successfully placed into a TX ring.
@@ -162,7 +163,10 @@ bool
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
     __attribute__((no_sanitize("alignment")))
 #endif
-    ip_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
+    ip_tx(struct w_engine * const w,
+          struct w_iov * const v,
+          const uint16_t len,
+          const bool enable_ecn)
 {
     struct ip_hdr * const ip = (void *)eth_data(v->base);
     const uint16_t l = len + sizeof(*ip);
@@ -171,8 +175,13 @@ bool
     ip->len = htons(l);
     // no need to do htons() for random value
     ip->id = (uint16_t)w_rand();
-    if (v->flags)
-        ip->tos = v->flags; // app-specified DSCP + ECN
+
+    // set DSCP and ECN
+    ip->tos = v->flags;
+    // if there is no per-packet ECN marking, apply default
+    if ((ip->tos & IPTOS_ECN_MASK) == 0 && enable_ecn)
+        ip->tos |= IPTOS_ECN_ECT0;
+
     // IP checksum is over header only (TODO: adjust instead of recompute)
     ip->cksum = ip_cksum(ip, sizeof(*ip));
 
