@@ -22,16 +22,19 @@ cmake_reset_check_state()
 
 # See if we have google benchmark
 include(CheckCXXSymbolExists)
+set(CMAKE_REQUIRED_INCLUDES /usr/local/include)
 set(CMAKE_REQUIRED_LIBRARIES benchmark)
+set(CMAKE_REQUIRED_LINK_OPTIONS -L/usr/local/lib)
 check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
                         HAVE_BENCHMARK_H)
 cmake_reset_check_state()
 
 # See if we have google gperftools
 include(CheckSymbolExists)
+set(CMAKE_REQUIRED_INCLUDES /usr/local/include)
 set(CMAKE_REQUIRED_LIBRARIES profiler)
-check_symbol_exists(ProfilerStart gperftools/profiler.h
-                    HAVE_PROFILER)
+set(CMAKE_REQUIRED_LINK_OPTIONS -L/usr/local/lib)
+check_symbol_exists(ProfilerStart gperftools/profiler.h HAVE_PROFILER)
 cmake_reset_check_state()
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
