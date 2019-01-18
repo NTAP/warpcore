@@ -92,8 +92,7 @@ void
         return;
     }
 
-    const uint16_t udp_len =
-        s->len - sizeof(struct eth_hdr) - sizeof(*ip) - sizeof(*udp);
+    const uint16_t udp_len = s->len - sizeof(struct eth_hdr) - sizeof(*ip);
     udp_log(udp);
 
 
