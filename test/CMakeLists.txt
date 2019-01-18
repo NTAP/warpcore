@@ -37,7 +37,7 @@ if(HAVE_BENCHMARK_H)
       ${PROJECT_SOURCE_DIR}/lib/include
       ${PROJECT_BINARY_DIR}/lib/include
       ${PROJECT_SOURCE_DIR}/lib/src
-      ${PROJECT_SOURCE_DIR}/lib/src/klib
+      ${PROJECT_SOURCE_DIR}/lib/deps/klib
     )
   set_target_properties(bench_sock
     PROPERTIES
@@ -55,7 +55,7 @@ if(HAVE_BENCHMARK_H)
       ${PROJECT_SOURCE_DIR}/lib/include
       ${PROJECT_BINARY_DIR}/lib/include
       ${PROJECT_SOURCE_DIR}/lib/src
-      ${PROJECT_SOURCE_DIR}/lib/src/klib
+      ${PROJECT_SOURCE_DIR}/lib/deps/klib
     )
     set_target_properties(bench_warp
       PROPERTIES
@@ -72,7 +72,7 @@ foreach(TARGET sock iov hexdump queue)
   target_link_libraries(test_${TARGET} PUBLIC sockcore)
   target_include_directories(test_${TARGET}
     PRIVATE ${PROJECT_SOURCE_DIR}/lib/src
-    SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/lib/src/klib
+    SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/lib/deps/klib
   )
   set_target_properties(test_${TARGET}
     PROPERTIES
@@ -114,7 +114,7 @@ if(HAVE_NETMAP_H)
           ${PROJECT_SOURCE_DIR}/lib/include
           ${PROJECT_BINARY_DIR}/lib/include
           ${PROJECT_SOURCE_DIR}/lib/src
-          ${PROJECT_SOURCE_DIR}/lib/src/klib
+          ${PROJECT_SOURCE_DIR}/lib/deps/klib
         )
       set_target_properties(${TARGET}
         PROPERTIES
