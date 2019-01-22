@@ -1,34 +1,5 @@
 enable_testing()
 
-if(NOT HAVE_BENCHMARK_H AND (DEFINED ENV{BENCHMARKING} OR BENCHMARKING))
-  include(ExternalProject)
-
-  externalproject_add(google-benchmark
-    UPDATE_COMMAND ""
-    GIT_REPOSITORY https://github.com/google/benchmark
-    GIT_SHALLOW 1
-    GIT_TAG v1.4.1
-    CMAKE_ARGS
-      -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR}
-      -DCMAKE_BUILD_TYPE=Release -DBENCHMARK_ENABLE_GTEST_TESTS=OFF
-    BUILD_BYPRODUCTS ${PROJECT_BINARY_DIR}/lib/libbenchmark.a
-  )
-
-  file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/include ${PROJECT_BINARY_DIR}/lib)
-
-  add_library(benchmark STATIC IMPORTED GLOBAL)
-
-  set_target_properties(benchmark PROPERTIES
-    IMPORTED_LOCATION ${PROJECT_BINARY_DIR}/lib/libbenchmark.a
-    INTERFACE_INCLUDE_DIRECTORIES ${PROJECT_BINARY_DIR}/include
-    POSITION_INDEPENDENT_CODE ON
-    INTERPROCEDURAL_OPTIMIZATION ${IPO}
-  )
-
-  add_dependencies(benchmark google-benchmark)
-  set(HAVE_BENCHMARK_H 1)
-endif()
-
 if(HAVE_BENCHMARK_H)
   add_executable(bench_sock bench.cc common.c ${PROJECT_SOURCE_DIR}/lib/src/in_cksum.c)
   target_link_libraries(bench_sock PUBLIC benchmark pthread sockcore)
