@@ -67,6 +67,11 @@
 #include "udp.h"
 
 
+#ifdef __linux__
+#define IPTOS_ECN_NOTECT IPTOS_ECN_NOT_ECT
+#endif
+
+
 /// The backend name.
 ///
 static char backend_name[] = "socket";
@@ -343,6 +348,9 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
                 cmsg->cmsg_len = CMSG_LEN(sizeof(uint8_t));
                 *(uint8_t *)CMSG_DATA(cmsg) = v->flags;
 #endif
+            } else if (s->opt.enable_ecn) {
+                // make sure that the flags reflect what went out on the wire
+                v->flags = IPTOS_ECN_ECT0;
             }
 
             v = sq_next(v, next);
