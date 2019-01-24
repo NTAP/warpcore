@@ -197,7 +197,8 @@ w_alloc_iov_base(struct w_engine * const w)
     return v;
 }
 
-extern void __attribute__((nonnull)) backend_bind(struct w_sock * const s);
+extern void __attribute__((nonnull(1)))
+backend_bind(struct w_sock * const s, const struct w_sockopt * const opt);
 
 extern void __attribute__((nonnull)) backend_close(struct w_sock * const s);
 

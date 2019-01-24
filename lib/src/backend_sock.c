@@ -72,6 +72,34 @@
 static char backend_name[] = "socket";
 
 
+void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
+{
+    if (s->opt.enable_udp_zero_checksums != opt->enable_udp_zero_checksums) {
+        s->opt.enable_udp_zero_checksums = opt->enable_udp_zero_checksums;
+#ifdef __linux__
+        ensure(setsockopt(s->fd, SOL_SOCKET, SO_NO_CHECK,
+                          &(int){s->opt.enable_udp_zero_checksums},
+                          sizeof(int)) >= 0,
+               "cannot setsockopt SO_NO_CHECK");
+#else
+        ensure(setsockopt(s->fd, IPPROTO_UDP, UDP_NOCKSUM,
+                          &(int){s->opt.enable_udp_zero_checksums},
+                          sizeof(int)) >= 0,
+               "cannot setsockopt UDP_NOCKSUM");
+#endif
+    }
+
+    if (s->opt.enable_ecn != opt->enable_ecn) {
+        s->opt.enable_ecn = opt->enable_ecn;
+        ensure(setsockopt(s->fd, IPPROTO_IP, IP_TOS,
+                          &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0
+                                                   : IPTOS_ECN_NOTECT},
+                          sizeof(int)) >= 0,
+               "cannot setsockopt IP_TOS");
+    }
+}
+
+
 /// Initialize the warpcore socket backend for engine @p w. Sets up the extra
 /// buffers.
 ///
@@ -153,8 +181,9 @@ void backend_cleanup(struct w_engine * const w)
 /// Bind a warpcore socket-backend socket. Calls the underlying Socket API.
 ///
 /// @param      s     The w_sock to bind.
+/// @param[in]  opt   Socket options for this socket. Can be zero.
 ///
-void backend_bind(struct w_sock * const s)
+void backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     ensure((s->fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0)) >= 0,
            "socket");
@@ -168,28 +197,13 @@ void backend_bind(struct w_sock * const s)
            "bind failed on %s:%u", inet_ntoa(addr.sin_addr),
            ntohs(s->hdr->udp.sport));
 
-#ifdef __linux__
-    ensure(setsockopt(s->fd, SOL_SOCKET, SO_NO_CHECK,
-                      &(int){s->opt.enable_udp_zero_checksums},
-                      sizeof(int)) >= 0,
-           "cannot setsockopt SO_NO_CHECK");
-#else
-    ensure(setsockopt(s->fd, IPPROTO_UDP, UDP_NOCKSUM,
-                      &(int){s->opt.enable_udp_zero_checksums},
-                      sizeof(int)) >= 0,
-           "cannot setsockopt UDP_NOCKSUM");
-#endif
-
     // always enable receiving TOS information
     ensure(setsockopt(s->fd, IPPROTO_IP, IP_RECVTOS, &(int){1}, sizeof(int)) >=
                0,
            "cannot setsockopt IP_RECVTOS");
 
-    if (s->opt.enable_ecn)
-        // set ECT(0) by default
-        ensure(setsockopt(s->fd, IPPROTO_IP, IP_TOS, &(int){IPTOS_ECN_ECT0},
-                          sizeof(int)) >= 0,
-               "cannot setsockopt IP_TOS");
+    if (opt)
+        w_set_sockopt(s, opt);
 
     // if we're binding to a random port, find out what it is
     if (s->hdr->udp.sport == 0) {

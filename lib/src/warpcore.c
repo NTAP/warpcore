@@ -278,10 +278,6 @@ struct w_sock * w_bind(struct w_engine * const w,
     ensure((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");
     ensure((s->hdr = calloc(1, sizeof(*s->hdr))) != 0, "cannot allocate w_hdr");
 
-    if (opt)
-        // initialize socket options
-        s->opt = *opt;
-
     // initialize the non-zero fields of outgoing template header
     s->hdr->eth.type = ETH_TYPE_IP;
     s->hdr->eth.src = w->mac;
@@ -295,7 +291,7 @@ struct w_sock * w_bind(struct w_engine * const w,
     s->w = w;
     sq_init(&s->iv);
 
-    backend_bind(s);
+    backend_bind(s, opt);
     ins_sock(w, s->hdr->udp.sport, s);
 
 #ifndef FUZZING

@@ -64,6 +64,12 @@
 static char backend_name[] = "netmap";
 
 
+void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
+{
+    s->opt = *opt;
+}
+
+
 /// Initialize the warpcore netmap backend for engine @p w. This switches the
 /// interface to netmap mode, maps the underlying buffers into memory and locks
 /// it there, and sets up the extra buffers.
@@ -220,8 +226,10 @@ void backend_cleanup(struct w_engine * const w)
 /// number per RFC 6056, if the socket is not binding to a specific port.
 ///
 /// @param      s     The w_sock to bind.
+/// @param[in]  opt   Unused.
 ///
-void backend_bind(struct w_sock * s)
+void backend_bind(struct w_sock * const s,
+                  const struct w_sockopt * const opt __attribute__((unused)))
 {
     if (unlikely(s->hdr->udp.sport))
         return;

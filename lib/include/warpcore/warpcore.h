@@ -269,7 +269,6 @@ w_get_sport(const struct w_sock * const s);
 extern struct w_sock * __attribute__((nonnull))
 w_get_sock(struct w_engine * const w, const uint16_t sport);
 
-
 extern uint64_t w_rand(void);
 
 
@@ -300,14 +299,13 @@ w_engine(const struct w_sock * const s)
 }
 
 
-/// Return name of interface associated with a warpcore engine. Must not be
-/// modified by caller.
+/// Return name of interface associated with a warpcore engine.
 ///
 /// @param      w     Backend engine.
 ///
 /// @return     Interface name.
 ///
-static inline char * __attribute__((always_inline, nonnull))
+static inline const char * __attribute__((always_inline, nonnull))
 w_ifname(const struct w_engine * const w)
 {
     return w->ifname;
@@ -353,18 +351,39 @@ w_mbps(const struct w_engine * const w)
 }
 
 
-/// Return name of teh driver associated with the interface of a warpcore
-/// engine. Must not be modified by caller.
+/// Return name of the driver associated with the interface of a warpcore
+/// engine.
 ///
 /// @param[in]  w     Backend engine.
 ///
 /// @return     Driver name @p w.
 ///
-static inline char * __attribute__((always_inline, nonnull))
+static inline const char * __attribute__((always_inline, nonnull))
 w_drvname(const struct w_engine * const w)
 {
     return w->drvname;
 }
+
+
+/// Return the current socket options.
+///
+/// @param[in]  s     A w_sock.
+///
+/// @return     The socket options for w_sock @p s.
+///
+static inline const struct w_sockopt * __attribute__((always_inline, nonnull))
+w_get_sockopt(const struct w_sock * const s)
+{
+    return &s->opt;
+}
+
+
+/// Set the socket options.
+///
+/// @param[in]  s     { parameter_description }
+///
+extern void __attribute__((nonnull))
+w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt);
 
 #ifdef __cplusplus
 }
