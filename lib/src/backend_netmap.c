@@ -226,10 +226,9 @@ void backend_cleanup(struct w_engine * const w)
 /// number per RFC 6056, if the socket is not binding to a specific port.
 ///
 /// @param      s     The w_sock to bind.
-/// @param[in]  opt   Unused.
+/// @param[in]  opt   Socket options for this socket. Can be zero.
 ///
-void backend_bind(struct w_sock * const s,
-                  const struct w_sockopt * const opt __attribute__((unused)))
+void backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     if (unlikely(s->hdr->udp.sport))
         return;
