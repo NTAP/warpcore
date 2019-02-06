@@ -121,7 +121,7 @@ function stop() {
     local role=$1
     shift
     local t=("$@")
-    run "${t[$role]}" "pkill '(warp|sock)(ping|inetd)'" || true
+    run "${t[$role]}" "sudo pkill '(warp|sock)(ping|inetd)'" || true
 }
 
 
@@ -236,7 +236,7 @@ for tag in "${!tests[@]}"; do
     [ "${os[clnt]}" != "${os[serv]}" ] && build serv "${t[@]}"
 
     clean_logs "${t[@]}"
-    for k in warp sock; do
+    for k in sock warp; do
         if [ $k == warp ]; then
             echo "${red}netmap config${nrm}"
             netmap_conf clnt "${t[@]}" &
