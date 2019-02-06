@@ -163,7 +163,7 @@ def start_server(test, busywait, cksum, kind):
     pin = ""
     if env.uname[env.host_string] == "Linux":
         pin = "/usr/bin/taskset -c"
-        preload = "/usr/lib/x86_64-linux-gnu/libprofiler.so"
+        preload = ""  # "/usr/lib/x86_64-linux-gnu/libprofiler.so"
     else:
         pin = "/usr/bin/cpuset -l"
         preload = "/usr/local/lib/libprofiler.so"
@@ -172,7 +172,7 @@ def start_server(test, busywait, cksum, kind):
         log = prefix + ".log"
         prof = prefix + ".prof"
         sudo("/usr/bin/nohup %s 3 env LD_PRELOAD=%s "
-             "CPUPROFILE=%s CPUPROFILE_FREQUENCY=10000 "
+             "XXXCPUPROFILE=%s XXXCPUPROFILE_FREQUENCY=10000 "
              "%s/bin/%sinetd -i %s %s %s 2>&1 > %s &" %
              (pin, preload, prof, env.builddir, kind, test["server_iface"],
               busywait, cksum, log))
@@ -198,7 +198,7 @@ def start_client(test, busywait, cksum, kind):
     pin = ""
     if env.uname[env.host_string] == "Linux":
         pin = "/usr/bin/taskset -c"
-        preload = "/usr/lib/x86_64-linux-gnu/libprofiler.so"
+        preload = ""  # "/usr/lib/x86_64-linux-gnu/libprofiler.so"
     else:
         pin = "/usr/bin/cpuset -l"
         preload = "/usr/local/lib/libprofiler.so"
@@ -208,7 +208,7 @@ def start_client(test, busywait, cksum, kind):
         log = prefix + ".log"
         prof = prefix + ".prof"
         sudo("%s 3 env LD_PRELOAD=%s "
-             "CPUPROFILE=%s CPUPROFILE_FREQUENCY=10000 "
+             "XXXCPUPROFILE=%s XXXCPUPROFILE_FREQUENCY=10000 "
              "%s/bin/%sping -i %s -d %s %s %s -l %s "
              "-s 32 -p 0 -e 17000000 > %s 2> %s" %
              (pin, preload, prof, env.builddir, kind, test["client_iface"],
