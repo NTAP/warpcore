@@ -234,6 +234,9 @@ void backend_bind(struct w_sock * const s,
     if (unlikely(s->hdr->udp.sport))
         return;
 
+    if (opt)
+        w_set_sockopt(s, opt);
+
     // compute a random local port number per RFC 6056, Section 3.3.5
     const uint16_t N = 500;
     const uint16_t min_eph = 1024;
