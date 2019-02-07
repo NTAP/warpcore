@@ -33,6 +33,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/param.h>
 
 #include "arp.h"
 #include "backend.h"
@@ -82,19 +83,18 @@ void
            uint8_t * const buf)
 {
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
-    struct udp_hdr * const udp = (void *)ip_data(buf);
+    const uint16_t ip_len = ntohs(ip->len);
+    const struct udp_hdr * const udp = (void *)ip_data(buf);
 
-    if (unlikely(s->len <=
-                 sizeof(struct eth_hdr) + sizeof(*ip) + sizeof(*udp))) {
+    if (unlikely(ip_len - sizeof(*ip) < sizeof(*udp))) {
 #ifndef FUZZING
-        warn(WRN, "IP len %u too short for UDP", s->len);
+        warn(WRN, "IP len %lu too short for UDP", ip_len - sizeof(*ip));
 #endif
         return;
     }
 
-    const uint16_t udp_len = s->len - sizeof(struct eth_hdr) - sizeof(*ip);
+    const uint16_t udp_len = MIN(ntohs(udp->len), ip_len - sizeof(*ip));
     udp_log(udp);
-
 
 #ifndef FUZZING
     if (likely(udp->cksum)) {

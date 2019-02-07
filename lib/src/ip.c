@@ -86,7 +86,8 @@ void
           struct netmap_slot * const s,
           uint8_t * const buf)
 {
-    struct ip_hdr * const ip = (void *)eth_data(buf);
+    // an Ethernet frame is at least 64 bytes, enough for the Ethernet+IP header
+    const struct ip_hdr * const ip = (void *)eth_data(buf);
 #ifndef FUZZING
     ip_log(ip);
 #endif
@@ -112,7 +113,7 @@ void
     }
 #endif
 
-    if (unlikely(ip_hl(ip) != 20)) {
+    if (unlikely(ip_hl(ip) != sizeof(*ip))) {
         // TODO: handle IP options
 #ifndef FUZZING
         warn(WRN, "no support for IP options");

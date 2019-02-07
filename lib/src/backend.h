@@ -192,7 +192,7 @@ w_alloc_iov_base(struct w_engine * const w)
     if (likely(v)) {
         sq_remove_head(&w->iov, next);
         init_iov(w, v);
-        ASAN_UNPOISON_MEMORY_REGION(v->buf, v->len);
+        ASAN_UNPOISON_MEMORY_REGION(v->base, w->mtu);
     }
     return v;
 }

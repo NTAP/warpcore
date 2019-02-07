@@ -68,13 +68,8 @@ void eth_rx(struct w_engine * const w,
             struct netmap_slot * const s,
             uint8_t * const buf)
 {
-    struct eth_hdr * const eth = (void *)buf;
-    if (unlikely(s->len < ETHER_ADDR_LEN)) {
-#ifndef FUZZING
-        warn(ERR, "buf len %u < eth hdr len", s->len);
-#endif
-        return;
-    }
+    // an Ethernet frame is at least 64 bytes, enough for the Ethernet header
+    const struct eth_hdr * const eth = (void *)buf;
 
 #if !defined(NDEBUG) && !defined(FUZZING)
     char src[ETH_ADDR_STRLEN];
