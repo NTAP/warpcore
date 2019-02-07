@@ -54,8 +54,8 @@ int main(void)
         warn(INF, "off %u", x);
         v = w_alloc_iov(w, 0, x);
         ensure(v->len == w->mtu - x, "v len != %u", w->mtu - x);
-        ensure(v->buf == beg(v) + x, "start incorrect %p != %p", v->buf,
-               beg(v) + x);
+        ensure(v->buf == beg(v) + x, "start incorrect %p != %p", (void *)v->buf,
+               (void *)(beg(v) + x));
         w_free_iov(v);
     }
 

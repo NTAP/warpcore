@@ -27,6 +27,7 @@
 
 #include <arpa/inet.h>
 #include <ifaddrs.h>
+#include <inttypes.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <stdbool.h>
@@ -480,7 +481,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);
 
-    warn(INF, "%s/%s %s using %u %u-byte bufs on %s", warpcore_name,
+    warn(INF, "%s/%s %s using %" PRIu64 " %u-byte bufs on %s", warpcore_name,
          w->backend_name, warpcore_version, sq_len(&w->iov), w->mtu, w->ifname);
     return w;
 }

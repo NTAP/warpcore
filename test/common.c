@@ -109,7 +109,8 @@ bool io(const uint32_t len)
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);
     }
-    ensure(ov == 0 && iv == 0, "done with data ov %p iv %p", ov, iv);
+    ensure(ov == 0 && iv == 0, "done with data ov %p iv %p", (void *)ov,
+           (void *)iv);
 
     w_free(&o);
     w_free(&i);

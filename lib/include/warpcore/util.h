@@ -73,10 +73,11 @@
 ///
 #define die(...) util_die(__func__, __FILE__, __LINE__, __VA_ARGS__)
 
-extern void __attribute__((nonnull(1, 2), noreturn))
+extern void __attribute__((nonnull(1, 2, 4), noreturn, format(printf, 4, 5)))
 util_die(const char * const func,
          const char * const file,
          const unsigned line,
+         const char * const fmt,
          ...);
 
 
@@ -144,12 +145,14 @@ extern short util_dlevel;
     } while (0) // NOLINT
 
 
-extern void __attribute__((nonnull(3, 4))) util_warn(const unsigned dlevel,
-                                                     const bool tstamp,
-                                                     const char * const func,
-                                                     const char * const file,
-                                                     const unsigned line,
-                                                     ...);
+extern void __attribute__((nonnull(3, 4, 6), format(printf, 6, 7)))
+util_warn(const unsigned dlevel,
+          const bool tstamp,
+          const char * const func,
+          const char * const file,
+          const unsigned line,
+          const char * const fmt,
+          ...);
 
 
 /// Rate-limited variant of warn(), which repeats the message prints at most @p
@@ -173,7 +176,7 @@ extern void __attribute__((nonnull(3, 4))) util_warn(const unsigned dlevel,
     } while (0) // NOLINT
 
 
-extern void __attribute__((nonnull(1, 2, 5, 6)))
+extern void __attribute__((nonnull(1, 2, 5, 6, 8), format(printf, 8, 9)))
 util_rwarn(time_t * const rt0,
            unsigned int * const rcnt,
            const unsigned dlevel,
@@ -181,6 +184,7 @@ util_rwarn(time_t * const rt0,
            const char * const func,
            const char * const file,
            const unsigned line,
+           const char * const fmt,
            ...);
 
 #else

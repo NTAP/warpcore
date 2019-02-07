@@ -197,11 +197,12 @@ static void __attribute__((destructor)) postmain()
 void util_die(const char * const func,
               const char * const file,
               const unsigned line,
+              const char * const fmt,
               ...)
 {
     DTHREAD_LOCK;
     va_list ap;
-    va_start(ap, line);
+    va_start(ap, fmt);
     const int e = errno;
     struct timeval now = {0, 0}, dur = {0, 0};
     gettimeofday(&now, 0);
@@ -210,7 +211,6 @@ void util_die(const char * const func,
             DTHREAD_ID, (long)(dur.tv_sec % 1000), // NOLINT
             (long)(dur.tv_usec / 1000),            // NOLINT
             func, basename(file), line);
-    const char * const fmt = va_arg(ap, char *);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     vfprintf(stderr, fmt, ap);
@@ -285,6 +285,7 @@ static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
                                                       const char * const func,
                                                       const char * const file,
                                                       const unsigned line,
+                                                      const char * const fmt,
                                                       va_list ap)
 {
     const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
@@ -317,7 +318,6 @@ static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
         fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, basename(file),
                 line);
 
-    char * fmt = va_arg(ap, char *);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     vfprintf(stderr, fmt, ap);
@@ -335,14 +335,15 @@ void util_warn(const unsigned dlevel,
                const char * const func,
                const char * const file,
                const unsigned line,
+               const char * const fmt,
                ...)
 {
 #ifdef DCOMPONENT
     if (!regexec(&util_comp, file, 0, 0, 0)) {
 #endif
         va_list ap;
-        va_start(ap, line);
-        util_warn_valist(dlevel, tstamp, func, file, line, ap);
+        va_start(ap, fmt);
+        util_warn_valist(dlevel, tstamp, func, file, line, fmt, ap);
         va_end(ap);
 #ifdef DCOMPONENT
     }
@@ -359,6 +360,7 @@ void util_rwarn(time_t * const rt0,
                 const char * const func,
                 const char * const file,
                 const unsigned line,
+                const char * const fmt,
                 ...)
 {
     struct timeval rts = {0, 0};
@@ -373,8 +375,8 @@ void util_rwarn(time_t * const rt0,
 #endif
     ) {
         va_list ap;
-        va_start(ap, line);
-        util_warn_valist(dlevel, true, func, file, line, ap);
+        va_start(ap, fmt);
+        util_warn_valist(dlevel, true, func, file, line, fmt, ap);
         va_end(ap);
     }
 }

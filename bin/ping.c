@@ -305,13 +305,13 @@ int
             char rx[256] = "NA";
             if (i_len == len) {
                 time_diff(&diff, &after_rx, &before_tx);
-                ensure(diff.tv_sec == 0, "time difference > %u sec",
+                ensure(diff.tv_sec == 0, "time difference > %lu sec",
                        diff.tv_sec);
                 snprintf(rx, 256, "%ld", diff.tv_nsec);
             }
             const uint64_t pkts = w_iov_sq_cnt(&i);
             time_diff(&diff, &after_tx, &before_tx);
-            ensure(diff.tv_sec == 0, "time difference > %u sec", diff.tv_sec);
+            ensure(diff.tv_sec == 0, "time difference > %lu sec", diff.tv_sec);
             printf("%s\t%s\t%u\t%d\t%" PRIu64 "\t%ld\t%s\n", w_ifname(w),
                    w_drvname(w), w_mbps(w), i_len, pkts, diff.tv_nsec, rx);
 
