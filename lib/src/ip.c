@@ -175,7 +175,7 @@ bool
     // fill in remaining header fields
     ip->len = htons(l);
     // no need to do htons() for random value
-    ip->id = (uint16_t)w_rand();
+    ip->id = (uint16_t)w_rand_uniform(UINT16_MAX);
 
     // set DSCP and ECN
     ip->tos = v->flags;
