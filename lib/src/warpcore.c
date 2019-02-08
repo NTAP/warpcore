@@ -236,24 +236,32 @@ uint32_t w_iov_sq_len(const struct w_iov_sq * const q)
 /// @param[in]  ip    Destination IPv4 address to bind to.
 /// @param[in]  port  Destination UDP port to bind to.
 ///
-void w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
+/// @return     Zero on success, @p errno otherwise.
+///
+int w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 {
     ensure(s->hdr->ip.dst == 0 && s->hdr->udp.dport == 0,
            "socket already connected");
 
-    // need to update the socket khash, since dport is changing
-    rem_sock(s->w, s->hdr->udp.sport);
     s->hdr->ip.dst = ip;
     s->hdr->udp.dport = port;
-    ins_sock(s->w, s->hdr->udp.sport, s);
 
-    backend_connect(s);
+    // need to update the socket khash, since backend_connect() changes sport
+    rem_sock(s->w, s->hdr->udp.sport);
+    const int e = backend_connect(s);
+    if (unlikely(e)) {
+        s->hdr->ip.dst = s->hdr->udp.dport = 0;
+        return e;
+    }
+    ins_sock(s->w, s->hdr->udp.sport, s);
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
     char str[INET_ADDRSTRLEN];
     warn(DBG, "socket connected to %s port %d",
          inet_ntop(AF_INET, &ip, str, INET_ADDRSTRLEN), ntohs(port));
 #endif
+
+    return 0;
 }
 
 
@@ -273,33 +281,42 @@ struct w_sock * w_bind(struct w_engine * const w,
     struct w_sock * s = w_get_sock(w, port);
     if (unlikely(s)) {
         warn(INF, "UDP source port %d already in bound", ntohs(port));
+        // do not free, just return
         return 0;
     }
 
-    ensure((s = calloc(1, sizeof(*s))) != 0, "cannot allocate w_sock");
-    ensure((s->hdr = calloc(1, sizeof(*s->hdr))) != 0, "cannot allocate w_hdr");
+    if (unlikely(s = calloc(1, sizeof(*s))) == 0)
+        goto fail;
+    if (unlikely(s->hdr = calloc(1, sizeof(*s->hdr))) == 0)
+        goto fail;
 
     // initialize the non-zero fields of outgoing template header
     s->hdr->eth.type = ETH_TYPE_IP;
     s->hdr->eth.src = w->mac;
     // s->hdr->eth.dst is set on w_connect()
-
     ip_hdr_init(&s->hdr->ip);
     s->hdr->ip.src = w->ip;
     s->hdr->udp.sport = port;
     // s->hdr->ip.dst is set on w_connect()
-
     s->w = w;
     sq_init(&s->iv);
 
-    backend_bind(s, opt);
-    ins_sock(w, s->hdr->udp.sport, s);
+    if (unlikely(backend_bind(s, opt) != 0))
+        goto fail;
 
 #ifndef FUZZING
     warn(NTE, "socket bound to port %d", ntohs(s->hdr->udp.sport));
 #endif
 
+    ins_sock(w, s->hdr->udp.sport, s);
     return s;
+
+fail:
+    if (s && s->hdr)
+        free(s->hdr);
+    if (s)
+        free(s);
+    return 0;
 }
 
 

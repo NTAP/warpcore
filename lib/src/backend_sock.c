@@ -188,10 +188,14 @@ void backend_cleanup(struct w_engine * const w)
 /// @param      s     The w_sock to bind.
 /// @param[in]  opt   Socket options for this socket. Can be zero.
 ///
-void backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
+/// @return     Zero on success, @p errno otherwise.
+///
+int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
-    ensure((s->fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0)) >= 0,
-           "socket");
+    s->fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    if (unlikely(s->fd < 0))
+        return errno;
+
     ensure(setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, &(int){1},
                       sizeof(int)) >= 0,
            "cannot setsockopt SO_REUSEADDR");
@@ -227,6 +231,8 @@ void backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_ADD, s->fd, &ev) != -1,
            "epoll_ctl");
 #endif
+
+    return 0;
 }
 
 
@@ -234,14 +240,20 @@ void backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 ///
 /// @param      s     The w_sock to connect.
 ///
-void backend_connect(struct w_sock * const s)
+/// @return     Zero on success, @p errno otherwise.
+///
+int backend_connect(struct w_sock * const s)
 {
-    struct sockaddr_in addr = {.sin_family = AF_INET,
-                               .sin_port = s->hdr->udp.dport,
-                               .sin_addr = {.s_addr = s->hdr->ip.dst}};
-    ensure(connect(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
-           "connect failed to %s:%u", inet_ntoa(addr.sin_addr),
-           ntohs(s->hdr->udp.dport));
+    const struct sockaddr_in addr = {.sin_family = AF_INET,
+                                     .sin_port = s->hdr->udp.dport,
+                                     .sin_addr = {.s_addr = s->hdr->ip.dst}};
+    if (unlikely(connect(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) !=
+                 0)) {
+        warn(ERR, "connect to %s:%u failed", inet_ntoa(addr.sin_addr),
+             ntohs(s->hdr->udp.dport));
+        return errno;
+    }
+    return 0;
 }
 
 

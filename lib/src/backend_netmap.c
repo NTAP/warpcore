@@ -29,6 +29,7 @@
 // IWYU pragma: no_include <net/netmap_legacy.h>
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <net/if.h>
 #include <net/netmap_user.h>
@@ -228,13 +229,15 @@ void backend_cleanup(struct w_engine * const w)
 /// @param      s     The w_sock to bind.
 /// @param[in]  opt   Socket options for this socket. Can be zero.
 ///
-void backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
+/// @return     Zero on success, @p errno otherwise.
+///
+int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     if (opt)
         w_set_sockopt(s, opt);
 
     if (unlikely(s->hdr->udp.sport))
-        return;
+        return 0;
 
     // compute a random local port number per RFC 6056, Section 3.3.5
     const uint16_t N = 500;
@@ -247,11 +250,11 @@ void backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
         const uint16_t port = htons(min_eph + (s->w->b->next_eph % num_eph));
         if (w_get_sock(s->w, port) == 0) {
             s->hdr->udp.sport = port;
-            return;
+            return 0;
         }
     } while (--count > 0);
 
-    die("could not allocate suitable random local port");
+    return ENOMEM;
 }
 
 
@@ -268,7 +271,9 @@ void backend_close(struct w_sock * const s __attribute__((unused))) {}
 ///
 /// @param      s     w_sock to connect.
 ///
-void backend_connect(struct w_sock * const s)
+/// @return     Zero on success, @p errno otherwise.
+///
+int backend_connect(struct w_sock * const s)
 {
     // find the Ethernet MAC address of the destination or the default router,
     // and update the template header
@@ -277,6 +282,7 @@ void backend_connect(struct w_sock * const s)
                             ? s->w->rip
                             : s->hdr->ip.dst;
     s->hdr->eth.dst = arp_who_has(s->w, ip);
+    return 0;
 }
 
 

@@ -38,7 +38,7 @@ if(HAVE_BENCHMARK_H)
 endif()
 
 
-foreach(TARGET sock iov hexdump queue)
+foreach(TARGET sock iov hexdump queue many)
   add_executable(test_${TARGET} common.c test_${TARGET}.c)
   target_link_libraries(test_${TARGET} PUBLIC sockcore)
   target_include_directories(test_${TARGET}
@@ -74,6 +74,21 @@ if(HAVE_NETMAP_H)
     )
   endif()
   add_test(test_warp test_warp)
+
+  add_executable(test_many_warp common.c test_many.c)
+  target_compile_definitions(test_many_warp PRIVATE -DWITH_NETMAP)
+  target_link_libraries(test_many_warp PUBLIC warpcore)
+  set_target_properties(test_many_warp
+    PROPERTIES
+      POSITION_INDEPENDENT_CODE ON
+      INTERPROCEDURAL_OPTIMIZATION ${IPO}
+  )
+  if(DSYMUTIL)
+    add_custom_command(TARGET test_many_warp POST_BUILD
+      COMMAND ${DSYMUTIL} ARGS $<TARGET_FILE:test_many_warp>
+    )
+  endif()
+  add_test(test_many_warp test_many_warp)
 
   if(HAVE_FUZZER)
     foreach(TARGET fuzz)

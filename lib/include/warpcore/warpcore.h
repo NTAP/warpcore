@@ -216,7 +216,7 @@ w_bind(struct w_engine * const w,
        const uint16_t port,
        const struct w_sockopt * const opt);
 
-extern void __attribute__((nonnull))
+extern int __attribute__((nonnull))
 w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
 
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
