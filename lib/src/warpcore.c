@@ -351,8 +351,8 @@ void w_cleanup(struct w_engine * const w)
 
     // close all sockets
     struct w_sock * s;
-    kh_foreach_value ((khash_t(sock) *)w->sock, s, { w_close(s); })
-        kh_destroy(sock, (khash_t(sock) *)w->sock);
+    kh_foreach_value((khash_t(sock) *)w->sock, s, { w_close(s); });
+    kh_destroy(sock, (khash_t(sock) *)w->sock);
 
     backend_cleanup(w);
     sl_remove(&engines, w, w_engine, next);

@@ -552,14 +552,14 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 
     struct w_sock * s = 0;
     int n = 0;
-    kh_foreach_value ((khash_t(sock) *)w->sock, s, {
+    kh_foreach_value((khash_t(sock) *)w->sock, s, {
         b->fds[n].fd = s->fd;
         b->fds[n].events = POLLIN;
         b->socks[n++] = s;
-    })
+    });
 
-        // poll
-        n = poll(b->fds, (nfds_t)cur_n, msec);
+    // poll
+    n = poll(b->fds, (nfds_t)cur_n, msec);
 
     return n > 0;
 #endif
