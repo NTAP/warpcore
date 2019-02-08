@@ -85,7 +85,7 @@ void arp_cache_update(struct w_engine * w,
         ensure(a, "cannot allocate arp_entry");
         int ret;
         const khiter_t k = kh_put(arp_cache, w->b->arp_cache, ip, &ret);
-        ensure(ret >= 0, "inserted");
+        ensure(ret >= 1, "inserted");
         kh_val(w->b->arp_cache, k) = a;
     }
     a->mac = mac;
