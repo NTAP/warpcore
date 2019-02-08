@@ -267,9 +267,14 @@ extern uint16_t __attribute__((nonnull))
 w_get_sport(const struct w_sock * const s);
 
 extern struct w_sock * __attribute__((nonnull))
-w_get_sock(struct w_engine * const w, const uint16_t sport);
+w_get_sock(struct w_engine * const w,
+           const uint32_t sip,
+           const uint16_t sport,
+           const uint32_t dip,
+           const uint16_t dport);
 
 extern uint64_t w_rand(void);
+extern uint64_t w_rand_uniform(const uint64_t upper_bound);
 
 
 /// Return the number of w_iov structs in @p q that are still waiting for

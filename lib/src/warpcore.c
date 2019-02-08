@@ -70,41 +70,48 @@ static krng_t w_rand_state;
 struct w_engines engines = sl_head_initializer(engines);
 
 
-/// Get the socket bound to the <sport, dport> pair. The @p dport parameter can
-/// be zero.
+/// Get the socket bound to the given four-tuple <source IP, source port,
+/// destination IP, destination port>.
 ///
 /// @param      w      Backend engine.
-/// @param[in]  sport  The local (source) port number.
+/// @param[in]  sip    The source IP address.
+/// @param[in]  sport  The source port.
+/// @param[in]  dip    The destination IP address.
+/// @param[in]  dport  The destination port.
 ///
-/// @return     The w_sock bound to @p port.
+/// @return     The w_sock bound to the given four-tuple.
 ///
-struct w_sock * w_get_sock(struct w_engine * const w, const uint16_t sport)
+struct w_sock * w_get_sock(struct w_engine * const w,
+                           const uint32_t sip,
+                           const uint16_t sport,
+                           const uint32_t dip,
+                           const uint16_t dport)
 {
     khash_t(sock) * const sock = w->sock;
-    const khiter_t k = kh_get(sock, sock, sport);
-    if (unlikely(k == kh_end(sock)))
-        return 0;
-    return kh_val(sock, k);
+    const khiter_t k =
+        kh_get(sock, sock,
+               (&(struct w_hdr){.ip = {.src = sip, .dst = dip},
+                                .udp = {.sport = sport, .dport = dport}}));
+    return unlikely(k == kh_end(sock)) ? 0 : kh_val(sock, k);
 }
 
 
-static inline void __attribute__((nonnull)) ins_sock(struct w_engine * const w,
-                                                     const uint16_t sport,
-                                                     struct w_sock * const s)
+static inline void __attribute__((nonnull))
+ins_sock(struct w_engine * const w, struct w_sock * const s)
 {
     khash_t(sock) * const sock = w->sock;
     int ret;
-    const khiter_t k = kh_put(sock, sock, sport, &ret);
-    ensure(ret >= 0, "inserted");
+    const khiter_t k = kh_put(sock, sock, s->hdr, &ret);
+    ensure(ret >= 1, "inserted is %d", ret);
     kh_val(sock, k) = s;
 }
 
 
 static inline void __attribute__((nonnull))
-rem_sock(struct w_engine * const w, const uint16_t sport)
+rem_sock(struct w_engine * const w, struct w_sock * const s)
 {
     khash_t(sock) * const sock = w->sock;
-    const khiter_t k = kh_get(sock, sock, sport);
+    const khiter_t k = kh_get(sock, sock, s->hdr);
     ensure(k != kh_end(sock), "found");
     kh_del(sock, sock, k);
 }
@@ -243,17 +250,16 @@ int w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
     ensure(s->hdr->ip.dst == 0 && s->hdr->udp.dport == 0,
            "socket already connected");
 
+    rem_sock(s->w, s);
     s->hdr->ip.dst = ip;
     s->hdr->udp.dport = port;
-
-    // need to update the socket khash, since backend_connect() changes sport
-    rem_sock(s->w, s->hdr->udp.sport);
     const int e = backend_connect(s);
     if (unlikely(e)) {
         s->hdr->ip.dst = s->hdr->udp.dport = 0;
+        ins_sock(s->w, s);
         return e;
     }
-    ins_sock(s->w, s->hdr->udp.sport, s);
+    ins_sock(s->w, s);
 
 #if !defined(NDEBUG) && DLEVEL >= NTE
     char str[INET_ADDRSTRLEN];
@@ -278,7 +284,7 @@ struct w_sock * w_bind(struct w_engine * const w,
                        const uint16_t port,
                        const struct w_sockopt * const opt)
 {
-    struct w_sock * s = w_get_sock(w, port);
+    struct w_sock * s = w_get_sock(w, w->ip, port, 0, 0);
     if (unlikely(s)) {
         warn(INF, "UDP source port %d already in bound", ntohs(port));
         // do not free, just return
@@ -308,7 +314,7 @@ struct w_sock * w_bind(struct w_engine * const w,
     warn(NTE, "socket bound to port %d", ntohs(s->hdr->udp.sport));
 #endif
 
-    ins_sock(w, s->hdr->udp.sport, s);
+    ins_sock(w, s);
     return s;
 
 fail:
@@ -329,7 +335,7 @@ void w_close(struct w_sock * const s)
     backend_close(s);
 
     // remove the socket from list of sockets
-    rem_sock(s->w, s->hdr->udp.sport);
+    rem_sock(s->w, s);
 
     // free the template header
     free(s->hdr);
@@ -583,4 +589,34 @@ uint16_t w_get_sport(const struct w_sock * const s)
 uint64_t w_rand(void)
 {
     return kr_rand_r(&w_rand_state);
+}
+
+
+/// Calculate a uniformly distributed random number in [0, upper_bound) avoiding
+/// "modulo bias".
+///
+/// @param[in]  upper_bound  The upper bound
+///
+/// @return     Random number.
+///
+uint64_t w_rand_uniform(const uint64_t upper_bound)
+{
+    if (unlikely(upper_bound < 2))
+        return 0;
+
+    // 2**64 % x == (2**64 - x) % x
+    // cppcheck-suppress oppositeExpression
+    const uint64_t min = -upper_bound % upper_bound;
+
+    // This could theoretically loop forever but each retry has p > 0.5 (worst
+    // case, usually far better) of selecting a number inside the range we
+    // need, so it should rarely need to re-roll.
+    uint64_t r;
+    for (;;) {
+        r = kr_rand_r(&w_rand_state);
+        if (likely(r >= min))
+            break;
+    }
+
+    return r % upper_bound;
 }

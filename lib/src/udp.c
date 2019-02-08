@@ -108,7 +108,8 @@ void
     }
 #endif
 
-    struct w_sock * ws = w_get_sock(w, udp->dport);
+    struct w_sock * ws =
+        w_get_sock(w, ip->dst, udp->dport, ip->src, udp->sport);
     if (unlikely(ws == 0)) {
         // nobody bound to this port locally
         // send an ICMP unreachable reply, if this was not a broadcast

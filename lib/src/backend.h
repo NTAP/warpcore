@@ -68,10 +68,6 @@ struct w_backend {
     khash_t(arp_cache) * arp_cache; ///< The ARP cache.
     uint32_t * tail;           ///< TX ring tails after last NIOCTXSYNC call.
     struct w_iov *** slot_buf; ///< For each ring slot, a pointer to its w_iov.
-    uint16_t next_eph;         ///< State for random port number generation.
-    /// @cond
-    uint8_t _unused[6]; ///< @internal Padding.
-    /// @endcond
 #else
 #if defined(HAVE_KQUEUE)
     struct kevent ev[64]; // XXX arbitrary value
@@ -93,7 +89,7 @@ struct w_backend {
 };
 
 
-static inline __attribute__((always_inline, nonnull)) bool
+static inline bool __attribute__((always_inline, nonnull))
 is_pipe(const struct w_engine * const w
 #ifndef WITH_NETMAP
         __attribute__((unused))
@@ -119,7 +115,7 @@ is_pipe(const struct w_engine * const w
 ///
 /// @return     Memory region associated with buffer @p i.
 ///
-static inline __attribute__((always_inline, nonnull)) uint8_t *
+static inline uint8_t * __attribute__((always_inline, nonnull))
 idx_to_buf(const struct w_engine * const w, const uint32_t i)
 {
 #ifdef WITH_NETMAP
@@ -142,7 +138,7 @@ extern sl_head(w_engines, w_engine) engines;
 ///
 /// @return     The IPv4 broadcast address associated with @p ip and @p mask.
 ///
-static inline __attribute__((always_inline, const)) uint32_t
+static inline uint32_t __attribute__((always_inline, const))
 mk_bcast(const uint32_t ip, const uint32_t mask)
 {
     return ip | (~mask);
@@ -156,14 +152,14 @@ mk_bcast(const uint32_t ip, const uint32_t mask)
 ///
 /// @return     The IPv4 prefix associated with @p ip and @p mask.
 ///
-static inline __attribute__((always_inline, const)) uint32_t
+static inline uint32_t __attribute__((always_inline, const))
 mk_net(const uint32_t ip, const uint32_t mask)
 {
     return ip & mask;
 }
 
 
-static inline __attribute__((always_inline, nonnull)) void
+static inline void __attribute__((always_inline, nonnull))
 init_iov(struct w_engine * const w, struct w_iov * const v)
 {
     v->w = w;
@@ -176,7 +172,7 @@ init_iov(struct w_engine * const w, struct w_iov * const v)
 }
 
 
-static inline __attribute__((always_inline, nonnull)) struct w_iov *
+static inline struct w_iov * __attribute__((always_inline, nonnull))
 w_alloc_iov_base(struct w_engine * const w)
 {
     struct w_iov * const v = sq_first(&w->iov);
@@ -202,4 +198,40 @@ extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);
 
-KHASH_MAP_INIT_INT(sock, struct w_sock *)
+
+static inline khint_t __attribute__((always_inline, nonnull))
+four_tuple_hash(const struct w_hdr * const hdr)
+{
+    const uint32_t prime = 0x811c9dc5;
+    uint32_t hash = 0x1000193;
+
+    const uint8_t * const bytes = (const uint8_t * const) & hdr->ip.src;
+    for (size_t i = 0; i < 2 * sizeof(hdr->ip.src); i++) {
+        hash ^= bytes[i];
+        hash *= prime;
+    }
+
+    const uint8_t * const bytes2 = (const uint8_t * const) & hdr->udp.sport;
+    for (size_t i = 0; i < 2 * sizeof(hdr->udp.sport); i++) {
+        hash ^= bytes2[i];
+        hash *= prime;
+    }
+
+    return hash;
+}
+
+
+static inline khint_t __attribute__((always_inline, nonnull))
+four_tuple_equal(const struct w_hdr * const a, const struct w_hdr * const b)
+{
+    return (a->ip.src == b->ip.src && a->ip.dst == b->ip.dst &&
+            a->udp.sport == b->udp.sport && a->udp.dport == b->udp.dport);
+}
+
+
+KHASH_INIT(sock,
+           struct w_hdr *,
+           struct w_sock *,
+           1,
+           four_tuple_hash,
+           four_tuple_equal)

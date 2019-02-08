@@ -28,8 +28,6 @@
 // IWYU pragma: no_include <net/netmap.h>
 // IWYU pragma: no_include <net/netmap_legacy.h>
 
-#include <arpa/inet.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <net/if.h>
 #include <net/netmap_user.h>
@@ -181,9 +179,6 @@ void backend_init(struct w_engine * const w,
 
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
-
-    // initialize random port number generation state
-    b->next_eph = (uint16_t)w_rand();
 }
 
 
@@ -223,8 +218,15 @@ void backend_cleanup(struct w_engine * const w)
 }
 
 
+static inline uint16_t __attribute__((always_inline)) pick_sport(void)
+{
+    // compute a random port >= 1024
+    return 1024 + (uint16_t)w_rand_uniform(UINT16_MAX - 1024);
+}
+
+
 /// Netmap-specific code to bind a warpcore socket. Only computes a random port
-/// number per RFC 6056, if the socket is not binding to a specific port.
+/// number if the socket is not bound to a specific port yet.
 ///
 /// @param      s     The w_sock to bind.
 /// @param[in]  opt   Socket options for this socket. Can be zero.
@@ -236,25 +238,10 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     if (opt)
         w_set_sockopt(s, opt);
 
-    if (unlikely(s->hdr->udp.sport))
-        return 0;
+    if (likely(s->hdr->udp.sport == 0))
+        s->hdr->udp.sport = pick_sport();
 
-    // compute a random local port number per RFC 6056, Section 3.3.5
-    const uint16_t N = 500;
-    const uint16_t min_eph = 1024;
-    const uint16_t max_eph = UINT16_MAX;
-    uint16_t num_eph = max_eph - min_eph + 1;
-    uint16_t count = num_eph;
-    do {
-        s->w->b->next_eph += (w_rand() % N) + 1;
-        const uint16_t port = htons(min_eph + (s->w->b->next_eph % num_eph));
-        if (w_get_sock(s->w, port) == 0) {
-            s->hdr->udp.sport = port;
-            return 0;
-        }
-    } while (--count > 0);
-
-    return ENOMEM;
+    return 0;
 }
 
 
@@ -282,7 +269,18 @@ int backend_connect(struct w_sock * const s)
                             ? s->w->rip
                             : s->hdr->ip.dst;
     s->hdr->eth.dst = arp_who_has(s->w, ip);
-    return 0;
+
+    // see if we need to update the sport
+    uint8_t n = 200;
+    do {
+        if (likely(w_get_sock(s->w, s->hdr->ip.src, s->hdr->udp.sport,
+                              s->hdr->ip.dst, s->hdr->udp.dport) == 0))
+            break;
+        // four-tuple exists, reroll sport
+        s->hdr->udp.sport = pick_sport();
+    } while (--n);
+
+    return n == 0;
 }
 
 

@@ -196,15 +196,14 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     if (unlikely(s->fd < 0))
         return errno;
 
-    ensure(setsockopt(s->fd, SOL_SOCKET, SO_REUSEADDR, &(int){1},
-                      sizeof(int)) >= 0,
-           "cannot setsockopt SO_REUSEADDR");
     struct sockaddr_in addr = {.sin_family = AF_INET,
                                .sin_port = s->hdr->udp.sport,
                                .sin_addr = {.s_addr = s->hdr->ip.src}};
-    ensure(bind(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) == 0,
-           "bind failed on %s:%u", inet_ntoa(addr.sin_addr),
-           ntohs(s->hdr->udp.sport));
+    if (unlikely(bind(s->fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)) {
+        warn(ERR, "bind failed on %s:%u", inet_ntoa(addr.sin_addr),
+             ntohs(s->hdr->udp.sport));
+        return errno;
+    }
 
     // always enable receiving TOS information
     ensure(setsockopt(s->fd, IPPROTO_IP, IP_RECVTOS, &(int){1}, sizeof(int)) >=
