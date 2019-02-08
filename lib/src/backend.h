@@ -130,15 +130,6 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
 }
 
 
-static inline int w_sock_cmp(const struct w_sock * const a,
-                             const struct w_sock * const b)
-{
-    const uint32_t ap = ((uint32_t)a->hdr->udp.sport << 16) + a->hdr->udp.dport;
-    const uint32_t bp = ((uint32_t)b->hdr->udp.sport << 16) + b->hdr->udp.dport;
-    return (ap > bp) - (ap < bp);
-}
-
-
 /// Global list of initialized warpcore engines.
 ///
 extern sl_head(w_engines, w_engine) engines;
