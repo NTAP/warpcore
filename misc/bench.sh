@@ -15,13 +15,14 @@ declare -A tests=(
     # [linux10]=10:50:mora1:enp2s0f0:10.11.12.7:mora2:enp2s0f0:10.11.12.8
     [linux40]=40:100:mora1:enp6s0f0:10.11.12.7:mora2:enp6s0f0:10.11.12.8
     # [linux100]=1:200:mora1:vcc1:10.11.12.7:mora2:vcc1:10.11.12.8
+    [linuxlo]=50:200:mora1:lo:127.0.0.1:mora1:lo:127.0.0.1
 )
 
 speed=0
 iter=1
 clnt=2
 clnt_if=3
-# clnt_ip=4
+clnt_ip=4 # do not comment this out, it breaks the script
 serv=5
 serv_if=6
 serv_ip=7
@@ -57,6 +58,8 @@ function ip_unconf() {
     local host_if=${t[${role}_if]}
     local host_ip=${t[${role}_ip]}
 
+    [[ $host_if == "lo"* ]] && return
+
     if [ "${os[$role]}" == Linux ]; then
         cmd=""
         for i in $(run "${t[$role]}" "ls /sys/class/net"); do
@@ -77,6 +80,8 @@ function ip_conf() {
     local t=("$@")
     local host_if=${t[${role}_if]}
     local host_ip=${t[${role}_ip]}
+
+    [[ $host_if == "lo"* ]] && return
 
     if [ "${os[$role]}" == Linux ]; then
         cmd="sudo sysctl net.core.rmem_max=26214400 \
@@ -130,6 +135,8 @@ function netmap_unconf() {
     local t=("$@")
     local host_if=${t[${role}_if]}
 
+    [[ $host_if == "lo"* ]] && return
+
     if [ "${os[$role]}" == Linux ]; then
         cmd="sudo ifconfig $host_if down; \
              sudo ethtool -K $host_if sg on rx on tx on tso on gro on lro on; \
@@ -148,6 +155,8 @@ function netmap_conf() {
     shift
     local t=("$@")
     local host_if=${t[${role}_if]}
+
+    [[ $host_if == "lo"* ]] && return
 
     if [ "${os[$role]}" == Linux ]; then
         cmd="cd /sys/module/netmap/parameters; \
@@ -209,7 +218,9 @@ function clean_logs() {
 
     run "${t[clnt]}" "\
         cd $warpcore; \
-        rm warp*.log sock*.log warp*.txt sock*.txt warp*.prof sock*.prof" \
+        rm warp*${t[$speed]}*.log sock*${t[$speed]}*.log \
+            warp*${t[$speed]}*.txt sock*${t[$speed]}*.txt \
+            warp*${t[$speed]}*.prof sock*${t[$speed]}*.prof" \
     || true
 }
 
@@ -235,7 +246,7 @@ for tag in "${!tests[@]}"; do
     [ "${os[clnt]}" != "${os[serv]}" ] && build serv "${t[@]}"
 
     clean_logs "${t[@]}"
-    for k in sock warp; do
+    for k in warp sock; do
         if [ $k == warp ]; then
             echo "${red}netmap config${nrm}"
             netmap_conf clnt "${t[@]}" &
