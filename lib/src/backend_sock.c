@@ -30,11 +30,12 @@
 
 #if defined(__linux__)
 #include <limits.h>
+#else
+#include <netinet/udp.h>
 #endif
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <netinet/udp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
