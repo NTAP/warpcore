@@ -235,13 +235,16 @@ int
         w_alloc_len(w, &o, len, 0, 0);
         long iter = loops;
         while (likely(iter--)) {
+            // pick a random connection for output
+            const uint32_t c = w_rand_uniform(conns);
+
             // get the current time
             struct timespec before_tx;
             ensure(clock_gettime(CLOCK_MONOTONIC, &before_tx) != -1,
                    "clock_gettime");
 
             // stamp the data
-            const uint32_t nonce = (uint32_t)w_rand();
+            const uint32_t nonce = (uint32_t)w_rand_uniform(UINT32_MAX);
             struct w_iov * v = 0;
             sq_foreach (v, &o, next) {
                 struct payload * const p = (void *)v->buf;
@@ -249,9 +252,6 @@ int
                 p->len = len;
                 p->ts = before_tx;
             }
-
-            // pick a random connection for output
-            const uint32_t c = w_rand() % conns;
 
             // send the data, and wait until it is out
             w_tx(s[c], &o);
