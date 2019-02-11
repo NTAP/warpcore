@@ -91,7 +91,7 @@ eth_tx(struct w_engine * const w, struct w_iov * const v, const uint16_t len)
 #if !defined(NDEBUG) && DLEVEL >= DBG
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
-    const struct eth_hdr * const eth = (void *)NETMAP_BUF(txr, s->buf_idx);
+    const struct eth_hdr * const eth = (void *)v->base;
     warn(DBG, "Eth %s -> %s, type %d, len %lu", ether_ntoa_r(&eth->src, src),
          ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), len + sizeof(*eth));
 #endif

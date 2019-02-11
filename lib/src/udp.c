@@ -131,28 +131,36 @@ void
         return;
     }
 
-    warn(DBG, "swapping rx slot idx  %d and spare idx %u", s->buf_idx, i->idx);
+    warn(DBG, "%sing rx slot idx %d %s spare idx %u",
+         unlikely(is_pipe(w)) ? "copy" : "swap", s->buf_idx,
+         unlikely(is_pipe(w)) ? "into" : "and", i->idx);
 
-    // remember index of this buffer
-    const uint32_t tmp_idx = i->idx;
+    if (unlikely(is_pipe(w))) {
+        // we need to copy the data for pipes
+        memcpy(i->base, buf, s->len);
+        i->buf = ip_data(i->base) + sizeof(*udp);
+    } else {
+        // remember index of this buffer
+        const uint32_t tmp_idx = i->idx;
 
-    // adjust the buffer offset to the received data into the iov
-    i->base = buf;
-    i->buf = ip_data(buf) + sizeof(*udp);
-    i->len = udp_len - sizeof(*udp);
-    i->idx = s->buf_idx;
+        // adjust the buffer offset to the received data into the iov
+        i->base = buf;
+        i->buf = ip_data(buf) + sizeof(*udp);
+        i->idx = s->buf_idx;
+
+        // put the original buffer of the iov into the receive ring
+        s->buf_idx = tmp_idx;
+        s->flags = NS_BUF_CHANGED;
+    }
 
     // tag the iov with sender information and metadata
+    i->len = udp_len - sizeof(*udp);
     i->ip = ip->src;
     i->port = udp->sport;
     i->flags = ip->tos;
 
     // append the iov to the socket
     sq_insert_tail(&ws->iv, i, next);
-
-    // put the original buffer of the iov into the receive ring
-    s->buf_idx = tmp_idx;
-    s->flags = NS_BUF_CHANGED;
 }
 
 
