@@ -43,6 +43,8 @@ env.tests = [
     #  "client_iface": "enp2s0f0", "server_iface": "enp2s0f0"},
      {"speed": 40, "iter": 100, "client": "mora1", "server": "mora2",
      "client_iface": "enp6s0f0", "server_iface": "enp6s0f0"},
+     {"speed": 1000, "iter": 100, "client": "mora1", "server": "mora1",
+     "client_iface": "lo", "server_iface": "lo"},
 ]
 
 
