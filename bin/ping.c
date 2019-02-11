@@ -236,7 +236,7 @@ int
         long iter = loops;
         while (likely(iter--)) {
             // pick a random connection for output
-            const uint32_t c = w_rand_uniform(conns);
+            const uint32_t c = (uint32_t)w_rand_uniform(conns);
 
             // get the current time
             struct timespec before_tx;
