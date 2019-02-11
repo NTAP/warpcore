@@ -15,7 +15,7 @@ declare -A tests=(
     # [linux10]=10:50:mora1:enp2s0f0:10.11.12.7:mora2:enp2s0f0:10.11.12.8
     [linux40]=40:100:mora1:enp6s0f0:10.11.12.7:mora2:enp6s0f0:10.11.12.8
     # [linux100]=1:200:mora1:vcc1:10.11.12.7:mora2:vcc1:10.11.12.8
-    [linuxlo]=50:200:mora1:lo:127.0.0.1:mora1:lo:127.0.0.1
+    [linuxlo]=50:100:mora1:lo:127.0.0.1:mora1:lo:127.0.0.1
 )
 
 speed=0
@@ -32,6 +32,12 @@ declare -A pin=(
     [Linux]="/usr/bin/taskset -c"
     [FreeBSD]="/usr/bin/cpuset -l"
 )
+
+declare -A preload=(
+    [Linux]="/usr/lib/x86_64-linux-gnu/libprofiler.so"
+    [FreeBSD]="/usr/local/lib/libprofiler.so"
+)
+
 
 declare -A os
 
@@ -188,11 +194,13 @@ function start_clnt() {
     prefix="../${kind}ping-${t[$speed]}${busywait}${cksum}"
     file="${prefix}.txt"
     log="${prefix}.log"
+    prof="${prefix}.prof"
     run "${t[$clnt]}" "\
         cd $warpcore/${os[clnt]}-benchmarking; \
-        ${pin[${os[clnt]}]} 3 bin/${kind}ping -i ${t[$clnt_if]} \
-            -d ${t[$serv_ip]} $busywait $cksum -l ${t[$iter]} \
-            -s 32 -p 0 -e 17000000 > $file 2> $log"
+        env LD_PRELOAD=${preload[${os[clnt]}]} CPUPROFILE=$prof \
+            ${pin[${os[clnt]}]} 3 bin/${kind}ping -i ${t[$clnt_if]} \
+                -d ${t[$serv_ip]} $busywait $cksum -l ${t[$iter]} \
+                -s 32 -p 0 -e 17000000 > $file 2> $log"
 }
 
 
@@ -206,10 +214,12 @@ function start_serv() {
     prefix="../${kind}inetd-${t[$speed]}${busywait}${cksum}"
     file="${prefix}.txt"
     log="${prefix}.log"
+    prof="${prefix}.prof"
     run "${t[$serv]}" "\
         cd $warpcore/${os[serv]}-benchmarking; \
-        /usr/bin/nohup ${pin[${os[serv]}]} 1 bin/${kind}inetd \
-        -i ${t[$serv_if]} $busywait $cksum > /dev/null 2> $log &"
+        /usr/bin/nohup env LD_PRELOAD=${preload[${os[clnt]}]} CPUPROFILE=$prof \
+            ${pin[${os[clnt]}]} 3 ${pin[${os[serv]}]} 1 bin/${kind}inetd \
+                -i ${t[$serv_if]} $busywait $cksum > /dev/null 2> $log &"
 }
 
 
