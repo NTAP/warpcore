@@ -111,13 +111,16 @@ void
     struct w_sock * ws =
         w_get_sock(w, ip->dst, udp->dport, ip->src, udp->sport);
     if (unlikely(ws == 0)) {
-        // nobody bound to this port locally
-        // send an ICMP unreachable reply, if this was not a broadcast
-        if (ip->dst == w->ip)
-            icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
-        return;
+        // no socket connected, check for bound-only socket
+        ws = w_get_sock(w, ip->dst, udp->dport, 0, 0);
+        if (unlikely(ws == 0)) {
+            // nobody bound to this port locally
+            // send an ICMP unreachable reply, if this was not a broadcast
+            if (ip->dst == w->ip)
+                icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
+            return;
+        }
     }
-
     // grab an unused iov for the data in this packet
     //
     // XXX w_alloc_iov() does some (in this case) unneeded initialization;
