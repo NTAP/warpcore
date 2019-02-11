@@ -171,7 +171,7 @@ def start_server(test, busywait, cksum, kind):
         prefix = "../%sinetd-%s%s%s" % (kind, test["speed"], busywait, cksum)
         log = prefix + ".log"
         prof = prefix + ".prof"
-        sudo("/usr/bin/nohup %s 3 env LD_PRELOAD=%s "
+        sudo("/usr/bin/nohup %s 1 env LD_PRELOAD=%s "
              "XXXCPUPROFILE=%s XXXCPUPROFILE_FREQUENCY=10000 "
              "%s/bin/%sinetd -i %s %s %s 2>&1 > %s &" %
              (pin, preload, prof, env.builddir, kind, test["server_iface"],

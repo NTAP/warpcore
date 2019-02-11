@@ -21,15 +21,15 @@ speed=0
 iter=1
 clnt=2
 clnt_if=3
-clnt_ip=4
+# clnt_ip=4
 serv=5
 serv_if=6
 serv_ip=7
 
 
 declare -A pin=(
-    [Linux]="/usr/bin/taskset -c 3"
-    [FreeBSD]="/usr/bin/cpuset -l 3"
+    [Linux]="/usr/bin/taskset -c"
+    [FreeBSD]="/usr/bin/cpuset -l"
 )
 
 declare -A os
@@ -56,7 +56,6 @@ function ip_unconf() {
     local t=("$@")
     local host_if=${t[${role}_if]}
     local host_ip=${t[${role}_ip]}
-    echo $host_ip
 
     if [ "${os[$role]}" == Linux ]; then
         cmd=""
@@ -182,7 +181,7 @@ function start_clnt() {
     log="${prefix}.log"
     run "${t[$clnt]}" "\
         cd $warpcore/${os[clnt]}-benchmarking; \
-        ${pin[${os[clnt]}]} bin/${kind}ping -i ${t[$clnt_if]} \
+        ${pin[${os[clnt]}]} 3 bin/${kind}ping -i ${t[$clnt_if]} \
             -d ${t[$serv_ip]} $busywait $cksum -l ${t[$iter]} \
             -s 32 -p 0 -e 17000000 > $file 2> $log"
 }
@@ -200,8 +199,8 @@ function start_serv() {
     log="${prefix}.log"
     run "${t[$serv]}" "\
         cd $warpcore/${os[serv]}-benchmarking; \
-        /usr/bin/nohup ${pin[${os[serv]}]} bin/${kind}inetd -i ${t[$serv_if]} \
-        $busywait $cksum > /dev/null 2> $log &"
+        /usr/bin/nohup ${pin[${os[serv]}]} 1 bin/${kind}inetd \
+        -i ${t[$serv_if]} $busywait $cksum > /dev/null 2> $log &"
 }
 
 
