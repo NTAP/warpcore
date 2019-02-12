@@ -15,7 +15,7 @@ declare -A tests=(
     # [linux10]=10:50:mora1:enp2s0f0:10.11.12.7:mora2:enp2s0f0:10.11.12.8
     [linux40]=40:100:mora1:enp6s0f0:10.11.12.7:mora2:enp6s0f0:10.11.12.8
     # [linux100]=1:200:mora1:vcc1:10.11.12.7:mora2:vcc1:10.11.12.8
-    [linuxlo]=50:100:mora1:lo:127.0.0.1:mora1:lo:127.0.0.1
+    [linuxlo]=42:100:mora1:lo:127.0.0.1:mora1:lo:127.0.0.1
 )
 
 speed=0
@@ -191,16 +191,22 @@ function start_clnt() {
     shift 3
     local t=("$@")
 
+    if [ "$kind" == warp ]; then
+        end=17000000
+    else
+        end=4500000
+    fi
     prefix="../${kind}ping-${t[$speed]}${busywait}${cksum}"
     file="${prefix}.txt"
     log="${prefix}.log"
     prof="${prefix}.prof"
     run "${t[$clnt]}" "\
         cd $warpcore/${os[clnt]}-benchmarking; \
-        env LD_PRELOAD=${preload[${os[clnt]}]} CPUPROFILE=$prof \
+        env LD_PRELOAD=${preload[${os[clnt]}]} \
+            CPUPROFILE=$prof CPUPROFILE_FREQUENCY=2000 \
             ${pin[${os[clnt]}]} 3 bin/${kind}ping -i ${t[$clnt_if]} \
                 -d ${t[$serv_ip]} $busywait $cksum -l ${t[$iter]} \
-                -s 32 -p 0 -e 17000000 > $file 2> $log"
+                -s 32 -p 0 -e $end > $file 2> $log"
 }
 
 
@@ -217,8 +223,9 @@ function start_serv() {
     prof="${prefix}.prof"
     run "${t[$serv]}" "\
         cd $warpcore/${os[serv]}-benchmarking; \
-        /usr/bin/nohup env LD_PRELOAD=${preload[${os[clnt]}]} CPUPROFILE=$prof \
-            ${pin[${os[clnt]}]} 3 ${pin[${os[serv]}]} 1 bin/${kind}inetd \
+        /usr/bin/nohup env LD_PRELOAD=${preload[${os[clnt]}]} \
+            CPUPROFILE=$prof CPUPROFILE_FREQUENCY=2000 \
+            ${pin[${os[serv]}]} 1 bin/${kind}inetd \
                 -i ${t[$serv_if]} $busywait $cksum > /dev/null 2> $log &"
 }
 
@@ -228,10 +235,35 @@ function clean_logs() {
 
     run "${t[clnt]}" "\
         cd $warpcore; \
-        rm warp*${t[$speed]}*.log sock*${t[$speed]}*.log \
-            warp*${t[$speed]}*.txt sock*${t[$speed]}*.txt \
-            warp*${t[$speed]}*.prof sock*${t[$speed]}*.prof" \
+        rm warpi*.log socki*.log warpi*.txt socki*.txt \
+            warpi*.prof socki*.prof warpi*.prof_* socki*.prof_* \
+            warpp*.log sockp*.log warpp*.txt sockp*.txt \
+            warpp*.prof sockp*.prof warpp*.prof_* sockp*.prof_*" \
     || true
+}
+
+
+function trim_logs() {
+    local role=$1
+    local busywait=$2
+    local cksum=$3
+    local kind=$4
+    shift 4
+    local t=("$@")
+
+    if [ "$role" == clnt ]; then
+        bin=ping
+    else
+        bin=inetd
+    fi
+    prefix="${kind}${bin}-${t[$speed]}${busywait}${cksum}"
+    log="${prefix}.log"
+    prof="${prefix}.prof"
+    run "${t[$role]}" "\
+        cd $warpcore; \
+        sed -i'' 1d $log; \
+        [ ! -s $log ] && rm $log; \
+        [ ! -s $prof -a -s ${prof}_* ] && mv ${prof}_* $prof"
 }
 
 
@@ -268,10 +300,10 @@ for tag in "${!tests[@]}"; do
             for w in -b ""; do
                 echo "${red}Benchmark $t $k $c $w${nrm}"
                 start_serv "$w" "$c" "$k" "${t[@]}"
-                sleep 3
+                sleep 2
                 start_clnt "$w" "$c" "$k" "${t[@]}"
-                stop clnt "${t[@]}" &
-                stop serv "${t[@]}" &
+                stop clnt "${t[@]}" ; trim_logs clnt "$w" "$c" "$k" "${t[@]}" &
+                stop serv "${t[@]}" ; trim_logs serv "$w" "$c" "$k" "${t[@]}" &
                 wait
             done
         done
