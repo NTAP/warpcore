@@ -192,6 +192,7 @@ bool
     udp->len = htons(len);
 
     // compute the checksum, unless disabled by a socket option
+    udp->cksum = 0;
     if (unlikely(s->opt.enable_udp_zero_checksums == false))
         udp->cksum = udp_cksum(ip, len + sizeof(*ip));
 
