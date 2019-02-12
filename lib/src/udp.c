@@ -84,7 +84,7 @@ void
 {
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
     const uint16_t ip_len = ntohs(ip->len);
-    const struct udp_hdr * const udp = (void *)ip_data(buf);
+    struct udp_hdr * const udp = (void *)ip_data(buf);
 
     if (unlikely(ip_len - sizeof(*ip) < sizeof(*udp))) {
 #ifndef FUZZING
