@@ -63,13 +63,8 @@ my_plot = function(dt, x, y, xlabel, ylabel, ylabeller) {
     dm = filter(dt, dt$method == m)
     for (s in unique(dt$speed)) {
       d = filter(dm, dm$speed == s)
-      print(d)
-      # if (s == 1)
-      #   d = filter(d, d$byte < 100000)
-      # else if (s == 10)
-      #   d = filter(d, d$byte < 4000000)
-      # else
-      #   d = filter(d, d$byte < 32000000)
+      # Eth preamble/crc/gap + Eth hdr + IP hdr + UDP hdr
+      d$byte = d$byte + (d$pkts * (24 + 14 + 20 + 8))
 
       if (grepl("Gb", ylabel, fixed=TRUE))
         ymax = as.numeric(s)/8
@@ -99,7 +94,7 @@ my_plot = function(dt, x, y, xlabel, ylabel, ylabeller) {
   plots[[i+1]] <- get_legend(plots[[1]] +
                              theme(legend.position="bottom",
                                    legend.title=element_blank()))
-  plot_grid(plotlist=plots, ncol=3, rel_heights = c(1, 1, .1))
+  plot_grid(plotlist=plots, ncol=2, rel_heights = c(1, 1, .1))
 }
 
 
