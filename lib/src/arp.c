@@ -25,6 +25,12 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+
+#ifdef __FreeBSD__
+#include <sys/types.h> // IWYU pragma: keep
+#include <sys/socket.h> // IWYU pragma: keep
+#endif
+
 #include <arpa/inet.h>
 #include <netinet/if_ether.h>
 #include <netinet/in.h>

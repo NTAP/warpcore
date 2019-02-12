@@ -25,6 +25,10 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#ifdef __FreeBSD__
+#include <netinet/in.h> // IWYU pragma: keep
+#endif
+
 #include <fcntl.h>
 #include <net/if.h>
 #include <net/netmap_user.h>
@@ -42,8 +46,8 @@
 #define klib_unused
 
 // IWYU pragma: no_include <net/netmap.h>
+// IWYU pragma: no_include <net/netmap_legacy.h>
 #include <khash.h>
-#include <net/netmap_legacy.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 

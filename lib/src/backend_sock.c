@@ -30,8 +30,10 @@
 
 #if defined(__linux__)
 #include <limits.h>
-#else
+#elif defined (__APPLE__)
 #include <netinet/udp.h>
+#else
+#include <sys/types.h> // IWYU pragma: keep
 #endif
 
 #include <netinet/in.h>
@@ -82,12 +84,12 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     if (s->opt.enable_udp_zero_checksums != opt->enable_udp_zero_checksums) {
         s->opt.enable_udp_zero_checksums = opt->enable_udp_zero_checksums;
-#ifdef __linux__
+#if defined(__linux__)
         ensure(setsockopt(s->fd, SOL_SOCKET, SO_NO_CHECK,
                           &(int){s->opt.enable_udp_zero_checksums},
                           sizeof(int)) >= 0,
                "cannot setsockopt SO_NO_CHECK");
-#else
+#elif defined(__APPLE__)
         ensure(setsockopt(s->fd, IPPROTO_UDP, UDP_NOCKSUM,
                           &(int){s->opt.enable_udp_zero_checksums},
                           sizeof(int)) >= 0,
