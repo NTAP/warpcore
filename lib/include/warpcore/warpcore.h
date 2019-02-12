@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <sys/socket.h>
 #include <sys/time.h>
 
 #include <warpcore/config.h> // IWYU pragma: export
@@ -109,26 +110,29 @@ struct w_sockopt {
 };
 
 
+struct w_tuple {
+    uint32_t sip;   ///< Source IP.
+    uint32_t dip;   ///< Destination IP.
+    uint16_t sport; ///< Source port.
+    uint16_t dport; ///< Destination port.
+};
+
+
 /// A warpcore socket.
 ///
 struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     struct w_engine * w;
 
-    struct w_iov_sq iv; ///< Tail queue containing incoming unread data.
-
-    /// The template header to be used for outbound packets on this
-    /// w_sock.
-    struct w_hdr * hdr;
-
-    sl_entry(w_sock) next_rx; ///< Next socket with unread data.
-    struct w_sockopt opt;     ///< Socket options.
-
-    /// @cond
-    uint8_t _unused[3]; ///< @internal Padding.
-    /// @endcond
+    struct w_tuple tup;     ///< Socket four-tuple.
+    struct ether_addr dmac; ///< Destination MAC address.
+    struct w_sockopt opt;   ///< Socket options.
 
     int fd; ///< Socket descriptor underlying the engine.
+
+    struct w_iov_sq iv; ///< Tail queue containing incoming unread data.
+
+    sl_entry(w_sock) next_rx; ///< Next socket with unread data.
 };
 
 
@@ -257,14 +261,9 @@ w_rx_ready(struct w_engine * const w, struct w_sock_slist * sl);
 extern uint16_t __attribute__((nonnull))
 w_iov_max_len(const struct w_iov * const v);
 
-extern bool __attribute__((nonnull)) w_connected(const struct w_sock * const s);
-
 extern void __attribute__((nonnull)) w_free(struct w_iov_sq * const q);
 
 extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
-
-extern uint16_t __attribute__((nonnull))
-w_get_sport(const struct w_sock * const s);
 
 extern struct w_sock * __attribute__((nonnull))
 w_get_sock(struct w_engine * const w,
@@ -380,6 +379,33 @@ static inline const struct w_sockopt * __attribute__((always_inline, nonnull))
 w_get_sockopt(const struct w_sock * const s)
 {
     return &s->opt;
+}
+
+
+/// Return the local port a w_sock is bound to.
+///
+/// @param[in]  s     Pointer to w_sock.
+///
+/// @return     Local port number in network byte-order, or zero if unbound.
+///
+static inline uint16_t __attribute__((always_inline, nonnull))
+w_get_sport(const struct w_sock * const s)
+{
+    return s->tup.sport;
+}
+
+
+/// Return whether a socket is connected (i.e., w_connect() has been called on
+/// it) or not.
+///
+/// @param[in]  s     Connection.
+///
+/// @return     True when connected, zero otherwise.
+///
+static inline bool __attribute__((always_inline, nonnull))
+w_connected(const struct w_sock * const s)
+{
+    return s->tup.dip;
 }
 
 

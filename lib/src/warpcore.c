@@ -55,9 +55,12 @@
 #endif
 
 #include "backend.h"
+
+#ifdef WITH_NETMAP
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
+#endif
 
 
 // w_init() must initialize this so that it is not all zero
@@ -90,28 +93,28 @@ struct w_sock * w_get_sock(struct w_engine * const w,
     khash_t(sock) * const sock = w->sock;
     const khiter_t k =
         kh_get(sock, sock,
-               (&(struct w_hdr){.ip = {.src = sip, .dst = dip},
-                                .udp = {.sport = sport, .dport = dport}}));
+               (&(struct w_tuple){
+                   .sip = sip, .dip = dip, .sport = sport, .dport = dport}));
     return unlikely(k == kh_end(sock)) ? 0 : kh_val(sock, k);
 }
 
 
-static inline void __attribute__((nonnull))
+static void __attribute__((nonnull))
 ins_sock(struct w_engine * const w, struct w_sock * const s)
 {
     khash_t(sock) * const sock = w->sock;
     int ret;
-    const khiter_t k = kh_put(sock, sock, s->hdr, &ret);
+    const khiter_t k = kh_put(sock, sock, &s->tup, &ret);
     ensure(ret >= 1, "inserted is %d", ret);
     kh_val(sock, k) = s;
 }
 
 
-static inline void __attribute__((nonnull))
+static void __attribute__((nonnull))
 rem_sock(struct w_engine * const w, struct w_sock * const s)
 {
     khash_t(sock) * const sock = w->sock;
-    const khiter_t k = kh_get(sock, sock, s->hdr);
+    const khiter_t k = kh_get(sock, sock, &s->tup);
     ensure(k != kh_end(sock), "found");
     kh_del(sock, sock, k);
 }
@@ -132,8 +135,10 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
     struct w_iov * const v = w_alloc_iov_base(w);
     if (likely(v)) {
 #ifdef WITH_NETMAP
-        v->buf += sizeof(struct w_hdr);
-        v->len -= sizeof(struct w_hdr);
+        const size_t diff = sizeof(struct eth_hdr) + sizeof(struct ip_hdr) +
+                            sizeof(struct udp_hdr);
+        v->buf += diff;
+        v->len -= diff;
 #endif
         ensure(off == 0 || off <= v->len, "off %u > v->len %u", off, v->len);
         v->buf += off;
@@ -247,15 +252,14 @@ uint32_t w_iov_sq_len(const struct w_iov_sq * const q)
 ///
 int w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 {
-    ensure(s->hdr->ip.dst == 0 && s->hdr->udp.dport == 0,
-           "socket already connected");
+    ensure(s->tup.dip == 0 && s->tup.dport == 0, "socket already connected");
 
     rem_sock(s->w, s);
-    s->hdr->ip.dst = ip;
-    s->hdr->udp.dport = port;
+    s->tup.dip = ip;
+    s->tup.dport = port;
     const int e = backend_connect(s);
     if (unlikely(e)) {
-        s->hdr->ip.dst = s->hdr->udp.dport = 0;
+        s->tup.dip = s->tup.dport = 0;
         ins_sock(s->w, s);
         return e;
     }
@@ -264,7 +268,8 @@ int w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
 #if !defined(NDEBUG) && DLEVEL >= NTE
     char str[INET_ADDRSTRLEN];
     warn(DBG, "socket connected to %s port %d",
-         inet_ntop(AF_INET, &ip, str, INET_ADDRSTRLEN), ntohs(port));
+         inet_ntop(AF_INET, &s->tup.dip, str, INET_ADDRSTRLEN),
+         ntohs(s->tup.dport));
 #endif
 
     return 0;
@@ -293,17 +298,10 @@ struct w_sock * w_bind(struct w_engine * const w,
 
     if (unlikely(s = calloc(1, sizeof(*s))) == 0)
         goto fail;
-    if (unlikely(s->hdr = calloc(1, sizeof(*s->hdr))) == 0)
-        goto fail;
 
-    // initialize the non-zero fields of outgoing template header
-    s->hdr->eth.type = ETH_TYPE_IP;
-    s->hdr->eth.src = w->mac;
-    // s->hdr->eth.dst is set on w_connect()
-    ip_hdr_init(&s->hdr->ip);
-    s->hdr->ip.src = w->ip;
-    s->hdr->udp.sport = port;
-    // s->hdr->ip.dst is set on w_connect()
+    s->tup.sip = w->ip;
+    s->tup.sport = port;
+    // s->tup.dip and s->tup.dport are set on w_connect()
     s->w = w;
     sq_init(&s->iv);
 
@@ -311,15 +309,13 @@ struct w_sock * w_bind(struct w_engine * const w,
         goto fail;
 
 #ifndef FUZZING
-    warn(NTE, "socket bound to port %d", ntohs(s->hdr->udp.sport));
+    warn(NTE, "socket bound to port %d", ntohs(s->tup.sport));
 #endif
 
     ins_sock(w, s);
     return s;
 
 fail:
-    if (s && s->hdr)
-        free(s->hdr);
     if (s)
         free(s);
     return 0;
@@ -336,9 +332,6 @@ void w_close(struct w_sock * const s)
 
     // remove the socket from list of sockets
     rem_sock(s->w, s);
-
-    // free the template header
-    free(s->hdr);
 
     // free the socket
     free(s);
@@ -525,19 +518,6 @@ uint16_t w_iov_max_len(const struct w_iov * const v)
 }
 
 
-/// Return whether a socket is connected (i.e., w_connect() has been called on
-/// it) or not.
-///
-/// @param[in]  s     Connection.
-///
-/// @return     True when connected, zero otherwise.
-///
-bool w_connected(const struct w_sock * const s)
-{
-    return s->hdr->ip.dst;
-}
-
-
 /// Return a w_iov tail queue obtained via w_alloc_len(), w_alloc_cnt() or
 /// w_rx() back to warpcore.
 ///
@@ -566,18 +546,6 @@ void w_free_iov(struct w_iov * const v)
 {
     sq_insert_head(&v->w->iov, v, next);
     ASAN_POISON_MEMORY_REGION(v->base, v->w->mtu);
-}
-
-
-/// Return the local port a w_sock is bound to.
-///
-/// @param[in]  s     Pointer to w_sock.
-///
-/// @return     Local port number in network byte-order, or zero if unbound.
-///
-uint16_t w_get_sport(const struct w_sock * const s)
-{
-    return s->hdr->udp.sport;
 }
 
 

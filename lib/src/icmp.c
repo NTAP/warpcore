@@ -27,10 +27,7 @@
 
 #include <warpcore/warpcore.h>
 
-// IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
-#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
@@ -38,6 +35,9 @@
 #ifndef FUZZING
 #include <unistd.h>
 #endif
+
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 
 #include "backend.h"
 #include "eth.h"
@@ -71,7 +71,7 @@ void icmp_tx(struct w_engine * const w,
     }
 
     // construct an ICMP header and set the fields
-    struct icmp_hdr * const dst_icmp = (void *)ip_data(v->buf);
+    struct icmp_hdr * const dst_icmp = (void *)ip_data(v->base);
     dst_icmp->type = type;
     dst_icmp->code = code;
     rwarn(INF, 10, "sending ICMP type %d, code %d", type, code);
@@ -115,22 +115,21 @@ void icmp_tx(struct w_engine * const w,
     dst_icmp->cksum = ip_cksum(dst_icmp, sizeof(*dst_icmp) + data_len);
 
     // construct an IPv4 header
-    struct ip_hdr * const dst_ip = (void *)eth_data(v->buf);
-    ip_hdr_init(dst_ip);
-    dst_ip->src = w->ip;
-    dst_ip->dst = src_ip->src;
+    struct ip_hdr * const dst_ip = (void *)eth_data(v->base);
+    v->ip = src_ip->src;
     dst_ip->p = IP_P_ICMP;
+    mk_ip_hdr(v, sizeof(*dst_icmp) + data_len, 0);
 
     // set the Ethernet header
     const struct eth_hdr * const src_eth = (const void *)buf;
-    struct eth_hdr * const dst_eth = (void *)v->buf;
+    struct eth_hdr * const dst_eth = (void *)v->base;
     dst_eth->dst = src_eth->src;
     dst_eth->src = w->mac;
     dst_eth->type = ETH_TYPE_IP;
 
     // now send the packet, and make sure it went out before returning it
     const uint32_t orig_idx = v->idx;
-    ip_tx(w, v, sizeof(*dst_icmp) + data_len, false);
+    eth_tx(v, sizeof(*dst_ip) + sizeof(*dst_icmp) + data_len);
     do {
 #ifndef FUZZING
         usleep(100);

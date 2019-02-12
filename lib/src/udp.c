@@ -27,15 +27,15 @@
 
 #include <warpcore/warpcore.h>
 
-// IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
 
-#include "arp.h"
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
+
 #include "backend.h"
 #include "eth.h"
 #include "icmp.h"
@@ -180,22 +180,16 @@ bool
 #endif
     udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
-    // copy template header into buffer and fill in remaining fields
-    memcpy(v->base, s->hdr, sizeof(*s->hdr));
-
     struct ip_hdr * const ip = (void *)eth_data(v->base);
     struct udp_hdr * const udp = (void *)ip_data(v->base);
     const uint16_t len = v->len + sizeof(*udp);
-    udp->len = htons(len);
 
-    // if w_sock is disconnected, use destination IP and port from w_iov
-    // instead of the one in the template header
-    if (!w_connected(s)) {
-        struct eth_hdr * const e = (void *)v->base;
-        e->dst = arp_who_has(s->w, v->ip);
-        ip->dst = v->ip;
-        udp->dport = v->port;
-    }
+    mk_eth_hdr(s, v);
+    mk_ip_hdr(v, len, s);
+
+    udp->sport = s->tup.sport;
+    udp->dport = w_connected(s) ? s->tup.dport : v->port;
+    udp->len = htons(len);
 
     // compute the checksum, unless disabled by a socket option
     if (unlikely(s->opt.enable_udp_zero_checksums == false))
@@ -203,5 +197,5 @@ bool
 
     udp_log(udp);
 
-    return ip_tx(s->w, v, len, s->opt.enable_ecn);
+    return eth_tx(v, len + sizeof(struct ip_hdr));
 }

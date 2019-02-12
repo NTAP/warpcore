@@ -29,11 +29,20 @@
 
 #include <arpa/inet.h>
 #include <netinet/if_ether.h>
+#include <stdbool.h>
 #include <stdint.h>
 
-#include <warpcore/warpcore.h> // IWYU pragma: keep
+#ifdef WITH_NETMAP
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
+#endif
+
+#include <warpcore/warpcore.h>
+
+#include "arp.h"
 
 struct netmap_slot;
+
 
 /// An [Ethernet II MAC
 /// header](https://en.wikipedia.org/wiki/Ethernet_frame#Ethernet_II).
@@ -70,4 +79,21 @@ extern void __attribute__((nonnull)) eth_rx(struct w_engine * const w,
 #ifndef HAVE_ETHER_NTOA_R
 extern char * __attribute__((nonnull))
 ether_ntoa_r(const struct ether_addr * const addr, char * const buf);
+#endif
+
+
+#ifdef WITH_NETMAP
+
+static inline void __attribute__((nonnull))
+mk_eth_hdr(const struct w_sock * const s, struct w_iov * const v)
+{
+    struct eth_hdr * const eth = (void *)v->base;
+    eth->dst = w_connected(s) ? s->dmac : arp_who_has(s->w, v->ip);
+    eth->src = v->w->mac;
+    eth->type = ETH_TYPE_IP;
+}
+
+extern bool __attribute__((nonnull))
+eth_tx(struct w_iov * const v, const uint16_t len);
+
 #endif

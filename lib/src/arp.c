@@ -25,14 +25,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#define klib_unused
-
-#include <khash.h>
-#include <warpcore/warpcore.h>
-
-// IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
 #include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <stdint.h>
@@ -44,12 +37,15 @@
 #include <unistd.h>
 #endif
 
+#define klib_unused
+
+#include <khash.h>
+#include <warpcore/warpcore.h>
+
 #include "arp.h"
 #include "backend.h"
 #include "eth.h"
-#include "eth_tx.h"
 #include "ip.h"
-#include "udp.h"
 
 
 /// Find the ARP cache entry associated with IPv4 address @p ip.
@@ -118,7 +114,7 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf)
         warn(CRT, "no more bufs; ARP reply not sent");
         return;
     }
-    struct arp_hdr * const reply = (void *)eth_data(v->buf);
+    struct arp_hdr * const reply = (void *)eth_data(v->base);
 
     // construct ARP header
     struct arp_hdr * const req = (void *)eth_data(buf);
@@ -141,14 +137,14 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf)
 #endif
 
     // send the Ethernet packet
-    struct eth_hdr * const eth = (void *)v->buf;
+    struct eth_hdr * const eth = (void *)v->base;
     eth->dst = req->sha;
     eth->src = w->mac;
     eth->type = ETH_TYPE_ARP;
 
     // now send the packet, and make sure it went out before returning it
     const uint32_t orig_idx = v->idx;
-    eth_tx(w, v, sizeof(*reply));
+    eth_tx(v, sizeof(*reply));
     do {
 #ifndef FUZZING
         usleep(100);
@@ -191,8 +187,8 @@ struct ether_addr
         }
 
         // pointers to the start of the various headers
-        struct eth_hdr * const eth = (void *)v->buf;
-        struct arp_hdr * const arp = (void *)eth_data(v->buf);
+        struct eth_hdr * const eth = (void *)v->base;
+        struct arp_hdr * const arp = (void *)eth_data(v->base);
 
         // set Ethernet header fields
         eth->dst = (struct ether_addr){{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}};
@@ -220,7 +216,7 @@ struct ether_addr
 
         // now send the packet, and make sure it went out before returning it
         const uint32_t orig_idx = v->idx;
-        eth_tx(w, v, sizeof(*eth) + sizeof(*arp));
+        eth_tx(v, sizeof(*arp));
         do {
 #ifndef FUZZING
             usleep(100);
@@ -307,14 +303,14 @@ void
         kh_foreach_value((khash_t(sock) *)w->sock, s, {
             if ( // is local-net socket and ARP src IP matches its dst
                 ((mk_net(s->w->ip, s->w->mask) ==
-                      mk_net(s->hdr->ip.dst, s->w->mask) &&
-                  arp->spa == s->hdr->ip.dst)) ||
+                      mk_net(s->tup.dip, s->w->mask) &&
+                  arp->spa == s->tup.dip)) ||
                 // or non-local socket and ARP src IP matches router
                 (s->w->rip && (s->w->rip == arp->spa))) {
                 warn(NTE, "updating socket on local port %u with %s for %s",
-                     ntohs(s->hdr->udp.sport), ether_ntoa(&arp->sha),
+                     ntohs(s->tup.sport), ether_ntoa(&arp->sha),
                      inet_ntop(AF_INET, &arp->spa, ip_str, INET_ADDRSTRLEN));
-                s->hdr->eth.dst = arp->sha;
+                s->dmac = arp->sha;
             }
         });
         break;

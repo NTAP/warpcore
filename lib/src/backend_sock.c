@@ -198,11 +198,11 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
         return errno;
 
     struct sockaddr_in addr = {.sin_family = AF_INET,
-                               .sin_port = s->hdr->udp.sport,
-                               .sin_addr = {.s_addr = s->hdr->ip.src}};
+                               .sin_port = s->tup.sport,
+                               .sin_addr = {.s_addr = s->tup.sip}};
     if (unlikely(bind(s->fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)) {
         warn(ERR, "bind failed on %s:%u", inet_ntoa(addr.sin_addr),
-             ntohs(s->hdr->udp.sport));
+             ntohs(s->tup.sport));
         return errno;
     }
 
@@ -215,11 +215,11 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
         w_set_sockopt(s, opt);
 
     // if we're binding to a random port, find out what it is
-    if (s->hdr->udp.sport == 0) {
+    if (s->tup.sport == 0) {
         socklen_t len = sizeof(addr);
         ensure(getsockname(s->fd, (struct sockaddr *)&addr, &len) >= 0,
                "getsockname");
-        s->hdr->udp.sport = addr.sin_port;
+        s->tup.sport = addr.sin_port;
     }
 
 #if defined(HAVE_KQUEUE)
@@ -245,12 +245,12 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 int backend_connect(struct w_sock * const s)
 {
     const struct sockaddr_in addr = {.sin_family = AF_INET,
-                                     .sin_port = s->hdr->udp.dport,
-                                     .sin_addr = {.s_addr = s->hdr->ip.dst}};
+                                     .sin_port = s->tup.dport,
+                                     .sin_addr = {.s_addr = s->tup.dip}};
     if (unlikely(connect(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) !=
                  0)) {
         warn(ERR, "connect to %s:%u failed", inet_ntoa(addr.sin_addr),
-             ntohs(s->hdr->udp.dport));
+             ntohs(s->tup.dport));
         return errno;
     }
     return 0;
@@ -326,8 +326,8 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
                                               .sin_port = v->port,
                                               .sin_addr = {v->ip}};
             } else {
-                v->ip = s->hdr->ip.dst;
-                v->port = s->hdr->udp.dport;
+                v->ip = s->tup.dip;
+                v->port = s->tup.dport;
             }
 #ifdef HAVE_SENDMMSG
             msgvec[i].msg_hdr =

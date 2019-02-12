@@ -25,19 +25,19 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// IWYU pragma: no_include <net/netmap.h>
-
 #include <arpa/inet.h>
-#include <net/netmap_user.h>
 #include <string.h>
 
 #ifdef __APPLE__
 #include <sys/types.h>
 #endif
 
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
+#include "backend.h"
 #include "eth.h"
 #include "ip.h"
 
@@ -96,4 +96,68 @@ void eth_rx(struct w_engine * const w,
     else
         warn(INF, "unhandled ethertype 0x%04x", ntohs(eth->type));
 #endif
+}
+
+
+/// Places an Ethernet frame into a TX ring. The Ethernet frame is contained in
+/// the w_iov @p v, and will be placed into an available slot in a TX ring or -
+/// if all are full - dropped.
+///
+/// @param      v     The w_iov containing the Ethernet frame to transmit.
+/// @param[in]  len   The length of the Ethernet *payload* contained in @p v.
+///
+/// @return     True if the buffer was placed into a TX ring, false otherwise.
+///
+bool __attribute__((nonnull)) eth_tx(struct w_iov * const v, const uint16_t len)
+{
+    struct w_backend * const b = v->w->b;
+
+    // find a tx ring with space
+    struct netmap_ring * txr = 0;
+    uint32_t r = 0;
+    for (; likely(r < b->nif->ni_tx_rings); r++) {
+        txr = NETMAP_TXRING(b->nif, b->cur_txr);
+        if (likely(!nm_ring_empty(txr)))
+            // we have space in this ring
+            break;
+
+        warn(INF, "tx ring %u full; moving to next", b->cur_txr);
+        b->cur_txr = (b->cur_txr + 1) % b->nif->ni_tx_rings;
+    }
+
+    // return false if all rings are full
+    if (unlikely(r == b->nif->ni_tx_rings)) {
+        warn(INF, "all tx rings are full");
+        return false;
+    }
+
+    struct netmap_slot * const s = &txr->slot[txr->cur];
+    b->slot_buf[txr->ringid][txr->cur] = v;
+    s->len = len + sizeof(struct eth_hdr);
+
+    if (unlikely(nm_ring_space(txr) == 1 || sq_next(v, next) == 0)) {
+        // we are using the last slot in this ring, or this is the last w_iov in
+        // this batch - mark the slot for reporting
+        s->flags = NS_REPORT | NS_BUF_CHANGED;
+    } else
+        s->flags = NS_BUF_CHANGED;
+
+    warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
+         v->idx, b->cur_txr, txr->cur, s->buf_idx);
+    // temporarily place v into the current tx ring
+    const uint32_t slot_idx = s->buf_idx;
+    s->buf_idx = v->idx;
+    v->idx = slot_idx;
+
+#if !defined(NDEBUG) && DLEVEL >= DBG
+    char src[ETH_ADDR_STRLEN];
+    char dst[ETH_ADDR_STRLEN];
+    const struct eth_hdr * const eth = (void *)v->base;
+    warn(DBG, "Eth %s -> %s, type %d, len %lu", ether_ntoa_r(&eth->src, src),
+         ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), len + sizeof(*eth));
+#endif
+
+    // advance tx ring
+    txr->head = txr->cur = nm_ring_next(txr, txr->cur);
+    return true;
 }

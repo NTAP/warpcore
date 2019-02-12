@@ -28,13 +28,12 @@
 #pragma once
 
 #include <arpa/inet.h>
-#include <netinet/ip.h>
-#include <stdbool.h>
 #include <stdint.h>
 
-struct w_engine;
 struct netmap_slot;
+struct w_engine;
 struct w_iov;
+struct w_sock;
 
 
 #define IP_ADDR_LEN 4 ///< Length of an IPv4 address in bytes. Four.
@@ -163,30 +162,16 @@ ip_data(uint8_t * const buf)
 ///
 /// @return     { description_of_the_return_value }
 ///
-static inline uint16_t __attribute__((always_inline, nonnull))
+static inline uint16_t __attribute__((always_inline,
+                                      nonnull
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+                                      ,
+                                      no_sanitize("alignment")
+#endif
+                                          ))
 ip_data_len(const struct ip_hdr * const ip)
 {
     return ntohs(ip->len) - ip_hl(ip);
-}
-
-
-/// Initialize the static fields in an IPv4 ip_hdr header.
-///
-/// @param      ip    Pointer to the ip_hdr to initialize.
-///
-static inline void __attribute__((always_inline,
-                                  nonnull
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-                                  ,
-                                  no_sanitize("alignment")
-#endif
-                                      )) ip_hdr_init(struct ip_hdr * const ip)
-{
-    ip->vhl = (4 << 4) + 5;
-    ip->off = htons(IP_DF);
-    ip->ttl = 64; /* XXX this should be configurable */
-    ip->p = IP_P_UDP;
-    ip->cksum = 0;
 }
 
 
@@ -199,7 +184,7 @@ extern void __attribute__((nonnull)) ip_rx(struct w_engine * const w,
                                            struct netmap_slot * const s,
                                            uint8_t * const buf);
 
-extern bool __attribute__((nonnull)) ip_tx(struct w_engine * const w,
-                                           struct w_iov * const v,
-                                           const uint16_t len,
-                                           const bool enable_ecn);
+extern void __attribute__((nonnull(1)))
+mk_ip_hdr(struct w_iov * const v,
+          const uint16_t plen,
+          const struct w_sock * const s);

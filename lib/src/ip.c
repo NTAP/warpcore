@@ -25,9 +25,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// IWYU pragma: no_include <net/netmap.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/socket.h>
@@ -36,7 +36,6 @@
 
 #include "backend.h"
 #include "eth.h"
-#include "eth_tx.h"
 #include "icmp.h"
 #include "in_cksum.h"
 #include "ip.h"
@@ -54,13 +53,13 @@
         char dst[INET_ADDRSTRLEN];                                             \
         warn(DBG,                                                              \
              "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "                  \
-             "flags [%s%s], proto %d, hlen/tot %d/%d",                         \
+             "flags [%s%s], proto %d, hlen/tot %d/%d, cksum %04x",              \
              inet_ntop(AF_INET, &(ip)->src, src, INET_ADDRSTRLEN),             \
              inet_ntop(AF_INET, &(ip)->dst, dst, INET_ADDRSTRLEN),             \
              ip_dscp(ip), ip_ecn(ip), (ip)->ttl, ntohs((ip)->id),              \
              (ntohs((ip)->off) & IP_MF) ? "MF" : "",                           \
              (ntohs((ip)->off) & IP_DF) ? "DF" : "", (ip)->p, ip_hl(ip),       \
-             ntohs((ip)->len));                                                \
+             ntohs((ip)->len), ntohs((ip)->cksum));                            \
     } while (0)
 #else
 #define ip_log(ip)                                                             \
@@ -143,51 +142,49 @@ void
 }
 
 
-// Fill in the IP header information that isn't set as part of the
-// socket packet template, calculate the header checksum, and hand off
-// to the Ethernet layer.
-
-
 /// IPv4 transmit processing for the w_iov @p v of length @p len. Fills in the
-/// IPv4 header, calculates the checksum, sets the TOS bits and passes the
-/// packet to eth_tx().
+/// IPv4 header, calculates the checksum, and sets the TOS bits.
 ///
-/// @param      w           Backend engine.
-/// @param      v           The w_iov containing the data to transmit.
-/// @param[in]  len         The length of the payload data in @p v.
-/// @param[in]  enable_ecn  Whether ECN should be enabled for this packet.
+/// @param[in]  s     The w_sock to transmit over.
+/// @param      v     The w_iov containing the data to transmit.
+/// @param[in]  len   The length of the payload data in @p v.
 ///
-/// @return     Passes on the return value from eth_tx(), which indicates
-///             whether @p v was successfully placed into a TX ring.
-///
-bool
+void
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
     __attribute__((no_sanitize("alignment")))
 #endif
-    ip_tx(struct w_engine * const w,
-          struct w_iov * const v,
-          const uint16_t len,
-          const bool enable_ecn)
+    mk_ip_hdr(struct w_iov * const v,
+              const uint16_t plen,
+              const struct w_sock * const s)
 {
     struct ip_hdr * const ip = (void *)eth_data(v->base);
-    const uint16_t l = len + sizeof(*ip);
-
-    // fill in remaining header fields
-    ip->len = htons(l);
-    // no need to do htons() for random value
-    ip->id = (uint16_t)w_rand_uniform(UINT16_MAX);
+    ip->vhl = (4 << 4) + 5;
 
     // set DSCP and ECN
     ip->tos = v->flags;
     // if there is no per-packet ECN marking, apply default
-    if ((ip->tos & IPTOS_ECN_MASK) == 0 && enable_ecn)
+    if ((ip->tos & IPTOS_ECN_MASK) == 0 && likely(s) && s->opt.enable_ecn)
         ip->tos |= IPTOS_ECN_ECT0;
 
-    // IP checksum is over header only (TODO: adjust instead of recompute)
+    const uint16_t len = plen + sizeof(*ip);
+    ip->len = htons(len);
+
+    // no need to do htons() for random value
+    ip->id = (uint16_t)w_rand_uniform(UINT16_MAX);
+
+    ip->off = htons(IP_DF);
+    ip->ttl = 64; // XXX this should be configurable
+    if (likely(s))
+        // when no socket is passed, caller must set ip->p
+        ip->p = IP_P_UDP;
+
+    const bool connected = likely(s) && w_connected(s);
+    ip->src = connected ? s->tup.sip : v->w->ip;
+    ip->dst = connected ? s->tup.dip : v->ip;
+
+    // IP checksum is over header only
+    ip->cksum = 0;
     ip->cksum = ip_cksum(ip, sizeof(*ip));
 
     ip_log(ip);
-
-    // do Ethernet transmit preparation
-    return eth_tx(w, v, l);
 }

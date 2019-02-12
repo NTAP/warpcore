@@ -25,9 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// IWYU pragma: no_include <net/netmap.h>
-// IWYU pragma: no_include <net/netmap_legacy.h>
-
 #include <fcntl.h>
 #include <net/if.h>
 #include <net/netmap_user.h>
@@ -44,7 +41,10 @@
 
 #define klib_unused
 
+// IWYU pragma: no_include <net/netmap.h>
 #include <khash.h>
+#include <net/netmap_legacy.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 
 #ifdef HAVE_ASAN
@@ -54,7 +54,6 @@
 #include "arp.h"
 #include "backend.h"
 #include "eth.h"
-#include "ip.h"
 #include "udp.h"
 
 
@@ -238,8 +237,8 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     if (opt)
         w_set_sockopt(s, opt);
 
-    if (likely(s->hdr->udp.sport == 0))
-        s->hdr->udp.sport = pick_sport();
+    if (likely(s->tup.sport == 0))
+        s->tup.sport = pick_sport();
 
     return 0;
 }
@@ -264,20 +263,20 @@ int backend_connect(struct w_sock * const s)
 {
     // find the Ethernet MAC address of the destination or the default router,
     // and update the template header
-    const uint32_t ip = s->w->rip && (mk_net(s->hdr->ip.dst, s->w->mask) !=
-                                      mk_net(s->hdr->ip.src, s->w->mask))
+    const uint32_t ip = s->w->rip && (mk_net(s->tup.dip, s->w->mask) !=
+                                      mk_net(s->tup.sip, s->w->mask))
                             ? s->w->rip
-                            : s->hdr->ip.dst;
-    s->hdr->eth.dst = arp_who_has(s->w, ip);
+                            : s->tup.dip;
+    s->dmac = arp_who_has(s->w, ip);
 
     // see if we need to update the sport
     uint8_t n = 200;
     do {
-        if (likely(w_get_sock(s->w, s->hdr->ip.src, s->hdr->udp.sport,
-                              s->hdr->ip.dst, s->hdr->udp.dport) == 0))
+        if (likely(w_get_sock(s->w, s->tup.sip, s->tup.sport, s->tup.dip,
+                              s->tup.dport) == 0))
             break;
         // four-tuple exists, reroll sport
-        s->hdr->udp.sport = pick_sport();
+        s->tup.sport = pick_sport();
     } while (--n);
 
     return n == 0;

@@ -30,10 +30,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "eth.h"
-#include "ip.h"
-
-
 struct netmap_slot;
 struct w_engine;
 struct w_iov;
@@ -50,15 +46,6 @@ struct udp_hdr {
 } __attribute__((aligned(1)));
 
 // #include "udp.h"
-
-
-/// A warpcore template packet header structure.
-///
-struct w_hdr {
-    struct eth_hdr eth;                       ///< Ethernet header.
-    struct ip_hdr ip __attribute__((packed)); ///< IPv4 header.
-    struct udp_hdr udp;                       ///< UDP header.
-} __attribute__((aligned(1)));
 
 
 extern void __attribute__((nonnull)) udp_rx(struct w_engine * const w,

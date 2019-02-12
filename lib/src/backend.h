@@ -36,7 +36,7 @@
 
 #ifdef WITH_NETMAP
 // IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 #endif
 
 #pragma clang diagnostic push
@@ -159,7 +159,7 @@ mk_net(const uint32_t ip, const uint32_t mask)
 }
 
 
-static inline void __attribute__((always_inline, nonnull))
+static inline void __attribute__((nonnull))
 init_iov(struct w_engine * const w, struct w_iov * const v)
 {
     v->w = w;
@@ -172,7 +172,7 @@ init_iov(struct w_engine * const w, struct w_iov * const v)
 }
 
 
-static inline struct w_iov * __attribute__((always_inline, nonnull))
+static inline struct w_iov * __attribute__((nonnull))
 w_alloc_iov_base(struct w_engine * const w)
 {
     struct w_iov * const v = sq_first(&w->iov);
@@ -200,38 +200,17 @@ extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);
 
 
 static inline khint_t __attribute__((always_inline, nonnull))
-four_tuple_hash(const struct w_hdr * const hdr)
+tuple_hash(const struct w_tuple * const tup)
 {
-    const uint32_t prime = 0x811c9dc5;
-    uint32_t hash = 0x1000193;
-
-    const uint8_t * const bytes = (const uint8_t * const) & hdr->ip.src;
-    for (size_t i = 0; i < 2 * sizeof(hdr->ip.src); i++) {
-        hash ^= bytes[i];
-        hash *= prime;
-    }
-
-    const uint8_t * const bytes2 = (const uint8_t * const) & hdr->udp.sport;
-    for (size_t i = 0; i < 2 * sizeof(hdr->udp.sport); i++) {
-        hash ^= bytes2[i];
-        hash *= prime;
-    }
-
-    return hash;
+    return fnv1a_32(tup, sizeof(*tup));
 }
 
 
 static inline khint_t __attribute__((always_inline, nonnull))
-four_tuple_equal(const struct w_hdr * const a, const struct w_hdr * const b)
+tuple_equal(const struct w_tuple * const a, const struct w_tuple * const b)
 {
-    return (a->ip.src == b->ip.src && a->ip.dst == b->ip.dst &&
-            a->udp.sport == b->udp.sport && a->udp.dport == b->udp.dport);
+    return memcmp(a, b, sizeof(*a)) == 0;
 }
 
 
-KHASH_INIT(sock,
-           struct w_hdr *,
-           struct w_sock *,
-           1,
-           four_tuple_hash,
-           four_tuple_equal)
+KHASH_INIT(sock, struct w_tuple *, struct w_sock *, 1, tuple_hash, tuple_equal)
