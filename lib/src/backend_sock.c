@@ -30,7 +30,7 @@
 
 #if defined(__linux__)
 #include <limits.h>
-#elif defined (__APPLE__)
+#elif defined(__APPLE__)
 #include <netinet/udp.h>
 #else
 #include <sys/types.h> // IWYU pragma: keep
