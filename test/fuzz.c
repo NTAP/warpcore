@@ -24,7 +24,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
-#include <net/if.h> // IWYU pragma: keep
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,9 +32,9 @@
 
 #define klib_unused
 
+// IWYU pragma: no_include <net/netmap.h>
 #include <khash.h>
-#include <net/netmap.h>
-#include <net/netmap_user.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 
 #include "backend.h"
