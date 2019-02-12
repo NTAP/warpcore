@@ -145,7 +145,7 @@ void
 
         // adjust the buffer offset to the received data into the iov
         i->base = buf;
-        i->buf = ip_data(buf) + sizeof(*udp);
+        i->buf = (uint8_t *)udp + sizeof(*udp);
         i->idx = s->buf_idx;
 
         // put the original buffer of the iov into the receive ring

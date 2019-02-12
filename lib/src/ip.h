@@ -95,8 +95,7 @@ static inline uint8_t __attribute__((always_inline,
                                          ))
 ip_hl(const struct ip_hdr * const ip)
 {
-    const uint8_t hl = (ip->vhl & 0x0f) * 4;
-    return hl ? hl : sizeof(*ip);
+    return (ip->vhl & 0x0f) * 4;
 }
 
 
@@ -140,9 +139,8 @@ ip_ecn(const struct ip_hdr * const ip)
 
 #include "eth.h" // IWYU pragma: keep
 
-/// Return a pointer to the payload data of the IPv4 packet in a buffer. It is
-/// up to the caller to ensure that the packet buffer does in fact contain an
-/// IPv4 packet.
+/// Return a pointer to the payload data of the IPv4 packet in a buffer. This
+/// must only be called for packets we send, since the offset is static.
 ///
 /// @param      buf   The buffer.
 ///
@@ -151,8 +149,7 @@ ip_ecn(const struct ip_hdr * const ip)
 static inline uint8_t * __attribute__((always_inline, nonnull))
 ip_data(uint8_t * const buf)
 {
-    uint8_t * const ed = eth_data(buf);
-    return ed + ip_hl((struct ip_hdr *)(void *)ed);
+    return buf + sizeof(struct eth_hdr) + sizeof(struct ip_hdr);
 }
 
 
@@ -171,7 +168,7 @@ static inline uint16_t __attribute__((always_inline,
                                           ))
 ip_data_len(const struct ip_hdr * const ip)
 {
-    return ntohs(ip->len) - ip_hl(ip);
+    return ntohs(ip->len) - sizeof(*ip);
 }
 
 

@@ -178,7 +178,7 @@ struct ether_addr
     arp_who_has(struct w_engine * const w, const uint32_t dip)
 {
     struct arp_entry * a = arp_cache_find(w, dip);
-    while (a == 0) {
+    while (unlikely(a == 0)) {
 #ifndef NDEBUG
         char ip_str[INET_ADDRSTRLEN];
         warn(INF, "no ARP entry for %s, sending query",

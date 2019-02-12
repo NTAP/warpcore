@@ -271,7 +271,7 @@ int
 
             // wait for a reply; loop until timeout or we have received all data
             struct w_iov_sq i = w_iov_sq_initializer(i);
-            while (likely(w_iov_sq_len(&i) < len && done == false)) {
+            while (likely(w_iov_sq_cnt(&i) < w_iov_sq_cnt(&o) && !done)) {
                 // receive new data (there may not be any if busy-waiting)
                 if (w_nic_rx(w, busywait ? 0 : -1) == false)
                     continue;

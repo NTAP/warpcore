@@ -186,7 +186,7 @@ void icmp_rx(struct w_engine * const w,
     case ICMP_TYPE_UNREACH: {
 #if !defined(NDEBUG) && DLEVEL >= WRN
         const struct ip_hdr * const payload_ip =
-            (const void *)(ip_data(buf) + sizeof(*icmp));
+            (const void *)((uint8_t *)icmp + sizeof(*icmp));
 #endif
         switch (icmp->code) {
         case ICMP_UNREACH_PROTOCOL:
