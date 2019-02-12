@@ -52,10 +52,15 @@ struct icmp_hdr {
 } __attribute__((aligned(1)));
 
 
-extern void __attribute__((nonnull)) icmp_tx(struct w_engine * w,
-                                             const uint8_t type,
-                                             const uint8_t code,
-                                             uint8_t * const buf);
+extern void __attribute__((nonnull
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+                           ,
+                           no_sanitize("alignment")
+#endif
+                               )) icmp_tx(struct w_engine * w,
+                                          const uint8_t type,
+                                          const uint8_t code,
+                                          uint8_t * const buf);
 
 extern void __attribute__((nonnull))
 icmp_rx(struct w_engine * w, struct netmap_slot * const s, uint8_t * const buf);
