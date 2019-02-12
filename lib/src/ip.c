@@ -28,7 +28,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <sys/socket.h>
 
@@ -53,7 +52,7 @@
         char dst[INET_ADDRSTRLEN];                                             \
         warn(DBG,                                                              \
              "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "                  \
-             "flags [%s%s], proto %d, hlen/tot %d/%d, cksum %04x",              \
+             "flags [%s%s], proto %d, hlen/tot %d/%d, cksum %04x",             \
              inet_ntop(AF_INET, &(ip)->src, src, INET_ADDRSTRLEN),             \
              inet_ntop(AF_INET, &(ip)->dst, dst, INET_ADDRSTRLEN),             \
              ip_dscp(ip), ip_ecn(ip), (ip)->ttl, ntohs((ip)->id),              \
@@ -178,9 +177,8 @@ void
         // when no socket is passed, caller must set ip->p
         ip->p = IP_P_UDP;
 
-    const bool connected = likely(s) && w_connected(s);
-    ip->src = connected ? s->tup.sip : v->w->ip;
-    ip->dst = connected ? s->tup.dip : v->ip;
+    ip->src = likely(s) && w_connected(s) ? s->tup.sip : v->w->ip;
+    ip->dst = likely(s) && w_connected(s) ? s->tup.dip : v->ip;
 
     // IP checksum is over header only
     ip->cksum = 0;

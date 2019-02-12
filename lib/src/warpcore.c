@@ -573,8 +573,7 @@ uint64_t w_rand_uniform(const uint64_t upper_bound)
         return 0;
 
     // 2**64 % x == (2**64 - x) % x
-    // cppcheck-suppress oppositeExpression
-    const uint64_t min = -upper_bound % upper_bound;
+    const uint64_t min = (UINT64_MAX - upper_bound) % upper_bound;
 
     // This could theoretically loop forever but each retry has p > 0.5 (worst
     // case, usually far better) of selecting a number inside the range we
