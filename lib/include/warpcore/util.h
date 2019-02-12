@@ -29,7 +29,9 @@
 // IWYU pragma: private, include <warpcore/warpcore.h>
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <time.h>
+
 
 /// Trim the path from the given file name. Mostly to be used with __FILE__.
 ///
@@ -242,3 +244,61 @@ extern void __attribute__((nonnull)) util_hexdump(const void * const ptr,
                                                   const char * const func,
                                                   const char * const file,
                                                   const unsigned line);
+
+
+/// Compute an [FNV-1a 64-bit
+/// hash](http://www.isthe.com/chongo/tech/comp/fnv/index.html) over the given
+/// buffer.
+///
+/// @param      buf       The buffer.
+/// @param      len       The length of @p buf.
+///
+/// @return     The FNV-1a 64-bit hash of @p buffer.
+///
+static inline uint64_t __attribute__((nonnull
+#if defined(__clang__)
+                                      ,
+                                      no_sanitize("unsigned-integer-overflow")
+#endif
+                                          ))
+fnv1a_64(const void * const buf, const size_t len)
+{
+    const uint64_t prime = 0x100000001b3;
+    uint64_t hash = 0xcbf29ce484222325;
+
+    const uint8_t * const bytes = (const uint8_t * const)buf;
+    for (size_t i = 0; i < len; i++) {
+        hash ^= bytes[i];
+        hash *= prime;
+    }
+    return hash;
+}
+
+
+/// Compute an [FNV-1a 32-bit
+/// hash](http://www.isthe.com/chongo/tech/comp/fnv/index.html) over the given
+/// buffer.
+///
+/// @param      buf       The buffer.
+/// @param      len       The length of @p buf.
+///
+/// @return     The FNV-1a 32-bit hash of @p buffer.
+///
+static inline uint32_t __attribute__((nonnull
+#if defined(__clang__)
+                                      ,
+                                      no_sanitize("unsigned-integer-overflow")
+#endif
+                                          ))
+fnv1a_32(const void * const buf, const size_t len)
+{
+    const uint32_t prime = 0x811c9dc5;
+    uint32_t hash = 0x1000193;
+
+    const uint8_t * const bytes = (const uint8_t * const)buf;
+    for (size_t i = 0; i < len; i++) {
+        hash ^= bytes[i];
+        hash *= prime;
+    }
+    return hash;
+}
