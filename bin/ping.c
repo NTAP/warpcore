@@ -222,7 +222,7 @@ int
 
     // set a timer handler (used with busywait)
     ensure(signal(SIGALRM, &timeout) != SIG_ERR, "signal");
-    const struct itimerval timer = {.it_value.tv_usec = 250000};
+    const struct itimerval timer = {.it_value.tv_usec = 50000};
 
     // send packet trains of sizes between "start" and "end"
     puts("iface\tdriver\tmbps\tbyte\tpkts\ttx\trx");
