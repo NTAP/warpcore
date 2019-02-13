@@ -45,7 +45,6 @@
 struct payload {
     uint32_t nonce;
     uint32_t len;
-    struct timespec ts;
 };
 
 
@@ -250,7 +249,6 @@ int
                 struct payload * const p = (void *)v->buf;
                 p->nonce = nonce;
                 p->len = len;
-                p->ts = before_tx;
             }
 
             // send the data, and wait until it is out

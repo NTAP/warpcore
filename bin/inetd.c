@@ -32,7 +32,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/param.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <warpcore/warpcore.h>
@@ -73,7 +72,6 @@ static void terminate(int signum __attribute__((unused)))
 struct payload {
     uint32_t nonce;
     uint32_t len;
-    struct timespec ts;
 };
 
 
@@ -201,7 +199,7 @@ int
                         tmp_len += v->len;
                     }
 
-                    if (unlikely(tmp_len == p->len)) {
+                    if (unlikely(tmp_len >= p->len)) {
                         // flight is done
                         tx = true;
                         break;
