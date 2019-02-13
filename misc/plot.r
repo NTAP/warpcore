@@ -5,17 +5,19 @@ using <- function(...) {
     req <- unlist(lapply(libs, require, character.only=TRUE))
     need <- libs[req==FALSE]
     if(length(need) > 0){
-        install.packages(need)
+        install.packages(need, repos = "https://cloud.r-project.org/")
         lapply(need, require, character.only=TRUE)
     }
 }
 
-using("ggplot2", "data.table", "tools", "scales")
+.libPaths(new="~/.R")
+using("tools", "cowplot", "scales", "tidyverse")
 
 options(width=255)
 
 my_fread = function(file) {
-    item = fread(file)
+    item = read_tsv(file, col_types=cols(byte=col_integer(), pkts=col_integer(),
+                                        tx=col_integer(), rx=col_integer()))
     tags = strsplit(file_path_sans_ext(file), "[-.]")[[1]]
     item$file = file
     item$method = tags[1]
@@ -26,8 +28,7 @@ my_fread = function(file) {
     item
 }
 
-dt = rbindlist(lapply(list.files(pattern=".*ping.*.txt"), my_fread))
-
+dt = bind_rows(lapply(list.files(pattern=".*ping.*.txt"), my_fread))
 
 speed_lab = function(string) { paste0(string, "G Ethernet") }
 
@@ -49,71 +50,82 @@ shortb = function(byte) {
 }
 
 my_plot = function(dt, x, y, xlabel, ylabel, ylabeller) {
-  theme = theme(
-    axis.line.x=element_line(size=0.2, colour="#777777"),
-    axis.line.y=element_line(size=0.2, colour="#777777"),
-    axis.text=element_text(family="Times", size=7, color="black"),
-    axis.ticks.x=element_line(colour="#777777", size=.2),
-    axis.ticks.y=element_line(colour="#777777", size=.2),
-    axis.title=element_text(family="Times", size=7, color="black"),
-    legend.background=element_blank(),
-    legend.key.height=unit(7, "pt"),
-    legend.key.width=unit(7, "mm"),
-    legend.key=element_blank(),
-    legend.position=c(.12, .3),
-    legend.text=element_text(family="Times", size=7, color="black"),
-    legend.title=element_blank(),
-    panel.background=element_blank(),
-    panel.grid.major.x=element_line(colour="#777777", size=.2,
-                                    linetype="dotted"),
-    panel.grid.major.y=element_line(colour="#777777", size=.2,
-                                    linetype="dotted"),
-    panel.spacing=unit(0.15, "in"),
-    plot.margin=unit(c(0, 0, 0, 0), "mm"),
-    strip.background=element_rect(colour="white", fill="white"),
-    strip.text=element_text(family="Times", size=7, color="black"),
-    text=element_text(family="Times", size=7, color="black")
-  )
-
   dt$group = paste(dt$busywait, "+", dt$zcksum)
-  q25 = function(x) { quantile(x, probs=0.25) }
-  q75 = function(x) { quantile(x, probs=0.75) }
-  plot = ggplot(data=dt, aes_string(x=x, y=y, shape="group", color="group")) +
-          facet_grid(method ~ speed,
-                     labeller=labeller(speed=speed_lab, method=method_lab)) +
-          # geom_smooth(size=.5, alpha=.25, method="loess") +
-          stat_summary(fun.y=median, geom="line") +
-          stat_summary(fun.y=median, geom="point", size=1.5) +
-          scale_colour_brewer(type="div", palette="PuOr", drop=FALSE) +
-          scale_x_continuous(labels=shortb, expand=c(0, 0), limit=c(0, NA),
-                             name=xlabel) +
-          scale_y_continuous(labels=ylabeller, expand=c(0, 0),
-                             limit=c(0, NA), name=ylabel) +
-          guides(color=guide_legend(override.aes=list(fill=NA)))
-    plot + theme
+
+  grouped = group_by(dt, method, speed, byte)
+  med = summarise(grouped, median=median(rx))
+  maxlat = max(med$median, na.rm=TRUE)
+
+  plots = list()
+  i = 1
+
+  total = length(unique(dt$method)) * length(unique(dt$speed))
+  for (m in unique(dt$method)) {
+    dm = filter(dt, dt$method == m)
+    for (s in unique(dt$speed)) {
+      d = filter(dm, dm$speed == s)
+      # Eth preamble/crc/gap + Eth hdr + IP hdr + UDP hdr
+      d$byte = d$byte + (d$pkts * (24 + 14 + 20 + 8))
+
+      if (grepl("Gb", ylabel, fixed=TRUE))
+        ymax = as.numeric(s)/8
+      else if (grepl("RTT", ylabel, fixed=TRUE))
+        ymax = maxlat
+      else
+        ymax = NA
+      plot = ggplot(data=d, aes_string(x=x, y=y, shape="group", color="group")) +
+              stat_summary(fun.y=median, geom="line") +
+              stat_summary(fun.y=median, geom="point") +
+              scale_colour_brewer(type="div", palette="PuOr", drop=FALSE) +
+              scale_x_continuous(labels=shortb, limit=c(16, NA),
+                                 name=ifelse(i > total/2, xlabel, ""),
+                                 expand=c(0.02, 0), # trans='log10'
+                                 ) +
+              scale_y_continuous(labels=ylabeller, expand=c(0, 0),
+                                 limit=c(0, ymax),
+                                 name=ifelse(i == 1 | i == (total/2) + 1,
+                                 ylabel, ""))
+      plot = plot + theme_cowplot(font_size=6, font_family="Times") +
+             background_grid(major = "y", minor = "none")
+      if (i == total/2)
+        plots[[i]] = plot + theme(legend.position = c(0, .8),
+                                  legend.title=element_blank(),
+                                  legend.key.height=unit(2.5, "mm"))
+      else
+        plots[[i]] = plot + theme(legend.position="none")
+      i = i + 1
+    }
+  }
+  plot_grid(plotlist=plots, nrow=2, ncol=total/2)
 }
 
 
+# save_plot(plot=my_plot(dt, "byte", "rx", "UDP Payload Size [B]",
+#                     expression(paste("RTT [", mu, "s]")), usec),
+#           base_height=1.8, base_width=7.15, units="in",
+#           filename="latency.pdf")
 
-ggsave(plot=my_plot(dt, "byte", "rx", "UDP Payload Size [B]",
-                    expression(paste("RTT [", mu, "s]")), usec),
-       height=1.75, width=7.15, units="in", filename="latency.pdf")
-
-ggsave(plot=my_plot(dt, "byte", "2*byte/rx", "UDP Payload Size [B]",
+save_plot(plot=my_plot(dt, "byte", "2*byte/rx", "UDP Payload Size [B]",
                     "Throughput [Gb/s]", gbps),
-       height=1.75, width=7.15, units="in", filename="thruput.pdf")
+          base_height=2, base_width=7.15, units="in",
+          filename="thruput.pdf")
 
-ggsave(plot=my_plot(dt, "pkts", "2*pkts/rx", "Packets [#]",
-                    "Packet Rate [Mp/s]", mpps),
-       height=1.75, width=7.15, units="in", filename="pps.pdf")
+# save_plot(plot=my_plot(dt, "pkts", "2*pkts/rx", "Packets [#]",
+#                     "Packet Rate [Mp/s]", mpps),
+#           base_height=1.8, base_width=7.15, units="in",
+#           filename="pps.pdf")
 
-short = dt[dt$byte < 1600]
+short = filter(dt, dt$byte < 1600)
 
-ggsave(plot=my_plot(short, "byte", "rx", "UDP Payload Size [B]",
+save_plot(plot=my_plot(short, "byte", "rx", "UDP Payload Size [B]",
                     expression(paste("RTT [", mu, "s]")), usec),
-       height=1.75, width=7.15, units="in", filename="latency-1500.pdf")
+          base_height=2, base_width=7.15, units="in",
+          filename="latency-1500.pdf")
 
-ggsave(plot=my_plot(short, "byte", "2*byte/rx",
-                    "UDP Payload Size [B]",
-                    "Throughput [Gb/s]", gbps),
-       height=1.75, width=7.15, units="in", filename="thruput-1500.pdf")
+# save_plot(plot=my_plot(short, "byte", "2*byte/rx",
+#                     "UDP Payload Size [B]",
+#                     "Throughput [Gb/s]", gbps),
+#           base_height=1.8, base_width=7.15, units="in",
+#           filename="thruput-1500.pdf")
+
+file.remove("Rplots.pdf")

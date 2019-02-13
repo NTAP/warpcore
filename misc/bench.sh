@@ -15,7 +15,7 @@ declare -A tests=(
     # [linux10]=10:50:mora1:enp2s0f0:10.11.12.7:mora2:enp2s0f0:10.11.12.8
     [linux40]=40:100:mora1:enp6s0f0:10.11.12.7:mora2:enp6s0f0:10.11.12.8
     # [linux100]=1:200:mora1:vcc1:10.11.12.7:mora2:vcc1:10.11.12.8
-    [linuxlo]=42:100:mora1:lo:127.0.0.1:mora1:lo:127.0.0.1
+    # [linuxlo]=42:100:mora1:lo:127.0.0.1:mora1:lo:127.0.0.1
 )
 
 speed=0
@@ -226,20 +226,15 @@ function start_serv() {
         /usr/bin/nohup env LD_PRELOAD=${preload[${os[clnt]}]} \
             CPUPROFILE=$prof CPUPROFILE_FREQUENCY=2000 \
             ${pin[${os[serv]}]} 1 bin/${kind}inetd \
-                -i ${t[$serv_if]} $busywait $cksum > /dev/null 2> $log &"
+                -i ${t[$serv_if]} $busywait $cksum > $log 2>&1 &"
 }
 
 
 function clean_logs() {
-    local t=("$@")
-
-    run "${t[clnt]}" "\
-        cd $warpcore; \
-        rm warpi*.log socki*.log warpi*.txt socki*.txt \
-            warpi*.prof socki*.prof warpi*.prof_* socki*.prof_* \
-            warpp*.log sockp*.log warpp*.txt sockp*.txt \
-            warpp*.prof sockp*.prof warpp*.prof_* sockp*.prof_*" \
-    || true
+    rm -f warpi*.log socki*.log warpi*.txt socki*.txt \
+        warpi*.prof socki*.prof warpi*.prof_* socki*.prof_* \
+        warpp*.log sockp*.log warpp*.txt sockp*.txt \
+        warpp*.prof sockp*.prof warpp*.prof_* sockp*.prof_*
 }
 
 
@@ -267,6 +262,7 @@ function trim_logs() {
 }
 
 
+clean_logs
 for tag in "${!tests[@]}"; do
     IFS=':' read -ra t <<< "${tests[$tag]}"
 
@@ -287,7 +283,6 @@ for tag in "${!tests[@]}"; do
     build clnt "${t[@]}"
     [ "${os[clnt]}" != "${os[serv]}" ] && build serv "${t[@]}"
 
-    clean_logs "${t[@]}"
     for k in warp sock; do
         if [ $k == warp ]; then
             echo "${red}netmap config${nrm}"
