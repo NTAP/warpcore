@@ -352,31 +352,28 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 {
     struct pollfd fds = {.fd = w->b->fd, .events = POLLIN};
-    const int n = poll(&fds, 1, msec) > 0;
-    if (n <= 0)
+    if (poll(&fds, 1, msec) == 0)
         return false;
 
-    // loop over all rx rings starting with cur_rxr and wrapping around
+    // loop over all rx rings
+    bool rx = false;
     for (uint32_t i = 0; likely(i < w->b->nif->ni_rx_rings); i++) {
         struct netmap_ring * const r = NETMAP_RXRING(w->b->nif, i);
         while (likely(!nm_ring_empty(r))) {
-            // prefetch the next slot into the cache
-            __builtin_prefetch(
-                NETMAP_BUF(r, r->slot[nm_ring_next(r, r->cur)].buf_idx));
-
             // process the current slot
             warn(DBG, "rx idx %u from ring %u slot %u", r->slot[r->cur].buf_idx,
                  i, r->cur);
             eth_rx(w, &r->slot[r->cur],
                    (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx));
             r->head = r->cur = nm_ring_next(r, r->cur);
+            rx = true;
         }
     }
 
-    if (unlikely(is_pipe(w)))
+    if (likely(rx) && unlikely(is_pipe(w)))
         ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
 
-    return true;
+    return rx;
 }
 
 
