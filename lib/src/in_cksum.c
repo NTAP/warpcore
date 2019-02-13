@@ -68,21 +68,7 @@
 #include "ip.h"
 #include "udp.h"
 
-
-static inline uint32_t __attribute__((always_inline))
-csum_oc16(const uint8_t * const restrict data, const uint32_t data_len)
-{
-    const uint16_t * restrict data16 = (const uint16_t *)(const void *)data;
-    uint32_t sum = 0;
-
-    for (uint32_t n = 0; n < (data_len / sizeof(uint16_t)); n++)
-        sum += (uint32_t)data16[n];
-
-    if (data_len & 1)
-        sum += (uint32_t)data[data_len - 1];
-
-    return sum;
-}
+#define CHECKSUM_SSE
 
 
 static inline uint16_t __attribute__((always_inline, const))
@@ -91,21 +77,6 @@ csum_oc16_reduce(uint32_t sum)
     while (sum >> 16)
         sum = (sum & 0xFFFF) + (sum >> 16);
     return (uint16_t)(~sum);
-}
-
-
-/// Compute the Internet checksum over buffer @p buf of length @p len. See
-/// [RFC1071](https://tools.ietf.org/html/rfc1071).
-///
-/// @param[in]  buf   The buffer
-/// @param[in]  len   The length
-///
-/// @return     Internet checksum of @p buf.
-///
-uint16_t ip_cksum(const void * const buf, const uint16_t len)
-{
-    const uint32_t sum = csum_oc16(buf, len);
-    return csum_oc16_reduce(sum);
 }
 
 
@@ -128,6 +99,39 @@ ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data)
     old_data = ~old_data;
     const uint32_t l = (uint32_t)(old_check + ~old_data + new_data);
     return csum_oc16_reduce(l);
+}
+
+
+#ifndef CHECKSUM_SSE
+
+static inline uint32_t __attribute__((always_inline))
+csum_oc16(const uint8_t * const restrict data, const uint32_t data_len)
+{
+    const uint16_t * restrict data16 = (const uint16_t *)(const void *)data;
+    uint32_t sum = 0;
+
+    for (uint32_t n = 0; n < (data_len / sizeof(uint16_t)); n++)
+        sum += (uint32_t)data16[n];
+
+    if (data_len & 1)
+        sum += (uint32_t)data[data_len - 1];
+
+    return sum;
+}
+
+
+/// Compute the Internet checksum over buffer @p buf of length @p len. See
+/// [RFC1071](https://tools.ietf.org/html/rfc1071).
+///
+/// @param[in]  buf   The buffer
+/// @param[in]  len   The length
+///
+/// @return     Internet checksum of @p buf.
+///
+uint16_t ip_cksum(const void * const buf, const uint16_t len)
+{
+    const uint32_t sum = csum_oc16(buf, len);
+    return csum_oc16_reduce(sum);
 }
 
 
@@ -158,6 +162,7 @@ uint16_t
     return csum_oc16_reduce(sum);
 }
 
+#else
 
 #define DECLARE_ALIGNED(_declaration, _boundary)                               \
     _declaration __attribute__((aligned(_boundary)))
@@ -262,7 +267,7 @@ csum_oc16_sse(const uint8_t * const data,
 }
 
 
-uint16_t ip_cksum_sse(const void * const buf, const uint16_t len)
+uint16_t ip_cksum(const void * const buf, const uint16_t len)
 {
     const uint32_t sum =
         csum_oc16_sse(buf, len, _mm_setzero_si128(), _mm_setzero_si128());
@@ -271,7 +276,7 @@ uint16_t ip_cksum_sse(const void * const buf, const uint16_t len)
 }
 
 
-uint16_t udp_cksum_sse(const void * const buf, const uint16_t len)
+uint16_t udp_cksum(const void * const buf, const uint16_t len)
 {
     const struct ip_hdr * ip = (const struct ip_hdr *)buf;
     __m128i sum32a, sum32b;
@@ -307,3 +312,4 @@ uint16_t udp_cksum_sse(const void * const buf, const uint16_t len)
 
     return htons(csum_oc16_reduce(sum));
 }
+#endif

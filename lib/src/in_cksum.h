@@ -41,8 +41,3 @@ ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data);
 extern uint16_t __attribute__((nonnull))
 udp_cksum(const void * const buf, const uint16_t len);
 
-extern uint16_t __attribute__((nonnull))
-ip_cksum_sse(const void * const buf, const uint16_t len);
-
-extern uint16_t __attribute__((nonnull))
-udp_cksum_sse(const void * const buf, const uint16_t len);
