@@ -31,18 +31,18 @@
 
 extern uint16_t __attribute__((nonnull
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-                                     ,
-                                     no_sanitize("alignment")
+                               ,
+                               no_sanitize("alignment")
 #endif
-                               ))
+                                   ))
 ip_cksum(const void * const buf, const uint16_t len);
 
 extern uint16_t __attribute__((nonnull
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-                                     ,
-                                     no_sanitize("alignment")
+                               ,
+                               no_sanitize("alignment")
 #endif
-                                     ))
+                                   ))
 udp_cksum(const void * const buf, const uint16_t len);
 
 extern uint16_t __attribute__((const))
@@ -50,4 +50,3 @@ ip_cksum_update32(uint16_t old_check, uint32_t old_data, uint32_t new_data);
 
 extern uint16_t __attribute__((const))
 ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data);
-
