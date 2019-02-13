@@ -59,6 +59,7 @@ my_plot = function(dt, x, y, xlabel, ylabel, ylabeller) {
   plots = list()
   i = 1
 
+  total = length(unique(dt$method)) * length(unique(dt$speed))
   for (m in unique(dt$method)) {
     dm = filter(dt, dt$method == m)
     for (s in unique(dt$speed)) {
@@ -72,29 +73,30 @@ my_plot = function(dt, x, y, xlabel, ylabel, ylabeller) {
         ymax = maxlat
       else
         ymax = NA
-
       plot = ggplot(data=d, aes_string(x=x, y=y, shape="group", color="group")) +
               stat_summary(fun.y=median, geom="line") +
               stat_summary(fun.y=median, geom="point") +
               scale_colour_brewer(type="div", palette="PuOr", drop=FALSE) +
               scale_x_continuous(labels=shortb, limit=c(16, NA),
-                                 name=ifelse(i > 3, xlabel, ""),
+                                 name=ifelse(i > total/2, xlabel, ""),
                                  expand=c(0.02, 0), # trans='log10'
                                  ) +
               scale_y_continuous(labels=ylabeller, expand=c(0, 0),
                                  limit=c(0, ymax),
-                                 name=ifelse(i == 1 | i == 4, ylabel, "")) +
-              guides(color=guide_legend(override.aes=list(fill=NA)))
+                                 name=ifelse(i == 1 | i == (total/2) + 1,
+                                 ylabel, ""))
       plot = plot + theme_cowplot(font_size=6, font_family="Times") +
              background_grid(major = "y", minor = "none")
-      plots[[i]] = plot + theme(legend.position="none")
+      if (i == total/2)
+        plots[[i]] = plot + theme(legend.position = c(0, .8),
+                                  legend.title=element_blank(),
+                                  legend.key.height=unit(2.5, "mm"))
+      else
+        plots[[i]] = plot + theme(legend.position="none")
       i = i + 1
     }
   }
-  plots[[i+1]] <- get_legend(plots[[1]] +
-                             theme(legend.position="bottom",
-                                   legend.title=element_blank()))
-  plot_grid(plotlist=plots, ncol=2, rel_heights = c(1, 1, .1))
+  plot_grid(plotlist=plots, nrow=2, ncol=total/2)
 }
 
 
