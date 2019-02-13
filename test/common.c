@@ -26,6 +26,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
+#include <inttypes.h>
 #include <net/if.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -40,7 +41,7 @@ static struct w_sock *s_serv, *s_clnt;
 
 #define OFFSET 64
 
-bool io(const uint32_t len)
+bool io(const uint64_t len)
 {
     // allocate a w_iov chain for tx
     struct w_iov_sq o = w_iov_sq_initializer(o);
@@ -57,7 +58,7 @@ bool io(const uint32_t len)
         memset(ov->buf, fill++, ov->len);
         ov->flags = 0x55;
     }
-    const uint32_t olen = w_iov_sq_len(&o);
+    const uint64_t olen = w_iov_sq_len(&o);
 
     // tx
     w_tx(s_clnt, &o);
@@ -69,7 +70,7 @@ bool io(const uint32_t len)
 
     // read the chain back
     struct w_iov_sq i = w_iov_sq_initializer(i);
-    uint32_t ilen = 0;
+    uint64_t ilen = 0;
     bool again = true;
     while (ilen < olen) {
         w_rx(s_serv, &i);
@@ -82,9 +83,10 @@ bool io(const uint32_t len)
                 return false;
         }
     }
-    ensure(w_iov_sq_cnt(&i) == w_iov_sq_cnt(&o), "icnt %u != ocnt %u",
-           w_iov_sq_cnt(&i), w_iov_sq_cnt(&o));
-    ensure(ilen == olen, "ilen %u != olen %u", ilen, olen);
+    ensure(w_iov_sq_cnt(&i) == w_iov_sq_cnt(&o),
+           "icnt %" PRIu64 " != ocnt %" PRIu64 "", w_iov_sq_cnt(&i),
+           w_iov_sq_cnt(&o));
+    ensure(ilen == olen, "ilen %" PRIu64 " != olen %" PRIu64, ilen, olen);
 
     // validate data (o was sent by client, i is received by server)
     struct w_iov * iv = sq_first(&i);
@@ -118,7 +120,7 @@ bool io(const uint32_t len)
 }
 
 
-void init(const uint32_t len)
+void init(const uint64_t len)
 {
     char i[IFNAMSIZ] = "lo"
 #ifndef __linux__

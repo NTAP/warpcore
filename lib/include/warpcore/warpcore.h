@@ -211,7 +211,7 @@ w_iov(const struct w_engine * const w, const uint32_t i)
 
 
 extern struct w_engine * __attribute__((nonnull))
-w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs);
+w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs);
 
 extern void __attribute__((nonnull)) w_cleanup(struct w_engine * const w);
 
@@ -227,13 +227,13 @@ extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_alloc_len(struct w_engine * const w,
                                                  struct w_iov_sq * const q,
-                                                 const uint32_t qlen,
+                                                 const uint64_t qlen,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
 extern void __attribute__((nonnull)) w_alloc_cnt(struct w_engine * const w,
                                                  struct w_iov_sq * const q,
-                                                 const uint32_t count,
+                                                 const uint64_t count,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
@@ -243,7 +243,7 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, const uint16_t off);
 extern void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov_sq * const o);
 
-extern uint32_t w_iov_sq_len(const struct w_iov_sq * const q);
+extern uint64_t w_iov_sq_len(const struct w_iov_sq * const q);
 
 extern int __attribute__((nonnull)) w_fd(const struct w_sock * const s);
 
@@ -336,7 +336,7 @@ w_mtu(const struct w_engine * const w)
 ///
 /// @return     Number of w_iov structs in @p q.
 ///
-static inline uint32_t __attribute__((always_inline, nonnull))
+static inline uint64_t __attribute__((always_inline, nonnull))
 w_iov_sq_cnt(const struct w_iov_sq * const q)
 {
     return sq_len(q);

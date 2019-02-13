@@ -43,8 +43,8 @@
 
 
 struct payload {
-    uint32_t nonce;
-    uint32_t len;
+    uint64_t nonce;
+    uint64_t len;
 };
 
 
@@ -228,7 +228,7 @@ int
     puts("iface\tdriver\tmbps\tbyte\tpkts\ttx\trx");
 
     // send "loops" number of payloads of len "len" and wait for reply
-    for (uint32_t len = start; len <= end; len += (inc ? inc : len)) {
+    for (uint64_t len = start; len <= end; len += (inc ? inc : len)) {
         // allocate tx tail queue
         struct w_iov_sq o = w_iov_sq_initializer(o);
         w_alloc_len(w, &o, len, 0, 0);
@@ -243,7 +243,7 @@ int
                    "clock_gettime");
 
             // stamp the data
-            const uint32_t nonce = (uint32_t)w_rand_uniform(UINT32_MAX);
+            const uint64_t nonce = w_rand();
             struct w_iov * v = 0;
             sq_foreach (v, &o, next) {
                 struct payload * const p = (void *)v->buf;
@@ -265,7 +265,7 @@ int
             ensure(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
             done = false;
 
-            warn(INF, "sent %u byte%s", len, plural(len));
+            warn(INF, "sent %" PRIu64 " byte%s", len, plural(len));
 
             // wait for a reply; loop until timeout or we have received all data
             struct w_iov_sq i = w_iov_sq_initializer(i);
@@ -294,9 +294,10 @@ int
                 ensure(p->len == len, "len mismatch");
             }
 
-            const uint32_t i_len = w_iov_sq_len(&i);
+            const uint64_t i_len = w_iov_sq_len(&i);
             if (i_len != len)
-                warn(WRN, "received %u/%u byte%s", i_len, len, plural(i_len));
+                warn(WRN, "received %" PRIu64 "/%" PRIu64 " byte%s", i_len, len,
+                     plural(i_len));
 
             // compute time difference between the packet and the current time
             struct timespec diff;
@@ -310,8 +311,9 @@ int
             const uint64_t pkts = w_iov_sq_cnt(&i);
             time_diff(&diff, &after_tx, &before_tx);
             ensure(diff.tv_sec == 0, "time difference > %lu sec", diff.tv_sec);
-            printf("%s\t%s\t%u\t%d\t%" PRIu64 "\t%ld\t%s\n", w_ifname(w),
-                   w_drvname(w), w_mbps(w), i_len, pkts, diff.tv_nsec, rx);
+            printf("%s\t%s\t%u\t%" PRIu64 "\t%" PRIu64 "\t%ld\t%s\n",
+                   w_ifname(w), w_drvname(w), w_mbps(w), i_len, pkts,
+                   diff.tv_nsec, rx);
 
             // we are done with the received data
             w_free(&i);

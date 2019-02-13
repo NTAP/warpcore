@@ -26,6 +26,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -70,8 +71,8 @@ static void terminate(int signum __attribute__((unused)))
 
 
 struct payload {
-    uint32_t nonce;
-    uint32_t len;
+    uint64_t nonce;
+    uint64_t len;
 };
 
 
@@ -157,7 +158,7 @@ int
             w_rx(s, &i);
             if (sq_empty(&i))
                 continue;
-            warn(DBG, "received %u bytes", w_iov_sq_len(&i));
+            warn(DBG, "received %" PRIu64 " bytes", w_iov_sq_len(&i));
 
             struct w_iov_sq o = w_iov_sq_initializer(o);
             uint16_t t = 0;
@@ -172,8 +173,8 @@ int
 #endif
             if (s == srv[t++]) {
                 static struct w_iov_sq tmp = w_iov_sq_initializer(tmp);
-                static uint32_t tmp_len = 0;
-                static uint32_t nonce = 0;
+                static uint64_t tmp_len = 0;
+                static uint64_t nonce = 0;
 
                 if (unlikely(nonce == 0))
                     nonce =

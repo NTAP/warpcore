@@ -25,6 +25,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <inttypes.h>
 #include <stdint.h>
 
 #ifdef __FreeBSD__
@@ -81,12 +82,13 @@ int main(void)
         warn(INF, "sq qlen %u", x);
         sq_init(&q);
         w_alloc_len(w, &q, x, 0, 0);
-        const uint32_t ql = w_iov_sq_len(&q);
+        const uint64_t ql = w_iov_sq_len(&q);
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
         sq_foreach (v, &q, next) {
             ensure(v->len == (sq_next(v, next) ? w->mtu : x - sl),
-                   "len %u != %u", ql, (sq_next(v, next) ? w->mtu : x - sl));
+                   "len %" PRIu64 " != %u", ql,
+                   (sq_next(v, next) ? w->mtu : x - sl));
             ensure(v->buf == beg(v), "start incorrect");
             sl += v->len;
         }
@@ -97,7 +99,7 @@ int main(void)
         warn(INF, "sq off %u qlen %u", off, x);
         sq_init(&q);
         w_alloc_len(w, &q, x, 0, off);
-        const uint32_t ql = w_iov_sq_len(&q);
+        const uint64_t ql = w_iov_sq_len(&q);
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
         sq_foreach (v, &q, next) {
@@ -116,7 +118,7 @@ int main(void)
         warn(INF, "sq off %u len %u qlen %u", off, len, x);
         sq_init(&q);
         w_alloc_len(w, &q, x, len, off);
-        const uint32_t ql = w_iov_sq_len(&q);
+        const uint64_t ql = w_iov_sq_len(&q);
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
         sq_foreach (v, &q, next) {

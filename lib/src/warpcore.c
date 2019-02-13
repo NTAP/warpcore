@@ -169,11 +169,11 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
 ///
 void w_alloc_len(struct w_engine * const w,
                  struct w_iov_sq * const q,
-                 const uint32_t qlen,
+                 const uint64_t qlen,
                  const uint16_t len,
                  const uint16_t off)
 {
-    uint32_t needed = qlen;
+    uint64_t needed = qlen;
     while (likely(needed)) {
         struct w_iov * const v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0))
@@ -208,11 +208,11 @@ void w_alloc_len(struct w_engine * const w,
 ///
 void w_alloc_cnt(struct w_engine * const w,
                  struct w_iov_sq * const q,
-                 const uint32_t count,
+                 const uint64_t count,
                  const uint16_t len,
                  const uint16_t off)
 {
-    for (uint32_t needed = 0; likely(needed < count); needed++) {
+    for (uint64_t needed = 0; likely(needed < count); needed++) {
         struct w_iov * const v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0))
             return;
@@ -227,9 +227,9 @@ void w_alloc_cnt(struct w_engine * const w,
 ///
 /// @return     Sum of the payload lengths of the w_iov structs in @p q.
 ///
-uint32_t w_iov_sq_len(const struct w_iov_sq * const q)
+uint64_t w_iov_sq_len(const struct w_iov_sq * const q)
 {
-    uint32_t l = 0;
+    uint64_t l = 0;
     const struct w_iov * v;
     sq_foreach (v, q, next)
         l += v->len;
@@ -377,7 +377,7 @@ void w_cleanup(struct w_engine * const w)
 /// @return     Initialized warpcore engine.
 ///
 struct w_engine *
-w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
+w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
 {
     // allocate engine struct
     struct w_engine * w;
@@ -492,7 +492,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint32_t nbufs)
     // backend-specific init
     w->b = calloc(1, sizeof(*w->b));
     ensure(w->b, "cannot alloc backend");
-    backend_init(w, nbufs, is_loopback, !have_pipe);
+    ensure(nbufs < UINT32_MAX, "too many nbufs %" PRIu64, nbufs);
+    backend_init(w, (uint32_t)nbufs, is_loopback, !have_pipe);
 
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);
