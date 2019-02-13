@@ -45,7 +45,7 @@ extern int LLVMFuzzerTestOneInput(const uint8_t * data, size_t size);
 extern int LLVMFuzzerInitialize(int * argc, char *** argv);
 
 
-static struct netmap_if *i, i_init = {.ni_rx_rings = 1};
+static struct netmap_if *iface, i_init = {.ni_rx_rings = 1};
 static struct w_backend b;
 static struct w_engine w = {.b = &b};
 
@@ -59,18 +59,18 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
     w.sock = kh_init(sock);
 
     // init the interface shim
-    i = calloc(1, sizeof(*i) + 8192);
-    memcpy(i, &i_init, sizeof(*i));
-    b.nif = i;
+    iface = calloc(1, sizeof(*iface) + 8192);
+    memcpy(iface, &i_init, sizeof(*iface));
+    b.nif = iface;
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-qual"
-    ssize_t * ring_ofs = (ssize_t *)&i->ring_ofs[2];
+    ssize_t * ring_ofs = (ssize_t *)&iface->ring_ofs[2];
 #pragma clang diagnostic pop
-    *ring_ofs = (ssize_t)(i + 128);
+    *ring_ofs = (ssize_t)(iface + 128);
 
     // init the ring
-    struct netmap_ring * r = NETMAP_TXRING(i, 0);
+    struct netmap_ring * r = NETMAP_TXRING(iface, 0);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-qual"
     // these are all const in netmap.h so force-overwrite
@@ -95,7 +95,7 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
 
 int LLVMFuzzerTestOneInput(const uint8_t * data, const size_t size)
 {
-    struct netmap_ring * const r = NETMAP_TXRING(i, 0);
+    struct netmap_ring * const r = NETMAP_TXRING(iface, 0);
     r->cur = r->head = 1;
     r->tail = 0;
     struct netmap_slot * const s = &r->slot[r->cur];
