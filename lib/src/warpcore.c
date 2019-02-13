@@ -37,8 +37,11 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <unistd.h>
+
+#ifndef FUZZING
+#include <sys/time.h>
+#endif
 
 #define klib_unused
 
@@ -362,6 +365,23 @@ void w_cleanup(struct w_engine * const w)
 }
 
 
+/// Init state for w_rand() and w_rand_uniform(). This **MUST** be called once
+/// prior to calling any of these functions!
+///
+void w_init_rand(void)
+{
+    // init state for w_rand()
+#ifndef FUZZING
+    struct timeval now;
+    gettimeofday(&now, 0);
+    const uint64_t seed = fnv1a_64(&now, sizeof(now));
+    kr_srand_r(&w_rand_state, seed);
+#else
+    kr_srand_r(&w_rand_state, 0);
+#endif
+}
+
+
 /// Initialize a warpcore engine on the given interface. Ethernet and IPv4
 /// source addresses and related information, such as the netmask, are taken
 /// from the active OS configuration of the interface. A default router,
@@ -379,6 +399,8 @@ void w_cleanup(struct w_engine * const w)
 struct w_engine *
 w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
 {
+    w_init_rand();
+
     // allocate engine struct
     struct w_engine * w;
     ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
@@ -386,17 +408,6 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
     // initialize lists of sockets and iovs
     w->sock = kh_init(sock);
     sq_init(&w->iov);
-
-    // init state for w_rand()
-    struct timeval now;
-    gettimeofday(&now, 0);
-    kr_srand_r(&w_rand_state,
-#ifndef FUZZING
-               (uint64_t)now.tv_usec
-#else
-               0
-#endif
-    );
 
     // construct interface name of a netmap pipe for this interface
     char pipe[IFNAMSIZ];

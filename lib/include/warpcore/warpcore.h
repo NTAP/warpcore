@@ -272,6 +272,8 @@ w_get_sock(struct w_engine * const w,
            const uint32_t dip,
            const uint16_t dport);
 
+extern void w_init_rand(void);
+
 extern uint64_t w_rand(void);
 
 extern uint64_t w_rand_uniform(const uint64_t upper_bound);
