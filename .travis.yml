@@ -1,4 +1,5 @@
-dist: xenial
+---
+dist: trusty
 sudo: false
 
 language: cpp
