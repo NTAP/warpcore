@@ -63,9 +63,7 @@ addons:
       cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
         -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
         -DNO_SANITIZERS=True ..
-    build_command: |
-      make
-      cat cov-int/build-log.txt
+    build_command: make
     branch_pattern: coverity
 
 before_install:
@@ -82,8 +80,9 @@ before_install:
 
 script:
   - |
-    if [ "${COVERITY_SCAN_BRANCH}" = 1 ]; then exit 0 ; fi
     cd $TRAVIS_BUILD_DIR
+    cat cov-int/build-log.txt
+    if [ "${COVERITY_SCAN_BRANCH}" = 1 ]; then exit 0 ; fi
     rm -rf build
     mkdir build
     cd build
