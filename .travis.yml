@@ -85,6 +85,7 @@ before_install:
 script:
   - |
     if [ "${COVERITY_SCAN_BRANCH}" = 1 ]; then exit 0 ; fi
+    if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-8 ]; then exit 0 ; fi
     cd $TRAVIS_BUILD_DIR
     rm -rf build
     mkdir build
@@ -93,6 +94,7 @@ script:
       -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
       -DNO_SANITIZERS=True ..
     make
+    cat cov-int/build-log.txt
 
 after_success:
   # update the documentation
