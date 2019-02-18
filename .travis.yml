@@ -55,22 +55,18 @@ addons:
       description: "Build submitted via Travis CI"
     notification_email: lars@netapp.com
     build_command_prepend: |
+      if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-8 ]; then exit 0 ; fi
       cd $TRAVIS_BUILD_DIR
       rm -rf build
       mkdir build
       cd build
-      ../bin/cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
+      cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
         -DCMAKE_BUILD=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
         -DNO_SANITIZERS=True ..
     build_command: make
     branch_pattern: coverity
 
 before_install:
-  # manually install latest cmake
-  - |
-    travis_retry wget \
-      -q https://cmake.org/files/v3.11/cmake-3.11.1-Linux-x86_64.sh
-    sh cmake-3.11.1-Linux-x86_64.sh --skip-license
   # download netmap headers, to build the relevant backend
   - |
     cd $TRAVIS_BUILD_DIR
@@ -85,12 +81,11 @@ before_install:
 script:
   - |
     if [ "${COVERITY_SCAN_BRANCH}" = 1 ]; then exit 0 ; fi
-    if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-8 ]; then exit 0 ; fi
     cd $TRAVIS_BUILD_DIR
     rm -rf build
     mkdir build
     cd build
-    ../bin/cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
+    cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
       -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
       -DNO_SANITIZERS=True ..
     make
