@@ -61,9 +61,9 @@ addons:
       mkdir build
       cd build
       cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
-        -DCMAKE_BUILD=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
+        -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
         -DNO_SANITIZERS=True ..
-    build_command: make
+    build_command: make || cat cov-int/build-log.txt
     branch_pattern: coverity
 
 before_install:
@@ -89,7 +89,6 @@ script:
       -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
       -DNO_SANITIZERS=True ..
     make
-    cat cov-int/build-log.txt
 
 after_success:
   # update the documentation
