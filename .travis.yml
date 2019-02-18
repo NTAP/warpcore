@@ -58,6 +58,8 @@ addons:
       if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-8 ]; then exit 0 ; fi
       cd $TRAVIS_BUILD_DIR
       rm -rf build
+      cov-configure --comptype gcc --compiler /usr/bin/${MYCC}
+      cov-configure --comptype g++ --compiler /usr/bin/${MYCXX}
       mkdir build
       cd build
       cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
