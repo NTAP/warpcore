@@ -58,20 +58,18 @@ addons:
       if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-8 ]; then exit 0 ; fi
       cd $TRAVIS_BUILD_DIR
       rm -rf build
-      cov-configure --comptype gcc --compiler /usr/bin/${MYCC}
-      cov-configure --comptype g++ --compiler /usr/bin/${MYCXX}
+      cov-configure --template --comptype gcc --compiler /usr/bin/${MYCC}
       mkdir build
       cd build
       cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
         -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
         -DNO_SANITIZERS=True ..
-    build_command: make
+    build_command: make VERBOSE=1
     branch_pattern: coverity
 
 before_install:
   # download netmap headers, to build the relevant backend
   - |
-    ls -la /home/travis/build/NTAP/warpcore/build/cov-int/scm_log.txt
     cat /home/travis/build/NTAP/warpcore/build/cov-int/scm_log.txt
     cd $TRAVIS_BUILD_DIR
     mkdir -p lib/include/net
@@ -84,6 +82,7 @@ before_install:
 
 script:
   - |
+    cat /home/travis/build/NTAP/warpcore/build/cov-int/scm_log.txt
     if [ "${COVERITY_SCAN_BRANCH}" = 1 ]; then exit 0 ; fi
     cd $TRAVIS_BUILD_DIR
     rm -rf build
@@ -97,6 +96,7 @@ script:
 after_success:
   # update the documentation
   - |
+    cat /home/travis/build/NTAP/warpcore/build/cov-int/scm_log.txt
     if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-8 ]; then exit 0 ; fi
     cd $TRAVIS_BUILD_DIR/build
     git clone -b gh-pages https://git@github.com/NTAP/$PROJECT.git gh-pages
