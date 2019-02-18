@@ -55,7 +55,7 @@ addons:
       description: "Build submitted via Travis CI"
     notification_email: lars@netapp.com
     build_command_prepend: |
-      if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-7 ]; then exit 0 ; fi
+      if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-4.9 ]; then exit 0 ; fi
       cd $TRAVIS_BUILD_DIR
       ls -la
       rm -rf build
@@ -81,6 +81,10 @@ before_install:
 
 script:
   - |
+    echo cat /home/travis/build/NTAP/warpcore/build/cov-int/scm_log.txt
+    cat /home/travis/build/NTAP/warpcore/build/cov-int/scm_log.txt
+    echo cat /home/travis/build/NTAP/warpcore/build/cov-int/build-log.txt
+    cat /home/travis/build/NTAP/warpcore/build/cov-int/build-log.txt
     if [ "${COVERITY_SCAN_BRANCH}" = 1 ]; then exit 0 ; fi
     cd $TRAVIS_BUILD_DIR
     rm -rf build
@@ -94,7 +98,8 @@ script:
 after_success:
   # update the documentation
   - |
-    if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-7 ]; then exit 0 ; fi
+    cat /home/travis/build/NTAP/warpcore/build/cov-int/scm_log.txt
+    if [ "${BUILD}" != Debug -o "${MYCC}" != gcc-4.9 ]; then exit 0 ; fi
     cd $TRAVIS_BUILD_DIR/build
     git clone -b gh-pages https://git@github.com/NTAP/$PROJECT.git gh-pages
     cd gh-pages
