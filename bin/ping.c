@@ -83,19 +83,6 @@ static void usage(const char * const name,
 }
 
 
-// Subtract the struct timespec values x and y (x-y), storing the result in r.
-// Inspired by timersub()
-#define time_diff(r, x, y)                                                     \
-    do {                                                                       \
-        (r)->tv_sec = (x)->tv_sec - (y)->tv_sec;                               \
-        (r)->tv_nsec = (x)->tv_nsec - (y)->tv_nsec;                            \
-        if ((r)->tv_nsec < 0) {                                                \
-            --(r)->tv_sec;                                                     \
-            (r)->tv_nsec += 1000000000;                                        \
-        }                                                                      \
-    } while (0)
-
-
 // global timeout flag
 static bool done = false;
 
@@ -303,13 +290,13 @@ int
             struct timespec diff;
             char rx[256] = "NA";
             if (i_len == len) {
-                time_diff(&diff, &after_rx, &before_tx);
+                timespec_sub(&after_rx, &before_tx, &diff);
                 ensure(diff.tv_sec == 0, "time difference > %lu sec",
                        diff.tv_sec);
                 snprintf(rx, 256, "%ld", diff.tv_nsec);
             }
             const uint64_t pkts = w_iov_sq_cnt(&i);
-            time_diff(&diff, &after_tx, &before_tx);
+            timespec_sub(&after_tx, &before_tx, &diff);
             ensure(diff.tv_sec == 0, "time difference > %lu sec", diff.tv_sec);
             printf("%s\t%s\t%u\t%" PRIu64 "\t%" PRIu64 "\t%ld\t%s\n",
                    w_ifname(w), w_drvname(w), w_mbps(w), i_len, pkts,
