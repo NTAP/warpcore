@@ -121,7 +121,7 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
 #ifdef WITH_NETMAP
     return (uint8_t *)NETMAP_BUF(NETMAP_TXRING(w->b->nif, 0), i);
 #else
-    return (uint8_t *)w->mem + (i * w->mtu);
+    return (uint8_t *)w->mem + ((intptr_t)i * w->mtu);
 #endif
 }
 
