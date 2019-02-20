@@ -503,7 +503,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
     // backend-specific init
     w->b = calloc(1, sizeof(*w->b));
     ensure(w->b, "cannot alloc backend");
-    ensure(nbufs < UINT32_MAX, "too many nbufs %" PRIu64, nbufs);
+    ensure(nbufs <= UINT32_MAX, "too many nbufs %" PRIu64, nbufs);
     backend_init(w, (uint32_t)nbufs, is_loopback, !have_pipe);
 
     // store the initialized engine in our global list
