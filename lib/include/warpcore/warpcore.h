@@ -38,7 +38,6 @@ extern "C" {
 #include <warpcore/config.h> // IWYU pragma: export
 #include <warpcore/plat.h>   // IWYU pragma: export
 #include <warpcore/queue.h>  // IWYU pragma: export
-#include <warpcore/tree.h>   // IWYU pragma: export
 #include <warpcore/util.h>   // IWYU pragma: export
 
 
