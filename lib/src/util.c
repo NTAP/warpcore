@@ -280,13 +280,14 @@ void util_die(const char * const func,
 
 short util_dlevel = DLEVEL;
 
-static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
-                                                      const bool tstamp,
-                                                      const char * const func,
-                                                      const char * const file,
-                                                      const unsigned line,
-                                                      const char * const fmt,
-                                                      va_list ap)
+static void __attribute__((nonnull, , format(printf, 6, 0)))
+util_warn_valist(const unsigned dlevel,
+                 const bool tstamp,
+                 const char * const func,
+                 const char * const file,
+                 const unsigned line,
+                 const char * const fmt,
+                 va_list ap)
 {
     const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
     DTHREAD_LOCK;
@@ -299,7 +300,7 @@ static void __attribute__((nonnull)) util_warn_valist(const unsigned dlevel,
 
     fprintf(stderr, DTHREAD_ID_IND(NRM), DTHREAD_ID);
 
-    static char now_str[24];
+    static char now_str[32];
     if (tstamp || diff.tv_sec || diff.tv_usec > 1000) {
         snprintf(now_str, sizeof(now_str), "%s%ld.%03ld" NRM,
                  tstamp ? BLD : NRM,
