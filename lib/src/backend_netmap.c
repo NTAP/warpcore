@@ -332,8 +332,6 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
     sq_foreach (v, o, next) {
         o->tx_pending++;
         v->o = o;
-        ensure(w_connected(s) || v->ip && v->port,
-               "no destination information");
         while (unlikely(udp_tx(s, v) == false))
             w_nic_tx(s->w);
     }

@@ -28,9 +28,11 @@
 #include <warpcore/warpcore.h>
 
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/socket.h>
 
 #ifndef FUZZING
 #include <unistd.h>
@@ -116,7 +118,9 @@ void icmp_tx(struct w_engine * const w,
 
     // construct an IPv4 header
     struct ip_hdr * const dst_ip = (void *)eth_data(v->base);
-    v->ip = src_ip->src;
+    struct sockaddr_in * const addr4 = (struct sockaddr_in *)&v->addr;
+    addr4->sin_family = AF_INET;
+    addr4->sin_addr.s_addr = src_ip->src;
     dst_ip->p = IP_P_ICMP;
     mk_ip_hdr(v, sizeof(*dst_icmp) + data_len, 0);
 

@@ -198,10 +198,7 @@ int
     for (uint32_t c = 0; c < conns; c++) {
         // connect to the peer
         s[c] = w_bind(w, 0, &opt);
-        w_connect(
-            s[c],
-            ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_addr.s_addr,
-            ((struct sockaddr_in *)(void *)peer->ai_addr)->sin_port);
+        w_connect(s[c], peer->ai_addr);
     }
 
     // free the getaddrinfo

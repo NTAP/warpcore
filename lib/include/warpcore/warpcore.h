@@ -157,13 +157,9 @@ struct w_iov {
     uint32_t idx;         ///< Index of netmap buffer.
     uint16_t len;         ///< Length of payload data.
 
-    /// Sender port on RX. Destination port on TX on a disconnected
-    /// w_sock. Ignored on TX on a connected w_sock.
-    uint16_t port;
-
-    /// Sender IPv4 address on RX. Destination IPv4 address on TX on a
-    /// disconnected w_sock. Ignored on TX on a connected w_sock.
-    uint32_t ip;
+    /// Sender IP address and port on RX. Destination IP address and port on TX
+    /// on a disconnected w_sock. Ignored on TX on a connected w_sock.
+    struct sockaddr_storage addr;
 
     /// DSCP + ECN of the received IPv4 packet on RX, DSCP + ECN to use for the
     /// to-be-transmitted IPv4 packet on TX.
@@ -220,7 +216,7 @@ w_bind(struct w_engine * const w,
        const struct w_sockopt * const opt);
 
 extern int __attribute__((nonnull))
-w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
+w_connect(struct w_sock * const s, const struct sockaddr * const peer);
 
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 

@@ -26,6 +26,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <ifaddrs.h>
 #include <inttypes.h>
 #include <net/if.h>
@@ -248,18 +249,27 @@ uint64_t w_iov_sq_len(const struct w_iov_sq * const q)
 /// enqueue payload data towards that destination.
 ///
 /// @param      s     w_sock to connect.
-/// @param[in]  ip    Destination IPv4 address to bind to.
-/// @param[in]  port  Destination UDP port to bind to.
+/// @param[in]  peer  The peer to connect to.
 ///
 /// @return     Zero on success, @p errno otherwise.
 ///
-int w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port)
+int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
 {
-    ensure(s->tup.dip == 0 && s->tup.dport == 0, "socket already connected");
+    if (unlikely(s->tup.dip || s->tup.dport)) {
+        warn(ERR, "socket already connected");
+        return EADDRINUSE;
+    }
+
+    if (unlikely(peer->sa_family != AF_INET)) {
+        warn(ERR, "peer address is not IPv4");
+        return EAFNOSUPPORT;
+    }
 
     rem_sock(s->w, s);
-    s->tup.dip = ip;
-    s->tup.dport = port;
+    const struct sockaddr_in * const addr4 =
+        (const struct sockaddr_in *)(const void *)peer;
+    s->tup.dip = addr4->sin_addr.s_addr;
+    s->tup.dport = addr4->sin_port;
     const int e = backend_connect(s);
     if (unlikely(e)) {
         s->tup.dip = s->tup.dport = 0;

@@ -28,10 +28,12 @@
 #include <warpcore/warpcore.h>
 
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/socket.h>
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
@@ -155,8 +157,11 @@ void
 
     // tag the iov with sender information and metadata
     i->len = udp_len - sizeof(*udp);
-    i->ip = ip->src;
-    i->port = udp->sport;
+
+    struct sockaddr_in * const addr4 = (struct sockaddr_in *)&i->addr;
+    addr4->sin_family = AF_INET;
+    addr4->sin_addr.s_addr = ip->src;
+    addr4->sin_port = udp->sport;
     i->flags = ip->tos;
 
     // append the iov to the socket
@@ -188,7 +193,8 @@ bool
     mk_ip_hdr(v, len, s);
 
     udp->sport = s->tup.sport;
-    udp->dport = w_connected(s) ? s->tup.dport : v->port;
+    struct sockaddr_in * const addr4 = (struct sockaddr_in *)&v->addr;
+    udp->dport = w_connected(s) ? s->tup.dport : addr4->sin_port;
     udp->len = htons(len);
 
     // compute the checksum, unless disabled by a socket option

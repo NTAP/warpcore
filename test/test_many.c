@@ -26,7 +26,9 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <stdbool.h>
+#include <sys/socket.h>
 
 #include <warpcore/warpcore.h>
 
@@ -46,7 +48,10 @@ int main(void)
         struct w_sock * const s = w_bind(w_clnt, 0, 0);
         if (s == 0)
             break;
-        w_connect(s, inet_addr("127.0.0.1"), htons(55555));
+        w_connect(s, (struct sockaddr *)&(struct sockaddr_in){
+                         .sin_family = AF_INET,
+                         .sin_addr.s_addr = inet_addr("127.0.0.1"),
+                         .sin_port = htons(55555)});
         if (w_connected(s) == false)
             break;
         n++;
