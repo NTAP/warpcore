@@ -298,7 +298,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 // only handling shorter sizes may require multiple syscalls (and incur their
 // overheads). So we're picking a number out of a hat. We could allocate
 // dynamically for MAX(IOV_MAX, w_iov_sq_cnt(c)), but that seems overkill.
-#define SEND_SIZE MIN(16, IOV_MAX)
+#define SEND_SIZE MIN(64, IOV_MAX)
     struct mmsghdr msgvec[SEND_SIZE];
 #else
 #define SEND_SIZE 1
@@ -398,7 +398,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 // receive. Preparing to handle longer sizes has preparation overheads, whereas
 // only handling shorter sizes may require multiple syscalls (and incur their
 // overheads). So we're picking a number out of a hat.
-#define RECV_SIZE MIN(16, IOV_MAX)
+#define RECV_SIZE MIN(64, IOV_MAX)
 #else
 #define RECV_SIZE 1
 #endif
