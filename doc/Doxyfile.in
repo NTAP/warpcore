@@ -9,8 +9,10 @@ STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
 INPUT                  = @PROJECT_SOURCE_DIR@/lib \
                          @PROJECT_BINARY_DIR@/lib
 FILE_PATTERNS          = *.h \
-                         *.c
-EXCLUDE                = @PROJECT_SOURCE_DIR@/lib/in_cksum.c
+                         *.c \
+                         *.cc
+EXCLUDE_PATTERNS       = @PROJECT_SOURCE_DIR@/lib/deps \
+                         @PROJECT_BINARY_DIR@/lib/deps
 EXAMPLE_PATH           = @PROJECT_SOURCE_DIR@/bin
 RECURSIVE              = YES
 EXTRACT_ALL            = YES
