@@ -106,10 +106,14 @@ bool io(const uint64_t len)
                iv->flags);
 #endif
         ensure(((struct sockaddr_in *)&iv->addr)->sin_port ==
-                   w_get_sport(s_clnt),
+                   ((const struct sockaddr_in *)(const void *)w_get_addr(s_clnt,
+                                                                         true))
+                       ->sin_port,
                "port %u != port %u",
                ntohs(((struct sockaddr_in *)&iv->addr)->sin_port),
-               ntohs(w_get_sport(s_clnt)));
+               ntohs(((const struct sockaddr_in *)(const void *)w_get_addr(
+                          s_clnt, true))
+                         ->sin_port));
 
         ensure(((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr == 0 ||
                    ((struct sockaddr_in *)&iv->addr)->sin_addr.s_addr ==

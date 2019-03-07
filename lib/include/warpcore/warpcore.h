@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include <netinet/in.h>
 #include <stdint.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -380,16 +381,25 @@ w_get_sockopt(const struct w_sock * const s)
 }
 
 
-/// Return the local port a w_sock is bound to.
+/// Return the local or peer IPv4 address and port for a w_sock.
 ///
-/// @param[in]  s     Pointer to w_sock.
+/// @param[in]  s      Pointer to w_sock.
+/// @param[in]  local  If true, return local IPv4 and port, else the peer's.
 ///
-/// @return     Local port number in network byte-order, or zero if unbound.
+/// @return     Local or remote IPv4 address and port, or zero if unbound or
+/// disconnected.
 ///
-static inline uint16_t __attribute__((always_inline, nonnull))
-w_get_sport(const struct w_sock * const s)
+static inline const struct sockaddr * __attribute__((always_inline, nonnull))
+w_get_addr(const struct w_sock * const s, const bool local)
 {
-    return s->tup.sport;
+    if ((local && s->tup.sip == 0) || (!local && s->tup.dip == 0))
+        return 0;
+
+    static struct sockaddr_storage addr = {.ss_family = AF_INET};
+    struct sockaddr_in * const sin = (struct sockaddr_in *)&addr;
+    sin->sin_port = local ? s->tup.sport : s->tup.dport;
+    sin->sin_addr.s_addr = local ? s->tup.sip : s->tup.dip;
+    return (struct sockaddr *)&addr;
 }
 
 
