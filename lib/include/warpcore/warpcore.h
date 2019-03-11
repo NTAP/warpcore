@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include <netinet/in.h>
 #include <stdint.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -38,7 +39,6 @@ extern "C" {
 #include <warpcore/config.h> // IWYU pragma: export
 #include <warpcore/plat.h>   // IWYU pragma: export
 #include <warpcore/queue.h>  // IWYU pragma: export
-#include <warpcore/tree.h>   // IWYU pragma: export
 #include <warpcore/util.h>   // IWYU pragma: export
 
 
@@ -158,13 +158,9 @@ struct w_iov {
     uint32_t idx;         ///< Index of netmap buffer.
     uint16_t len;         ///< Length of payload data.
 
-    /// Sender port on RX. Destination port on TX on a disconnected
-    /// w_sock. Ignored on TX on a connected w_sock.
-    uint16_t port;
-
-    /// Sender IPv4 address on RX. Destination IPv4 address on TX on a
-    /// disconnected w_sock. Ignored on TX on a connected w_sock.
-    uint32_t ip;
+    /// Sender IP address and port on RX. Destination IP address and port on TX
+    /// on a disconnected w_sock. Ignored on TX on a connected w_sock.
+    struct sockaddr_storage addr;
 
     /// DSCP + ECN of the received IPv4 packet on RX, DSCP + ECN to use for the
     /// to-be-transmitted IPv4 packet on TX.
@@ -221,7 +217,7 @@ w_bind(struct w_engine * const w,
        const struct w_sockopt * const opt);
 
 extern int __attribute__((nonnull))
-w_connect(struct w_sock * const s, const uint32_t ip, const uint16_t port);
+w_connect(struct w_sock * const s, const struct sockaddr * const peer);
 
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
@@ -385,16 +381,25 @@ w_get_sockopt(const struct w_sock * const s)
 }
 
 
-/// Return the local port a w_sock is bound to.
+/// Return the local or peer IPv4 address and port for a w_sock.
 ///
-/// @param[in]  s     Pointer to w_sock.
+/// @param[in]  s      Pointer to w_sock.
+/// @param[in]  local  If true, return local IPv4 and port, else the peer's.
 ///
-/// @return     Local port number in network byte-order, or zero if unbound.
+/// @return     Local or remote IPv4 address and port, or zero if unbound or
+/// disconnected.
 ///
-static inline uint16_t __attribute__((always_inline, nonnull))
-w_get_sport(const struct w_sock * const s)
+static inline const struct sockaddr * __attribute__((always_inline, nonnull))
+w_get_addr(const struct w_sock * const s, const bool local)
 {
-    return s->tup.sport;
+    if ((local && s->tup.sip == 0) || (!local && s->tup.dip == 0))
+        return 0;
+
+    static struct sockaddr_storage addr = {.ss_family = AF_INET};
+    struct sockaddr_in * const sin = (struct sockaddr_in *)&addr;
+    sin->sin_port = local ? s->tup.sport : s->tup.dport;
+    sin->sin_addr.s_addr = local ? s->tup.sip : s->tup.dip;
+    return (struct sockaddr *)&addr;
 }
 
 

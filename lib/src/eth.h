@@ -29,6 +29,7 @@
 
 #include <arpa/inet.h>
 #include <netinet/if_ether.h>
+#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -88,7 +89,9 @@ static inline void __attribute__((nonnull))
 mk_eth_hdr(const struct w_sock * const s, struct w_iov * const v)
 {
     struct eth_hdr * const eth = (void *)v->base;
-    eth->dst = w_connected(s) ? s->dmac : arp_who_has(s->w, v->ip);
+    const struct sockaddr_in * const addr4 = (struct sockaddr_in *)&v->addr;
+    eth->dst =
+        w_connected(s) ? s->dmac : arp_who_has(s->w, addr4->sin_addr.s_addr);
     eth->src = v->w->mac;
     eth->type = ETH_TYPE_IP;
 }

@@ -41,6 +41,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
@@ -297,14 +298,13 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 // only handling shorter sizes may require multiple syscalls (and incur their
 // overheads). So we're picking a number out of a hat. We could allocate
 // dynamically for MAX(IOV_MAX, w_iov_sq_cnt(c)), but that seems overkill.
-#define SEND_SIZE MIN(16, IOV_MAX)
+#define SEND_SIZE MIN(64, IOV_MAX)
     struct mmsghdr msgvec[SEND_SIZE];
 #else
 #define SEND_SIZE 1
     struct msghdr msgvec[SEND_SIZE];
 #endif
     struct iovec msg[SEND_SIZE];
-    struct sockaddr_in dst[SEND_SIZE];
 #ifdef __linux__
     // kernels below 4.9 can't deal with getting an uint8_t passed in, sigh
     __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(int))];
@@ -322,23 +322,21 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
             msg[i] = (struct iovec){.iov_base = v->buf, .iov_len = v->len};
             // if w_sock is disconnected, use destination IP and port from w_iov
             // instead of the one in the template header
-            if (w_connected(s) == false) {
-                ensure(v->ip && v->port, "no destination information");
-                dst[i] = (struct sockaddr_in){.sin_family = AF_INET,
-                                              .sin_port = v->port,
-                                              .sin_addr = {v->ip}};
-            } else {
-                v->ip = s->tup.dip;
-                v->port = s->tup.dport;
+            if (w_connected(s)) {
+                struct sockaddr_in * const addr4 =
+                    (struct sockaddr_in *)&v->addr;
+                addr4->sin_family = AF_INET;
+                addr4->sin_addr.s_addr = s->tup.dip;
+                addr4->sin_port = s->tup.dport;
             }
 #ifdef HAVE_SENDMMSG
             msgvec[i].msg_hdr =
 #else
             msgvec[i] =
 #endif
-                (struct msghdr){.msg_name = w_connected(s) ? 0 : &dst[i],
+                (struct msghdr){.msg_name = w_connected(s) ? 0 : &v->addr,
                                 .msg_namelen =
-                                    w_connected(s) ? 0 : sizeof(dst[i]),
+                                    w_connected(s) ? 0 : sizeof(v->addr),
                                 .msg_iov = &msg[i],
                                 .msg_iovlen = 1};
 
@@ -400,13 +398,13 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 // receive. Preparing to handle longer sizes has preparation overheads, whereas
 // only handling shorter sizes may require multiple syscalls (and incur their
 // overheads). So we're picking a number out of a hat.
-#define RECV_SIZE MIN(16, IOV_MAX)
+#define RECV_SIZE MIN(64, IOV_MAX)
 #else
 #define RECV_SIZE 1
 #endif
     ssize_t n = 0;
     do {
-        struct sockaddr_in peer[RECV_SIZE];
+        struct sockaddr peer[RECV_SIZE];
         struct w_iov * v[RECV_SIZE];
         struct iovec msg[RECV_SIZE];
         __extension__ uint8_t ctrl[RECV_SIZE][CMSG_SPACE(sizeof(uint8_t))];
@@ -460,8 +458,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 // messages for the return loop below
                 n = 1;
 #endif
-                v[j]->ip = peer[j].sin_addr.s_addr;
-                v[j]->port = peer[j].sin_port;
+                memcpy(&v[j]->addr, &peer[j], sizeof(peer[j]));
 
                 // extract TOS byte
 #ifdef HAVE_RECVMMSG

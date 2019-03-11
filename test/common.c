@@ -28,9 +28,12 @@
 #include <arpa/inet.h>
 #include <inttypes.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/socket.h>
+
 #include <warpcore/warpcore.h>
 
 #include "common.h"
@@ -102,11 +105,22 @@ bool io(const uint64_t len)
         ensure(ov->flags == iv->flags, "TOS byte 0x%02x != 0x%02x", ov->flags,
                iv->flags);
 #endif
-        ensure(iv->port == w_get_sport(s_clnt), "port %u != port %u",
-               ntohs(iv->port), ntohs(w_get_sport(s_clnt)));
+        ensure(((struct sockaddr_in *)&iv->addr)->sin_port ==
+                   ((const struct sockaddr_in *)(const void *)w_get_addr(s_clnt,
+                                                                         true))
+                       ->sin_port,
+               "port %u != port %u",
+               ntohs(((struct sockaddr_in *)&iv->addr)->sin_port),
+               ntohs(((const struct sockaddr_in *)(const void *)w_get_addr(
+                          s_clnt, true))
+                         ->sin_port));
 
-        ensure(ov->ip == 0 || iv->ip == ov->ip, "IP %08x != IP %08x",
-               ntohl(iv->ip), ntohl(ov->ip));
+        ensure(((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr == 0 ||
+                   ((struct sockaddr_in *)&iv->addr)->sin_addr.s_addr ==
+                       ((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr,
+               "IP %08x != IP %08x",
+               ntohl(((struct sockaddr_in *)&iv->addr)->sin_addr.s_addr),
+               ntohl(((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr));
 
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);
@@ -136,7 +150,10 @@ void init(const uint64_t len)
 
     // connect to server
     s_clnt = w_bind(w_clnt, 0, 0);
-    w_connect(s_clnt, inet_addr("127.0.0.1"), htons(55555));
+    w_connect(s_clnt, (struct sockaddr *)&(struct sockaddr_in){
+                          .sin_family = AF_INET,
+                          .sin_addr.s_addr = inet_addr("127.0.0.1"),
+                          .sin_port = htons(55555)});
     ensure(w_connected(s_clnt), "not connected");
 }
 

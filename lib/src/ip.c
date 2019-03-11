@@ -182,7 +182,8 @@ void
         ip->p = IP_P_UDP;
 
     ip->src = likely(s) && w_connected(s) ? s->tup.sip : v->w->ip;
-    ip->dst = likely(s) && w_connected(s) ? s->tup.dip : v->ip;
+    struct sockaddr_in * const addr4 = (struct sockaddr_in *)&v->addr;
+    ip->dst = likely(s) && w_connected(s) ? s->tup.dip : addr4->sin_addr.s_addr;
 
     // IP checksum is over header only
     ip->cksum = 0;

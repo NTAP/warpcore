@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.32.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.34.0 LANGUAGES C CXX)
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
@@ -82,7 +82,7 @@ foreach(FLAG -Wno-c++98-compat -Wno-global-constructors)
 endforeach()
 
 # flags for "Debug" and "None" builds
-set(CMAKE_C_FLAGS_DEBUG "-O0 -g3")
+set(CMAKE_C_FLAGS_DEBUG "-g3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 
 # disable IPO by default
@@ -120,7 +120,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     unset(CMAKE_REQUIRED_FLAGS)
 
     # Set some additional flags for Debug builds
-    set(FLAGS -fno-omit-frame-pointer -fsanitize-address-use-after-scope
+    set(FLAGS -Og -fno-omit-frame-pointer -fsanitize-address-use-after-scope
         -fno-optimize-sibling-calls -fno-common
         -fsanitize=unsigned-integer-overflow
         -fsanitize=implicit-conversion -fsanitize=nullability
