@@ -479,11 +479,9 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 sq_insert_tail(i, v[j], next);
             }
         } else {
-            if (unlikely(n < 0 && errno != EAGAIN && errno != ETIMEDOUT)) {
+            if (unlikely(n < 0 && errno != EAGAIN && errno != ETIMEDOUT))
                 warn(ERR, "recvmsg/recvmmsg returned %d (%s)", errno,
                      strerror(errno));
-                break;
-            }
             n = 0;
         }
         // return any unused buffers
