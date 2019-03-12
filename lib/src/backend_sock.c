@@ -374,7 +374,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #else
             sendmsg(s->fd, msgvec, 0);
 #endif
-        if (unlikely(r < 0)) {
+        if (unlikely(r < 0 && errno != EAGAIN && errno != ETIMEDOUT)) {
             warn(ERR, "sendmsg/sendmmsg returned %d (%s)", errno,
                  strerror(errno));
             break;
@@ -478,7 +478,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 // add the iov to the tail of the result
                 sq_insert_tail(i, v[j], next);
             }
-        } else if (unlikely(n < 0)) {
+        } else if (unlikely(n < 0 && errno != EAGAIN && errno != ETIMEDOUT)) {
             warn(ERR, "recvmsg/recvmmsg returned %d (%s)", errno,
                  strerror(errno));
             n = 0;
