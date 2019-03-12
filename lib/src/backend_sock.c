@@ -374,11 +374,11 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #else
             sendmsg(s->fd, msgvec, 0);
 #endif
-        ensure(r > 0 || errno == EAGAIN || errno == ETIMEDOUT ||
-                   errno == ECONNREFUSED || errno == EHOSTUNREACH ||
-                   errno == EHOSTDOWN || errno == ENETUNREACH ||
-                   errno == ENETDOWN,
-               "sendmsg/sendmmsg");
+        if (unlikely(r < 0)) {
+            warn(ERR, "sendmsg/sendmmsg returned %d (%s)", errno,
+                 strerror(errno));
+            break;
+        }
     } while (v);
 }
 
@@ -439,14 +439,8 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #ifdef HAVE_RECVMMSG
         n = (ssize_t)recvmmsg(s->fd, msgvec, (unsigned int)nbufs, MSG_DONTWAIT,
                               0);
-        ensure(n != -1 || errno == EAGAIN || errno == ETIMEDOUT ||
-                   errno == ECONNREFUSED,
-               "recvmmsg");
 #else
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
-        ensure(n != -1 || errno == EAGAIN || errno == ETIMEDOUT ||
-                   errno == ECONNREFUSED,
-               "recvmsg");
 #endif
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
@@ -484,10 +478,11 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 // add the iov to the tail of the result
                 sq_insert_tail(i, v[j], next);
             }
-        } else
-            // in case EAGAIN/ETIMEDOUT was returned (n == -1)
+        } else if (unlikely(n < 0)) {
+            warn(ERR, "recvmsg/recvmmsg returned %d (%s)", errno,
+                 strerror(errno));
             n = 0;
-
+        }
         // return any unused buffers
         for (ssize_t j = n; likely(j < nbufs); j++)
             sq_insert_head(&s->w->iov, v[j], next);
