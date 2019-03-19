@@ -67,13 +67,15 @@ addons:
       description: "Build submitted via Travis CI"
     notification_email: lars@netapp.com
     build_command_prepend: |
-      cd $TRAVIS_BUILD_DIR
-      rm -rf build
-      mkdir build
-      cd build
-      ../bin/cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
-        -DCMAKE_BUILD=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
-        -DNO_SANITIZERS=True ..
+      if [ $BUILD = "Debug" -a $MYCC = "gcc-7" -a $FUZZ = 0 ]; then
+        cd $TRAVIS_BUILD_DIR
+        rm -rf build
+        mkdir build
+        cd build
+        cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
+          -DCMAKE_BUILD=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
+          -DNO_SANITIZERS=True ..
+      fi
     build_command: make
     branch_pattern: coverity
 
@@ -96,7 +98,7 @@ script:
     rm -rf build
     mkdir build
     cd build
-    ../bin/cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
+    cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
       -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
       -DNO_SANITIZERS=True -DFUZZER=$FUZZ ..
     make
