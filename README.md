@@ -1,5 +1,5 @@
 # Warpcore
-
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/NTAP/warpcore.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/NTAP/warpcore/alerts/)
 ## About
 
 Warpcore is a minimal userspace UDP/IPv4/Ethernet stack for the [netmap packet
