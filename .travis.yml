@@ -94,10 +94,6 @@ before_install:
 
 script:
   - |
-    echo cat /home/travis/build/NTAP/warpcore/build/cov-int/scm_log.txt
-    cat /home/travis/build/NTAP/warpcore/build/cov-int/scm_log.txt
-    echo cat /home/travis/build/NTAP/warpcore/build/cov-int/build-log.txt
-    cat /home/travis/build/NTAP/warpcore/build/cov-int/build-log.txt
     if [ "${COVERITY_SCAN_BRANCH}" = 1 ]; then exit 0 ; fi
     cd $TRAVIS_BUILD_DIR
     rm -rf build
