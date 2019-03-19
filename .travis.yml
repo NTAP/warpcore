@@ -67,12 +67,14 @@ addons:
     notification_email: lars@netapp.com
     build_command_prepend: |
       if [ $BUILD = "Debug" -a $MYCC = "gcc-7" -a $FUZZ = 0 ]; then
+        sysctl vsyscall=emulate
+        cov-configure --comptype gcc --compiler $MYCC
         cd $TRAVIS_BUILD_DIR
         rm -rf build
         mkdir build
         cd build
         cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
-          -DCMAKE_BUILD=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
+          -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
           -DNO_SANITIZERS=True ..
       fi
     build_command: make
