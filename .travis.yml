@@ -78,11 +78,6 @@ addons:
     branch_pattern: coverity
 
 before_install:
-  # manually install latest cmake
-  - |
-    travis_retry wget \
-      -q https://cmake.org/files/v3.11/cmake-3.11.1-Linux-x86_64.sh
-    sh cmake-3.11.1-Linux-x86_64.sh --skip-license
   # download netmap headers, to build the relevant backend
   - |
     cd $TRAVIS_BUILD_DIR
@@ -109,7 +104,7 @@ script:
 after_success:
   # update the documentation
   - |
-    if [ $BUILD = "Debug" -a $MYCC = "gcc-7" ]; then
+    if [ $BUILD = "Debug" -a $MYCC = "gcc-7" -a $FUZZ = 0 ]; then
       cd $TRAVIS_BUILD_DIR/build
       git clone -b gh-pages https://git@github.com/NTAP/$PROJECT.git gh-pages
       cd gh-pages
