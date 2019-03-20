@@ -77,7 +77,7 @@ addons:
           -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
           -DNO_SANITIZERS=True ..
       fi
-    build_command: make
+    build_command: cov-build make
     branch_pattern: coverity
 
 before_install:
