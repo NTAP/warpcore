@@ -67,8 +67,8 @@ addons:
     notification_email: lars@netapp.com
     build_command_prepend: |
       if [ $BUILD = "Debug" -a $MYCC = "gcc-7" -a $FUZZ = 0 ]; then
-        sysctl vsyscall=emulate
-        cov-configure --comptype gcc --compiler $MYCC
+        sysctl vsyscall=emulate || true
+        cov-configure --comptype gcc --compiler `which $MYCC`
         cd $TRAVIS_BUILD_DIR
         rm -rf build
         mkdir build
