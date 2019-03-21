@@ -166,8 +166,9 @@ void backend_init(struct w_engine * const w,
     w->bufs = calloc(b->req->nr_arg3, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
 
-    uint32_t n, i;
-    for (n = 0, i = b->nif->ni_bufs_head; likely(n < b->req->nr_arg3); n++) {
+    uint32_t n = 0;
+    uint32_t i = b->nif->ni_bufs_head;
+    for (; likely(n < b->req->nr_arg3); n++) {
         w->bufs[n].idx = i;
         init_iov(w, &w->bufs[n]);
         sq_insert_head(&w->iov, &w->bufs[n], next);

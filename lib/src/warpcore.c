@@ -424,7 +424,9 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
     snprintf(pipe, IFNAMSIZ, "warp-%s", ifname);
 
     // we mostly loop here because the link may be down
-    bool link_up = false, is_loopback = false, have_pipe = false;
+    bool link_up = false;
+    bool is_loopback = false;
+    bool have_pipe = false;
     while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0 ||
            w->mbps == 0) {
 

@@ -105,7 +105,8 @@ static void rem(void)
 static void ini(void)
 {
     const int n = r(N);
-    struct elem *e, *t;
+    struct elem * e;
+    struct elem * t;
     sq_foreach_safe (e, &sq[n], next, t)
         free(e);
     sq_init(&sq[n]);

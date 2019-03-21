@@ -204,7 +204,8 @@ void util_die(const char * const func,
     va_list ap;
     va_start(ap, fmt);
     const int e = errno;
-    struct timeval now = {0, 0}, dur = {0, 0};
+    struct timeval now = {0, 0};
+    struct timeval dur = {0, 0};
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &dur);
     fprintf(stderr, DTHREAD_ID_IND(BMAG) WHT BLD "%ld.%03ld   %s %s:%u ABORT: ",
@@ -293,7 +294,9 @@ util_warn_valist(const unsigned dlevel,
     DTHREAD_LOCK;
 
     static struct timeval last = {-1, -1};
-    struct timeval now = {0, 0}, dur = {0, 0}, diff = {0, 0};
+    struct timeval now = {0, 0};
+    struct timeval dur = {0, 0};
+    struct timeval diff = {0, 0};
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &dur);
     timersub(&now, &last, &diff);
@@ -394,7 +397,8 @@ void util_hexdump(const void * const ptr,
                   const unsigned line)
 {
     DTHREAD_LOCK;
-    struct timeval now, elapsed;
+    struct timeval now;
+    struct timeval elapsed;
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &elapsed);
 

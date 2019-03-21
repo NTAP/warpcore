@@ -222,7 +222,8 @@ csum_oc16_sse(const uint8_t * const data,
 {
     uint32_t n = 0;
     for (n = 0; (n + 64) <= data_len; n += 64) {
-        __m128i dblock1, dblock2;
+        __m128i dblock1;
+        __m128i dblock2;
 
         dblock1 = _mm_loadu_si128((const __m128i *)(const void *)&data[n]);
         dblock2 = _mm_loadu_si128((const __m128i *)(const void *)&data[n + 16]);
@@ -279,7 +280,8 @@ uint16_t ip_cksum(const void * const buf, const uint16_t len)
 uint16_t udp_cksum(const void * const buf, const uint16_t len)
 {
     const struct ip_hdr * ip = (const struct ip_hdr *)buf;
-    __m128i sum32a, sum32b;
+    __m128i sum32a;
+    __m128i sum32b;
     uint32_t sum;
 
     /**

@@ -60,6 +60,7 @@ include(CheckCXXCompilerFlag)
 foreach(FLAG -pipe -march=native -Wextra -Wpedantic -Weverything -Werror
         -Wno-disabled-macro-expansion # clang on travis needs this
         -Wno-missing-field-initializers # and this (clang-5)
+        -Wno-extra-semi-stmt # the kh_foreach* macros need this
         -fcolor-diagnostics -fdiagnostics-color=always)
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})
@@ -170,6 +171,8 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       message(STATUS "Found clang-tidy: ${CLANGTIDY}")
       set(CLANG_TIDY_CHECKS *
           -cert-err58-cpp
+          -cppcoreguidelines-avoid-magic-numbers
+          -cppcoreguidelines-macro-usage
           -cppcoreguidelines-owning-memory
           -fuchsia-statically-constructed-objects
           -google-readability-braces-around-statements
@@ -178,6 +181,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
           -hicpp-braces-around-statements
           -hicpp-signed-bitwise
           -readability-braces-around-statements
+          -readability-magic-numbers
       )
       string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
       set(CMAKE_C_CLANG_TIDY ${CLANGTIDY}
