@@ -143,8 +143,8 @@ bool
 #endif
         // be standards compliant and send an ICMP unreachable
         icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PROTOCOL, buf);
-        return false;
     }
+    return false;
 }
 
 
