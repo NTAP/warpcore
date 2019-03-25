@@ -48,7 +48,7 @@ struct udp_hdr {
 // #include "udp.h"
 
 
-extern void __attribute__((nonnull)) udp_rx(struct w_engine * const w,
+extern bool __attribute__((nonnull)) udp_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,
                                             uint8_t * const buf);
 

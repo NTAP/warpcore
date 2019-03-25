@@ -177,7 +177,7 @@ extern void __attribute__((nonnull)) ip_tx_with_rx_buf(struct w_engine * w,
                                                        void * const buf,
                                                        const uint16_t len);
 
-extern void __attribute__((nonnull)) ip_rx(struct w_engine * const w,
+extern bool __attribute__((nonnull)) ip_rx(struct w_engine * const w,
                                            struct netmap_slot * const s,
                                            uint8_t * const buf);
 

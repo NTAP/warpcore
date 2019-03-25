@@ -64,7 +64,9 @@ char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
 /// @param      s     Currently active netmap RX slot.
 /// @param      buf   Incoming packet.
 ///
-void eth_rx(struct w_engine * const w,
+/// @return     Whether a packet was placed into a socket.
+///
+bool eth_rx(struct w_engine * const w,
             struct netmap_slot * const s,
             uint8_t * const buf)
 {
@@ -86,16 +88,17 @@ void eth_rx(struct w_engine * const w,
         warn(INF, "Ethernet packet to %s not destined to us (%s); ignoring",
              ether_ntoa_r(&eth->dst, dst), ether_ntoa_r(&w->mac, src));
 #endif
-        return;
+        return false;
     }
     if (likely(eth->type == ETH_TYPE_IP))
-        ip_rx(w, s, buf);
+        return ip_rx(w, s, buf);
     else if (eth->type == ETH_TYPE_ARP)
         arp_rx(w, buf);
 #ifndef FUZZING
     else
         warn(INF, "unhandled ethertype 0x%04x", ntohs(eth->type));
 #endif
+    return false;
 }
 
 

@@ -351,6 +351,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 {
     struct pollfd fds = {.fd = w->b->fd, .events = POLLIN};
+again:
     if (poll(&fds, 1, msec) == 0)
         return false;
 
@@ -362,15 +363,17 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
             // process the current slot
             warn(DBG, "rx idx %u from ring %u slot %u", r->slot[r->cur].buf_idx,
                  i, r->cur);
-            eth_rx(w, &r->slot[r->cur],
-                   (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx));
+            rx = eth_rx(w, &r->slot[r->cur],
+                        (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx));
             r->head = r->cur = nm_ring_next(r, r->cur);
-            rx = true;
         }
     }
 
-    if (likely(rx) && unlikely(is_pipe(w)))
-        ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
+    // if (likely(rx) && unlikely(is_pipe(w)))
+    //     ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
+
+    if (rx == false && msec == -1)
+        goto again;
 
     return rx;
 }

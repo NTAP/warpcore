@@ -73,7 +73,7 @@ eth_data(uint8_t * const buf)
 }
 
 
-extern void __attribute__((nonnull)) eth_rx(struct w_engine * const w,
+extern bool __attribute__((nonnull)) eth_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,
                                             uint8_t * const buf);
 

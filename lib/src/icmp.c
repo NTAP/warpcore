@@ -159,7 +159,12 @@ void icmp_tx(struct w_engine * const w,
 void icmp_rx(struct w_engine * const w,
              struct netmap_slot * const s
 #ifdef FUZZING
-             __attribute__((unused))
+             __attribute__((unused
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+                            ,
+                            no_sanitize("alignment")
+#endif
+                                ))
 #endif
              ,
              uint8_t * const buf)

@@ -80,7 +80,9 @@
 /// @param      s     Currently active netmap RX slot.
 /// @param      buf   Incoming packet.
 ///
-void
+/// @return     Whether a packet was placed into a socket.
+///
+bool
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
     __attribute__((no_sanitize("alignment")))
 #endif
@@ -103,7 +105,7 @@ void
              inet_ntop(AF_INET, &ip->src, src, INET_ADDRSTRLEN),
              inet_ntop(AF_INET, &ip->dst, dst, INET_ADDRSTRLEN));
 #endif
-        return;
+        return false;
     }
 
 #ifndef FUZZING
@@ -111,7 +113,7 @@ void
     if (unlikely(ip_cksum(ip, sizeof(*ip)) != 0)) {
         warn(WRN, "invalid IP checksum, received 0x%04x != 0x%04x",
              ntohs(ip->cksum), ip_cksum(ip, sizeof(*ip)));
-        return;
+        return false;
     }
 #endif
 
@@ -120,7 +122,7 @@ void
 #ifndef FUZZING
         warn(WRN, "no support for IP options");
 #endif
-        return;
+        return false;
     }
 
     if (unlikely(ntohs(ip->off) & IP_OFFMASK)) {
@@ -128,11 +130,11 @@ void
 #ifndef FUZZING
         warn(WRN, "no support for IP fragments");
 #endif
-        return;
+        return false;
     }
 
     if (likely(ip->p == IP_P_UDP))
-        udp_rx(w, s, buf);
+        return udp_rx(w, s, buf);
     else if (ip->p == IP_P_ICMP)
         icmp_rx(w, s, buf);
     else {
@@ -141,6 +143,7 @@ void
 #endif
         // be standards compliant and send an ICMP unreachable
         icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PROTOCOL, buf);
+        return false;
     }
 }
 

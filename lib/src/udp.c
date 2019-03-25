@@ -76,7 +76,9 @@
 /// @param      s     Currently active netmap RX slot.
 /// @param      buf   Incoming packet.
 ///
-void
+/// @return     Whether a packet was placed into a socket.
+///
+bool
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
     __attribute__((no_sanitize("alignment")))
 #endif
@@ -92,7 +94,7 @@ void
 #ifndef FUZZING
         warn(WRN, "IP len %lu too short for UDP", ip_len - sizeof(*ip));
 #endif
-        return;
+        return false;
     }
 
     const uint16_t udp_len = MIN(ntohs(udp->len), ip_len - sizeof(*ip));
@@ -105,7 +107,7 @@ void
         if (unlikely(udp->cksum != cksum)) {
             warn(WRN, "invalid UDP checksum, received 0x%04x != 0x%04x",
                  ntohs(udp->cksum), ntohs(cksum));
-            return;
+            return false;
         }
     }
 #endif
@@ -120,7 +122,7 @@ void
             // send an ICMP unreachable reply, if this was not a broadcast
             if (ip->dst == w->ip)
                 icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
-            return;
+            return false;
         }
     }
     // grab an unused iov for the data in this packet
@@ -130,7 +132,7 @@ void
     struct w_iov * const i = w_alloc_iov_base(w);
     if (unlikely(i == 0)) {
         warn(CRT, "no more bufs; UDP packet RX failed");
-        return;
+        return false;
     }
 
     warn(DBG, "%sing rx slot idx %d %s spare idx %u",
@@ -166,6 +168,7 @@ void
 
     // append the iov to the socket
     sq_insert_tail(&ws->iv, i, next);
+    return true;
 }
 
 
