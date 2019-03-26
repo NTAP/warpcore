@@ -135,7 +135,7 @@ bool
 
     if (likely(ip->p == IP_P_UDP))
         return udp_rx(w, s, buf);
-    else if (ip->p == IP_P_ICMP)
+    if (ip->p == IP_P_ICMP)
         icmp_rx(w, s, buf);
     else {
 #ifndef FUZZING

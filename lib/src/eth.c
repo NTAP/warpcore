@@ -92,7 +92,7 @@ bool eth_rx(struct w_engine * const w,
     }
     if (likely(eth->type == ETH_TYPE_IP))
         return ip_rx(w, s, buf);
-    else if (eth->type == ETH_TYPE_ARP)
+    if (eth->type == ETH_TYPE_ARP)
         arp_rx(w, buf);
 #ifndef FUZZING
     else
