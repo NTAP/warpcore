@@ -37,6 +37,9 @@ set(CMAKE_REQUIRED_LINK_OPTIONS -L/usr/local/lib)
 check_symbol_exists(ProfilerStart gperftools/profiler.h HAVE_PROFILER)
 cmake_reset_check_state()
 
+include_directories(AFTER SYSTEM /usr/local/include)
+link_directories(AFTER /usr/local/lib)
+
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
   add_definitions(-D_GNU_SOURCE)
 endif()
