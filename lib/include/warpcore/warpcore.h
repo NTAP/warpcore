@@ -82,6 +82,9 @@ struct w_engine {
     char * ifname;             ///< Name of the interface of this engine.
     char * drvname;            ///< Name of the driver of this interface.
     const char * backend_name; ///< Name of the backend in @p b.
+
+    /// Pointer to generic user data (not used by warpcore.)
+    void * data;
 };
 
 
