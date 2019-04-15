@@ -62,5 +62,10 @@ extern void __attribute__((nonnull
                                           const uint8_t code,
                                           uint8_t * const buf);
 
-extern void __attribute__((nonnull))
+extern void __attribute__((nonnull
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+                           ,
+                           no_sanitize("alignment")
+#endif
+                               ))
 icmp_rx(struct w_engine * w, struct netmap_slot * const s, uint8_t * const buf);
