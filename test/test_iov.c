@@ -38,7 +38,7 @@
 #include "backend.h"
 #include "common.h"
 
-#define beg(v) idx_to_buf(w, (v)->idx)
+#define beg(v) idx_to_buf(w, w_iov_idx(v))
 
 
 int main(void)
