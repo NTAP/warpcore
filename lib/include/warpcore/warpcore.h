@@ -182,19 +182,6 @@ struct w_iov {
 };
 
 
-/// Return the index of w_iov @p v.
-///
-/// @param      v     A w_iov.
-///
-/// @return     Index between 0-nfbus.
-///
-static inline uint32_t __attribute__((always_inline, nonnull))
-w_iov_idx(const struct w_iov * const v)
-{
-    return v - v->w->bufs;
-}
-
-
 /// Return a pointer to the w_iov with index @p i.
 ///
 /// @param      w     Warpcore engine.
