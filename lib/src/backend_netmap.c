@@ -166,14 +166,15 @@ void backend_init(struct w_engine * const w,
     w->bufs = calloc(b->req->nr_arg3, sizeof(*w->bufs));
     ensure(w->bufs != 0, "cannot allocate w_iov");
 
-    uint32_t n = 0;
     uint32_t i = b->nif->ni_bufs_head;
-    for (; likely(n < b->req->nr_arg3); n++) {
-        w->bufs[n].idx = n;
-        init_iov(w, &w->bufs[n]);
-        sq_insert_head(&w->iov, &w->bufs[n], next);
-        memcpy(&i, w->bufs[n].buf, sizeof(i));
-        ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, w->mtu);
+    for (uint32_t n = 0; likely(n < b->req->nr_arg3); n++) {
+        w->bufs[i].idx = i;
+        uint32_t j;
+        memcpy(&j, w->bufs[i].buf, sizeof(i));
+        init_iov(w, &w->bufs[i]);
+        sq_insert_head(&w->iov, &w->bufs[i], next);
+        ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, w->mtu);
+        i = j;
     }
 
     if (b->req->nr_arg3 != nbufs)
