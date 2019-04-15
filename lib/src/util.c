@@ -315,7 +315,7 @@ util_warn_valist(const unsigned dlevel,
     } else
         // subtract out the length of the ANSI control characters
         for (size_t i = 0; i <= strlen(now_str) - 8; i++)
-            fprintf(stderr, " ");
+            fputc(' ', stderr);
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
 
     if (util_dlevel == DBG)
@@ -326,7 +326,7 @@ util_warn_valist(const unsigned dlevel,
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     vfprintf(stderr, fmt, ap);
 #pragma clang diagnostic pop
-    fprintf(stderr, "\n");
+    fputc('\n', stderr);
     fflush(stderr);
     DTHREAD_UNLOCK;
 }
@@ -423,15 +423,14 @@ void util_hexdump(const void * const ptr,
             else
                 fprintf(stderr, "  ");
             if (j % 2)
-                fprintf(stderr, " ");
+                fputc(' ', stderr);
         }
-        fprintf(stderr, " ");
+        fprintf(stderr, " " GRN);
         for (size_t j = 0; j < 16; j++) {
             if (i + j < len)
-                fprintf(stderr, GRN "%c",
-                        isprint(buf[i + j]) ? buf[i + j] : '.');
+                fputc(isprint(buf[i + j]) ? buf[i + j] : '.', stderr);
         }
-        fprintf(stderr, "\n");
+        fprintf(stderr, NRM "\n");
     }
 
     fflush(stderr);
