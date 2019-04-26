@@ -10,6 +10,9 @@ if(HAVE_BENCHMARK_H)
       ${PROJECT_SOURCE_DIR}/lib/src
       ${PROJECT_SOURCE_DIR}/lib/deps/klib
     )
+  if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
+    target_link_options(bench_sock PUBLIC -lc++)
+  endif()
   set_target_properties(bench_sock
     PROPERTIES
       POSITION_INDEPENDENT_CODE ON
@@ -28,6 +31,9 @@ if(HAVE_BENCHMARK_H)
       ${PROJECT_SOURCE_DIR}/lib/src
       ${PROJECT_SOURCE_DIR}/lib/deps/klib
     )
+    if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
+      target_link_options(bench_warp PUBLIC -lc++)
+    endif()
     set_target_properties(bench_warp
       PROPERTIES
         POSITION_INDEPENDENT_CODE ON
