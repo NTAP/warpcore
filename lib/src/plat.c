@@ -30,6 +30,12 @@
 #include <netinet/in.h> // IWYU pragma: keep
 #endif
 
+#ifdef __APPLE__
+// need to come before ifaddrs.h
+#include <sys/socket.h>
+#include <sys/types.h>
+#endif
+
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/if_ether.h>
@@ -54,9 +60,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/types.h>
 #include <unistd.h>
 #endif
 
