@@ -106,45 +106,47 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 
   add_definitions("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2")
 
-  # See if we can use the address sanitizer
-  check_include_file(sanitizer/asan_interface.h HAVE_ASAN)
-  if(HAVE_ASAN AND NOT NO_SANITIZERS AND NOT CMAKE_GENERATOR STREQUAL Xcode)
-    set(CMAKE_REQUIRED_FLAGS -fsanitize=address,undefined)
-    check_c_compiler_flag("" _fsanitize_address_undefined)
-    if(_fsanitize_address_undefined)
-      string(CONCAT CMAKE_C_FLAGS "${CMAKE_C_FLAGS} "
-              "-fsanitize=address,undefined")
-      string(CONCAT CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} "
-              "-fsanitize=address,undefined")
-      string(CONCAT BLACKLIST "-fsanitize-blacklist="
-              "${PROJECT_SOURCE_DIR}/misc/sanitize-blacklist.txt")
-      check_c_compiler_flag(${BLACKLIST} _fsanitize_blacklist)
-      if(_fsanitize_blacklist)
-        string(CONCAT CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${BLACKLIST}")
-        string(CONCAT CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${BLACKLIST}")
+  if(NOT NO_SANITIZERS)
+    # See if we can use the address sanitizer
+    check_include_file(sanitizer/asan_interface.h HAVE_ASAN)
+    if(HAVE_ASAN AND NOT NO_SANITIZERS AND NOT CMAKE_GENERATOR STREQUAL Xcode)
+      set(CMAKE_REQUIRED_FLAGS -fsanitize=address,undefined)
+      check_c_compiler_flag("" _fsanitize_address_undefined)
+      if(_fsanitize_address_undefined)
+        string(CONCAT CMAKE_C_FLAGS "${CMAKE_C_FLAGS} "
+                "-fsanitize=address,undefined")
+        string(CONCAT CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} "
+                "-fsanitize=address,undefined")
+        string(CONCAT BLACKLIST "-fsanitize-blacklist="
+                "${PROJECT_SOURCE_DIR}/misc/sanitize-blacklist.txt")
+        check_c_compiler_flag(${BLACKLIST} _fsanitize_blacklist)
+        if(_fsanitize_blacklist)
+          string(CONCAT CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${BLACKLIST}")
+          string(CONCAT CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${BLACKLIST}")
+        endif()
       endif()
-    endif()
-    unset(CMAKE_REQUIRED_FLAGS)
+      unset(CMAKE_REQUIRED_FLAGS)
 
-    # Set some additional flags for Debug builds
-    set(FLAGS -Og -fno-omit-frame-pointer -fsanitize-address-use-after-scope
-        -fno-optimize-sibling-calls -fno-common
-        -fsanitize=unsigned-integer-overflow
-        -fsanitize=implicit-conversion -fsanitize=nullability
-        -fsanitize=memory -fsanitize-memory-track-origins
-        -fsanitize-memory-use-after-dtor
-    )
-    foreach(FLAG ${FLAGS})
-      string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
-      check_c_compiler_flag(${FLAG} ${F})
-      if(${F})
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
-      endif()
-      check_cxx_compiler_flag(${FLAG} ${F})
-      if(${F})
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
-      endif()
-    endforeach()
+      # Set some additional flags for Debug builds
+      set(FLAGS -Og -fno-omit-frame-pointer -fsanitize-address-use-after-scope
+          -fno-optimize-sibling-calls -fno-common
+          -fsanitize=unsigned-integer-overflow
+          -fsanitize=implicit-conversion -fsanitize=nullability
+          -fsanitize=memory -fsanitize-memory-track-origins
+          -fsanitize-memory-use-after-dtor
+      )
+      foreach(FLAG ${FLAGS})
+        string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
+        check_c_compiler_flag(${FLAG} ${F})
+        if(${F})
+          set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+        endif()
+        check_cxx_compiler_flag(${FLAG} ${F})
+        if(${F})
+          set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
+        endif()
+      endforeach()
+    endif()
   endif()
 
   find_program(CPPCHECK NAMES cppcheck)
