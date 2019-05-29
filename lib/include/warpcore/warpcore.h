@@ -318,7 +318,7 @@ w_ifname(const struct w_engine * const w)
 }
 
 
-/// Return MTU of w_engine @p w. Must not be modified by caller.
+/// Return MTU of w_engine @p w.
 ///
 /// @param[in]  w     Backend engine.
 ///
@@ -344,7 +344,7 @@ w_iov_sq_cnt(const struct w_iov_sq * const q)
 }
 
 
-/// Return link speed of w_engine @p w in Mb/s. Must not be modified by caller.
+/// Return link speed of w_engine @p w in Mb/s.
 ///
 /// @param[in]  w     Backend engine.
 ///
