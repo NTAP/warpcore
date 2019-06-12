@@ -27,8 +27,11 @@
 
 #pragma once
 
-#include <netinet/if_ether.h>
 #include <stdint.h>
+
+#ifndef PARTICLE
+#include <netinet/if_ether.h>
+#endif
 
 #include <khash.h>
 

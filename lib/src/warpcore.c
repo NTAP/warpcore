@@ -27,9 +27,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
-#include <ifaddrs.h>
 #include <inttypes.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -46,17 +44,38 @@
 
 #define klib_unused
 
-#include <khash.h>
-#include <krng.h>
-#include <warpcore/warpcore.h>
+#ifndef PARTICLE
 
-#if !defined(NDEBUG) && DLEVEL >= NTE
-#include <netinet/if_ether.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+
+#else
+
+typedef struct if_list if_list;
+
+#include <ifapi.h>
+#include <system_network.h>
+
+#define getifaddrs if_get_if_addrs
+#define freeifaddrs if_free_if_addrs
+#define ifa_next next
+#define ifa_name ifname
+#define ifa_flags ifflags
+#define ifa_addr if_addr->addr
+#define ifa_netmask if_addr->netmask
+
+#include <spark_wiring_ticks.h>
+#define sleep(sec) delay((sec)*1000)
+
 #endif
 
 #ifdef HAVE_ASAN
 #include <sanitizer/asan_interface.h>
 #endif
+
+#include <khash.h>
+#include <krng.h>
+#include <warpcore/warpcore.h>
 
 #include "backend.h"
 
@@ -278,7 +297,7 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     }
     ins_sock(s->w, s);
 
-#if !defined(NDEBUG) && DLEVEL >= NTE
+#ifndef NDEBUG
     char str[INET_ADDRSTRLEN];
     warn(DBG, "socket connected to %s port %d",
          inet_ntop(AF_INET, &s->tup.dip, str, INET_ADDRSTRLEN),
@@ -409,6 +428,11 @@ void w_init_rand(void)
 struct w_engine *
 w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
 {
+#ifdef PARTICLE
+    LOG(ALL, "NOTE: newlib has no I/O support for 64-bit types - expect log "
+             "weirdness");
+#endif
+
     w_init_rand();
 
     // allocate engine struct
@@ -419,9 +443,11 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
     w->sock = kh_init(sock);
     sq_init(&w->iov);
 
+#ifndef PARTICLE
     // construct interface name of a netmap pipe for this interface
     char pipe[IFNAMSIZ];
     snprintf(pipe, IFNAMSIZ, "warp-%s", ifname);
+#endif
 
     // we mostly loop here because the link may be down
     bool link_up = false;
@@ -437,9 +463,10 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
 
         struct ifaddrs * i;
         for (i = ifap; i; i = i->ifa_next) {
+#ifndef PARTICLE
             if (strcmp(i->ifa_name, pipe) == 0)
                 have_pipe = true;
-
+#endif
             if (strcmp(i->ifa_name, ifname) != 0)
                 continue;
 
@@ -455,10 +482,11 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
                 char drvname[32];
                 plat_get_iface_driver(i, drvname, sizeof(drvname));
                 w->drvname = strdup(drvname);
-#if !defined(NDEBUG) && DLEVEL >= NTE
-                warn(NTE, "%s addr %s, MTU %d, speed %uG, link %s", i->ifa_name,
-                     ether_ntoa(&w->mac), w->mtu, w->mbps / 1000,
-                     link_up ? "up" : "down");
+#ifndef NDEBUG
+                char mac[ETH_ADDR_STRLEN];
+                warn(NTE, "%s addr %s, MTU %d, speed %" PRIu32 "G, link %s",
+                     i->ifa_name, ether_ntoa_r(&w->mac, mac), w->mtu,
+                     w->mbps / 1000, link_up ? "up" : "down");
 #endif
                 break;
             case AF_INET:
@@ -492,7 +520,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
         freeifaddrs(ifap);
     }
 
-#if !defined(NDEBUG) && DLEVEL >= NTE
+#ifndef NDEBUG
     char ip_str[INET_ADDRSTRLEN];
     char mask_str[INET_ADDRSTRLEN];
     char rip_str[INET_ADDRSTRLEN];
@@ -509,8 +537,11 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
     // set the IP address of our default router
     w->rip = rip;
 
-    // loopback interfaces can have huge MTUs, so cap to something more sensible
-    w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
+#ifndef PARTICLE
+    if (is_loopback)
+        // loopback can have huge MTUs, so cap to something more sensible
+        w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
+#endif
 
     // backend-specific init
     w->b = calloc(1, sizeof(*w->b));
@@ -610,4 +641,26 @@ uint64_t w_rand_uniform(const uint64_t upper_bound)
     }
 
     return r % upper_bound;
+}
+
+
+/// Return the local or peer IPv4 address and port for a w_sock.
+///
+/// @param[in]  s      Pointer to w_sock.
+/// @param[in]  local  If true, return local IPv4 and port, else the peer's.
+///
+/// @return     Local or remote IPv4 address and port, or zero if unbound or
+/// disconnected.
+///
+const struct sockaddr * w_get_addr(const struct w_sock * const s,
+                                   const bool local)
+{
+    if ((local && s->tup.sip == 0) || (!local && s->tup.dip == 0))
+        return 0;
+
+    static struct sockaddr_storage addr = {.ss_family = AF_INET};
+    struct sockaddr_in * const sin = (struct sockaddr_in *)&addr;
+    sin->sin_port = local ? s->tup.sport : s->tup.dport;
+    sin->sin_addr.s_addr = local ? s->tup.sip : s->tup.dip;
+    return (struct sockaddr *)&addr;
 }

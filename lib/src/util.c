@@ -34,10 +34,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <time.h>
 
-#ifndef __FreeBSD__
+#ifdef __linux__
 #include <dlfcn.h>
 #include <time.h>
+#endif
+
+#ifdef PARTICLE
+#include "timer_hal.h"
+
+int gettimeofday(struct timeval * restrict tp,
+                 void * restrict tzp __attribute__((unused)))
+{
+    const unsigned long usec = HAL_Timer_Get_Micro_Seconds();
+    tp->tv_sec = usec / 1000000;
+    tp->tv_usec = usec % 1000000;
+    return 0;
+}
+
 #endif
 
 #if !defined(NDEBUG)
@@ -279,7 +294,9 @@ void util_die(const char * const func,
 #define BCYN "\x1B[46m" ///< ANSI escape sequence: background cyan
 
 
+#ifndef PARTICLE
 short util_dlevel = DLEVEL;
+#endif
 
 static void __attribute__((nonnull, , format(printf, 6, 0)))
 util_warn_valist(const unsigned dlevel,
@@ -318,9 +335,11 @@ util_warn_valist(const unsigned dlevel,
             fputc(' ', stderr);
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
 
+#ifndef PARTICLE
     if (util_dlevel == DBG)
         fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, basename(file),
                 line);
+#endif
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"

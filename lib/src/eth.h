@@ -28,10 +28,13 @@
 #pragma once
 
 #include <arpa/inet.h>
-#include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+#ifndef PARTICLE
+#include <netinet/if_ether.h>
+#endif
 
 #ifdef WITH_NETMAP
 // IWYU pragma: no_include <net/netmap.h>
@@ -58,8 +61,6 @@ struct eth_hdr {
 #define ETH_TYPE_IP htons(0x0800)  ///< EtherType for IPv4.
 #define ETH_TYPE_ARP htons(0x0806) ///< EtherType for ARP.
 
-#define ETH_ADDR_STRLEN ETHER_ADDR_LEN * 3
-
 /// Return a pointer to the first data byte inside the Ethernet frame in @p buf.
 ///
 /// @param      buf   The buffer to find data in.
@@ -76,12 +77,6 @@ eth_data(uint8_t * const buf)
 extern bool __attribute__((nonnull)) eth_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,
                                             uint8_t * const buf);
-
-#ifndef HAVE_ETHER_NTOA_R
-extern char * __attribute__((nonnull))
-ether_ntoa_r(const struct ether_addr * const addr, char * const buf);
-#endif
-
 
 #ifdef WITH_NETMAP
 

@@ -49,7 +49,20 @@ struct ifaddrs;
 #include <net/ethernet.h>
 #define PLAT_MMFLAGS 0
 #define SOCK_CLOEXEC 0
+
+#elif defined(PARTICLE)
+#define ETHER_ADDR_LEN 6
+
+struct ether_addr {
+    u_char ether_addr_octet[ETHER_ADDR_LEN];
+};
+
+typedef struct if_list if_list;
+#include "ifapi.h"
+#define ifaddrs if_addrs
 #endif
+
+#define ETH_ADDR_STRLEN ETHER_ADDR_LEN * 3
 
 
 extern void __attribute__((nonnull))
@@ -68,3 +81,8 @@ extern void __attribute__((nonnull))
 plat_get_iface_driver(const struct ifaddrs * const i,
                       char * const name,
                       const size_t name_len);
+
+#ifndef HAVE_ETHER_NTOA_R
+extern char * __attribute__((nonnull))
+ether_ntoa_r(const struct ether_addr * const addr, char * const buf);
+#endif

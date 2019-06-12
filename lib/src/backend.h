@@ -51,12 +51,14 @@
 #include <time.h>
 #elif defined(HAVE_EPOLL)
 #include <sys/epoll.h>
-#else
+#elif !defined(PARTICLE)
 #include <poll.h>
 #endif
 
+#ifdef WITH_NETMAP
 #include "arp.h"
 #include "udp.h"
+#endif
 
 
 struct w_backend {

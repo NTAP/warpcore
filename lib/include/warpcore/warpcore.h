@@ -271,6 +271,9 @@ w_get_sock(struct w_engine * const w,
            const uint32_t dip,
            const uint16_t dport);
 
+extern const struct sockaddr * __attribute__((nonnull))
+w_get_addr(const struct w_sock * const s, const bool local);
+
 extern void w_init_rand(void);
 
 extern uint64_t w_rand(void);
@@ -381,28 +384,6 @@ static inline const struct w_sockopt * __attribute__((always_inline, nonnull))
 w_get_sockopt(const struct w_sock * const s)
 {
     return &s->opt;
-}
-
-
-/// Return the local or peer IPv4 address and port for a w_sock.
-///
-/// @param[in]  s      Pointer to w_sock.
-/// @param[in]  local  If true, return local IPv4 and port, else the peer's.
-///
-/// @return     Local or remote IPv4 address and port, or zero if unbound or
-/// disconnected.
-///
-static inline const struct sockaddr * __attribute__((always_inline, nonnull))
-w_get_addr(const struct w_sock * const s, const bool local)
-{
-    if ((local && s->tup.sip == 0) || (!local && s->tup.dip == 0))
-        return 0;
-
-    static struct sockaddr_storage addr = {.ss_family = AF_INET};
-    struct sockaddr_in * const sin = (struct sockaddr_in *)&addr;
-    sin->sin_port = local ? s->tup.sport : s->tup.dport;
-    sin->sin_addr.s_addr = local ? s->tup.sip : s->tup.dip;
-    return (struct sockaddr *)&addr;
 }
 
 

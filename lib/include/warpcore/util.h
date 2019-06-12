@@ -73,7 +73,16 @@
 /// @param      ...   Subsequent arguments to be converted for output according
 ///                   to @p fmt.
 ///
+#ifndef PARTICLE
 #define die(...) util_die(__func__, __FILE__, __LINE__, __VA_ARGS__)
+#else
+#define die(...)                                                               \
+    do {                                                                       \
+        LOG(PANIC, __VA_ARGS__);                                               \
+        abort();                                                               \
+    } while (0)
+
+#endif
 
 extern void __attribute__((nonnull(1, 2, 4), noreturn, format(printf, 4, 5)))
 util_die(const char * const func,
@@ -87,14 +96,7 @@ util_die(const char * const func,
 
 #include <regex.h>
 
-/// Debug levels, decreasing severity.
-///
-#define CRT 0 ///< Critical
-#define ERR 1 ///< Error
-#define WRN 2 ///< Warning
-#define NTE 3 ///< Notice
-#define INF 4 ///< Informational
-#define DBG 5 ///< Debug
+#ifndef PARTICLE
 
 // Set DLEVEL to the level of debug output you want to compile in support for
 #ifndef DLEVEL
@@ -109,6 +111,26 @@ util_die(const char * const func,
 extern short util_dlevel;
 
 
+/// Debug levels, decreasing severity.
+///
+#define CRT 0 ///< Critical
+#define ERR 1 ///< Error
+#define WRN 2 ///< Warning
+#define NTE 3 ///< Notice
+#define INF 4 ///< Informational
+#define DBG 5 ///< Debug
+
+#else
+
+#include <logging.h>
+#define CRT PANIC
+#define ERR ERROR
+#define WRN WARN
+#define NTE INFO
+#define INF TRACE
+#define DBG ALL
+#endif
+
 // These macros are based on the "D" ones defined by netmap
 
 /// Print a debug message to stderr, including a black/white indicator whether
@@ -122,6 +144,7 @@ extern short util_dlevel;
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
 ///
+#ifndef PARTICLE
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
         if (unlikely(DLEVEL >= dlevel && util_dlevel >= dlevel)) {             \
@@ -129,7 +152,9 @@ extern short util_dlevel;
                       __VA_ARGS__);                                            \
         }                                                                      \
     } while (0) // NOLINT
-
+#else
+#define warn(dlevel, ...) LOG(dlevel, __VA_ARGS__)
+#endif
 
 /// Like warn(), but always prints a timestamp.
 ///
@@ -138,6 +163,7 @@ extern short util_dlevel;
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
 ///
+#ifndef PARTICLE
 #define twarn(dlevel, ...)                                                     \
     do {                                                                       \
         if (unlikely(DLEVEL >= dlevel && util_dlevel >= dlevel)) {             \
@@ -145,6 +171,9 @@ extern short util_dlevel;
                       __VA_ARGS__);                                            \
         }                                                                      \
     } while (0) // NOLINT
+#else
+#define warn(dlevel, ...) LOG(dlevel, __VA_ARGS__)
+#endif
 
 
 extern void __attribute__((nonnull(3, 4, 6), format(printf, 6, 7)))
@@ -235,8 +264,12 @@ util_rwarn(time_t * const rt0,
 /// @param[in]  ptr   The beginning of the memory region to hexdump.
 /// @param[in]  len   The length of the memory region to hexdump.
 ///
+#ifndef PARTICLE
 #define hexdump(ptr, len)                                                      \
     util_hexdump(ptr, len, #ptr, __func__, __FILE__, __LINE__)
+#else
+#define hexdump(ptr, len) LOG_DUMP(PANIC, ptr, len)
+#endif
 
 extern void __attribute__((nonnull)) util_hexdump(const void * const ptr,
                                                   const size_t len,

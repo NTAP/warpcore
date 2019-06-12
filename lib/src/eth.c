@@ -32,28 +32,17 @@
 #include <sys/types.h>
 #endif
 
+#ifdef WITH_NETMAP
 // IWYU pragma: no_include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
+#endif
+
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
 #include "backend.h"
 #include "eth.h"
 #include "ip.h"
-
-
-#ifndef HAVE_ETHER_NTOA_R
-#include <stdio.h>
-
-char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
-{
-    sprintf(buf, "%x:%x:%x:%x:%x:%x", addr->ether_addr_octet[0],
-            addr->ether_addr_octet[1], addr->ether_addr_octet[2],
-            addr->ether_addr_octet[3], addr->ether_addr_octet[4],
-            addr->ether_addr_octet[5]);
-    return buf;
-}
-#endif
 
 
 /// Receive an Ethernet frame. This is the lowest-level RX function, called for

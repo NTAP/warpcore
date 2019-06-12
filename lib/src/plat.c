@@ -36,12 +36,17 @@
 #include <sys/types.h>
 #endif
 
-#include <ifaddrs.h>
-#include <net/if.h>
-#include <netinet/if_ether.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+
+#ifndef PARTICLE
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netinet/if_ether.h>
+#else
+// #include <socket_hal.h>
+#endif
 
 #if defined(__linux__)
 #include <errno.h>
@@ -74,9 +79,15 @@
 ///
 void plat_get_mac(struct ether_addr * const mac, const struct ifaddrs * const i)
 {
-#ifdef __linux__
+#if defined(__linux__)
     memcpy(mac, ((struct sockaddr_ll *)(void *)i->ifa_addr)->sll_addr,
            ETHER_ADDR_LEN);
+#elif defined(PARTICLE)
+    if_t iface;
+    if_get_by_name(i->ifname, &iface);
+    struct sockaddr_ll hw_addr;
+    if_get_lladdr(iface, &hw_addr);
+    memcpy(mac, hw_addr.sll_addr, ETHER_ADDR_LEN);
 #else
     memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr),
            ETHER_ADDR_LEN);
@@ -92,10 +103,13 @@ void plat_get_mac(struct ether_addr * const mac, const struct ifaddrs * const i)
 ///
 uint16_t plat_get_mtu(const struct ifaddrs * i)
 {
-#ifndef __linux__
-    const struct if_data * const ifa_data = i->ifa_data;
-    return (uint16_t)ifa_data->ifi_mtu;
-#else
+#if defined(PARTICLE)
+    if_t iface;
+    if_get_by_name(i->ifname, &iface);
+    unsigned int mtu;
+    if_get_mtu(iface, &mtu);
+    return mtu;
+#elif defined(__linux__)
     const int s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
@@ -109,6 +123,9 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 
     close(s);
     return mtu;
+#else
+    const struct if_data * const ifa_data = i->ifa_data;
+    return (uint16_t)ifa_data->ifi_mtu;
 #endif
 }
 
@@ -134,6 +151,8 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
         ifa_data->ifi_baudrate == 0)
         return UINT32_MAX;
     return ifa_data->ifi_baudrate / 1000000;
+#elif defined(PARTICLE)
+    return UINT32_MAX;
 #else
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
@@ -184,9 +203,15 @@ bool plat_get_link(const struct ifaddrs * i)
         return true;
 #endif
     bool link;
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
     const struct if_data * const ifa_data = i->ifa_data;
     link = ((ifa_data->ifi_link_state & LINK_STATE_UP) == LINK_STATE_UP);
+#elif defined(PARTICLE)
+    if_t iface;
+    if_get_by_name(i->ifname, &iface);
+    unsigned int flags;
+    if_get_flags(iface, &flags);
+    link = flags & IFF_UP;
 #else
     const int s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
@@ -273,3 +298,19 @@ done:
     strncpy(name, "unknown", name_len);
 #endif
 }
+
+
+#ifndef HAVE_ETHER_NTOA_R
+#include <stdio.h>
+
+char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
+{
+    sprintf(buf, "%x:%x:%x:%x:%x:%x", addr->ether_addr_octet[0],
+            addr->ether_addr_octet[1], addr->ether_addr_octet[2],
+            addr->ether_addr_octet[3], addr->ether_addr_octet[4],
+            addr->ether_addr_octet[5]);
+    return buf;
+}
+#endif
+
+
