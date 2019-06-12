@@ -37,15 +37,21 @@
 #endif
 
 #include <netinet/in.h>
-#include <netinet/ip.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/uio.h>
 #include <unistd.h>
+
+#ifndef PARTICLE
+#include <sys/uio.h>
+#else
+#define SOCK_CLOEXEC 0
+#define IP_RECVTOS IP_TOS
+#define poll(...) 0
+#endif
 
 #include <warpcore/warpcore.h>
 
@@ -62,7 +68,7 @@
 #include <time.h>
 #elif defined(HAVE_EPOLL)
 #include <sys/epoll.h>
-#else
+#elif !defined(PARTICLE)
 #include <poll.h>
 #endif
 
@@ -369,8 +375,12 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
         }
 
         const ssize_t r =
-#ifdef HAVE_SENDMMSG
+#if defined(HAVE_SENDMMSG)
             sendmmsg(s->fd, msgvec, (unsigned int)i, 0);
+#elif defined(PARTICLE)
+            i == SEND_SIZE ? sendto(s->fd, msg[0].iov_base, msg[0].iov_len, 0,
+                                    msgvec[0].msg_name, msgvec[0].msg_namelen)
+                           : 0;
 #else
             sendmsg(s->fd, msgvec, 0);
 #endif
@@ -436,9 +446,12 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
             warn(CRT, "no more bufs");
             return;
         }
-#ifdef HAVE_RECVMMSG
+#if defined(HAVE_RECVMMSG)
         n = (ssize_t)recvmmsg(s->fd, msgvec, (unsigned int)nbufs, MSG_DONTWAIT,
                               0);
+#elif defined(PARTICLE)
+        n = recvfrom(s->fd, msg[0].iov_base, msg[0].iov_len, MSG_DONTWAIT,
+                     msgvec[0].msg_name, &msgvec[0].msg_namelen);
 #else
         n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
 #endif
@@ -470,7 +483,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                         cmsg->cmsg_type == IP_RECVTOS
 #endif
                     ) {
-                        v[j]->flags = *CMSG_DATA(cmsg);
+                        v[j]->flags = *(uint8_t *)CMSG_DATA(cmsg);
                         break;
                     }
                 }
@@ -514,6 +527,12 @@ void w_nic_tx(struct w_engine * const w __attribute__((unused))) {}
 ///
 bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 {
+#ifdef PARTICLE
+    ensure(msec == 0, "particle backend cannot poll for new data");
+    warn(CRT, "w_nic_rx broken on particle!");
+    return false;
+#endif
+
     struct w_backend * const b = w->b;
 
 #if defined(HAVE_KQUEUE)

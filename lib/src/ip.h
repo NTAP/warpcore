@@ -47,6 +47,12 @@ struct w_sock;
 #define IP_ANY 0x00000000   ///< IPv4 "any" address.
 #define IP_BCAST 0xffffffff ///< IPv4 broadcast address.
 
+#define IPTOS_ECN_NOTECT 0x00 // not-ECT
+#define IPTOS_ECN_ECT1 0x01   // ECN-capable transport (1)
+#define IPTOS_ECN_ECT0 0x02   // ECN-capable transport (0)
+#define IPTOS_ECN_CE 0x03     // congestion experienced
+#define IPTOS_ECN_MASK 0x03   // ECN field mask
+
 
 /// An IPv4 header representation; see
 /// [RFC791](https://tools.ietf.org/html/rfc791.)
