@@ -538,9 +538,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
     w->rip = rip;
 
 #ifndef PARTICLE
-    if (is_loopback)
-        // loopback can have huge MTUs, so cap to something more sensible
-        w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
+    // some interfaces can have huge MTUs, so cap to something more sensible
+    w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
 #endif
 
     // backend-specific init
