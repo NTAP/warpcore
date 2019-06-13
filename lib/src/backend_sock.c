@@ -77,11 +77,6 @@
 #include "udp.h"
 
 
-#ifdef __linux__
-#define IPTOS_ECN_NOTECT IPTOS_ECN_NOT_ECT
-#endif
-
-
 /// The backend name.
 ///
 static char backend_name[] = "socket";

@@ -34,9 +34,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-#include <time.h>
 
-#ifdef __linux__
+#if !defined(__FreeBSD__) && !defined(PARTICLE)
 #include <dlfcn.h>
 #include <time.h>
 #endif

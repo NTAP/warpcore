@@ -69,13 +69,13 @@ typedef struct if_list if_list;
 
 #endif
 
-#ifdef HAVE_ASAN
-#include <sanitizer/asan_interface.h>
-#endif
-
 #include <khash.h>
 #include <krng.h>
 #include <warpcore/warpcore.h>
+
+#ifdef HAVE_ASAN
+#include <sanitizer/asan_interface.h>
+#endif
 
 #include "backend.h"
 
