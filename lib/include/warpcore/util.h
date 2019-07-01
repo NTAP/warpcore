@@ -172,7 +172,7 @@ extern short util_dlevel;
         }                                                                      \
     } while (0) // NOLINT
 #else
-#define warn(dlevel, ...) LOG(dlevel, __VA_ARGS__)
+#define twarn(dlevel, ...) LOG(dlevel, __VA_ARGS__)
 #endif
 
 
