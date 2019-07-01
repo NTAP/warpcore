@@ -46,6 +46,7 @@
 #include "arp.h"
 
 struct netmap_slot;
+struct netmap_slot;
 
 
 /// An [Ethernet II MAC

@@ -37,6 +37,9 @@
 
 struct w_engine;
 
+// the following two lines work around a bug in iwyu 0.12:
+// IWYU pragma: no_include <warpcore/warpcore.h>
+
 
 /// A representation of an ARP header; see
 /// [RFC826](https://tools.ietf.org/html/rfc826).

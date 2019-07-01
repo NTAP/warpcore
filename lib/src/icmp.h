@@ -32,6 +32,10 @@
 struct netmap_slot;
 struct w_engine;
 
+// the following two lines work around a bug in iwyu 0.12:
+// IWYU pragma: no_include <net/netmap.h>
+// IWYU pragma: no_include <warpcore/warpcore.h>
+
 #define ICMP_TYPE_ECHOREPLY 0 ///< ICMP echo reply type.
 #define ICMP_TYPE_UNREACH 3   ///< ICMP unreachable type.
 #define ICMP_TYPE_ECHO 8      ///< ICMP echo type.

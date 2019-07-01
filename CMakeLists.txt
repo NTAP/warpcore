@@ -165,7 +165,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     message(STATUS "Found include-what-you-use: ${IWYU}")
     string(TOLOWER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME_LC)
     set(CMAKE_C_INCLUDE_WHAT_YOU_USE
-        ${IWYU} -Xiwyu
+        ${IWYU} -Xiwyu --no_fwd_decls -Xiwyu
         --mapping_file=${PROJECT_SOURCE_DIR}/misc/${CMAKE_SYSTEM_NAME_LC}.imp)
     set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${CMAKE_C_INCLUDE_WHAT_YOU_USE})
   endif()

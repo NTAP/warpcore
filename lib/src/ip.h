@@ -36,6 +36,10 @@ struct w_engine;
 struct w_iov;
 struct w_sock;
 
+// the following two lines work around a bug in iwyu 0.12:
+// IWYU pragma: no_include <net/netmap.h>
+// IWYU pragma: no_include <warpcore/warpcore.h>
+
 
 #define IP_ADDR_LEN 4 ///< Length of an IPv4 address in bytes. Four.
 

@@ -35,6 +35,11 @@ struct w_engine;
 struct w_iov;
 struct w_sock;
 
+// the following two lines work around a bug in iwyu 0.12:
+// IWYU pragma: no_include <net/netmap.h>
+// IWYU pragma: no_include <warpcore/warpcore.h>
+
+
 /// A representation of a UDP header; see
 /// [RFC768](https://tools.ietf.org/html/rfc768).
 ///
