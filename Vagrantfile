@@ -49,7 +49,7 @@ Vagrant.configure("2") do |config|
     apt-get -y upgrade
 
     # install some tools that are needed
-    apt-get -y install git cmake ninja-build libev-dev libssl-dev g++ \
+    apt-get -y install git cmake ninja-build libssl-dev g++ \
       libhttp-parser-dev libbsd-dev pkg-config mercurial dpdk dpdk-dev \
       libelf-dev google-perftools libgoogle-perftools-dev libbenchmark-dev
 
