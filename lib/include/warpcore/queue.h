@@ -214,7 +214,7 @@ struct qm_trace {
 #endif /* QUEUE_MACRO_DEBUG_TRASH */
 
 #if defined(QUEUE_MACRO_DEBUG_TRACE) || defined(QUEUE_MACRO_DEBUG_TRASH)
-#define QMD_SAVELINK(name, link) void ** name = (void *)&(link)
+#define QMD_SAVELINK(name, link) void ** name = (void **)&(link)
 #else /* !QUEUE_MACRO_DEBUG_TRACE && !QUEUE_MACRO_DEBUG_TRASH */
 #define QMD_SAVELINK(name, link)
 #endif /* QUEUE_MACRO_DEBUG_TRACE || QUEUE_MACRO_DEBUG_TRASH */
