@@ -663,3 +663,27 @@ const struct sockaddr * w_get_addr(const struct w_sock * const s,
     sin->sin_addr.s_addr = local ? s->tup.sip : s->tup.dip;
     return (struct sockaddr *)&addr;
 }
+
+
+void init_iov(struct w_engine * const w, struct w_iov * const v)
+{
+    v->w = w;
+    if (unlikely(v->base == 0))
+        v->base = idx_to_buf(w, v->idx);
+    v->buf = v->base;
+    v->len = w->mtu;
+    v->o = 0;
+    sq_next(v, next) = 0;
+}
+
+
+struct w_iov * w_alloc_iov_base(struct w_engine * const w)
+{
+    struct w_iov * const v = sq_first(&w->iov);
+    if (likely(v)) {
+        sq_remove_head(&w->iov, next);
+        init_iov(w, v);
+        ASAN_UNPOISON_MEMORY_REGION(v->base, w->mtu);
+    }
+    return v;
+}

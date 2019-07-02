@@ -91,7 +91,7 @@ struct w_backend {
 };
 
 
-static inline bool __attribute__((always_inline, nonnull))
+static inline bool __attribute__((nonnull))
 is_pipe(const struct w_engine * const w
 #ifndef WITH_NETMAP
         __attribute__((unused))
@@ -117,7 +117,7 @@ is_pipe(const struct w_engine * const w
 ///
 /// @return     Memory region associated with buffer @p i.
 ///
-static inline uint8_t * __attribute__((always_inline, nonnull))
+static inline uint8_t * __attribute__((nonnull))
 idx_to_buf(const struct w_engine * const w, const uint32_t i)
 {
 #ifdef WITH_NETMAP
@@ -140,7 +140,7 @@ extern sl_head(w_engines, w_engine) engines;
 ///
 /// @return     The IPv4 broadcast address associated with @p ip and @p mask.
 ///
-static inline uint32_t __attribute__((always_inline, const))
+static inline uint32_t __attribute__((const))
 mk_bcast(const uint32_t ip, const uint32_t mask)
 {
     return ip | (~mask);
@@ -154,37 +154,18 @@ mk_bcast(const uint32_t ip, const uint32_t mask)
 ///
 /// @return     The IPv4 prefix associated with @p ip and @p mask.
 ///
-static inline uint32_t __attribute__((always_inline, const))
+static inline uint32_t __attribute__((const))
 mk_net(const uint32_t ip, const uint32_t mask)
 {
     return ip & mask;
 }
 
 
-static inline void __attribute__((nonnull))
-init_iov(struct w_engine * const w, struct w_iov * const v)
-{
-    v->w = w;
-    if (unlikely(v->base == 0))
-        v->base = idx_to_buf(w, v->idx);
-    v->buf = v->base;
-    v->len = w->mtu;
-    v->o = 0;
-    sq_next(v, next) = 0;
-}
+extern void __attribute__((nonnull))
+init_iov(struct w_engine * const w, struct w_iov * const v);
 
-
-static inline struct w_iov * __attribute__((nonnull))
-w_alloc_iov_base(struct w_engine * const w)
-{
-    struct w_iov * const v = sq_first(&w->iov);
-    if (likely(v)) {
-        sq_remove_head(&w->iov, next);
-        init_iov(w, v);
-        ASAN_UNPOISON_MEMORY_REGION(v->base, w->mtu);
-    }
-    return v;
-}
+extern struct w_iov * __attribute__((nonnull))
+w_alloc_iov_base(struct w_engine * const w);
 
 extern int __attribute__((nonnull(1)))
 backend_bind(struct w_sock * const s, const struct w_sockopt * const opt);
@@ -201,14 +182,14 @@ extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);
 
 
-static inline khint_t __attribute__((always_inline, nonnull))
+static inline khint_t __attribute__((nonnull))
 tuple_hash(const struct w_tuple * const tup)
 {
     return fnv1a_32(tup, sizeof(*tup));
 }
 
 
-static inline khint_t __attribute__((always_inline, nonnull))
+static inline khint_t __attribute__((nonnull))
 tuple_equal(const struct w_tuple * const a, const struct w_tuple * const b)
 {
     return memcmp(a, b, sizeof(*a)) == 0;

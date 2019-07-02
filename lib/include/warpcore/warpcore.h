@@ -188,7 +188,7 @@ struct w_iov {
 ///
 /// @return     Index between 0-nfbus.
 ///
-static inline uint32_t __attribute__((always_inline, nonnull))
+static inline uint32_t __attribute__((nonnull))
 w_iov_idx(const struct w_iov * const v)
 {
     return v - v->w->bufs;
@@ -202,7 +202,7 @@ w_iov_idx(const struct w_iov * const v)
 ///
 /// @return     Pointer to w_iov.
 ///
-static inline struct w_iov * __attribute__((always_inline, nonnull))
+static inline struct w_iov * __attribute__((nonnull))
 w_iov(const struct w_engine * const w, const uint32_t i)
 {
     return &w->bufs[i];
@@ -288,7 +288,7 @@ extern uint64_t w_rand_uniform(const uint64_t upper_bound);
 ///
 /// @return     Number of w_iov structs not yet transmitted.
 ///
-static inline uint32_t __attribute__((always_inline, nonnull))
+static inline uint32_t __attribute__((nonnull))
 w_tx_pending(const struct w_iov_sq * const q)
 {
     return q->tx_pending;
@@ -301,7 +301,7 @@ w_tx_pending(const struct w_iov_sq * const q)
 ///
 /// @return     The warpcore engine for w_sock @p s.
 ///
-static inline struct w_engine * __attribute__((always_inline, nonnull))
+static inline struct w_engine * __attribute__((nonnull))
 w_engine(const struct w_sock * const s)
 {
     return s->w;
@@ -314,7 +314,7 @@ w_engine(const struct w_sock * const s)
 ///
 /// @return     Interface name.
 ///
-static inline const char * __attribute__((always_inline, nonnull))
+static inline const char * __attribute__((nonnull))
 w_ifname(const struct w_engine * const w)
 {
     return w->ifname;
@@ -327,7 +327,7 @@ w_ifname(const struct w_engine * const w)
 ///
 /// @return     MTU value in use by engine @p w.
 ///
-static inline uint16_t __attribute__((always_inline, nonnull))
+static inline uint16_t __attribute__((nonnull))
 w_mtu(const struct w_engine * const w)
 {
     return w->mtu;
@@ -340,7 +340,7 @@ w_mtu(const struct w_engine * const w)
 ///
 /// @return     Number of w_iov structs in @p q.
 ///
-static inline uint64_t __attribute__((always_inline, nonnull))
+static inline uint64_t __attribute__((nonnull))
 w_iov_sq_cnt(const struct w_iov_sq * const q)
 {
     return sq_len(q);
@@ -353,7 +353,7 @@ w_iov_sq_cnt(const struct w_iov_sq * const q)
 ///
 /// @return     Link speed of @p w.
 ///
-static inline uint32_t __attribute__((always_inline, nonnull))
+static inline uint32_t __attribute__((nonnull))
 w_mbps(const struct w_engine * const w)
 {
     return w->mbps;
@@ -367,7 +367,7 @@ w_mbps(const struct w_engine * const w)
 ///
 /// @return     Driver name @p w.
 ///
-static inline const char * __attribute__((always_inline, nonnull))
+static inline const char * __attribute__((nonnull))
 w_drvname(const struct w_engine * const w)
 {
     return w->drvname;
@@ -380,7 +380,7 @@ w_drvname(const struct w_engine * const w)
 ///
 /// @return     The socket options for w_sock @p s.
 ///
-static inline const struct w_sockopt * __attribute__((always_inline, nonnull))
+static inline const struct w_sockopt * __attribute__((nonnull))
 w_get_sockopt(const struct w_sock * const s)
 {
     return &s->opt;
@@ -394,7 +394,7 @@ w_get_sockopt(const struct w_sock * const s)
 ///
 /// @return     True when connected, zero otherwise.
 ///
-static inline bool __attribute__((always_inline, nonnull))
+static inline bool __attribute__((nonnull))
 w_connected(const struct w_sock * const s)
 {
     return s->tup.dip;

@@ -279,80 +279,25 @@ extern void __attribute__((nonnull)) util_hexdump(const void * const ptr,
                                                   const unsigned line);
 
 
-/// Compute an [FNV-1a 64-bit
-/// hash](http://www.isthe.com/chongo/tech/comp/fnv/index.html) over the given
-/// buffer.
-///
-/// @param      buf       The buffer.
-/// @param      len       The length of @p buf.
-///
-/// @return     The FNV-1a 64-bit hash of @p buffer.
-///
-static inline uint64_t __attribute__((nonnull
+extern uint64_t __attribute__((nonnull
 #if defined(__clang__)
-                                      ,
-                                      no_sanitize("unsigned-integer-overflow")
+                               ,
+                               no_sanitize("unsigned-integer-overflow")
 #endif
-                                          ))
-fnv1a_64(const void * const buf, const size_t len)
-{
-    const uint64_t prime = 0x100000001b3;
-    uint64_t hash = 0xcbf29ce484222325;
-
-    const uint8_t * const bytes = (const uint8_t * const)buf;
-    for (size_t i = 0; i < len; i++) {
-        hash ^= bytes[i];
-        hash *= prime;
-    }
-    return hash;
-}
+                                   ))
+fnv1a_64(const void * const buf, const size_t len);
 
 
-/// Compute an [FNV-1a 32-bit
-/// hash](http://www.isthe.com/chongo/tech/comp/fnv/index.html) over the given
-/// buffer.
-///
-/// @param      buf       The buffer.
-/// @param      len       The length of @p buf.
-///
-/// @return     The FNV-1a 32-bit hash of @p buffer.
-///
-static inline uint32_t __attribute__((nonnull
+extern uint32_t __attribute__((nonnull
 #if defined(__clang__)
-                                      ,
-                                      no_sanitize("unsigned-integer-overflow")
+                               ,
+                               no_sanitize("unsigned-integer-overflow")
 #endif
-                                          ))
-fnv1a_32(const void * const buf, const size_t len)
-{
-    const uint32_t prime = 0x811c9dc5;
-    uint32_t hash = 0x1000193;
-
-    const uint8_t * const bytes = (const uint8_t * const)buf;
-    for (size_t i = 0; i < len; i++) {
-        hash ^= bytes[i];
-        hash *= prime;
-    }
-    return hash;
-}
+                                   ))
+fnv1a_32(const void * const buf, const size_t len);
 
 
-/// Subtract the struct timespec values @p tvp and @p uvp (tvp - uvp), storing
-/// the result in @p vvp. Inspired by timersub().
-///
-/// @param[in]  tvp   The minuend.
-/// @param[in]  uvp   The subtrahend.
-/// @param[out] vvp   The difference.
-///
-static inline void __attribute__((nonnull))
+extern void __attribute__((nonnull))
 timespec_sub(const struct timespec * const tvp,
              const struct timespec * const uvp,
-             struct timespec * const vvp)
-{
-    vvp->tv_sec = tvp->tv_sec - uvp->tv_sec;
-    vvp->tv_nsec = tvp->tv_nsec - uvp->tv_nsec;
-    if (vvp->tv_nsec < 0) {
-        vvp->tv_sec--;
-        vvp->tv_nsec += 1000000000;
-    }
-}
+             struct timespec * const vvp);
