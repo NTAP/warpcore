@@ -107,9 +107,6 @@ util_die(const char * const func,
 extern short util_dlevel;
 
 
-#ifndef NDEBUG
-#include <regex.h>
-
 #ifndef PARTICLE
 // Set DLEVEL to the level of debug output you want to compile in support for
 #ifndef DLEVEL
@@ -140,6 +137,9 @@ extern short util_dlevel;
 #define INF TRACE
 #define DBG ALL
 #endif
+
+#ifndef NDEBUG
+#include <regex.h>
 
 // These macros are based on the "D" ones defined by netmap
 
