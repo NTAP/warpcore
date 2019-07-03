@@ -45,15 +45,16 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <warpcore/warpcore.h>
+
 #ifndef PARTICLE
 #include <sys/uio.h>
 #else
+#include <socket_hal.h>
 #define SOCK_CLOEXEC 0
 #define IP_RECVTOS IP_TOS
-#define poll(...) 0
 #endif
 
-#include <warpcore/warpcore.h>
 
 #if !defined(HAVE_KQUEUE) && !defined(HAVE_EPOLL)
 #include <khash.h>
@@ -75,6 +76,33 @@
 #include "backend.h"
 #include "ip.h"
 #include "udp.h"
+
+
+#ifdef PARTICLE
+static int poll(struct pollfd fds[], nfds_t nfds, int timeout)
+{
+    int n = 0;
+    for (nfds_t i = 0; i < nfds; i++) {
+        struct timeval orig;
+        socklen_t len;
+        getsockopt(fds[i].fd, SOL_SOCKET, SO_RCVTIMEO, &orig, &len);
+
+        struct timeval tv;
+        if (n == 0 && i == nfds - 1) {
+            tv.tv_sec = timeout % MSECS_PER_SEC;
+            tv.tv_usec = (timeout / MSECS_PER_SEC) * 1000;
+        } else
+            tv.tv_sec = tv.tv_usec = 0;
+        setsockopt(fds[i].fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
+        if (recv(fds[i].fd, 0, 0, MSG_PEEK))
+            n++;
+
+        setsockopt(fds[i].fd, SOL_SOCKET, SO_RCVTIMEO, &orig, sizeof(orig));
+    }
+    return n;
+}
+#endif
 
 
 /// The backend name.
@@ -182,10 +210,13 @@ void backend_cleanup(struct w_engine * const w)
 {
 #if !defined(HAVE_KQUEUE) && !defined(HAVE_EPOLL)
     free(w->b->fds);
+    w->b->fds = 0;
     free(w->b->socks);
+    w->b->socks = 0;
 #endif
     free(w->mem);
     free(w->bufs);
+    w->b->n = 0;
 }
 
 
@@ -268,6 +299,16 @@ int backend_connect(struct w_sock * const s)
 ///
 void backend_close(struct w_sock * const s)
 {
+#if defined(HAVE_KQUEUE)
+    struct kevent ev;
+    EV_SET(&ev, s->fd, EVFILT_READ, EV_DELETE, 0, 0, s);
+    ensure(kevent(s->w->b->kq, &ev, 1, 0, 0, 0) != -1, "kevent");
+#elif defined(HAVE_EPOLL)
+    struct epoll_event ev = {.events = EPOLLIN, .data.ptr = s};
+    ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_DEL, s->fd, &ev) != -1,
+           "epoll_ctl");
+#endif
+
     ensure(close(s->fd) == 0, "close");
 }
 
@@ -523,16 +564,11 @@ void w_nic_tx(struct w_engine * const w __attribute__((unused))) {}
 ///
 bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 {
-#ifdef PARTICLE
-    ensure(msec == 0, "particle backend cannot poll for new data");
-    warn(CRT, "w_nic_rx broken on particle!");
-    return false;
-#endif
-
     struct w_backend * const b = w->b;
 
 #if defined(HAVE_KQUEUE)
-    const struct timespec timeout = {msec / 1000000, (msec % 1000000) * 1000};
+    const struct timespec timeout = {msec / MSECS_PER_SEC,
+                                     (msec % MSECS_PER_SEC) * 1000000};
     b->n = kevent(b->kq, 0, 0, b->ev, sizeof(b->ev) / sizeof(b->ev[0]),
                   msec == -1 ? 0 : &timeout);
     return b->n > 0;
@@ -544,11 +580,7 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
 #else
     const size_t cur_n = kh_size((khash_t(sock) *)w->sock);
     if (unlikely(cur_n == 0)) {
-        free(b->fds);
-        free(b->socks);
-        b->fds = 0;
-        b->socks = 0;
-        b->n = 0;
+        backend_cleanup(w);
         return false;
     }
 
@@ -616,7 +648,6 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     return (uint32_t)i;
 
 #else
-
     uint32_t n = 0;
     for (int i = 0; i < b->n; i++)
         if (b->fds[i].revents & POLLIN && b->socks[i]) {

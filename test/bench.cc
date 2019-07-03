@@ -93,9 +93,7 @@ BENCHMARK(BM_io)->RangeMultiplier(2)->Range(1, 512);
 int main(int argc, char ** argv)
 {
     benchmark::Initialize(&argc, argv);
-#ifndef NDEBUG
     util_dlevel = WRN;
-#endif
     init(8192);
     benchmark::RunSpecifiedBenchmarks();
     cleanup();

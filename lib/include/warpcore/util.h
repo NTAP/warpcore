@@ -28,9 +28,21 @@
 #pragma once
 // IWYU pragma: private, include <warpcore/warpcore.h>
 
+#ifdef PARTICLE
+#ifndef NDEBUG
+#define DEBUG_BUILD
+#endif
+#include <logging.h>
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
+
+
+#define MSECS_PER_SEC 1000       ///< Milliseconds per second.
+#define USECS_PER_SEC 1000000    ///< Microseconds per second.
+#define NSECS_PER_SEC 1000000000 ///< Microseconds per second.
 
 
 /// Trim the path from the given file name. Mostly to be used with __FILE__.
@@ -75,14 +87,6 @@
 ///
 #ifndef PARTICLE
 #define die(...) util_die(__func__, __FILE__, __LINE__, __VA_ARGS__)
-#else
-#define die(...)                                                               \
-    do {                                                                       \
-        LOG(PANIC, __VA_ARGS__);                                               \
-        abort();                                                               \
-    } while (0)
-
-#endif
 
 extern void __attribute__((nonnull(1, 2, 4), noreturn, format(printf, 4, 5)))
 util_die(const char * const func,
@@ -91,18 +95,10 @@ util_die(const char * const func,
          const char * const fmt,
          ...);
 
+#else
 
-#ifndef NDEBUG
+#define die(...) PANIC(NotUsedPanicCode, __VA_ARGS__)
 
-#include <regex.h>
-
-#ifndef PARTICLE
-
-// Set DLEVEL to the level of debug output you want to compile in support for
-#ifndef DLEVEL
-/// Default debug level. Can be overridden by setting the DLEVEL define in
-/// CFLAGS.
-#define DLEVEL DBG
 #endif
 
 /// Dynamically adjust util_dlevel from your code to show or suppress debug
@@ -110,6 +106,17 @@ util_die(const char * const func,
 /// DLEVEL is obviously not going to have any effect.
 extern short util_dlevel;
 
+
+#ifndef NDEBUG
+#include <regex.h>
+
+#ifndef PARTICLE
+// Set DLEVEL to the level of debug output you want to compile in support for
+#ifndef DLEVEL
+/// Default debug level. Can be overridden by setting the DLEVEL define in
+/// CFLAGS.
+#define DLEVEL DBG
+#endif
 
 /// Debug levels, decreasing severity.
 ///
@@ -122,7 +129,10 @@ extern short util_dlevel;
 
 #else
 
-#include <logging.h>
+#ifndef DLEVEL
+#define DLEVEL LOG_COMPILE_TIME_LEVEL
+#endif
+
 #define CRT PANIC
 #define ERR ERROR
 #define WRN WARN
@@ -145,15 +155,25 @@ extern short util_dlevel;
 ///                     according to @p fmt.
 ///
 #ifndef PARTICLE
+
+extern void __attribute__((nonnull(3, 4, 6), format(printf, 6, 7)))
+util_warn(const unsigned dlevel,
+          const bool tstamp,
+          const char * const func,
+          const char * const file,
+          const unsigned line,
+          const char * const fmt,
+          ...);
+
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
-        if (unlikely(DLEVEL >= dlevel && util_dlevel >= dlevel)) {             \
-            util_warn(dlevel, false, __func__, __FILE__, __LINE__,             \
+        if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
+            util_warn((dlevel), false, __func__, __FILE__, __LINE__,           \
                       __VA_ARGS__);                                            \
         }                                                                      \
     } while (0) // NOLINT
 #else
-#define warn(dlevel, ...) LOG(dlevel, __VA_ARGS__)
+#define warn(dlevel, ...) LOG_DEBUG(dlevel, __VA_ARGS__)
 #endif
 
 /// Like warn(), but always prints a timestamp.
@@ -166,24 +186,14 @@ extern short util_dlevel;
 #ifndef PARTICLE
 #define twarn(dlevel, ...)                                                     \
     do {                                                                       \
-        if (unlikely(DLEVEL >= dlevel && util_dlevel >= dlevel)) {             \
-            util_warn(dlevel, true, __func__, __FILE__, __LINE__,              \
+        if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
+            util_warn((dlevel), true, __func__, __FILE__, __LINE__,            \
                       __VA_ARGS__);                                            \
         }                                                                      \
     } while (0) // NOLINT
 #else
-#define twarn(dlevel, ...) LOG(dlevel, __VA_ARGS__)
+#define twarn(dlevel, ...) LOG_DEBUG(dlevel, __VA_ARGS__)
 #endif
-
-
-extern void __attribute__((nonnull(3, 4, 6), format(printf, 6, 7)))
-util_warn(const unsigned dlevel,
-          const bool tstamp,
-          const char * const func,
-          const char * const file,
-          const unsigned line,
-          const char * const fmt,
-          ...);
 
 
 /// Rate-limited variant of warn(), which repeats the message prints at most @p
@@ -198,10 +208,10 @@ util_warn(const unsigned dlevel,
 ///
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
-        if (unlikely(DLEVEL >= dlevel && util_dlevel >= dlevel)) {             \
+        if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
             static time_t __rt0;                                               \
             unsigned int __rcnt;                                               \
-            util_rwarn(&__rt0, &__rcnt, dlevel, lps, __func__, __FILE__,       \
+            util_rwarn(&__rt0, &__rcnt, (dlevel), lps, __func__, __FILE__,     \
                        __LINE__, __VA_ARGS__);                                 \
         }                                                                      \
     } while (0) // NOLINT

@@ -39,9 +39,7 @@ int main(void)
 {
     init(64 * 1024);
 
-#ifndef NDEBUG
     // util_dlevel = WRN;
-#endif
 
     int n = 0;
     while (1) {
@@ -57,9 +55,7 @@ int main(void)
         n++;
     }
 
-#ifndef NDEBUG
     // util_dlevel = DBG;
-#endif
 
     warn(WRN, "Was able to open %d connections", n);
 

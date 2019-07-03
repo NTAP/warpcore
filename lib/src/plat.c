@@ -40,6 +40,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <warpcore/warpcore.h> // IWYU pragma: keep
+
 #ifndef PARTICLE
 #include <ifaddrs.h>
 #include <net/if.h>
@@ -69,7 +71,6 @@
 #include <unistd.h>
 #endif
 
-#include <warpcore/warpcore.h> // IWYU pragma: keep
 
 
 /// Return the Ethernet MAC address of network interface @p i.

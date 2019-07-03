@@ -154,11 +154,9 @@ int
         case 'z':
             opt.enable_udp_zero_checksums = true;
             break;
-#ifndef NDEBUG
         case 'v':
             util_dlevel = (short)MIN(DLEVEL, strtoul(optarg, 0, 10));
             break;
-#endif
         case 'h':
         case '?':
         default:

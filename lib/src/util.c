@@ -35,6 +35,8 @@
 #include <string.h>
 #include <sys/time.h>
 
+#include <warpcore/warpcore.h>
+
 #if !defined(__FreeBSD__) && !defined(PARTICLE)
 #include <dlfcn.h>
 #include <time.h>
@@ -43,18 +45,19 @@
 #ifdef PARTICLE
 #include "timer_hal.h"
 
+
 int gettimeofday(struct timeval * restrict tp,
                  void * restrict tzp __attribute__((unused)))
 {
     const unsigned long usec = HAL_Timer_Get_Micro_Seconds();
-    tp->tv_sec = usec / 1000000;
-    tp->tv_usec = usec % 1000000;
+    tp->tv_sec = usec / USECS_PER_SEC;
+    tp->tv_usec = usec % USECS_PER_SEC;
     return 0;
 }
 
 #endif
 
-#if !defined(NDEBUG)
+#ifndef NDEBUG
 #ifdef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
 /// the DCOMPONENT define to a regular expression matching the components
@@ -63,8 +66,6 @@ int gettimeofday(struct timeval * restrict tp,
 static regex_t util_comp;
 #endif
 #endif
-
-#include <warpcore/warpcore.h>
 
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
@@ -284,6 +285,14 @@ void util_die(const char * const func,
 }
 
 
+short util_dlevel =
+#ifndef PARTICLE
+    DLEVEL;
+#else
+    LOG_COMPILE_TIME_LEVEL;
+#endif
+
+
 #ifndef NDEBUG
 
 #define BRED "\x1B[41m" ///< ANSI escape sequence: background red
@@ -292,10 +301,6 @@ void util_die(const char * const func,
 #define BBLU "\x1B[44m" ///< ANSI escape sequence: background blue
 #define BCYN "\x1B[46m" ///< ANSI escape sequence: background cyan
 
-
-#ifndef PARTICLE
-short util_dlevel = DLEVEL;
-#endif
 
 static void __attribute__((nonnull, , format(printf, 6, 0)))
 util_warn_valist(const unsigned dlevel,
@@ -517,6 +522,6 @@ void timespec_sub(const struct timespec * const tvp,
     vvp->tv_nsec = tvp->tv_nsec - uvp->tv_nsec;
     if (vvp->tv_nsec < 0) {
         vvp->tv_sec--;
-        vvp->tv_nsec += 1000000000;
+        vvp->tv_nsec += NSECS_PER_SEC;
     }
 }

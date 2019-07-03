@@ -45,28 +45,8 @@
 #define klib_unused
 
 #ifndef PARTICLE
-
 #include <ifaddrs.h>
 #include <net/if.h>
-
-#else
-
-typedef struct if_list if_list;
-
-#include <ifapi.h>
-#include <system_network.h>
-
-#define getifaddrs if_get_if_addrs
-#define freeifaddrs if_free_if_addrs
-#define ifa_next next
-#define ifa_name ifname
-#define ifa_flags ifflags
-#define ifa_addr if_addr->addr
-#define ifa_netmask if_addr->netmask
-
-#include <spark_wiring_ticks.h>
-#define sleep(sec) delay((sec)*1000)
-
 #endif
 
 #include <khash.h>
@@ -83,6 +63,24 @@ typedef struct if_list if_list;
 #include "eth.h"
 #include "ip.h"
 #include "udp.h"
+#endif
+
+#ifdef PARTICLE
+typedef struct if_list if_list;
+
+#include <ifapi.h>
+#include <system_network.h>
+
+#define getifaddrs if_get_if_addrs
+#define freeifaddrs if_free_if_addrs
+#define ifa_next next
+#define ifa_name ifname
+#define ifa_flags ifflags
+#define ifa_addr if_addr->addr
+#define ifa_netmask if_addr->netmask
+
+#include <spark_wiring_ticks.h>
+#define sleep(sec) delay((sec)*MSECS_PER_SEC)
 #endif
 
 
