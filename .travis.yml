@@ -67,13 +67,10 @@ addons:
     notification_email: lars@netapp.com
     build_command_prepend: |
       if [ $BUILD = "Debug" -a $MYCC = "gcc-7" -a $FUZZ = 0 ]; then
-        pwd
         cd $TRAVIS_BUILD_DIR
-        find .
         cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
           -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
-          -DNO_SANITIZERS=True ..
-        ls -l
+          -DNO_SANITIZERS=True .
       fi
     build_command: cov-build make VERBOSE=1
     branch_pattern: coverity
