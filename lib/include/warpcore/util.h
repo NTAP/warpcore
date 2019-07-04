@@ -97,8 +97,11 @@ util_die(const char * const func,
 
 #else
 
+#ifndef NDEBUG
 #define die(...) PANIC(NotUsedPanicCode, __VA_ARGS__)
-
+#else
+#define die(...) PANIC(NotUsedPanicCode, 0, 0)
+#endif
 #endif
 
 /// Dynamically adjust util_dlevel from your code to show or suppress debug
@@ -127,7 +130,7 @@ extern short util_dlevel;
 #else
 
 #ifndef DLEVEL
-#define DLEVEL LOG_COMPILE_TIME_LEVEL
+#define DLEVEL ALL
 #endif
 
 #define CRT PANIC

@@ -89,13 +89,13 @@ static int poll(struct pollfd fds[], nfds_t nfds, int timeout)
 
         struct timeval tv;
         if (n == 0 && i == nfds - 1) {
-            tv.tv_sec = timeout % MSECS_PER_SEC;
-            tv.tv_usec = (timeout / MSECS_PER_SEC) * 1000;
+            tv.tv_sec = timeout / MSECS_PER_SEC;
+            tv.tv_usec = (timeout % MSECS_PER_SEC) * 1000;
         } else
             tv.tv_sec = tv.tv_usec = 0;
         setsockopt(fds[i].fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-        if (recv(fds[i].fd, 0, 0, MSG_PEEK))
+        if (recv(fds[i].fd, 0, 0, MSG_PEEK) > 0)
             n++;
 
         setsockopt(fds[i].fd, SOL_SOCKET, SO_RCVTIMEO, &orig, sizeof(orig));

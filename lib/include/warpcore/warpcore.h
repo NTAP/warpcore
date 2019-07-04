@@ -33,8 +33,11 @@ extern "C" {
 
 #include <netinet/in.h>
 #include <stdint.h>
-#include <sys/socket.h>
 #include <sys/time.h>
+
+#ifndef PARTICLE
+#include <sys/socket.h>
+#endif
 
 #include <warpcore/config.h> // IWYU pragma: export
 #include <warpcore/plat.h>   // IWYU pragma: export
