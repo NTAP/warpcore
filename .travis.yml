@@ -67,11 +67,9 @@ addons:
     notification_email: lars@netapp.com
     build_command_prepend: |
       if [ $BUILD = "Debug" -a $MYCC = "gcc-7" -a $FUZZ = 0 ]; then
-        sysctl vsyscall=emulate || true
-        cov-configure --comptype gcc --compiler $MYCC --template
-        cd $TRAVIS_BUILD_DIR
         pwd
-        ls -l
+        cd $TRAVIS_BUILD_DIR
+        find .
         cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
           -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
           -DNO_SANITIZERS=True ..
@@ -91,6 +89,7 @@ before_install:
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_legacy.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_user.h \
       https://raw.githubusercontent.com/luigirizzo/netmap/master/sys/net/netmap_virt.h
+    cd $TRAVIS_BUILD_DIR
 
 script:
   - |
