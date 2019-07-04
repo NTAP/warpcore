@@ -72,7 +72,7 @@ addons:
           -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
           -DNO_SANITIZERS=True .
       fi
-    build_command: cov-build make
+    build_command: cov-build --dir cov-int make
     branch_pattern: coverity
 
 before_install:
@@ -91,9 +91,9 @@ before_install:
 script:
   - |
     echo /home/travis/build/NTAP/warpcore/cov-int/scm_log.txt
-    cat /home/travis/build/NTAP/warpcore/cov-int/scm_log.txt
+    tail /home/travis/build/NTAP/warpcore/cov-int/scm_log.txt
     echo /home/travis/build/NTAP/warpcore/cov-int/build-log.txt
-    cat /home/travis/build/NTAP/warpcore/cov-int/build-log.txt
+    tail /home/travis/build/NTAP/warpcore/cov-int/build-log.txt
     if [ "${COVERITY_SCAN_BRANCH}" = 1 ]; then exit 0 ; fi
     cd $TRAVIS_BUILD_DIR
     rm -rf build
