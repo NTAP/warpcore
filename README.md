@@ -18,8 +18,7 @@ threads, timers nor signals. It exposes the underlying file descriptors to an
 application, for easy integration with different event loops (e.g.,
 [libev](http://software.schmorp.de/pkg/libev.html)).
 
-The warpcore repository is [on GitHub](https://github.com/NTAP/warpcore), as is
-the [documentation](https://ntap.github.io/warpcore/).
+The warpcore repository is [on GitHub](https://github.com/NTAP/warpcore).
 
 ## Building
 
