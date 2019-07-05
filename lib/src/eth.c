@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
 #include <string.h>
 
 #ifdef WITH_NETMAP
@@ -62,7 +61,7 @@ bool eth_rx(struct w_engine * const w,
     char src[ETH_ADDR_STRLEN];
     char dst[ETH_ADDR_STRLEN];
     warn(DBG, "Eth %s -> %s, type %d, len %d", ether_ntoa_r(&eth->src, src),
-         ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), s->len);
+         ether_ntoa_r(&eth->dst, dst), bswap16(eth->type), s->len);
 #endif
 
     // make sure the packet is for us (or broadcast)
@@ -81,7 +80,7 @@ bool eth_rx(struct w_engine * const w,
         arp_rx(w, buf);
 #ifndef FUZZING
     else
-        warn(INF, "unhandled ethertype 0x%04x", ntohs(eth->type));
+        warn(INF, "unhandled ethertype 0x%04x", bswap16(eth->type));
 #endif
     return false;
 }
@@ -142,7 +141,7 @@ bool __attribute__((nonnull)) eth_tx(struct w_iov * const v, const uint16_t len)
     char dst[ETH_ADDR_STRLEN];
     const struct eth_hdr * const eth = (void *)v->base;
     warn(DBG, "Eth %s -> %s, type %d, len %lu", ether_ntoa_r(&eth->src, src),
-         ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), len + sizeof(*eth));
+         ether_ntoa_r(&eth->dst, dst), bswap16(eth->type), len + sizeof(*eth));
 #endif
 
     // advance tx ring

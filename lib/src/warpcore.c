@@ -299,7 +299,7 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     char str[INET_ADDRSTRLEN];
     warn(DBG, "socket connected to %s port %d",
          inet_ntop(AF_INET, &s->tup.dip, str, INET_ADDRSTRLEN),
-         ntohs(s->tup.dport));
+         bswap16(s->tup.dport));
 #endif
 
     return 0;
@@ -321,7 +321,7 @@ struct w_sock * w_bind(struct w_engine * const w,
 {
     struct w_sock * s = w_get_sock(w, w->ip, port, 0, 0);
     if (unlikely(s)) {
-        warn(INF, "UDP source port %d already in bound", ntohs(port));
+        warn(INF, "UDP source port %d already in bound", bswap16(port));
         // do not free, just return
         return 0;
     }
@@ -339,7 +339,7 @@ struct w_sock * w_bind(struct w_engine * const w,
         goto fail;
 
 #ifndef FUZZING
-    warn(NTE, "socket bound to port %d", ntohs(s->tup.sport));
+    warn(NTE, "socket bound to port %d", bswap16(s->tup.sport));
 #endif
 
     ins_sock(w, s);

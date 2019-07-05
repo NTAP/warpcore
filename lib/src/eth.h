@@ -27,7 +27,6 @@
 
 #pragma once
 
-#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -59,8 +58,8 @@ struct eth_hdr {
 } __attribute__((aligned(1)));
 
 
-#define ETH_TYPE_IP htons(0x0800)  ///< EtherType for IPv4.
-#define ETH_TYPE_ARP htons(0x0806) ///< EtherType for ARP.
+#define ETH_TYPE_IP bswap16(0x0800)  ///< EtherType for IPv4.
+#define ETH_TYPE_ARP bswap16(0x0806) ///< EtherType for ARP.
 
 /// Return a pointer to the first data byte inside the Ethernet frame in @p buf.
 ///

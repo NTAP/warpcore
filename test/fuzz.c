@@ -87,7 +87,7 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
     }
 
     for (uint16_t p = 1; p < 49152; p++)
-        w_bind(&w, htons(p), 0);
+        w_bind(&w, bswap16(p), 0);
 
     return 0;
 }

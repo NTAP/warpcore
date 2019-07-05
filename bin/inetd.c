@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -133,10 +132,10 @@ int
     // start four inetd-like "small services" and one benchmark of our own
     struct w_sock * const srv[] = {
 #if 0
-        w_bind(w, htons(7), &opt),
-        w_bind(w, htons(9), &opt),
+        w_bind(w, bswap16(7), &opt),
+        w_bind(w, bswap16(9), &opt),
 #endif
-        w_bind(w, htons(55555), &opt)
+        w_bind(w, bswap16(55555), &opt)
     };
     const uint16_t n = sizeof(srv) / sizeof(srv[0]);
 

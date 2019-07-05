@@ -34,6 +34,51 @@
 
 struct ifaddrs;
 
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
+
+#if __has_builtin(__builtin_bswap16) || defined(__GNUC__)
+#define bswap16(x) __builtin_bswap16(x)
+#elif defined(HAVE_ENDIAN_H)
+#include <endian.h>
+#define bswap16(x) htobe16(x)
+#elif defined(HAVE_SYS_ENDIAN_H)
+#include <sys/endian.h>
+#define bswap16(x) htobe16(x)
+#else
+#include <arpa/inet.h>
+#define bswap16(x) htons(x)
+#endif
+
+#if __has_builtin(__builtin_bswap32) || defined(__GNUC__)
+#define bswap32(x) __builtin_bswap32(x)
+#elif defined(HAVE_ENDIAN_H)
+#include <endian.h>
+#define bswap32(x) htobe32(x)
+#elif defined(HAVE_SYS_ENDIAN_H)
+#include <sys/endian.h>
+#define bswap32(x) htobe32(x)
+#else
+#include <arpa/inet.h>
+#define bswap32(x) htonl(x)
+#endif
+
+#if __has_builtin(__builtin_bswap64) || defined(__GNUC__)
+#define bswap64(x) __builtin_bswap64(x)
+#elif defined(HAVE_ENDIAN_H)
+#include <endian.h>
+#define bswap64(x) htobe64(x)
+#elif defined(HAVE_SYS_ENDIAN_H)
+#include <sys/endian.h>
+#define bswap64(x) htobe64(x)
+#else
+#include <arpa/inet.h>
+#define bswap64(x)                                                             \
+    (((uint64_t)bswap32((x)&0xFFFFFFFF) << 32) | bswap32((x) >> 32))
+#endif
+
+
 #if defined(__linux__)
 #include <netinet/ether.h>
 #include <sys/socket.h>

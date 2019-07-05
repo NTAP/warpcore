@@ -27,7 +27,6 @@
 
 #include <warpcore/warpcore.h>
 
-#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -53,8 +52,8 @@
 ///
 #define udp_log(udp)                                                           \
     do {                                                                       \
-        warn(DBG, "UDP :%d -> :%d, cksum 0x%04x, len %u", ntohs((udp)->sport), \
-             ntohs((udp)->dport), ntohs((udp)->cksum), ntohs((udp)->len));     \
+        warn(DBG, "UDP :%d -> :%d, cksum 0x%04x, len %u", bswap16((udp)->sport), \
+             bswap16((udp)->dport), bswap16((udp)->cksum), bswap16((udp)->len));     \
     } while (0)
 #else
 #define udp_log(udp)                                                           \
@@ -87,7 +86,7 @@ bool
            uint8_t * const buf)
 {
     const struct ip_hdr * const ip = (const void *)eth_data(buf);
-    const uint16_t ip_len = ntohs(ip->len);
+    const uint16_t ip_len = bswap16(ip->len);
     struct udp_hdr * const udp = (void *)ip_data(buf);
 
     if (unlikely(ip_len - sizeof(*ip) < sizeof(*udp))) {
@@ -97,7 +96,7 @@ bool
         return false;
     }
 
-    const uint16_t udp_len = MIN(ntohs(udp->len), ip_len - sizeof(*ip));
+    const uint16_t udp_len = MIN(bswap16(udp->len), ip_len - sizeof(*ip));
     udp_log(udp);
 
 #ifndef FUZZING
@@ -106,7 +105,7 @@ bool
         const uint16_t cksum = udp_cksum(ip, udp_len + sizeof(*ip));
         if (unlikely(udp->cksum != cksum)) {
             warn(WRN, "invalid UDP checksum, received 0x%04x != 0x%04x",
-                 ntohs(udp->cksum), ntohs(cksum));
+                 bswap16(udp->cksum), bswap16(cksum));
             return false;
         }
     }
@@ -198,7 +197,7 @@ bool
     udp->sport = s->tup.sport;
     struct sockaddr_in * const addr4 = (struct sockaddr_in *)&v->addr;
     udp->dport = w_connected(s) ? s->tup.dport : addr4->sin_port;
-    udp->len = htons(len);
+    udp->len = bswap16(len);
 
     // compute the checksum, unless disabled by a socket option
     udp->cksum = 0;

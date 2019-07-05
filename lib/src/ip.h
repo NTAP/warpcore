@@ -27,7 +27,6 @@
 
 #pragma once
 
-#include <arpa/inet.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -179,7 +178,7 @@ static inline uint16_t __attribute__((always_inline,
                                           ))
 ip_data_len(const struct ip_hdr * const ip)
 {
-    return ntohs(ip->len) - sizeof(*ip);
+    return bswap16(ip->len) - sizeof(*ip);
 }
 
 

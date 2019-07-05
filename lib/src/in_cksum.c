@@ -52,7 +52,6 @@
 *******************************************************************************/
 
 
-#include <arpa/inet.h>
 #include <emmintrin.h>
 #include <smmintrin.h>
 #include <stdint.h>
@@ -273,7 +272,7 @@ uint16_t ip_cksum(const void * const buf, const uint16_t len)
     const uint32_t sum =
         csum_oc16_sse(buf, len, _mm_setzero_si128(), _mm_setzero_si128());
 
-    return htons(csum_oc16_reduce(sum));
+    return bswap16(csum_oc16_reduce(sum));
 }
 
 
@@ -312,6 +311,6 @@ uint16_t udp_cksum(const void * const buf, const uint16_t len)
                         sum32a, sum32b) +
           ((uint32_t)ip->p);
 
-    return htons(csum_oc16_reduce(sum));
+    return bswap16(csum_oc16_reduce(sum));
 }
 #endif

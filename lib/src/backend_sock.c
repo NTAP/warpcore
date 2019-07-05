@@ -238,7 +238,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
                                .sin_addr = {.s_addr = s->tup.sip}};
     if (unlikely(bind(s->fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)) {
         warn(ERR, "bind failed on %s:%u", inet_ntoa(addr.sin_addr),
-             ntohs(s->tup.sport));
+             bswap16(s->tup.sport));
         return errno;
     }
 
@@ -286,7 +286,7 @@ int backend_connect(struct w_sock * const s)
     if (unlikely(connect(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) !=
                  0)) {
         warn(ERR, "connect to %s:%u failed", inet_ntoa(addr.sin_addr),
-             ntohs(s->tup.dport));
+             bswap16(s->tup.dport));
         return errno;
     }
     return 0;

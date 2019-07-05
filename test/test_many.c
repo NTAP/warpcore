@@ -49,7 +49,7 @@ int main(void)
         w_connect(s, (struct sockaddr *)&(struct sockaddr_in){
                          .sin_family = AF_INET,
                          .sin_addr.s_addr = inet_addr("127.0.0.1"),
-                         .sin_port = htons(55555)});
+                         .sin_port = bswap16(55555)});
         if (w_connected(s) == false)
             break;
         n++;

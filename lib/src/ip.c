@@ -59,10 +59,10 @@
              "flags [%s%s], proto %d, hlen/tot %d/%d, cksum %04x",             \
              inet_ntop(AF_INET, &(ip)->src, src, INET_ADDRSTRLEN),             \
              inet_ntop(AF_INET, &(ip)->dst, dst, INET_ADDRSTRLEN),             \
-             ip_dscp(ip), ip_ecn(ip), (ip)->ttl, ntohs((ip)->id),              \
-             (ntohs((ip)->off) & IP_MF) ? "MF" : "",                           \
-             (ntohs((ip)->off) & IP_DF) ? "DF" : "", (ip)->p, ip_hl(ip),       \
-             ntohs((ip)->len), ntohs((ip)->cksum));                            \
+             ip_dscp(ip), ip_ecn(ip), (ip)->ttl, bswap16((ip)->id),              \
+             (bswap16((ip)->off) & IP_MF) ? "MF" : "",                           \
+             (bswap16((ip)->off) & IP_DF) ? "DF" : "", (ip)->p, ip_hl(ip),       \
+             bswap16((ip)->len), bswap16((ip)->cksum));                            \
     } while (0)
 #else
 #define ip_log(ip)                                                             \
@@ -112,7 +112,7 @@ bool
     // validate the IP checksum
     if (unlikely(ip_cksum(ip, sizeof(*ip)) != 0)) {
         warn(WRN, "invalid IP checksum, received 0x%04x != 0x%04x",
-             ntohs(ip->cksum), ip_cksum(ip, sizeof(*ip)));
+             bswap16(ip->cksum), ip_cksum(ip, sizeof(*ip)));
         return false;
     }
 #endif
@@ -125,7 +125,7 @@ bool
         return false;
     }
 
-    if (unlikely(ntohs(ip->off) & IP_OFFMASK)) {
+    if (unlikely(bswap16(ip->off) & IP_OFFMASK)) {
         // TODO: handle IP fragments
 #ifndef FUZZING
         warn(WRN, "no support for IP fragments");
@@ -173,12 +173,12 @@ void
         ip->tos |= IPTOS_ECN_ECT0;
 
     const uint16_t len = plen + sizeof(*ip);
-    ip->len = htons(len);
+    ip->len = bswap16(len);
 
-    // no need to do htons() for random value
+    // no need to do bswap16() for random value
     ip->id = (uint16_t)w_rand_uniform(UINT16_MAX);
 
-    ip->off = htons(IP_DF);
+    ip->off = bswap16(IP_DF);
     ip->ttl = 64; // XXX this should be configurable
     if (likely(s))
         // when no socket is passed, caller must set ip->p

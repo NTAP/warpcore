@@ -27,7 +27,6 @@
 
 #include <warpcore/warpcore.h>
 
-#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdint.h>
 #include <string.h>
@@ -81,7 +80,7 @@ void icmp_tx(struct w_engine * const w,
     struct ip_hdr * const src_ip = (void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
     uint16_t data_len =
-        MIN(ntohs(src_ip->len),
+        MIN(bswap16(src_ip->len),
             w_iov_max_len(v) - sizeof(struct eth_hdr) - sizeof(struct ip_hdr));
 
     switch (type) {
@@ -177,7 +176,7 @@ void icmp_rx(struct w_engine * const w,
             s->len - sizeof(struct eth_hdr) - sizeof(struct ip_hdr));
 
     if (ip_cksum(icmp, icmp_len) != 0) {
-        warn(WRN, "invalid ICMP checksum, received 0x%04x", ntohs(icmp->cksum));
+        warn(WRN, "invalid ICMP checksum, received 0x%04x", bswap16(icmp->cksum));
         return;
     }
 #endif
@@ -205,7 +204,7 @@ void icmp_rx(struct w_engine * const w,
                 (const void *)((const uint8_t *)payload_ip +
                                sizeof(*payload_ip));
             rwarn(WRN, 10, "received ICMP IP proto %d port %d unreachable",
-                  payload_ip->p, ntohs(payload_udp->dport));
+                  payload_ip->p, bswap16(payload_udp->dport));
 #endif
             break;
         }

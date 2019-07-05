@@ -125,11 +125,11 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf)
     // construct ARP header
     struct arp_hdr * const req = (void *)eth_data(buf);
 
-    reply->hrd = htons(ARP_HRD_ETHER);
+    reply->hrd = bswap16(ARP_HRD_ETHER);
     reply->pro = ETH_TYPE_IP;
     reply->hln = ETHER_ADDR_LEN;
     reply->pln = IP_ADDR_LEN;
-    reply->op = htons(ARP_OP_REPLY);
+    reply->op = bswap16(ARP_OP_REPLY);
     reply->sha = w->mac;
     reply->spa = w->ip;
     reply->tha = req->sha;
@@ -202,11 +202,11 @@ struct ether_addr
         eth->type = ETH_TYPE_ARP;
 
         // set ARP header fields
-        arp->hrd = htons(ARP_HRD_ETHER);
+        arp->hrd = bswap16(ARP_HRD_ETHER);
         arp->pro = ETH_TYPE_IP;
         arp->hln = ETHER_ADDR_LEN;
         arp->pln = IP_ADDR_LEN;
-        arp->op = htons(ARP_OP_REQUEST);
+        arp->op = bswap16(ARP_OP_REQUEST);
         arp->sha = w->mac;
         arp->spa = w->ip;
         memset(&arp->tha, 0, ETHER_ADDR_LEN);
@@ -256,7 +256,7 @@ void
     arp_rx(struct w_engine * const w, uint8_t * const buf)
 {
     const struct arp_hdr * const arp = (const void *)eth_data(buf);
-    const uint16_t hrd = ntohs(arp->hrd);
+    const uint16_t hrd = bswap16(arp->hrd);
 
     if (hrd != ARP_HRD_ETHER || arp->hln != ETHER_ADDR_LEN) {
 #ifndef FUZZING
@@ -269,12 +269,12 @@ void
     if (arp->pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN) {
 #ifndef FUZZING
         warn(INF, "unhandled ARP protocol format %d with len %d",
-             ntohs(arp->pro), arp->pln);
+             bswap16(arp->pro), arp->pln);
 #endif
         return;
     }
 
-    const uint16_t op = ntohs(arp->op);
+    const uint16_t op = bswap16(arp->op);
     switch (op) {
     case ARP_OP_REQUEST: {
 #ifndef NDEBUG
@@ -314,7 +314,7 @@ void
                 // or non-local socket and ARP src IP matches router
                 (s->w->rip && (s->w->rip == arp->spa))) {
                 warn(NTE, "updating socket on local port %u with %s for %s",
-                     ntohs(s->tup.sport), ether_ntoa(&arp->sha),
+                     bswap16(s->tup.sport), ether_ntoa(&arp->sha),
                      inet_ntop(AF_INET, &arp->spa, ip_str, INET_ADDRSTRLEN));
                 s->dmac = arp->sha;
             }
