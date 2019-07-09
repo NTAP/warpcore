@@ -46,11 +46,17 @@
 
 #ifndef PARTICLE
 #include <ifaddrs.h>
+#include <krng.h>
 #include <net/if.h>
+#else
+#include <rng_hal.h>
+
+#define kr_srand_r(x, y)
+#define kr_rand_r(x)                                                           \
+    (uint64_t)(HAL_RNG_GetRandomNumber()) << 32 | HAL_RNG_GetRandomNumber()
 #endif
 
 #include <khash.h>
-#include <krng.h>
 #include <warpcore/warpcore.h>
 
 #ifdef HAVE_ASAN
@@ -84,9 +90,10 @@ typedef struct if_list if_list;
 #endif
 
 
+#ifndef PARTICLE
 // w_init() must initialize this so that it is not all zero
 static krng_t w_rand_state;
-
+#endif
 
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
@@ -398,7 +405,7 @@ void w_cleanup(struct w_engine * const w)
 void w_init_rand(void)
 {
     // init state for w_rand()
-#ifndef FUZZING
+#if !defined(FUZZING) && !defined(PARTICLE)
     struct timeval now;
     gettimeofday(&now, 0);
     const uint64_t seed = fnv1a_64(&now, sizeof(now));
