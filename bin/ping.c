@@ -217,7 +217,7 @@ int
         long iter = loops;
         while (likely(iter--)) {
             // pick a random connection for output
-            const uint32_t c = (uint32_t)w_rand_uniform(conns);
+            const uint32_t c = w_rand_uniform32(conns);
 
             // get the current time
             struct timespec before_tx;
@@ -225,7 +225,7 @@ int
                    "clock_gettime");
 
             // stamp the data
-            const uint64_t nonce = w_rand();
+            const uint64_t nonce = w_rand64();
             struct w_iov * v = 0;
             sq_foreach (v, &o, next) {
                 struct payload * const p = (void *)v->buf;

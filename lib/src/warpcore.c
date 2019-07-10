@@ -608,14 +608,25 @@ void w_free_iov(struct w_iov * const v)
 }
 
 
-/// Return a random number. Fast, but not cryptographically secure. Implements
-/// xoroshiro128+; see https://en.wikipedia.org/wiki/Xoroshiro128%2B.
+/// Return a 64-bit random number. Fast, but not cryptographically secure.
+/// Implements xoroshiro128+; see https://en.wikipedia.org/wiki/Xoroshiro128%2B.
 ///
 /// @return     Random number.
 ///
-uint64_t w_rand(void)
+uint64_t w_rand64(void)
 {
     return kr_rand_r(&w_rand_state);
+}
+
+
+/// Return a 32-bit random number. Fast, but not cryptographically secure.
+/// Truncates w_rand64() to 32 bits.
+///
+/// @return     Random number.
+///
+uint32_t w_rand32(void)
+{
+    return (uint32_t)kr_rand_r(&w_rand_state);
 }
 
 
@@ -626,7 +637,7 @@ uint64_t w_rand(void)
 ///
 /// @return     Random number.
 ///
-uint64_t w_rand_uniform(const uint64_t upper_bound)
+uint64_t w_rand_uniform64(const uint64_t upper_bound)
 {
     if (unlikely(upper_bound < 2))
         return 0;
@@ -640,6 +651,35 @@ uint64_t w_rand_uniform(const uint64_t upper_bound)
     uint64_t r;
     for (;;) {
         r = kr_rand_r(&w_rand_state);
+        if (likely(r >= min))
+            break;
+    }
+
+    return r % upper_bound;
+}
+
+
+/// Calculate a uniformly distributed random number in [0, upper_bound) avoiding
+/// "modulo bias". This can be faster on platforms with crappy 64-bit math.
+///
+/// @param[in]  upper_bound  The upper bound
+///
+/// @return     Random number.
+///
+uint32_t w_rand_uniform32(const uint32_t upper_bound)
+{
+    if (unlikely(upper_bound < 2))
+        return 0;
+
+    // 2**32 % x == (2**32 - x) % x
+    const uint32_t min = (UINT32_MAX - upper_bound) % upper_bound;
+
+    // This could theoretically loop forever but each retry has p > 0.5 (worst
+    // case, usually far better) of selecting a number inside the range we
+    // need, so it should rarely need to re-roll.
+    uint32_t r;
+    for (;;) {
+        r = w_rand32();
         if (likely(r >= min))
             break;
     }

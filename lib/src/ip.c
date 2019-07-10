@@ -176,7 +176,7 @@ void
     ip->len = bswap16(len);
 
     // no need to do bswap16() for random value
-    ip->id = (uint16_t)w_rand_uniform(UINT16_MAX);
+    ip->id = (uint16_t)w_rand_uniform32(UINT16_MAX);
 
     ip->off = bswap16(IP_DF);
     ip->ttl = 64; // XXX this should be configurable

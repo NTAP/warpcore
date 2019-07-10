@@ -32,7 +32,7 @@
 
 #include <warpcore/warpcore.h>
 
-#define r(m) ((m) == 0 ? 0 : (int)w_rand() % (m))
+#define r(m) (int)((m) == 0 ? 0 : w_rand_uniform32((uint32_t)(m)))
 
 
 struct elem {

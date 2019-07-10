@@ -279,10 +279,13 @@ w_get_addr(const struct w_sock * const s, const bool local);
 
 extern void w_init_rand(void);
 
-extern uint64_t w_rand(void);
+extern uint64_t w_rand64(void);
 
-extern uint64_t w_rand_uniform(const uint64_t upper_bound);
+extern uint64_t w_rand_uniform64(const uint64_t upper_bound);
 
+extern uint32_t w_rand32(void);
+
+extern uint32_t w_rand_uniform32(const uint32_t upper_bound);
 
 /// Return the number of w_iov structs in @p q that are still waiting for
 /// transmission. Only valid after w_tx() has been called on @p p.
