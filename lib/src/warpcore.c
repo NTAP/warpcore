@@ -626,7 +626,11 @@ uint64_t w_rand64(void)
 ///
 uint32_t w_rand32(void)
 {
+#ifndef PARTICLE
     return (uint32_t)kr_rand_r(&w_rand_state);
+#else
+    return HAL_RNG_GetRandomNumber();
+#endif
 }
 
 
