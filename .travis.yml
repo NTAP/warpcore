@@ -13,29 +13,22 @@ branches:
 env:
   matrix:
     - BUILD=Debug    MYCC=gcc-4.9    MYCXX=g++-4.9        FUZZ=0
-    - BUILD=Release  MYCC=gcc-4.9    MYCXX=g++-4.9        FUZZ=0
     - BUILD=Debug    MYCC=gcc-7      MYCXX=g++-7          FUZZ=0
-    - BUILD=Release  MYCC=gcc-7      MYCXX=g++-7          FUZZ=0
     - BUILD=Debug    MYCC=gcc-8      MYCXX=g++-8          FUZZ=0
-    - BUILD=Release  MYCC=gcc-8      MYCXX=g++-8          FUZZ=0
+    - BUILD=Debug    MYCC=gcc-9      MYCXX=g++-9          FUZZ=0
     - BUILD=Debug    MYCC=clang-5.0  MYCXX=clang++-5.0    FUZZ=0
-    - BUILD=Release  MYCC=clang-5.0  MYCXX=clang++-5.0    FUZZ=0
     - BUILD=Debug    MYCC=clang-6.0  MYCXX=clang++-6.0    FUZZ=0
-    - BUILD=Release  MYCC=clang-6.0  MYCXX=clang++-6.0    FUZZ=0
     - BUILD=Debug    MYCC=clang-7    MYCXX=clang++-7      FUZZ=0
-    - BUILD=Release  MYCC=clang-7    MYCXX=clang++-7      FUZZ=0
-    - BUILD=Debug    MYCC=gcc-4.9    MYCXX=g++-4.9        FUZZ=1
-    - BUILD=Release  MYCC=gcc-4.9    MYCXX=g++-4.9        FUZZ=1
-    - BUILD=Debug    MYCC=gcc-7      MYCXX=g++-7          FUZZ=1
-    - BUILD=Release  MYCC=gcc-7      MYCXX=g++-7          FUZZ=1
-    - BUILD=Debug    MYCC=gcc-8      MYCXX=g++-8          FUZZ=1
-    - BUILD=Release  MYCC=gcc-8      MYCXX=g++-8          FUZZ=1
-    - BUILD=Debug    MYCC=clang-5.0  MYCXX=clang++-5.0    FUZZ=1
-    - BUILD=Release  MYCC=clang-5.0  MYCXX=clang++-5.0    FUZZ=1
-    - BUILD=Debug    MYCC=clang-6.0  MYCXX=clang++-6.0    FUZZ=1
-    - BUILD=Release  MYCC=clang-6.0  MYCXX=clang++-6.0    FUZZ=1
-    - BUILD=Debug    MYCC=clang-7    MYCXX=clang++-7      FUZZ=1
-    - BUILD=Release  MYCC=clang-7    MYCXX=clang++-7      FUZZ=1
+    - BUILD=Debug    MYCC=clang-8    MYCXX=clang++-8      FUZZ=0
+
+    - BUILD=Release  MYCC=gcc-9      MYCXX=g++-9          FUZZ=0
+    - BUILD=Release  MYCC=clang-8    MYCXX=clang++-8      FUZZ=0
+
+    - BUILD=Debug    MYCC=gcc-9      MYCXX=g++-9          FUZZ=1
+    - BUILD=Release  MYCC=gcc-9      MYCXX=g++-9          FUZZ=1
+    - BUILD=Debug    MYCC=clang-8    MYCXX=clang++-8      FUZZ=1
+    - BUILD=Release  MYCC=clang-8    MYCXX=clang++-8      FUZZ=1
+
   global:
     - PROJECT=warpcore
     - secure: "IHICwP4oMbC6yzx9G4YIthU6ujpt0bJ4jOElN7ujs8xGODB7YQFlxIaBwLvCf8APjczUuarN1r0Vc/Ekyp8LVBVdI6oEK0ZyHkvXOsydtYAtKrK60iEZXLoMzqTR/DeZaLkQb/hh4tYLAfrzNs9ZZA6vU1rJUJdaNmxluM9kcF253tfxKZ7rZ8dveD+gwmfJYH47sNwvFiGVTmU6c9fDVVfE/R3c0aX3A4pI3oOAUMH6Vs/76ZdRh2knzLLDgcNiIDapJd1xlw8HFSyEbsfEgTLPl+9qeXyh8fU6kwU7tGKetdr60klrXChIdwqStOxNwp4ylto727oYtztj7zJxYWQxbXQwehH66Xj44KEfW9MEuBEbGCmlR/74vCTNnKVU6D857ZU7r0L43GTD9KfAqqHWKtdQJpoRZMkhRcFrZkHCG8GJJo+3swwXFWnPbqPDuGWnLaeg4dsFpcAhq4ujSFheJbJ+ilERGio8ksv+FndlImSsQVEHtErPyJlizE3y2QfdWfASpn5HYVJ5la0Vy5Tea0rPRymdtLQm3lCMX+qcAg9EQLFHsc52LsFUwnHrNu5WqzfCmN0b7kfT4SlEHVXOXtC6k5PYxAUBaHfyeVFspc4UN5ZTUmSj9Y2h47Oa5KV/DJRaNKalve3TYgysEvlnTqv6qJfqnbHO2Swl+GE="
@@ -50,6 +43,7 @@ addons:
       - ubuntu-toolchain-r-test
       - llvm-toolchain-xenial-6.0
       - llvm-toolchain-xenial-7
+      - llvm-toolchain-xenial-8
     packages:
       - g++-4.9
       - g++-7
