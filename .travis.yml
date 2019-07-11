@@ -70,8 +70,7 @@ addons:
         mkdir build
         cd build
         cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
-          -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
-          -DNO_SANITIZERS=True ..
+          -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp ..
       fi
     build_command: cov-build make VERBOSE=1
     branch_pattern: coverity
@@ -97,7 +96,7 @@ script:
     cd build
     cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
       -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
-      -DNO_SANITIZERS=True -DFUZZER=$FUZZ ..
+      -DFUZZER=$FUZZ ..
     make VERBOSE=1
 
 # after_success:
