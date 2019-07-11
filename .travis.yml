@@ -98,7 +98,7 @@ script:
     cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
       -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
       -DNO_SANITIZERS=True -DFUZZER=$FUZZ ..
-    make
+    make VERBOSE=1
 
 # after_success:
 #   # update the documentation
