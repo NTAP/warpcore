@@ -39,6 +39,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
 
@@ -315,3 +316,9 @@ char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
 #endif
 
 
+uint64_t w_now(void)
+{
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (uint64_t)now.tv_sec * NSECS_PER_SEC + (uint64_t)now.tv_nsec;
+}

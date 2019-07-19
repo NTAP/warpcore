@@ -414,6 +414,11 @@ w_connected(const struct w_sock * const s)
 extern void __attribute__((nonnull))
 w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt);
 
+
+/// Return the relative time in nanoseconds since an undefined epoch.
+///
+extern uint64_t w_now(void);
+
 #ifdef __cplusplus
 }
 #endif
