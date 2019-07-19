@@ -45,6 +45,8 @@
 #ifdef PARTICLE
 #include "timer_hal.h"
 
+#define strerror(...) ""
+
 
 int gettimeofday(struct timeval * restrict tp,
                  void * restrict tzp __attribute__((unused)))

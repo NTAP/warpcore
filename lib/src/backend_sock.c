@@ -53,6 +53,7 @@
 #include <socket_hal.h>
 #define SOCK_CLOEXEC 0
 #define IP_RECVTOS IP_TOS
+#define strerror(...) ""
 #endif
 
 
