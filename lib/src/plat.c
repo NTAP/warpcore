@@ -48,7 +48,7 @@
 #include <net/if.h>
 #include <netinet/if_ether.h>
 #else
-// #include <socket_hal.h>
+#include <timer_hal.h>
 #endif
 
 #if defined(__linux__)
@@ -71,7 +71,6 @@
 #include <sys/sockio.h>
 #include <unistd.h>
 #endif
-
 
 
 /// Return the Ethernet MAC address of network interface @p i.
@@ -318,7 +317,11 @@ char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
 
 uint64_t w_now(void)
 {
+#ifndef PARTICLE
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     return (uint64_t)now.tv_sec * NSECS_PER_SEC + (uint64_t)now.tv_nsec;
+#else
+    return HAL_Timer_Microseconds() * 1000;
+#endif
 }
