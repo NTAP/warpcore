@@ -1,7 +1,6 @@
-.git
-Darwin*
-Debug
-FreeBSD*
-lib/include/net
-Linux*
-Release
+*
+!CMakeLists.txt
+!doc
+!bin
+!lib
+!test

@@ -106,7 +106,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
 
   add_definitions("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2")
 
-  if(NOT DEFINED ENV{CONTINUOUS_INTEGRATION} AND NOT DEFINED ENV{DOCKER})
+  if(NOT DEFINED ENV{CONTINUOUS_INTEGRATION} AND NOT DOCKER)
     # See if we can use the address sanitizer
     check_include_file(sanitizer/asan_interface.h HAVE_ASAN)
     if(HAVE_ASAN AND NOT CMAKE_GENERATOR STREQUAL Xcode)
