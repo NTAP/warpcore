@@ -228,7 +228,7 @@ void util_die(const char * const func,
     fprintf(stderr, DTHREAD_ID_IND(BMAG) WHT BLD "%ld.%03ld   %s %s:%u ABORT: ",
             DTHREAD_ID, (long)(dur.tv_sec % 1000), // NOLINT
             (long)(dur.tv_usec / 1000),            // NOLINT
-            func, basename(file), line);
+            func, file, line);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     vfprintf(stderr, fmt, ap);
@@ -343,8 +343,7 @@ util_warn_valist(const unsigned dlevel,
 
 #ifndef PARTICLE
     if (util_dlevel == DBG)
-        fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, basename(file),
-                line);
+        fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, file, line);
 #endif
 
 #pragma clang diagnostic push
@@ -432,8 +431,8 @@ void util_hexdump(const void * const ptr,
                                 "%s:%u " NRM
                                 "hex-dumping %zu byte%s of %s from %p\n",
             DTHREAD_ID, elapsed.tv_sec % 1000,
-            (long long)(elapsed.tv_usec / 1000), func, basename(file), line,
-            len, plural(len), ptr_name, ptr);
+            (long long)(elapsed.tv_usec / 1000), func, file, line, len,
+            plural(len), ptr_name, ptr);
 
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {

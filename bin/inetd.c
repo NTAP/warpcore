@@ -26,6 +26,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <inttypes.h>
+#include <libgen.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>

@@ -45,17 +45,9 @@
 #define NSECS_PER_SEC 1000000000 ///< Microseconds per second.
 
 
-/// Trim the path from the given file name. Mostly to be used with __FILE__.
-///
-/// @param      f     An (absolute) file name, to trim.
-///
-/// @return     The standalone file name (no path).
-///
-#ifndef basename
-#include <string.h>
-#define basename(f) (strrchr((f), '/') ? strrchr((f), '/') + 1 : (f))
-#endif
-
+#define __FILENAME__                                                           \
+    (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1   \
+                                      : __FILE__)
 
 #ifndef plural
 /// Helper to pluralize output words.
@@ -86,7 +78,7 @@
 ///                   to @p fmt.
 ///
 #ifndef PARTICLE
-#define die(...) util_die(__func__, __FILE__, __LINE__, __VA_ARGS__)
+#define die(...) util_die(__func__, __FILENAME__, __LINE__, __VA_ARGS__)
 
 extern void __attribute__((nonnull(1, 2, 4), noreturn, format(printf, 4, 5)))
 util_die(const char * const func,
@@ -129,16 +121,16 @@ extern short util_dlevel;
 
 #else
 
-#ifndef DLEVEL
-#define DLEVEL ALL
-#endif
-
 #define CRT PANIC
 #define ERR ERROR
 #define WRN WARN
 #define NTE INFO
 #define INF TRACE
 #define DBG ALL
+#endif
+
+#ifndef DLEVEL
+#define DLEVEL LOG_LEVEL_ALL
 #endif
 
 #ifndef NDEBUG
@@ -171,12 +163,20 @@ util_warn(const unsigned dlevel,
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
-            util_warn((dlevel), false, __func__, __FILE__, __LINE__,           \
+            util_warn((dlevel), false, __func__, __FILENAME__, __LINE__,       \
                       __VA_ARGS__);                                            \
         }                                                                      \
     } while (0) // NOLINT
 #else
-#define warn(dlevel, ...) LOG_DEBUG(dlevel, __VA_ARGS__)
+
+#define LL(x) LOG_LEVEL_##x
+
+#define warn(dlevel, ...)                                                      \
+    do {                                                                       \
+        if (unlikely(DLEVEL >= LL(dlevel) && util_dlevel >= LL(dlevel))) {     \
+            LOG_DEBUG(dlevel, __VA_ARGS__);                                    \
+        }                                                                      \
+    } while (0) // NOLINT
 #endif
 
 /// Like warn(), but always prints a timestamp.
@@ -190,12 +190,12 @@ util_warn(const unsigned dlevel,
 #define twarn(dlevel, ...)                                                     \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
-            util_warn((dlevel), true, __func__, __FILE__, __LINE__,            \
+            util_warn((dlevel), true, __func__, __FILENAME__, __LINE__,        \
                       __VA_ARGS__);                                            \
         }                                                                      \
     } while (0) // NOLINT
 #else
-#define twarn(dlevel, ...) LOG_DEBUG(dlevel, __VA_ARGS__)
+#define twarn(dlevel, ...) warn(dlevel, __VA_ARGS__)
 #endif
 
 
@@ -209,12 +209,13 @@ util_warn(const unsigned dlevel,
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
 ///
+#ifndef PARTICLE
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
             static time_t __rt0;                                               \
             unsigned int __rcnt;                                               \
-            util_rwarn(&__rt0, &__rcnt, (dlevel), lps, __func__, __FILE__,     \
+            util_rwarn(&__rt0, &__rcnt, (dlevel), lps, __func__, __FILENAME__, \
                        __LINE__, __VA_ARGS__);                                 \
         }                                                                      \
     } while (0) // NOLINT
@@ -230,7 +231,7 @@ util_rwarn(time_t * const rt0,
            const unsigned line,
            const char * const fmt,
            ...);
-
+#endif
 #else
 
 #define warn(...)                                                              \
@@ -262,13 +263,20 @@ util_rwarn(time_t * const rt0,
 /// @param      fmt     A printf()-style format string.
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
+#ifndef PARTICLE
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (unlikely(!(e)))                                                    \
             die("assertion failed \n" DTHREAD_GAP #e                           \
                 " \n" DTHREAD_GAP __VA_ARGS__);                                \
     } while (0) // NOLINT
-
+#else
+#define ensure(e, ...)                                                         \
+    do {                                                                       \
+        if (unlikely(!(e)))                                                    \
+            die("died\n");                                                     \
+    } while (0)
+#endif
 
 /// Print a hexdump of the memory region given by @p ptr and @p len to stderr.
 /// Also emits an ASCII representation. Uses util_hexdump internally to augment
@@ -279,7 +287,7 @@ util_rwarn(time_t * const rt0,
 ///
 #ifndef PARTICLE
 #define hexdump(ptr, len)                                                      \
-    util_hexdump(ptr, len, #ptr, __func__, __FILE__, __LINE__)
+    util_hexdump(ptr, len, #ptr, __func__, __FILENAME__, __LINE__)
 #else
 #define hexdump(ptr, len) LOG_DUMP(PANIC, ptr, len)
 #endif

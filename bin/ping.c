@@ -26,6 +26,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <inttypes.h>
+#include <libgen.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
