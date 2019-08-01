@@ -47,6 +47,7 @@
 
 #define strerror(...) ""
 
+LogAttributes util_attr = {sizeof(util_attr), {0}};
 
 int gettimeofday(struct timeval * restrict tp,
                  void * restrict tzp __attribute__((unused)))
@@ -59,7 +60,7 @@ int gettimeofday(struct timeval * restrict tp,
 
 #endif
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
 #ifdef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
 /// the DCOMPONENT define to a regular expression matching the components
@@ -183,7 +184,7 @@ premain(const int argc __attribute__((unused)),
     util_master = pthread_self();
 #endif
 
-#if !defined(NDEBUG) && defined(DCOMPONENT)
+#if (!defined(NDEBUG) || defined(NDEBUG_OVERRIDE)) && defined(DCOMPONENT)
     // Initialize the regular expression used for restricting debug output
     ensure(regcomp(&util_comp, DCOMPONENT,
                    REG_EXTENDED | REG_ICASE | REG_NOSUB) == 0,
@@ -197,7 +198,7 @@ premain(const int argc __attribute__((unused)),
 ///
 static void __attribute__((destructor)) postmain()
 {
-#if !defined(NDEBUG) && defined(DCOMPONENT)
+#if (!defined(NDEBUG) || defined(NDEBUG_OVERRIDE)) && defined(DCOMPONENT)
     // Free the regular expression used for restricting debug output
     regfree(&util_comp);
 #endif
@@ -287,15 +288,10 @@ void util_die(const char * const func,
 }
 
 
-short util_dlevel =
-#ifndef PARTICLE
-    DLEVEL;
-#else
-    LOG_COMPILE_TIME_LEVEL;
-#endif
+short util_dlevel = DLEVEL;
 
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
 
 #define BRED "\x1B[41m" ///< ANSI escape sequence: background red
 #define BGRN "\x1B[42m" ///< ANSI escape sequence: background green
@@ -341,10 +337,8 @@ util_warn_valist(const unsigned dlevel,
             fputc(' ', stderr);
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
 
-#ifndef PARTICLE
     if (util_dlevel == DBG)
         fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, file, line);
-#endif
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"

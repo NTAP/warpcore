@@ -79,33 +79,6 @@
 #include "udp.h"
 
 
-#ifdef PARTICLE
-static int poll(struct pollfd fds[], nfds_t nfds, int timeout)
-{
-    int n = 0;
-    for (nfds_t i = 0; i < nfds; i++) {
-        struct timeval orig;
-        socklen_t len;
-        getsockopt(fds[i].fd, SOL_SOCKET, SO_RCVTIMEO, &orig, &len);
-
-        struct timeval tv;
-        if (n == 0 && i == nfds - 1) {
-            tv.tv_sec = timeout / MSECS_PER_SEC;
-            tv.tv_usec = (timeout % MSECS_PER_SEC) * 1000;
-        } else
-            tv.tv_sec = tv.tv_usec = 0;
-        setsockopt(fds[i].fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-
-        if (recv(fds[i].fd, 0, 0, MSG_PEEK) > 0)
-            n++;
-
-        setsockopt(fds[i].fd, SOL_SOCKET, SO_RCVTIMEO, &orig, sizeof(orig));
-    }
-    return n;
-}
-#endif
-
-
 /// The backend name.
 ///
 static char backend_name[] = "socket";
@@ -171,23 +144,23 @@ void backend_init(struct w_engine * const w,
 
 #if defined(HAVE_KQUEUE)
     w->b->kq = kqueue();
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
     const char poll_meth[] = "kqueue";
 #endif
 
 #elif defined(HAVE_EPOLL)
     w->b->ep = epoll_create1(0);
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
     const char poll_meth[] = "epoll";
 #endif
 
 #else
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
     const char poll_meth[] = "poll";
 #endif
 #endif
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
 #if defined(HAVE_SENDMMSG)
     const char send_meth[] = "sendmmsg";
 #else

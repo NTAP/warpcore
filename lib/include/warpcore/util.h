@@ -29,9 +29,6 @@
 // IWYU pragma: private, include <warpcore/warpcore.h>
 
 #ifdef PARTICLE
-#ifndef NDEBUG
-#define DEBUG_BUILD
-#endif
 #include <logging.h>
 #endif
 
@@ -39,15 +36,14 @@
 #include <stdint.h>
 #include <time.h>
 
+#define __FILENAME__                                                           \
+    (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1   \
+                                      : __FILE__)
 
 #define MSECS_PER_SEC 1000       ///< Milliseconds per second.
 #define USECS_PER_SEC 1000000    ///< Microseconds per second.
 #define NSECS_PER_SEC 1000000000 ///< Microseconds per second.
 
-
-#define __FILENAME__                                                           \
-    (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1   \
-                                      : __FILE__)
 
 #ifndef plural
 /// Helper to pluralize output words.
@@ -60,7 +56,7 @@
 #endif
 
 #ifndef likely
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
 // cppcheck gets confused by __builtin_expect()
 #define likely(x) (x)
 #define unlikely(x) (x)
@@ -71,38 +67,12 @@
 #endif
 
 
-/// Abort execution with a message.
-///
-/// @param      fmt   A printf()-style format string.
-/// @param      ...   Subsequent arguments to be converted for output according
-///                   to @p fmt.
-///
-#ifndef PARTICLE
-#define die(...) util_die(__func__, __FILENAME__, __LINE__, __VA_ARGS__)
-
-extern void __attribute__((nonnull(1, 2, 4), noreturn, format(printf, 4, 5)))
-util_die(const char * const func,
-         const char * const file,
-         const unsigned line,
-         const char * const fmt,
-         ...);
-
-#else
-
-#ifndef NDEBUG
-#define die(...) PANIC(NotUsedPanicCode, __VA_ARGS__)
-#else
-#define die(...) PANIC(NotUsedPanicCode, 0, 0)
-#endif
-#endif
-
 /// Dynamically adjust util_dlevel from your code to show or suppress debug
 /// messages at runtime. Increasing this past what was compiled in by setting
 /// DLEVEL is obviously not going to have any effect.
 extern short util_dlevel;
 
 
-#ifndef PARTICLE
 // Set DLEVEL to the level of debug output you want to compile in support for
 #ifndef DLEVEL
 /// Default debug level. Can be overridden by setting the DLEVEL define in
@@ -119,21 +89,7 @@ extern short util_dlevel;
 #define INF 4 ///< Informational
 #define DBG 5 ///< Debug
 
-#else
-
-#define CRT PANIC
-#define ERR ERROR
-#define WRN WARN
-#define NTE INFO
-#define INF TRACE
-#define DBG ALL
-#endif
-
-#ifndef DLEVEL
-#define DLEVEL LOG_LEVEL_ALL
-#endif
-
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
 #include <regex.h>
 
 // These macros are based on the "D" ones defined by netmap
@@ -162,22 +118,32 @@ util_warn(const unsigned dlevel,
 
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
-        if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
+        if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel)))           \
             util_warn((dlevel), false, __func__, __FILENAME__, __LINE__,       \
                       __VA_ARGS__);                                            \
-        }                                                                      \
     } while (0) // NOLINT
 #else
 
-#define LL(x) LOG_LEVEL_##x
+extern LogAttributes util_attr;
+
+static const int util_level_trans[] = {
+    [CRT] = LOG_LEVEL_PANIC, [ERR] = LOG_LEVEL_ERROR, [WRN] = LOG_LEVEL_WARN,
+    [NTE] = LOG_LEVEL_INFO,  [INF] = LOG_LEVEL_INFO,  [DBG] = LOG_LEVEL_TRACE};
 
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
-        if (unlikely(DLEVEL >= LL(dlevel) && util_dlevel >= LL(dlevel))) {     \
-            LOG_DEBUG(dlevel, __VA_ARGS__);                                    \
+        if (DLEVEL >= (dlevel)) {                                              \
+            /* LOG_ATTR_SET(util_attr, file, __FILENAME__); */                 \
+            /* LOG_ATTR_SET(util_attr, line, __LINE__); */                     \
+            /* LOG_ATTR_SET(util_attr, function, __func__); */                 \
+            log_message(util_level_trans[(dlevel)], LOG_MODULE_CATEGORY,       \
+                        &util_attr, 0, __VA_ARGS__);                           \
+            /* HAL_Delay_Microseconds(50 * MSECS_PER_SEC); */                  \
         }                                                                      \
     } while (0) // NOLINT
+
 #endif
+
 
 /// Like warn(), but always prints a timestamp.
 ///
@@ -189,13 +155,12 @@ util_warn(const unsigned dlevel,
 #ifndef PARTICLE
 #define twarn(dlevel, ...)                                                     \
     do {                                                                       \
-        if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
+        if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel)))           \
             util_warn((dlevel), true, __func__, __FILENAME__, __LINE__,        \
                       __VA_ARGS__);                                            \
-        }                                                                      \
     } while (0) // NOLINT
 #else
-#define twarn(dlevel, ...) warn(dlevel, __VA_ARGS__)
+#define twarn(dlevel, ...) warn(dlevel, __VA_ARGS__) // NOLINT
 #endif
 
 
@@ -234,18 +199,40 @@ util_rwarn(time_t * const rt0,
 #endif
 #else
 
-#define warn(...)                                                              \
-    do {                                                                       \
-    } while (0) // NOLINT
+#define warn(...)
+#define twarn(...)
+#define rwarn(...)
 
-#define twarn(...)                                                             \
-    do {                                                                       \
-    } while (0) // NOLINT
+#endif
 
-#define rwarn(...)                                                             \
-    do {                                                                       \
-    } while (0) // NOLINT
 
+/// Abort execution with a message.
+///
+/// @param      fmt   A printf()-style format string.
+/// @param      ...   Subsequent arguments to be converted for output according
+///                   to @p fmt.
+///
+#ifndef PARTICLE
+#define die(...) util_die(__func__, __FILENAME__, __LINE__, __VA_ARGS__)
+
+extern void __attribute__((nonnull(1, 2, 4), noreturn, format(printf, 4, 5)))
+util_die(const char * const func,
+         const char * const file,
+         const unsigned line,
+         const char * const fmt,
+         ...);
+
+#else
+
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#define die(...)                                                               \
+    do {                                                                       \
+        warn(CRT, __VA_ARGS__);                                                \
+        PANIC(NotUsedPanicCode, __VA_ARGS__);                                  \
+    } while (0)
+#else
+#define die(...) PANIC(NotUsedPanicCode, 0, 0)
+#endif
 #endif
 
 
@@ -263,20 +250,13 @@ util_rwarn(time_t * const rt0,
 /// @param      fmt     A printf()-style format string.
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
-#ifndef PARTICLE
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (unlikely(!(e)))                                                    \
             die("assertion failed \n" DTHREAD_GAP #e                           \
                 " \n" DTHREAD_GAP __VA_ARGS__);                                \
     } while (0) // NOLINT
-#else
-#define ensure(e, ...)                                                         \
-    do {                                                                       \
-        if (unlikely(!(e)))                                                    \
-            die("died\n");                                                     \
-    } while (0)
-#endif
+
 
 /// Print a hexdump of the memory region given by @p ptr and @p len to stderr.
 /// Also emits an ASCII representation. Uses util_hexdump internally to augment
@@ -288,9 +268,6 @@ util_rwarn(time_t * const rt0,
 #ifndef PARTICLE
 #define hexdump(ptr, len)                                                      \
     util_hexdump(ptr, len, #ptr, __func__, __FILENAME__, __LINE__)
-#else
-#define hexdump(ptr, len) LOG_DUMP(PANIC, ptr, len)
-#endif
 
 extern void __attribute__((nonnull)) util_hexdump(const void * const ptr,
                                                   const size_t len,
@@ -299,6 +276,9 @@ extern void __attribute__((nonnull)) util_hexdump(const void * const ptr,
                                                   const char * const file,
                                                   const unsigned line);
 
+#else
+#define hexdump(ptr, len) LOG_DUMP(PANIC, ptr, len)
+#endif
 
 extern uint64_t __attribute__((nonnull
 #if defined(__clang__)

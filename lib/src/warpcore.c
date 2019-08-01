@@ -302,7 +302,7 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     }
     ins_sock(s->w, s);
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
     char str[INET_ADDRSTRLEN];
     warn(DBG, "socket connected to %s port %d",
          inet_ntop(AF_INET, &s->tup.dip, str, INET_ADDRSTRLEN),
@@ -434,8 +434,7 @@ struct w_engine *
 w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
 {
 #ifdef PARTICLE
-    LOG(ALL, "NOTE: newlib has no I/O support for 64-bit types - expect log "
-             "weirdness");
+    warn(WRN, "no I/O support for 64-bit types - expect log weirdness");
 #endif
 
     w_init_rand();
@@ -487,7 +486,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
                 char drvname[32];
                 plat_get_iface_driver(i, drvname, sizeof(drvname));
                 w->drvname = strdup(drvname);
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
                 char mac[ETH_ADDR_STRLEN];
                 warn(NTE, "%s addr %s, MTU %d, speed %" PRIu32 "G, link %s",
                      i->ifa_name, ether_ntoa_r(&w->mac, mac), w->mtu,
@@ -525,7 +524,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
         freeifaddrs(ifap);
     }
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
     char ip_str[INET_ADDRSTRLEN];
     char mask_str[INET_ADDRSTRLEN];
     char rip_str[INET_ADDRSTRLEN];
@@ -588,7 +587,7 @@ void w_free(struct w_iov_sq * const q)
         return;
     struct w_engine * const w = sq_first(q)->w;
     sq_concat(&w->iov, q);
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
     struct w_iov * v;
     sq_foreach (v, q, next)
         ASAN_POISON_MEMORY_REGION(v->base, w->mtu);
