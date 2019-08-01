@@ -89,7 +89,7 @@ extern short util_dlevel;
 #define INF 4 ///< Informational
 #define DBG 5 ///< Debug
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
 #include <regex.h>
 
 // These macros are based on the "D" ones defined by netmap
@@ -199,9 +199,15 @@ util_rwarn(time_t * const rt0,
 #endif
 #else
 
-#define warn(...)
-#define twarn(...)
-#define rwarn(...)
+#define warn(...)                                                              \
+    do {                                                                       \
+    } while (0)
+#define twarn(...)                                                             \
+    do {                                                                       \
+    } while (0)
+#define rwarn(...)                                                             \
+    do {                                                                       \
+    } while (0)
 
 #endif
 
