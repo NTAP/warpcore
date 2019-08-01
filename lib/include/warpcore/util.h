@@ -56,7 +56,7 @@
 #endif
 
 #ifndef likely
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
 // cppcheck gets confused by __builtin_expect()
 #define likely(x) (x)
 #define unlikely(x) (x)
@@ -89,7 +89,7 @@ extern short util_dlevel;
 #define INF 4 ///< Informational
 #define DBG 5 ///< Debug
 
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
 #include <regex.h>
 
 // These macros are based on the "D" ones defined by netmap
@@ -225,11 +225,7 @@ util_die(const char * const func,
 #else
 
 #if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
-#define die(...)                                                               \
-    do {                                                                       \
-        warn(CRT, __VA_ARGS__);                                                \
-        PANIC(NotUsedPanicCode, __VA_ARGS__);                                  \
-    } while (0)
+#define die(...) PANIC(NotUsedPanicCode, __VA_ARGS__)
 #else
 #define die(...) PANIC(NotUsedPanicCode, 0, 0)
 #endif

@@ -52,8 +52,9 @@
 ///
 #define udp_log(udp)                                                           \
     do {                                                                       \
-        warn(DBG, "UDP :%d -> :%d, cksum 0x%04x, len %u", bswap16((udp)->sport), \
-             bswap16((udp)->dport), bswap16((udp)->cksum), bswap16((udp)->len));     \
+        warn(DBG, "UDP :%d -> :%d, cksum 0x%04x, len %u",                      \
+             bswap16((udp)->sport), bswap16((udp)->dport),                     \
+             bswap16((udp)->cksum), bswap16((udp)->len));                      \
     } while (0)
 #else
 #define udp_log(udp)                                                           \

@@ -112,8 +112,8 @@ bool io(const uint64_t len)
                "port %u != port %u",
                bswap16(((struct sockaddr_in *)&iv->addr)->sin_port),
                bswap16(((const struct sockaddr_in *)(const void *)w_get_addr(
-                          s_clnt, true))
-                         ->sin_port));
+                            s_clnt, true))
+                           ->sin_port));
 
         ensure(((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr == 0 ||
                    ((struct sockaddr_in *)&iv->addr)->sin_addr.s_addr ==

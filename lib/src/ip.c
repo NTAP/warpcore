@@ -54,15 +54,15 @@
     do {                                                                       \
         char src[INET_ADDRSTRLEN];                                             \
         char dst[INET_ADDRSTRLEN];                                             \
+        inet_ntop(AF_INET, &(ip)->src, src, INET_ADDRSTRLEN);                  \
+        inet_ntop(AF_INET, &(ip)->dst, dst, INET_ADDRSTRLEN);                  \
         warn(DBG,                                                              \
              "IP: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "                  \
              "flags [%s%s], proto %d, hlen/tot %d/%d, cksum %04x",             \
-             inet_ntop(AF_INET, &(ip)->src, src, INET_ADDRSTRLEN),             \
-             inet_ntop(AF_INET, &(ip)->dst, dst, INET_ADDRSTRLEN),             \
-             ip_dscp(ip), ip_ecn(ip), (ip)->ttl, bswap16((ip)->id),              \
-             (bswap16((ip)->off) & IP_MF) ? "MF" : "",                           \
-             (bswap16((ip)->off) & IP_DF) ? "DF" : "", (ip)->p, ip_hl(ip),       \
-             bswap16((ip)->len), bswap16((ip)->cksum));                            \
+             src, dst, ip_dscp(ip), ip_ecn(ip), (ip)->ttl, bswap16((ip)->id),  \
+             (bswap16((ip)->off) & IP_MF) ? "MF" : "",                         \
+             (bswap16((ip)->off) & IP_DF) ? "DF" : "", (ip)->p, ip_hl(ip),     \
+             bswap16((ip)->len), bswap16((ip)->cksum));                        \
     } while (0)
 #else
 #define ip_log(ip)                                                             \
@@ -101,9 +101,9 @@ bool
 #if !defined(NDEBUG) && !defined(FUZZING)
         char src[INET_ADDRSTRLEN];
         char dst[INET_ADDRSTRLEN];
-        warn(INF, "IP packet from %s to %s (not us); ignoring",
-             inet_ntop(AF_INET, &ip->src, src, INET_ADDRSTRLEN),
-             inet_ntop(AF_INET, &ip->dst, dst, INET_ADDRSTRLEN));
+        inet_ntop(AF_INET, &ip->src, src, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &ip->dst, dst, INET_ADDRSTRLEN);
+        warn(INF, "IP packet from %s to %s (not us); ignoring", src, dst);
 #endif
         return false;
     }

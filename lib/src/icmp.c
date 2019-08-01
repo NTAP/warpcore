@@ -176,7 +176,8 @@ void icmp_rx(struct w_engine * const w,
             s->len - sizeof(struct eth_hdr) - sizeof(struct ip_hdr));
 
     if (ip_cksum(icmp, icmp_len) != 0) {
-        warn(WRN, "invalid ICMP checksum, received 0x%04x", bswap16(icmp->cksum));
+        warn(WRN, "invalid ICMP checksum, received 0x%04x",
+             bswap16(icmp->cksum));
         return;
     }
 #endif

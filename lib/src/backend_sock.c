@@ -144,23 +144,23 @@ void backend_init(struct w_engine * const w,
 
 #if defined(HAVE_KQUEUE)
     w->b->kq = kqueue();
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
     const char poll_meth[] = "kqueue";
 #endif
 
 #elif defined(HAVE_EPOLL)
     w->b->ep = epoll_create1(0);
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
     const char poll_meth[] = "epoll";
 #endif
 
 #else
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
     const char poll_meth[] = "poll";
 #endif
 #endif
 
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
 #if defined(HAVE_SENDMMSG)
     const char send_meth[] = "sendmmsg";
 #else

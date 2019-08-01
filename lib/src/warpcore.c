@@ -302,11 +302,10 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     }
     ins_sock(s->w, s);
 
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
     char str[INET_ADDRSTRLEN];
-    warn(DBG, "socket connected to %s port %d",
-         inet_ntop(AF_INET, &s->tup.dip, str, INET_ADDRSTRLEN),
-         bswap16(s->tup.dport));
+    inet_ntop(AF_INET, &s->tup.dip, str, INET_ADDRSTRLEN);
+    warn(DBG, "socket connected to %s port %d", str, bswap16(s->tup.dport));
 #endif
 
     return 0;
@@ -486,11 +485,12 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
                 char drvname[32];
                 plat_get_iface_driver(i, drvname, sizeof(drvname));
                 w->drvname = strdup(drvname);
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
                 char mac[ETH_ADDR_STRLEN];
+                ether_ntoa_r(&w->mac, mac);
                 warn(NTE, "%s addr %s, MTU %d, speed %" PRIu32 "G, link %s",
-                     i->ifa_name, ether_ntoa_r(&w->mac, mac), w->mtu,
-                     w->mbps / 1000, link_up ? "up" : "down");
+                     i->ifa_name, mac, w->mtu, w->mbps / 1000,
+                     link_up ? "up" : "down");
 #endif
                 break;
             case AF_INET:
@@ -524,15 +524,15 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
         freeifaddrs(ifap);
     }
 
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
     char ip_str[INET_ADDRSTRLEN];
     char mask_str[INET_ADDRSTRLEN];
     char rip_str[INET_ADDRSTRLEN];
-    warn(NTE, "%s has IP addr %s/%s%s%s", ifname,
-         inet_ntop(AF_INET, &w->ip, ip_str, INET_ADDRSTRLEN),
-         inet_ntop(AF_INET, &w->mask, mask_str, INET_ADDRSTRLEN),
-         rip ? ", router " : "",
-         rip ? inet_ntop(AF_INET, &w->rip, rip_str, INET_ADDRSTRLEN) : "");
+    inet_ntop(AF_INET, &w->ip, ip_str, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &w->mask, mask_str, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &w->rip, rip_str, INET_ADDRSTRLEN);
+    warn(NTE, "%s has IP addr %s/%s%s%s", ifname, ip_str, mask_str,
+         rip ? ", router " : "", rip ? rip_str : "");
 #endif
 
     w->ifname = strndup(ifname, IFNAMSIZ);
@@ -587,7 +587,7 @@ void w_free(struct w_iov_sq * const q)
         return;
     struct w_engine * const w = sq_first(q)->w;
     sq_concat(&w->iov, q);
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
     struct w_iov * v;
     sq_foreach (v, q, next)
         ASAN_POISON_MEMORY_REGION(v->base, w->mtu);

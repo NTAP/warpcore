@@ -92,9 +92,9 @@ void arp_cache_update(struct w_engine * w,
     }
     a->mac = mac;
 #ifndef NDEBUG
-    char ip_str[INET_ADDRSTRLEN]; // NOLINT
-    warn(INF, "ARP cache entry: %s is at %s",
-         inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN), ether_ntoa(&mac));
+    char ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN);
+    warn(INF, "ARP cache entry: %s is at %s", ip_str, ether_ntoa(&mac));
 #endif
 }
 
@@ -137,9 +137,8 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf)
 
 #ifndef NDEBUG
     char ip_str[INET_ADDRSTRLEN];
-    warn(NTE, "ARP reply %s is at %s",
-         inet_ntop(AF_INET, &reply->spa, ip_str, INET_ADDRSTRLEN),
-         ether_ntoa(&reply->sha));
+    inet_ntop(AF_INET, &reply->spa, ip_str, INET_ADDRSTRLEN);
+    warn(NTE, "ARP reply %s is at %s", ip_str, ether_ntoa(&reply->sha));
 #endif
 
     // send the Ethernet packet
@@ -181,8 +180,8 @@ struct ether_addr
     while (unlikely(a == 0)) {
 #ifndef NDEBUG
         char ip_str[INET_ADDRSTRLEN];
-        warn(INF, "no ARP entry for %s, sending query",
-             inet_ntop(AF_INET, &dip, ip_str, INET_ADDRSTRLEN));
+        inet_ntop(AF_INET, &dip, ip_str, INET_ADDRSTRLEN);
+        warn(INF, "no ARP entry for %s, sending query", ip_str);
 #endif
 
         // grab a spare buffer
@@ -215,9 +214,9 @@ struct ether_addr
 #ifndef NDEBUG
         char tpa[INET_ADDRSTRLEN];
         char spa[INET_ADDRSTRLEN];
-        warn(NTE, "ARP request who has %s tell %s",
-             inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN),
-             inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
+        inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN);
+        warn(NTE, "ARP request who has %s tell %s", tpa, spa);
 #endif
 
         // now send the packet, and make sure it went out before returning it
@@ -280,9 +279,9 @@ void
 #ifndef NDEBUG
         char tpa[INET_ADDRSTRLEN];
         char spa[INET_ADDRSTRLEN];
-        warn(NTE, "ARP request who has %s tell %s",
-             inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN),
-             inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN));
+        inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN);
+        warn(NTE, "ARP request who has %s tell %s", tpa, spa);
 #endif
         if (arp->tpa == w->ip)
             arp_is_at(w, buf);

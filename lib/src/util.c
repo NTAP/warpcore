@@ -60,7 +60,7 @@ int gettimeofday(struct timeval * restrict tp,
 
 #endif
 
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
 #ifdef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
 /// the DCOMPONENT define to a regular expression matching the components
@@ -184,7 +184,7 @@ premain(const int argc __attribute__((unused)),
     util_master = pthread_self();
 #endif
 
-#if (!defined(NDEBUG) || defined(NDEBUG_OVERRIDE)) && defined(DCOMPONENT)
+#if !defined(NDEBUG) && defined(DCOMPONENT)
     // Initialize the regular expression used for restricting debug output
     ensure(regcomp(&util_comp, DCOMPONENT,
                    REG_EXTENDED | REG_ICASE | REG_NOSUB) == 0,
@@ -198,7 +198,7 @@ premain(const int argc __attribute__((unused)),
 ///
 static void __attribute__((destructor)) postmain()
 {
-#if (!defined(NDEBUG) || defined(NDEBUG_OVERRIDE)) && defined(DCOMPONENT)
+#if !defined(NDEBUG) && defined(DCOMPONENT)
     // Free the regular expression used for restricting debug output
     regfree(&util_comp);
 #endif
@@ -291,7 +291,7 @@ void util_die(const char * const func,
 short util_dlevel = DLEVEL;
 
 
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#ifndef NDEBUG
 
 #define BRED "\x1B[41m" ///< ANSI escape sequence: background red
 #define BGRN "\x1B[42m" ///< ANSI escape sequence: background green
