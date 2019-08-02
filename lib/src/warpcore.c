@@ -42,8 +42,6 @@
 #include <sys/time.h>
 #endif
 
-// #define klib_unused
-
 #ifndef PARTICLE
 #include "krng.h"
 #include <ifaddrs.h>

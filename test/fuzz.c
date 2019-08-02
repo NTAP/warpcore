@@ -23,17 +23,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
 #include <sys/types.h>
 
-#define klib_unused
-
 // IWYU pragma: no_include <net/netmap.h>
-#include <khash.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 

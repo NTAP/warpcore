@@ -56,11 +56,6 @@
 #define strerror(...) ""
 #endif
 
-
-#if !defined(HAVE_KQUEUE) && !defined(HAVE_EPOLL)
-#include <khash.h>
-#endif
-
 #ifdef HAVE_ASAN
 #include <sanitizer/asan_interface.h>
 #endif
