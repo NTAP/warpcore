@@ -29,6 +29,7 @@
 // IWYU pragma: private, include <warpcore/warpcore.h>
 
 #ifdef PARTICLE
+#include <core_hal.h>
 #include <logging.h>
 #endif
 
@@ -89,7 +90,7 @@ extern short util_dlevel;
 #define INF 4 ///< Informational
 #define DBG 5 ///< Debug
 
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
 #include <regex.h>
 
 // These macros are based on the "D" ones defined by netmap
@@ -133,12 +134,14 @@ static const int util_level_trans[] = {
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
         if (DLEVEL >= (dlevel)) {                                              \
+            runtime_info_t info = {.size = sizeof(info)};                      \
+            HAL_Core_Runtime_Info(&info, NULL);                                \
             /* LOG_ATTR_SET(util_attr, file, __FILENAME__); */                 \
             /* LOG_ATTR_SET(util_attr, line, __LINE__); */                     \
             /* LOG_ATTR_SET(util_attr, function, __func__); */                 \
             log_message(util_level_trans[(dlevel)], LOG_MODULE_CATEGORY,       \
-                        &util_attr, 0, __VA_ARGS__);                           \
-            /* HAL_Delay_Microseconds(50 * MSECS_PER_SEC); */                  \
+                        &util_attr, 0, "%d " __VA_ARGS__, info.freeheap);      \
+            HAL_Delay_Microseconds(50 * MSECS_PER_SEC);                        \
         }                                                                      \
     } while (0) // NOLINT
 
@@ -230,7 +233,7 @@ util_die(const char * const func,
 
 #else
 
-#if !defined(NDEBUG) || defined(NDEBUG_OVERRIDE)
+#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
 #define die(...) PANIC(NotUsedPanicCode, __VA_ARGS__)
 #else
 #define die(...) PANIC(NotUsedPanicCode, 0, 0)

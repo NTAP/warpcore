@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -154,8 +153,8 @@ static void show(void)
         }
         printf("\n");
         ensure(l == len[i], "len[%d] %d wrong (should be %d)", i, len[i], l);
-        ensure((uint64_t)l == sq_len(&sq[i]),
-               "sq_len[%d] %" PRIu64 " wrong (should be %d)", i, sq_len(&sq[i]),
+        ensure((uint_t)l == sq_len(&sq[i]),
+               "sq_len[%d] %" PRIu " wrong (should be %d)", i, sq_len(&sq[i]),
                l);
     }
     printf("\n");

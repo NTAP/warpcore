@@ -43,11 +43,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#define klib_unused
-
 // IWYU pragma: no_include <net/netmap.h>
 // IWYU pragma: no_include <net/netmap_legacy.h>
-#include <khash.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 

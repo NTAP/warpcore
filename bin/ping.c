@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <inttypes.h>
 #include <libgen.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -211,7 +210,7 @@ int
     puts("iface\tdriver\tmbps\tbyte\tpkts\ttx\trx");
 
     // send "loops" number of payloads of len "len" and wait for reply
-    for (uint64_t len = start; len <= end; len += (inc ? inc : len)) {
+    for (uint_t len = start; len <= end; len += (inc ? inc : len)) {
         // allocate tx tail queue
         struct w_iov_sq o = w_iov_sq_initializer(o);
         w_alloc_len(w, &o, len, 0, 0);
@@ -248,7 +247,7 @@ int
             ensure(setitimer(ITIMER_REAL, &timer, 0) == 0, "setitimer");
             done = false;
 
-            warn(INF, "sent %" PRIu64 " byte%s", len, plural(len));
+            warn(INF, "sent %" PRIu " byte%s", len, plural(len));
 
             // wait for a reply; loop until timeout or we have received all data
             struct w_iov_sq i = w_iov_sq_initializer(i);
@@ -277,9 +276,9 @@ int
                 ensure(p->len == len, "len mismatch");
             }
 
-            const uint64_t i_len = w_iov_sq_len(&i);
+            const uint_t i_len = w_iov_sq_len(&i);
             if (i_len != len)
-                warn(WRN, "received %" PRIu64 "/%" PRIu64 " byte%s", i_len, len,
+                warn(WRN, "received %" PRIu "/%" PRIu " byte%s", i_len, len,
                      plural(i_len));
 
             // compute time difference between the packet and the current time
@@ -291,10 +290,10 @@ int
                        diff.tv_sec);
                 snprintf(rx, 256, "%ld", diff.tv_nsec);
             }
-            const uint64_t pkts = w_iov_sq_cnt(&i);
+            const uint_t pkts = w_iov_sq_cnt(&i);
             timespec_sub(&after_tx, &before_tx, &diff);
             ensure(diff.tv_sec == 0, "time difference > %lu sec", diff.tv_sec);
-            printf("%s\t%s\t%u\t%" PRIu64 "\t%" PRIu64 "\t%ld\t%s\n",
+            printf("%s\t%s\t%u\t%" PRIu "\t%" PRIu "\t%ld\t%s\n",
                    w_ifname(w), w_drvname(w), w_mbps(w), i_len, pkts,
                    diff.tv_nsec, rx);
 

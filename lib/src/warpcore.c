@@ -42,11 +42,11 @@
 #include <sys/time.h>
 #endif
 
-#define klib_unused
+// #define klib_unused
 
 #ifndef PARTICLE
+#include "krng.h"
 #include <ifaddrs.h>
-#include <krng.h>
 #include <net/if.h>
 #else
 #include <rng_hal.h>
@@ -56,7 +56,6 @@
     (uint64_t)(HAL_RNG_GetRandomNumber()) << 32 | HAL_RNG_GetRandomNumber()
 #endif
 
-#include <khash.h>
 #include <warpcore/warpcore.h>
 
 #ifdef HAVE_ASAN
@@ -197,11 +196,11 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
 ///
 void w_alloc_len(struct w_engine * const w,
                  struct w_iov_sq * const q,
-                 const uint64_t qlen,
+                 const uint_t qlen,
                  const uint16_t len,
                  const uint16_t off)
 {
-    uint64_t needed = qlen;
+    uint_t needed = qlen;
     while (likely(needed)) {
         struct w_iov * const v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0))
@@ -236,11 +235,11 @@ void w_alloc_len(struct w_engine * const w,
 ///
 void w_alloc_cnt(struct w_engine * const w,
                  struct w_iov_sq * const q,
-                 const uint64_t count,
+                 const uint_t count,
                  const uint16_t len,
                  const uint16_t off)
 {
-    for (uint64_t needed = 0; likely(needed < count); needed++) {
+    for (uint_t needed = 0; likely(needed < count); needed++) {
         struct w_iov * const v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0))
             return;
@@ -255,9 +254,9 @@ void w_alloc_cnt(struct w_engine * const w,
 ///
 /// @return     Sum of the payload lengths of the w_iov structs in @p q.
 ///
-uint64_t w_iov_sq_len(const struct w_iov_sq * const q)
+uint_t w_iov_sq_len(const struct w_iov_sq * const q)
 {
-    uint64_t l = 0;
+    uint_t l = 0;
     const struct w_iov * v;
     sq_foreach (v, q, next)
         l += v->len;
@@ -430,12 +429,8 @@ void w_init_rand(void)
 /// @return     Initialized warpcore engine.
 ///
 struct w_engine *
-w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
+w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
 {
-#ifdef PARTICLE
-    warn(WRN, "no I/O support for 64-bit types - expect log weirdness");
-#endif
-
     w_init_rand();
 
     // allocate engine struct
@@ -485,7 +480,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
                 char drvname[32];
                 plat_get_iface_driver(i, drvname, sizeof(drvname));
                 w->drvname = strdup(drvname);
-#ifndef NDEBUG
+#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
                 char mac[ETH_ADDR_STRLEN];
                 ether_ntoa_r(&w->mac, mac);
                 warn(NTE, "%s addr %s, MTU %d, speed %" PRIu32 "G, link %s",
@@ -524,7 +519,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
         freeifaddrs(ifap);
     }
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
     char ip_str[INET_ADDRSTRLEN];
     char mask_str[INET_ADDRSTRLEN];
     char rip_str[INET_ADDRSTRLEN];
@@ -549,13 +544,13 @@ w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs)
     // backend-specific init
     w->b = calloc(1, sizeof(*w->b));
     ensure(w->b, "cannot alloc backend");
-    ensure(nbufs <= UINT32_MAX, "too many nbufs %" PRIu64, nbufs);
+    ensure(nbufs <= UINT32_MAX, "too many nbufs %" PRIu, nbufs);
     backend_init(w, (uint32_t)nbufs, is_loopback, !have_pipe);
 
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);
 
-    warn(INF, "%s/%s %s using %" PRIu64 " %u-byte bufs on %s", warpcore_name,
+    warn(INF, "%s/%s %s using %" PRIu " %u-byte bufs on %s", warpcore_name,
          w->backend_name, warpcore_version, sq_len(&w->iov), w->mtu, w->ifname);
     return w;
 }

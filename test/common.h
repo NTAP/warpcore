@@ -32,12 +32,13 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <stdint.h>
+
+#include <warpcore/warpcore.h>
 
 extern struct w_engine *w_serv, *w_clnt;
 
-extern bool io(const uint64_t len);
-extern void init(const uint64_t len);
+extern bool io(const uint_t len);
+extern void init(const uint_t len);
 extern void cleanup(void);
 
 #ifdef __cplusplus

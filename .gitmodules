@@ -1,3 +1,0 @@
-[submodule "lib/src/klib"]
-	path = lib/deps/klib
-	url = https://github.com/larseggert/klib.git

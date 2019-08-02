@@ -33,8 +33,6 @@
 #include <netinet/if_ether.h>
 #endif
 
-#include <khash.h>
-
 struct w_engine;
 
 // the following two lines work around a bug in iwyu 0.12:

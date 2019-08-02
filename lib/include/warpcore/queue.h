@@ -364,17 +364,18 @@ struct qm_trace {
  * Singly-linked Tail queue declarations.
  */
 #define sq_head(name, type)                                                    \
-    struct name {                                                              \
+    _Pragma("clang diagnostic push")                                           \
+        _Pragma("clang diagnostic ignored \"-Wpadded\"") struct name {         \
         struct type * stqh_first; /* first element */                          \
         struct type ** stqh_last; /* addr of last next element */              \
-        uint64_t stqh_len;        /* number of elements in queue */            \
-    }
+        uint_t stqh_len;          /* number of elements in queue */            \
+    } _Pragma("clang diagnostic pop")
 
 #define sq_class_head(name, type)                                              \
     struct name {                                                              \
         class type * stqh_first; /* first element */                           \
         class type ** stqh_last; /* addr of last next element */               \
-        uint64_t stqh_len;       /* number of elements in queue */             \
+        uint_t stqh_len;         /* number of elements in queue */             \
     }
 
 #define sq_head_initializer(head)                                              \
@@ -497,7 +498,7 @@ struct qm_trace {
     do {                                                                       \
         QUEUE_TYPEOF(type) * swap_first = sq_first(head1);                     \
         QUEUE_TYPEOF(type) ** swap_last = (head1)->stqh_last;                  \
-        const uint64_t swap_len = (head1)->stqh_len;                           \
+        const uint_t swap_len = (head1)->stqh_len;                             \
         sq_first(head1) = sq_first(head2);                                     \
         (head1)->stqh_last = (head2)->stqh_last;                               \
         (head1)->stqh_len = (head2)->stqh_len;                                 \

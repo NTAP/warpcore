@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.41.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.42.0 LANGUAGES C CXX)
+
+if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(HAVE_64BIT True)
+endif()
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)

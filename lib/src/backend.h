@@ -39,11 +39,6 @@
 #include <net/netmap_user.h> // IWYU pragma: keep
 #endif
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wreserved-id-macro"
-#include <khash.h>
-#pragma clang diagnostic pop
-
 #include <warpcore/warpcore.h>
 
 #if defined(HAVE_KQUEUE)

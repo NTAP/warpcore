@@ -28,9 +28,28 @@
 #pragma once
 // IWYU pragma: private, include <warpcore/warpcore.h>
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#ifdef HAVE_64BIT
+#ifdef __OPTIMIZE_SIZE__
+typedef uint_least64_t uint_t;
+#define PRIu PRIuLEAST64
+#else
+typedef uint_fast64_t uint_t;
+#define PRIu PRIuFAST64
+#endif
+#else
+#ifdef __OPTIMIZE_SIZE__
+typedef uint_least32_t uint_t;
+#define PRIu PRIuLEAST32
+#else
+typedef uint_fast32_t uint_t;
+#define PRIu PRIuFAST32
+#endif
+#endif
 
 struct ifaddrs;
 

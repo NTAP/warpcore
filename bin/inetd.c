@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <inttypes.h>
 #include <libgen.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -156,7 +155,7 @@ int
             w_rx(s, &i);
             if (sq_empty(&i))
                 continue;
-            warn(DBG, "received %" PRIu64 " bytes", w_iov_sq_len(&i));
+            warn(DBG, "received %" PRIu " bytes", w_iov_sq_len(&i));
 
             struct w_iov_sq o = w_iov_sq_initializer(o);
             uint16_t t = 0;

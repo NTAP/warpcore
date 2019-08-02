@@ -6,8 +6,8 @@
             "file_include_patterns": [
                 "*.c", "*.cc", "*.h", "*.sh", "*.txt", "*.dot", "*.imp", "*.in",
                 "*.result", "*.yml", "*.md", "*.sublime-project",
-                ".gitignore", ".clang-format", ".editorconfig", ".dockerignore",
-                "Vagrantfile", "*.r", "*.py"
+                ".gitignore", ".gitmodules", ".clang-format", ".editorconfig",
+                ".dockerignore", "Vagrantfile", "*.r", "*.py"
             ],
             "folder_exclude_patterns": [
                 ".vagrant", "Darwin*", "Linux*", "corpus*", "qvalve-tests"

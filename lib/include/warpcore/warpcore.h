@@ -35,14 +35,17 @@ extern "C" {
 #include <stdint.h>
 #include <sys/time.h>
 
-#ifndef PARTICLE
-#include <sys/socket.h>
-#endif
+#define klib_unused
 
 #include <warpcore/config.h> // IWYU pragma: export
+#include <warpcore/khash.h>  // IWYU pragma: export
 #include <warpcore/plat.h>   // IWYU pragma: export
 #include <warpcore/queue.h>  // IWYU pragma: export
 #include <warpcore/util.h>   // IWYU pragma: export
+
+#ifndef PARTICLE
+#include <sys/socket.h>
+#endif
 
 
 /// A tail queue of w_iov I/O vectors. Also contains a counter that (on TX)
@@ -213,7 +216,7 @@ w_iov(const struct w_engine * const w, const uint32_t i)
 
 
 extern struct w_engine * __attribute__((nonnull))
-w_init(const char * const ifname, const uint32_t rip, const uint64_t nbufs);
+w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs);
 
 extern void __attribute__((nonnull)) w_cleanup(struct w_engine * const w);
 
@@ -229,13 +232,13 @@ extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
 extern void __attribute__((nonnull)) w_alloc_len(struct w_engine * const w,
                                                  struct w_iov_sq * const q,
-                                                 const uint64_t qlen,
+                                                 const uint_t qlen,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
 extern void __attribute__((nonnull)) w_alloc_cnt(struct w_engine * const w,
                                                  struct w_iov_sq * const q,
-                                                 const uint64_t count,
+                                                 const uint_t count,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
@@ -245,7 +248,7 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, const uint16_t off);
 extern void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov_sq * const o);
 
-extern uint64_t w_iov_sq_len(const struct w_iov_sq * const q);
+extern uint_t w_iov_sq_len(const struct w_iov_sq * const q);
 
 extern int __attribute__((nonnull)) w_fd(const struct w_sock * const s);
 
@@ -346,7 +349,7 @@ w_mtu(const struct w_engine * const w)
 ///
 /// @return     Number of w_iov structs in @p q.
 ///
-static inline uint64_t __attribute__((nonnull))
+static inline uint_t __attribute__((nonnull))
 w_iov_sq_cnt(const struct w_iov_sq * const q)
 {
     return sq_len(q);

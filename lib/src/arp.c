@@ -43,9 +43,6 @@
 #include <unistd.h>
 #endif
 
-#define klib_unused
-
-#include <khash.h>
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
