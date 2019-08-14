@@ -195,7 +195,7 @@ typedef khint_t khiter_t;
 #define kfree(P) free(P)
 #endif
 
-static const double __ac_HASH_UPPER = 0.77;
+#define __HASH_UPPER(x) ((((x)*3) >> 2))
 
 #define __KHASH_TYPE(name, khkey_t, khval_t)                                   \
     typedef struct kh_##name##_s {                                             \
@@ -216,7 +216,9 @@ static const double __ac_HASH_UPPER = 0.77;
 
 #define __KHASH_IMPL(name, SCOPE, khkey_t, khval_t, kh_is_map, __hash_func,    \
                      __hash_equal)                                             \
-    SCOPE kh_##name##_t * kh_init_##name(void)                                 \
+    _Pragma("clang diagnostic push")                                           \
+        _Pragma("clang diagnostic ignored \"-Wunused-function\"")              \
+            SCOPE kh_##name##_t * kh_init_##name(void)                         \
     {                                                                          \
         return (kh_##name##_t *)kcalloc(1, sizeof(kh_##name##_t));             \
     }                                                                          \
@@ -240,7 +242,11 @@ static const double __ac_HASH_UPPER = 0.77;
     SCOPE khint_t kh_get_##name(const kh_##name##_t * h, khkey_t key)          \
     {                                                                          \
         if (h->n_buckets) {                                                    \
-            khint_t k, i, last, mask, step = 0;                                \
+            khint_t k;                                                         \
+            khint_t i;                                                         \
+            khint_t last;                                                      \
+            khint_t mask;                                                      \
+            khint_t step = 0;                                                  \
             mask = h->n_buckets - 1;                                           \
             k = __hash_func(key);                                              \
             i = k & mask;                                                      \
@@ -253,8 +259,8 @@ static const double __ac_HASH_UPPER = 0.77;
                     return h->n_buckets;                                       \
             }                                                                  \
             return __ac_iseither(h->flags, i) ? h->n_buckets : i;              \
-        } else                                                                 \
-            return 0;                                                          \
+        }                                                                      \
+        return 0;                                                              \
     }                                                                          \
     SCOPE int kh_resize_##name(kh_##name##_t * h, khint_t new_n_buckets)       \
     { /* This function uses 0.25*n_buckets bytes of working space instead of   \
@@ -265,7 +271,7 @@ static const double __ac_HASH_UPPER = 0.77;
             kroundup32(new_n_buckets);                                         \
             if (new_n_buckets < 4)                                             \
                 new_n_buckets = 4;                                             \
-            if (h->size >= (khint_t)(new_n_buckets * __ac_HASH_UPPER + 0.5))   \
+            if (h->size >= __HASH_UPPER(new_n_buckets))                        \
                 j = 0; /* requested size is too small */                       \
             else { /* hash table size to be changed (shrink or expand); rehash \
                     */                                                         \
@@ -307,7 +313,9 @@ static const double __ac_HASH_UPPER = 0.77;
                     __ac_set_isdel_true(h->flags, j);                          \
                     while (1) { /* kick-out process; sort of like in Cuckoo    \
                                    hashing */                                  \
-                        khint_t k, i, step = 0;                                \
+                        khint_t k;                                             \
+                        khint_t i;                                             \
+                        khint_t step = 0;                                      \
                         k = __hash_func(key);                                  \
                         i = k & new_mask;                                      \
                         while (!__ac_isempty(new_flags, i))                    \
@@ -350,7 +358,7 @@ static const double __ac_HASH_UPPER = 0.77;
             h->flags = new_flags;                                              \
             h->n_buckets = new_n_buckets;                                      \
             h->n_occupied = h->size;                                           \
-            h->upper_bound = (khint_t)(h->n_buckets * __ac_HASH_UPPER + 0.5);  \
+            h->upper_bound = __HASH_UPPER(h->n_buckets);                       \
         }                                                                      \
         return 0;                                                              \
     }                                                                          \
@@ -372,7 +380,12 @@ static const double __ac_HASH_UPPER = 0.77;
         } /* TODO: to implement automatically shrinking; resize() already      \
              support shrinking */                                              \
         {                                                                      \
-            khint_t k, i, site, last, mask = h->n_buckets - 1, step = 0;       \
+            khint_t k;                                                         \
+            khint_t i;                                                         \
+            khint_t site;                                                      \
+            khint_t last;                                                      \
+            khint_t mask = h->n_buckets - 1;                                   \
+            khint_t step = 0;                                                  \
             x = site = h->n_buckets;                                           \
             k = __hash_func(key);                                              \
             i = k & mask;                                                      \
@@ -420,7 +433,8 @@ static const double __ac_HASH_UPPER = 0.77;
             __ac_set_isdel_true(h->flags, x);                                  \
             --h->size;                                                         \
         }                                                                      \
-    }
+    }                                                                          \
+    _Pragma("clang diagnostic pop")
 
 #define KHASH_DECLARE(name, khkey_t, khval_t)                                  \
     __KHASH_TYPE(name, khkey_t, khval_t)                                       \
