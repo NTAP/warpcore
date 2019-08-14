@@ -153,7 +153,8 @@ void backend_init(struct w_engine * const w,
 
 #ifndef NDEBUG
     for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
-        const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
+        const struct netmap_ring * const r = // NOLINT
+            NETMAP_RXRING(b->nif, ri);
         warn(INF, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
