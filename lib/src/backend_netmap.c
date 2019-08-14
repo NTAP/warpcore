@@ -90,8 +90,6 @@ void backend_init(struct w_engine * const w,
            "cannot open /dev/netmap");
     w->backend_name = backend_name;
 
-    b->arp_cache = kh_init(arp_cache);
-
     // switch interface to netmap mode
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");
     b->req->nr_name[sizeof b->req->nr_name - 1] = '\0';

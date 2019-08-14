@@ -61,10 +61,10 @@
 static struct arp_entry * __attribute__((nonnull))
 arp_cache_find(struct w_engine * w, const uint32_t ip)
 {
-    const khiter_t k = kh_get(arp_cache, w->b->arp_cache, ip);
-    if (unlikely(k == kh_end(w->b->arp_cache)))
+    const khiter_t k = kh_get(arp_cache, &w->b->arp_cache, ip);
+    if (unlikely(k == kh_end(&w->b->arp_cache)))
         return 0;
-    return kh_val(w->b->arp_cache, k);
+    return kh_val(&w->b->arp_cache, k);
 }
 
 
@@ -83,9 +83,9 @@ void arp_cache_update(struct w_engine * w,
         a = calloc(1, sizeof(*a));
         ensure(a, "cannot allocate arp_entry");
         int ret;
-        const khiter_t k = kh_put(arp_cache, w->b->arp_cache, ip, &ret);
+        const khiter_t k = kh_put(arp_cache, &w->b->arp_cache, ip, &ret);
         ensure(ret >= 1, "inserted");
-        kh_val(w->b->arp_cache, k) = a;
+        kh_val(&w->b->arp_cache, k) = a;
     }
     a->mac = mac;
 #ifndef NDEBUG
@@ -331,6 +331,6 @@ void
 void free_arp_cache(struct w_engine * const w)
 {
     struct arp_entry * a;
-    kh_foreach_value(w->b->arp_cache, a, { free(a); });
-    kh_destroy(arp_cache, w->b->arp_cache);
+    kh_foreach_value(&w->b->arp_cache, a, { free(a); });
+    kh_release(arp_cache, &w->b->arp_cache);
 }
