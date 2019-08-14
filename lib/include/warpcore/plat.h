@@ -36,19 +36,33 @@
 #ifdef HAVE_64BIT
 #ifdef __OPTIMIZE_SIZE__
 typedef uint_least64_t uint_t;
+typedef int_least64_t dint_t;
 #define PRIu PRIuLEAST64
+#define PRId PRIdLEAST64
+#define PRIx PRIxLEAST64
 #else
 typedef uint_fast64_t uint_t;
+typedef int_fast64_t dint_t;
 #define PRIu PRIuFAST64
+#define PRId PRIdFAST64
+#define PRIx PRIxFAST64
 #endif
+#define UINT_T_MAX UINT64_MAX
 #else
 #ifdef __OPTIMIZE_SIZE__
 typedef uint_least32_t uint_t;
+typedef int_least32_t dint_t;
 #define PRIu PRIuLEAST32
+#define PRId PRIdLEAST32
+#define PRIx PRIxLEAST32
 #else
 typedef uint_fast32_t uint_t;
+typedef int_fast32_t dint_t;
 #define PRIu PRIuFAST32
+#define PRId PRIdFAST32
+#define PRIx PRIxFAST32
 #endif
+#define UINT_T_MAX UINT32_MAX
 #endif
 
 struct ifaddrs;
