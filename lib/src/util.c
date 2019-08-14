@@ -464,10 +464,10 @@ void util_hexdump(const void * const ptr,
     fprintf(stderr,
             DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM MAG " %s" BLK " " BLU
                                 "%s:%u " NRM
-                                "hex-dumping %zu byte%s of %s from %p\n",
+                                "hex-dumping %lu byte%s of %s from %p\n",
             DTHREAD_ID, elapsed.tv_sec % 1000,
-            (long long)(elapsed.tv_usec / 1000), func, file, line, len,
-            plural(len), ptr_name, ptr);
+            (long long)(elapsed.tv_usec / 1000), func, file, line,
+            (unsigned long)len, plural(len), ptr_name, ptr);
 
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
