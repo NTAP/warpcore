@@ -28,11 +28,6 @@
 #pragma once
 // IWYU pragma: private, include <warpcore/warpcore.h>
 
-#ifdef PARTICLE
-#include <core_hal.h>
-#include <logging.h>
-#endif
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
@@ -106,8 +101,6 @@ extern short util_dlevel;
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
 ///
-#ifndef PARTICLE
-
 extern void __attribute__((nonnull(3, 4, 6), format(printf, 6, 7)))
 util_warn(const unsigned dlevel,
           const bool tstamp,
@@ -117,6 +110,7 @@ util_warn(const unsigned dlevel,
           const char * const fmt,
           ...);
 
+#ifndef PARTICLE
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel)))           \
@@ -124,27 +118,11 @@ util_warn(const unsigned dlevel,
                       __VA_ARGS__);                                            \
     } while (0) // NOLINT
 #else
-
-extern LogAttributes util_attr;
-
-static const int util_level_trans[] = {
-    [CRT] = LOG_LEVEL_PANIC, [ERR] = LOG_LEVEL_ERROR, [WRN] = LOG_LEVEL_WARN,
-    [NTE] = LOG_LEVEL_INFO,  [INF] = LOG_LEVEL_INFO,  [DBG] = LOG_LEVEL_TRACE};
-
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
-        if (DLEVEL >= (dlevel)) {                                              \
-            runtime_info_t info = {.size = sizeof(info)};                      \
-            HAL_Core_Runtime_Info(&info, NULL);                                \
-            /* LOG_ATTR_SET(util_attr, file, __FILENAME__); */                 \
-            /* LOG_ATTR_SET(util_attr, line, __LINE__); */                     \
-            /* LOG_ATTR_SET(util_attr, function, __func__); */                 \
-            log_message(util_level_trans[(dlevel)], LOG_MODULE_CATEGORY,       \
-                        &util_attr, 0, "%d " __VA_ARGS__, info.freeheap);      \
-            HAL_Delay_Microseconds(50 * MSECS_PER_SEC);                        \
-        }                                                                      \
+        if (unlikely(DLEVEL >= (dlevel)))                                      \
+            util_warn((dlevel), false, "", "", 0, __VA_ARGS__);                \
     } while (0) // NOLINT
-
 #endif
 
 
@@ -163,7 +141,11 @@ static const int util_level_trans[] = {
                       __VA_ARGS__);                                            \
     } while (0) // NOLINT
 #else
-#define twarn(dlevel, ...) warn(dlevel, __VA_ARGS__) // NOLINT
+#define twarn(dlevel, ...)                                                     \
+    do {                                                                       \
+        if (unlikely(DLEVEL >= (dlevel)))                                      \
+            util_warn((dlevel), true, "", "", 0, __VA_ARGS__);                 \
+    } while (0) // NOLINT
 #endif
 
 
@@ -223,6 +205,9 @@ util_rwarn(time_t * const rt0,
 ///
 #ifndef PARTICLE
 #define die(...) util_die(__func__, __FILENAME__, __LINE__, __VA_ARGS__)
+#else
+#define die(...) util_die("", "", 0, __VA_ARGS__)
+#endif
 
 extern void __attribute__((nonnull(1, 2, 4), noreturn, format(printf, 4, 5)))
 util_die(const char * const func,
@@ -230,15 +215,6 @@ util_die(const char * const func,
          const unsigned line,
          const char * const fmt,
          ...);
-
-#else
-
-#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
-#define die(...) PANIC(NotUsedPanicCode, __VA_ARGS__)
-#else
-#define die(...) PANIC(NotUsedPanicCode, 0, 0)
-#endif
-#endif
 
 
 #ifdef DTHREADED
@@ -255,13 +231,20 @@ util_die(const char * const func,
 /// @param      fmt     A printf()-style format string.
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
+#ifndef PARTICLE
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (unlikely(!(e)))                                                    \
             die("assertion failed \n" DTHREAD_GAP #e                           \
                 " \n" DTHREAD_GAP __VA_ARGS__);                                \
     } while (0) // NOLINT
-
+#else
+#define ensure(e, ...)                                                         \
+    do {                                                                       \
+        if (unlikely(!(e)))                                                    \
+            die("assertion failed \n");                                        \
+    } while (0) // NOLINT
+#endif
 
 /// Print a hexdump of the memory region given by @p ptr and @p len to stderr.
 /// Also emits an ASCII representation. Uses util_hexdump internally to augment

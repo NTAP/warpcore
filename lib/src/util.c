@@ -42,12 +42,15 @@
 #include <time.h>
 #endif
 
+
 #ifdef PARTICLE
-#include "timer_hal.h"
+#include <core_hal.h>
+#include <logging.h>
+#include <timer_hal.h>
 
 #define strerror(...) ""
 
-LogAttributes util_attr = {sizeof(util_attr), {0}};
+static LogAttributes util_attr = {sizeof(util_attr), {0}};
 
 int gettimeofday(struct timeval * restrict tp,
                  void * restrict tzp __attribute__((unused)))
@@ -60,7 +63,7 @@ int gettimeofday(struct timeval * restrict tp,
 
 #endif
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
 #ifdef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
 /// the DCOMPONENT define to a regular expression matching the components
@@ -184,7 +187,7 @@ premain(const int argc __attribute__((unused)),
     util_master = pthread_self();
 #endif
 
-#if !defined(NDEBUG) && defined(DCOMPONENT)
+#if (!defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)) && defined(DCOMPONENT)
     // Initialize the regular expression used for restricting debug output
     ensure(regcomp(&util_comp, DCOMPONENT,
                    REG_EXTENDED | REG_ICASE | REG_NOSUB) == 0,
@@ -198,7 +201,7 @@ premain(const int argc __attribute__((unused)),
 ///
 static void __attribute__((destructor)) postmain()
 {
-#if !defined(NDEBUG) && defined(DCOMPONENT)
+#if (!defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)) && defined(DCOMPONENT)
     // Free the regular expression used for restricting debug output
     regfree(&util_comp);
 #endif
@@ -210,6 +213,149 @@ static void __attribute__((destructor)) postmain()
 }
 
 
+short util_dlevel = DLEVEL;
+
+
+#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
+
+#define BRED "\x1B[41m" ///< ANSI escape sequence: background red
+#define BGRN "\x1B[42m" ///< ANSI escape sequence: background green
+#define BYEL "\x1B[43m" ///< ANSI escape sequence: background yellow
+#define BBLU "\x1B[44m" ///< ANSI escape sequence: background blue
+#define BCYN "\x1B[46m" ///< ANSI escape sequence: background cyan
+
+
+static void __attribute__((nonnull, , format(printf, 6, 0)))
+util_warn_valist(const unsigned dlevel,
+                 const bool tstamp,
+                 const char * const func,
+                 const char * const file,
+                 const unsigned line,
+                 const char * const fmt,
+                 va_list ap)
+{
+#ifndef PARTICLE
+    const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
+    DTHREAD_LOCK;
+
+    static struct timeval last = {-1, -1};
+    struct timeval now = {0, 0};
+    struct timeval dur = {0, 0};
+    struct timeval diff = {0, 0};
+    gettimeofday(&now, 0);
+    timersub(&now, &util_epoch, &dur);
+    timersub(&now, &last, &diff);
+
+    fprintf(stderr, DTHREAD_ID_IND(NRM), DTHREAD_ID);
+
+    static char now_str[32];
+    if (tstamp || diff.tv_sec || diff.tv_usec > 1000) {
+        snprintf(now_str, sizeof(now_str), "%s%ld.%03ld" NRM,
+                 tstamp ? BLD : NRM,
+                 (long)(dur.tv_sec % 1000), // NOLINT
+                 (long)(dur.tv_usec / 1000) // NOLINT
+        );
+        fprintf(stderr, "%s ", now_str);
+        last = now;
+    } else
+        // subtract out the length of the ANSI control characters
+        for (size_t i = 0; i <= strlen(now_str) - 8; i++)
+            fputc(' ', stderr);
+    fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
+
+    if (util_dlevel == DBG)
+        fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, file, line);
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+    vfprintf(stderr, fmt, ap);
+#pragma clang diagnostic pop
+    fputc('\n', stderr);
+    fflush(stderr);
+    DTHREAD_UNLOCK;
+
+#else
+
+    static const int util_level_trans[] = {
+        [CRT] = LOG_LEVEL_PANIC, [ERR] = LOG_LEVEL_ERROR,
+        [WRN] = LOG_LEVEL_WARN,  [NTE] = LOG_LEVEL_INFO,
+        [INF] = LOG_LEVEL_INFO,  [DBG] = LOG_LEVEL_TRACE};
+
+    if (*file)
+        LOG_ATTR_SET(util_attr, file, file);
+    if (line)
+        LOG_ATTR_SET(util_attr, line, line);
+    if (*func)
+        LOG_ATTR_SET(util_attr, function, func);
+
+    // runtime_info_t info = {.size = sizeof(info)};
+    // HAL_Core_Runtime_Info(&info, NULL);
+    // log_message(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
+    //             "%u", info.freeheap);
+
+    log_message_v(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
+                  fmt, ap);
+    HAL_Delay_Microseconds(50 * MSECS_PER_SEC);
+
+#endif
+}
+
+
+// See the warn() macro.
+//
+void util_warn(const unsigned dlevel,
+               const bool tstamp,
+               const char * const func,
+               const char * const file,
+               const unsigned line,
+               const char * const fmt,
+               ...)
+{
+#ifdef DCOMPONENT
+    if (!regexec(&util_comp, file, 0, 0, 0)) {
+#endif
+        va_list ap;
+        va_start(ap, fmt);
+        util_warn_valist(dlevel, tstamp, func, file, line, fmt, ap);
+        va_end(ap);
+#ifdef DCOMPONENT
+    }
+#endif
+}
+
+
+// See the rwarn() macro.
+//
+void util_rwarn(time_t * const rt0,
+                unsigned int * const rcnt,
+                const unsigned dlevel,
+                const unsigned lps,
+                const char * const func,
+                const char * const file,
+                const unsigned line,
+                const char * const fmt,
+                ...)
+{
+    struct timeval rts = {0, 0};
+    gettimeofday(&rts, 0);
+    if (*rt0 != rts.tv_sec) {
+        *rt0 = rts.tv_sec;
+        *rcnt = 0;
+    }
+    if ((*rcnt)++ < lps
+#ifdef DCOMPONENT
+        && !regexec(&util_comp, file, 0, 0, 0)
+#endif
+    ) {
+        va_list ap;
+        va_start(ap, fmt);
+        util_warn_valist(dlevel, true, func, file, line, fmt, ap);
+        va_end(ap);
+    }
+}
+#endif
+
+
 // See the die() macro.
 //
 void util_die(const char * const func,
@@ -218,6 +364,7 @@ void util_die(const char * const func,
               const char * const fmt,
               ...)
 {
+#ifndef PARTICLE
     DTHREAD_LOCK;
     va_list ap;
     va_start(ap, fmt);
@@ -284,125 +431,19 @@ void util_die(const char * const func,
     fflush(stderr);
     va_end(ap);
     DTHREAD_UNLOCK;
+
+#else
+
+    va_list ap;
+    va_start(ap, fmt);
+    util_warn_valist(CRT, false, func, file, line, fmt, ap);
+    va_end(ap);
+    panic_(NotUsedPanicCode, 0, HAL_Delay_Microseconds);
+
+#endif
+
     abort();
 }
-
-
-short util_dlevel = DLEVEL;
-
-
-#ifndef NDEBUG
-
-#define BRED "\x1B[41m" ///< ANSI escape sequence: background red
-#define BGRN "\x1B[42m" ///< ANSI escape sequence: background green
-#define BYEL "\x1B[43m" ///< ANSI escape sequence: background yellow
-#define BBLU "\x1B[44m" ///< ANSI escape sequence: background blue
-#define BCYN "\x1B[46m" ///< ANSI escape sequence: background cyan
-
-
-static void __attribute__((nonnull, , format(printf, 6, 0)))
-util_warn_valist(const unsigned dlevel,
-                 const bool tstamp,
-                 const char * const func,
-                 const char * const file,
-                 const unsigned line,
-                 const char * const fmt,
-                 va_list ap)
-{
-    const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
-    DTHREAD_LOCK;
-
-    static struct timeval last = {-1, -1};
-    struct timeval now = {0, 0};
-    struct timeval dur = {0, 0};
-    struct timeval diff = {0, 0};
-    gettimeofday(&now, 0);
-    timersub(&now, &util_epoch, &dur);
-    timersub(&now, &last, &diff);
-
-    fprintf(stderr, DTHREAD_ID_IND(NRM), DTHREAD_ID);
-
-    static char now_str[32];
-    if (tstamp || diff.tv_sec || diff.tv_usec > 1000) {
-        snprintf(now_str, sizeof(now_str), "%s%ld.%03ld" NRM,
-                 tstamp ? BLD : NRM,
-                 (long)(dur.tv_sec % 1000), // NOLINT
-                 (long)(dur.tv_usec / 1000) // NOLINT
-        );
-        fprintf(stderr, "%s ", now_str);
-        last = now;
-    } else
-        // subtract out the length of the ANSI control characters
-        for (size_t i = 0; i <= strlen(now_str) - 8; i++)
-            fputc(' ', stderr);
-    fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
-
-    if (util_dlevel == DBG)
-        fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, file, line);
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wformat-nonliteral"
-    vfprintf(stderr, fmt, ap);
-#pragma clang diagnostic pop
-    fputc('\n', stderr);
-    fflush(stderr);
-    DTHREAD_UNLOCK;
-}
-
-
-// See the warn() macro.
-//
-void util_warn(const unsigned dlevel,
-               const bool tstamp,
-               const char * const func,
-               const char * const file,
-               const unsigned line,
-               const char * const fmt,
-               ...)
-{
-#ifdef DCOMPONENT
-    if (!regexec(&util_comp, file, 0, 0, 0)) {
-#endif
-        va_list ap;
-        va_start(ap, fmt);
-        util_warn_valist(dlevel, tstamp, func, file, line, fmt, ap);
-        va_end(ap);
-#ifdef DCOMPONENT
-    }
-#endif
-}
-
-
-// See the rwarn() macro.
-//
-void util_rwarn(time_t * const rt0,
-                unsigned int * const rcnt,
-                const unsigned dlevel,
-                const unsigned lps,
-                const char * const func,
-                const char * const file,
-                const unsigned line,
-                const char * const fmt,
-                ...)
-{
-    struct timeval rts = {0, 0};
-    gettimeofday(&rts, 0);
-    if (*rt0 != rts.tv_sec) {
-        *rt0 = rts.tv_sec;
-        *rcnt = 0;
-    }
-    if ((*rcnt)++ < lps
-#ifdef DCOMPONENT
-        && !regexec(&util_comp, file, 0, 0, 0)
-#endif
-    ) {
-        va_list ap;
-        va_start(ap, fmt);
-        util_warn_valist(dlevel, true, func, file, line, fmt, ap);
-        va_end(ap);
-    }
-}
-#endif
 
 
 // See the hexdump() macro.
