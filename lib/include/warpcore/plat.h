@@ -48,6 +48,7 @@ typedef int_fast64_t dint_t;
 #define PRIx PRIxFAST64
 #endif
 #define UINT_T_MAX UINT64_MAX
+#define UINT_C UINT64_C
 #else
 #ifdef __OPTIMIZE_SIZE__
 typedef uint_least32_t uint_t;
@@ -63,6 +64,7 @@ typedef int_fast32_t dint_t;
 #define PRIx PRIxFAST32
 #endif
 #define UINT_T_MAX UINT32_MAX
+#define UINT_C UINT32_C
 #endif
 
 struct ifaddrs;
