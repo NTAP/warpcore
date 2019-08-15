@@ -56,8 +56,8 @@ int gettimeofday(struct timeval * restrict tp,
                  void * restrict tzp __attribute__((unused)))
 {
     const unsigned long usec = HAL_Timer_Get_Micro_Seconds();
-    tp->tv_sec = usec / USECS_PER_SEC;
-    tp->tv_usec = usec % USECS_PER_SEC;
+    tp->tv_sec = usec / US_PER_S;
+    tp->tv_usec = usec % US_PER_S;
     return 0;
 }
 
@@ -295,7 +295,7 @@ util_warn_valist(const unsigned dlevel,
 
     log_message_v(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
                   fmt, ap);
-    HAL_Delay_Microseconds(50 * MSECS_PER_SEC);
+    HAL_Delay_Microseconds(50 * MS_PER_S);
 
 #endif
 }
@@ -558,6 +558,6 @@ void timespec_sub(const struct timespec * const tvp,
     vvp->tv_nsec = tvp->tv_nsec - uvp->tv_nsec;
     if (vvp->tv_nsec < 0) {
         vvp->tv_sec--;
-        vvp->tv_nsec += NSECS_PER_SEC;
+        vvp->tv_nsec += NS_PER_S;
     }
 }

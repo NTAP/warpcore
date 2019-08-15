@@ -536,8 +536,8 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
     struct w_backend * const b = w->b;
 
 #if defined(HAVE_KQUEUE)
-    const struct timespec timeout = {msec / MSECS_PER_SEC,
-                                     (msec % MSECS_PER_SEC) * 1000000};
+    const struct timespec timeout = {msec / MS_PER_S,
+                                     (msec % MS_PER_S) * NS_PER_MS};
     b->n = kevent(b->kq, 0, 0, b->ev, sizeof(b->ev) / sizeof(b->ev[0]),
                   msec == -1 ? 0 : &timeout);
     return b->n > 0;

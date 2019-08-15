@@ -83,7 +83,7 @@ typedef struct if_list if_list;
 #define ifa_netmask if_addr->netmask
 
 #include <spark_wiring_ticks.h>
-#define sleep(sec) delay((sec)*MSECS_PER_SEC)
+#define sleep(sec) delay((sec)*MS_PER_S)
 #endif
 
 

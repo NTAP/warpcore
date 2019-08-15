@@ -228,7 +228,7 @@ struct ether_addr
         sq_insert_head(&w->iov, v, next);
 
         // wait until packets have been received, then handle them
-        w_nic_rx(w, 1 * MSECS_PER_SEC);
+        w_nic_rx(w, 1 * MS_PER_S);
 
         // check if we can now resolve dip
         a = arp_cache_find(w, dip);

@@ -320,7 +320,7 @@ uint64_t w_now(void)
 #ifndef PARTICLE
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
-    return (uint64_t)now.tv_sec * NSECS_PER_SEC + (uint64_t)now.tv_nsec;
+    return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
 #else
     return HAL_Timer_Microseconds() * 1000;
 #endif
