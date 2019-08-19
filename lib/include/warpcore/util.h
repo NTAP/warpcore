@@ -36,12 +36,12 @@
     (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1   \
                                       : __FILE__)
 
-#define MS_PER_S 1000       ///< Milliseconds per second.
-#define US_PER_S 1000000    ///< Microseconds per second.
-#define NS_PER_S 1000000000 ///< Nanoseconds per second.
-#define US_PER_MS 1000      ///< Microseconds per millisecond.
-#define NS_PER_MS 1000000   ///< Nanoseconds per millisecond.
-#define NS_PER_US 1000      ///< Nanoseconds per microsecond.
+#define MS_PER_S UINT16_C(1000)       ///< Milliseconds per second.
+#define US_PER_S UINT32_C(1000000)    ///< Microseconds per second.
+#define NS_PER_S UINT64_C(1000000000) ///< Nanoseconds per second.
+#define US_PER_MS UINT16_C(1000)      ///< Microseconds per millisecond.
+#define NS_PER_MS UINT32_C(1000000)   ///< Nanoseconds per millisecond.
+#define NS_PER_US UINT16_C(1000)      ///< Nanoseconds per microsecond.
 
 
 #ifndef plural

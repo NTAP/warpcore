@@ -79,7 +79,7 @@ bool io(const uint_t len)
         ilen = w_iov_sq_len(&i);
         if (ilen < olen) {
             if (again) {
-                w_nic_rx(w_serv, 100);
+                w_nic_rx(w_serv, 100 * NS_PER_MS);
                 again = false;
             } else
                 return false;

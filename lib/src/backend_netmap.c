@@ -338,16 +338,16 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 /// any new data in the RX rings, calling eth_rx() for each.
 ///
 /// @param[in]  w     Backend engine.
-/// @param[in]  msec  Timeout in milliseconds. Pass zero for immediate return,
-///                   -1 for infinite wait.
+/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate return, -1
+///                   for infinite wait.
 ///
 /// @return     Whether any data is ready for reading.
 ///
-bool w_nic_rx(struct w_engine * const w, const int32_t msec)
+bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 {
     struct pollfd fds = {.fd = w->b->fd, .events = POLLIN};
 again:
-    if (poll(&fds, 1, msec) == 0)
+    if (poll(&fds, 1, nsec / NS_PER_US) == 0)
         return false;
 
     // loop over all rx rings
@@ -367,7 +367,7 @@ again:
     // if (likely(rx) && unlikely(is_pipe(w)))
     //     ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
 
-    if (rx == false && msec == -1)
+    if (rx == false && nsec == -1)
         goto again;
 
     return rx;

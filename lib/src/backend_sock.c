@@ -526,24 +526,26 @@ void w_nic_tx(struct w_engine * const w __attribute__((unused))) {}
 /// Check/wait until any data has been received.
 ///
 /// @param[in]  w     Backend engine.
-/// @param[in]  msec  Timeout in milliseconds. Pass zero for immediate return,
-///                   -1 for infinite wait.
+/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate return, -1
+///                   for infinite wait.
 ///
 /// @return     Whether any data is ready for reading.
 ///
-bool w_nic_rx(struct w_engine * const w, const int32_t msec)
+bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 {
     struct w_backend * const b = w->b;
 
 #if defined(HAVE_KQUEUE)
-    const struct timespec timeout = {msec / MS_PER_S,
-                                     (msec % MS_PER_S) * NS_PER_MS};
     b->n = kevent(b->kq, 0, 0, b->ev, sizeof(b->ev) / sizeof(b->ev[0]),
-                  msec == -1 ? 0 : &timeout);
+                  nsec == -1
+                      ? 0
+                      : &(struct timespec){(uint64_t)nsec / NS_PER_S,
+                                           (long)((uint64_t)nsec % NS_PER_S)});
     return b->n > 0;
 
 #elif defined(HAVE_EPOLL)
-    b->n = epoll_wait(b->ep, b->ev, sizeof(b->ev) / sizeof(b->ev[0]), msec);
+    b->n = epoll_wait(b->ep, b->ev, sizeof(b->ev) / sizeof(b->ev[0]),
+                      nsec == -1 ? -1 : nsec * NS_PER_MS);
     return b->n > 0;
 
 #else
@@ -570,7 +572,7 @@ bool w_nic_rx(struct w_engine * const w, const int32_t msec)
     });
 
     // poll
-    n = poll(b->fds, (nfds_t)cur_n, msec);
+    n = poll(b->fds, (nfds_t)cur_n, nsec * NS_PER_MS);
 
     return n > 0;
 #endif
@@ -594,11 +596,9 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     struct w_backend * const b = w->b;
 
 #if defined(HAVE_KQUEUE)
-    if (b->n <= 0) {
-        const struct timespec timeout = {0, 0};
+    if (b->n <= 0)
         b->n = kevent(b->kq, 0, 0, b->ev, sizeof(b->ev) / sizeof(b->ev[0]),
-                      &timeout);
-    }
+                      &(struct timespec){0, 0});
 
     int i;
     for (i = 0; i < b->n; i++)

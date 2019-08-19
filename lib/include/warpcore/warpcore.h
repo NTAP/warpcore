@@ -258,7 +258,7 @@ w_rx(struct w_sock * const s, struct w_iov_sq * const i);
 extern void __attribute__((nonnull)) w_nic_tx(struct w_engine * const w);
 
 extern bool __attribute__((nonnull))
-w_nic_rx(struct w_engine * const w, const int32_t msec);
+w_nic_rx(struct w_engine * const w, const int64_t nsec);
 
 extern uint32_t __attribute__((nonnull))
 w_rx_ready(struct w_engine * const w, struct w_sock_slist * sl);

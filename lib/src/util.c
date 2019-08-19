@@ -558,6 +558,6 @@ void timespec_sub(const struct timespec * const tvp,
     vvp->tv_nsec = tvp->tv_nsec - uvp->tv_nsec;
     if (vvp->tv_nsec < 0) {
         vvp->tv_sec--;
-        vvp->tv_nsec += NS_PER_S;
+        vvp->tv_nsec += (long)NS_PER_S;
     }
 }
