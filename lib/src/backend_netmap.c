@@ -347,7 +347,7 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 {
     struct pollfd fds = {.fd = w->b->fd, .events = POLLIN};
 again:
-    if (poll(&fds, 1, nsec / NS_PER_US) == 0)
+    if (poll(&fds, 1, (int)(nsec / NS_PER_MS)) == 0)
         return false;
 
     // loop over all rx rings
