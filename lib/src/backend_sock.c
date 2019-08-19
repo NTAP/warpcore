@@ -545,7 +545,7 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 
 #elif defined(HAVE_EPOLL)
     b->n = epoll_wait(b->ep, b->ev, sizeof(b->ev) / sizeof(b->ev[0]),
-                      nsec == -1 ? -1 : nsec * NS_PER_MS);
+                      nsec == -1 ? -1 : (int)(nsec / NS_PER_MS));
     return b->n > 0;
 
 #else
@@ -572,7 +572,7 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
     });
 
     // poll
-    n = poll(b->fds, (nfds_t)cur_n, nsec * NS_PER_MS);
+    n = poll(b->fds, (nfds_t)cur_n, nsec / NS_PER_MS);
 
     return n > 0;
 #endif
