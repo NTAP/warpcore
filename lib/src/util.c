@@ -434,10 +434,12 @@ void util_die(const char * const func,
 
 #else
 
+#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
     va_list ap;
     va_start(ap, fmt);
     util_warn_valist(CRT, false, func, file, line, fmt, ap);
     va_end(ap);
+#endif
     panic_(NotUsedPanicCode, 0, HAL_Delay_Microseconds);
 
 #endif
