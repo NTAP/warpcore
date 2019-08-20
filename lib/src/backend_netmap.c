@@ -58,11 +58,6 @@
 #include "udp.h"
 
 
-/// The backend name.
-///
-static char backend_name[] = "netmap";
-
-
 void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     s->opt = *opt;
@@ -88,7 +83,8 @@ void backend_init(struct w_engine * const w,
     // open /dev/netmap
     ensure((b->fd = open("/dev/netmap", O_RDWR | O_CLOEXEC)) != -1,
            "cannot open /dev/netmap");
-    w->backend_name = backend_name;
+    w->backend_name = "netmap";
+    w->backend_variant = "";
 
     // switch interface to netmap mode
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");

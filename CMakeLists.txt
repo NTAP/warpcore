@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.43.0 LANGUAGES C CXX)
+project(warpcore VERSION 0.44.0 LANGUAGES C CXX)
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(HAVE_64BIT True)

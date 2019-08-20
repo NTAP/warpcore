@@ -74,11 +74,6 @@
 #include "udp.h"
 
 
-/// The backend name.
-///
-static char backend_name[] = "socket";
-
-
 void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     // cppcheck-suppress duplicateConditionalAssign
@@ -128,7 +123,7 @@ void backend_init(struct w_engine * const w,
            "cannot alloc %u * %u buf mem", nbufs, w->mtu);
     ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
            "cannot alloc bufs");
-    w->backend_name = backend_name;
+    w->backend_name = "socket";
 
     for (uint32_t i = 0; i < nbufs; i++) {
         w->bufs[i].idx = i;
@@ -139,35 +134,53 @@ void backend_init(struct w_engine * const w,
 
 #if defined(HAVE_KQUEUE)
     w->b->kq = kqueue();
-#ifndef NDEBUG
-    const char poll_meth[] = "kqueue";
+#if defined(HAVE_SENDMMSG)
+#if defined(HAVE_RECVMMSG)
+    w->backend_variant = "kqueue/sendmmsg/recvmmsg";
+#else
+    w->backend_variant = "kqueue/sendmmsg/recvmsg";
+#endif
+#else
+#if defined(HAVE_RECVMMSG)
+    w->backend_variant = "kqueue/sendmsg/recvmmsg";
+#else
+    w->backend_variant = "kqueue/sendmsg/recvmsg";
+#endif
 #endif
 
 #elif defined(HAVE_EPOLL)
     w->b->ep = epoll_create1(0);
-#ifndef NDEBUG
-    const char poll_meth[] = "epoll";
-#endif
-
-#else
-#ifndef NDEBUG
-    const char poll_meth[] = "poll";
-#endif
-#endif
-
-#ifndef NDEBUG
 #if defined(HAVE_SENDMMSG)
-    const char send_meth[] = "sendmmsg";
-#else
-    const char send_meth[] = "sendmsg";
-#endif
 #if defined(HAVE_RECVMMSG)
-    const char recv_meth[] = "recvmmsg";
+    w->backend_variant = "epoll/sendmmsg/recvmmsg";
 #else
-    const char recv_meth[] = "recvmsg";
+    w->backend_variant = "epoll/sendmmsg/recvmsg";
 #endif
-    warn(DBG, "backend using %s, %s, %s", poll_meth, send_meth, recv_meth);
+#else
+#if defined(HAVE_RECVMMSG)
+    w->backend_variant = "epoll/sendmsg/recvmmsg";
+#else
+    w->backend_variant = "epoll/sendmsg/recvmsg";
 #endif
+#endif
+
+#else
+#if defined(HAVE_SENDMMSG)
+#if defined(HAVE_RECVMMSG)
+    w->backend_variant = "poll/sendmmsg/recvmmsg";
+#else
+    w->backend_variant = "poll/sendmmsg/recvmsg";
+#endif
+#else
+#if defined(HAVE_RECVMMSG)
+    w->backend_variant = "poll/sendmsg/recvmmsg";
+#else
+    w->backend_variant = "poll/sendmsg/recvmsg";
+#endif
+#endif
+#endif
+
+    warn(DBG, "%s backend using %s", w->backend_name, w->backend_variant);
 }
 
 

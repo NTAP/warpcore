@@ -84,10 +84,11 @@ struct w_engine {
     void * sock;           ///< List of open (bound) w_sock sockets.
     struct w_iov_sq iov;   ///< Tail queue of w_iov buffers available.
 
-    sl_entry(w_engine) next;   ///< Pointer to next engine.
-    char * ifname;             ///< Name of the interface of this engine.
-    char * drvname;            ///< Name of the driver of this interface.
-    const char * backend_name; ///< Name of the backend in @p b.
+    sl_entry(w_engine) next;      ///< Pointer to next engine.
+    char * ifname;                ///< Name of the interface of this engine.
+    char * drvname;               ///< Name of the driver of this interface.
+    const char * backend_name;    ///< Name of the backend in @p b.
+    const char * backend_variant; ///< Name of the backend variant in @p b.
 
     /// Pointer to generic user data (not used by warpcore.)
     void * data;
