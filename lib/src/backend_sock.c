@@ -585,7 +585,7 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
     });
 
     // poll
-    n = poll(b->fds, (nfds_t)cur_n, nsec / NS_PER_MS);
+    n = poll(b->fds, (nfds_t)cur_n, nsec == -1 ? -1 : NS_TO_MS(nsec));
 
     return n > 0;
 #endif

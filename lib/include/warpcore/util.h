@@ -43,6 +43,8 @@
 #define NS_PER_MS UINT32_C(1000000)   ///< Nanoseconds per millisecond.
 #define NS_PER_US UINT16_C(1000)      ///< Nanoseconds per microsecond.
 
+// Approximate division by NS_PER_MS.
+#define NS_TO_MS(x) (uint32_t)((0x431BDE83 * (x)) >> 50)
 
 #ifndef plural
 /// Helper to pluralize output words.
