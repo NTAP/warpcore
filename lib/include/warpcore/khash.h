@@ -195,7 +195,7 @@ typedef khint_t khiter_t;
 #define kfree(P) free(P)
 #endif
 
-#define __HASH_UPPER(x) ((((x)*3) >> 2))
+#define __HASH_UPPER(x) (((x)*UINT64_C(77) * 0x51EB851F) >> 37)
 
 #define __KHASH_TYPE(name, khkey_t, khval_t)                                   \
     typedef struct kh_##name##_s {                                             \
