@@ -322,6 +322,6 @@ uint64_t w_now(void)
     clock_gettime(CLOCK_MONOTONIC, &now);
     return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
 #else
-    return HAL_Timer_Microseconds() * 1000;
+    return HAL_Timer_Microseconds() * NS_PER_US;
 #endif
 }

@@ -295,7 +295,7 @@ util_warn_valist(const unsigned dlevel,
 
     log_message_v(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
                   fmt, ap);
-    HAL_Delay_Microseconds(50 * MS_PER_S);
+    // HAL_Delay_Microseconds(50 * MS_PER_S);
 
 #endif
 }
