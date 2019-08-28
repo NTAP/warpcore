@@ -27,6 +27,7 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <inttypes.h>
 
 #if defined(__linux__)
 #include <limits.h>
@@ -120,7 +121,7 @@ void backend_init(struct w_engine * const w,
     w->mtu -= sizeof(struct ip_hdr) + sizeof(struct udp_hdr);
 
     ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
-           "cannot alloc %u * %u buf mem", nbufs, w->mtu);
+           "cannot alloc %" PRIu32 " * %u buf mem", nbufs, w->mtu);
     ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
            "cannot alloc bufs");
     w->backend_name = "socket";
@@ -486,6 +487,8 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
                 memcpy(&v[j]->addr, &peer[j], sizeof(peer[j]));
 
+#ifndef PARTICLE
+                // FIXME: figure out why this loop doesn't terminate on Particle
                 // extract TOS byte
 #ifdef HAVE_RECVMMSG
                 for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j].msg_hdr);
@@ -506,7 +509,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                         break;
                     }
                 }
-
+#endif
                 // add the iov to the tail of the result
                 sq_insert_tail(i, v[j], next);
             }
