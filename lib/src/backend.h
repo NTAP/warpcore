@@ -175,20 +175,3 @@ extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
                                                   const bool is_left);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);
-
-
-static inline khint_t __attribute__((nonnull))
-tuple_hash(const struct w_tuple * const tup)
-{
-    return fnv1a_32(tup, sizeof(*tup));
-}
-
-
-static inline khint_t __attribute__((nonnull))
-tuple_equal(const struct w_tuple * const a, const struct w_tuple * const b)
-{
-    return memcmp(a, b, sizeof(*a)) == 0;
-}
-
-
-KHASH_INIT(sock, struct w_tuple *, struct w_sock *, 1, tuple_hash, tuple_equal)

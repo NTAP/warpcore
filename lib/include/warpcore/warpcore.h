@@ -69,6 +69,17 @@ struct w_iov_sq {
     }
 
 
+struct w_tuple;
+
+extern khint_t __attribute__((nonnull))
+tuple_hash(const struct w_tuple * const tup);
+
+extern khint_t __attribute__((nonnull))
+tuple_equal(const struct w_tuple * const a, const struct w_tuple * const b);
+
+KHASH_INIT(sock, struct w_tuple *, struct w_sock *, 1, tuple_hash, tuple_equal)
+
+
 /// A warpcore backend engine.
 ///
 struct w_engine {
@@ -81,12 +92,12 @@ struct w_engine {
     uint16_t mtu;         ///< MTU of this interface.
     uint32_t mbps;        ///< Link speed of this interface in Mb/s.
     struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
-    void * sock;           ///< List of open (bound) w_sock sockets.
+    khash_t(sock) sock;    ///< List of open (bound) w_sock sockets.
     struct w_iov_sq iov;   ///< Tail queue of w_iov buffers available.
 
     sl_entry(w_engine) next;      ///< Pointer to next engine.
-    char * ifname;                ///< Name of the interface of this engine.
-    char * drvname;               ///< Name of the driver of this interface.
+    char ifname[8];               ///< Name of the interface of this engine.
+    char drvname[8];              ///< Name of the driver of this interface.
     const char * backend_name;    ///< Name of the backend in @p b.
     const char * backend_variant; ///< Name of the backend variant in @p b.
 

@@ -115,33 +115,30 @@ struct w_sock * w_get_sock(struct w_engine * const w,
                            const uint32_t dip,
                            const uint16_t dport)
 {
-    khash_t(sock) * const sock = w->sock;
     const khiter_t k =
-        kh_get(sock, sock,
+        kh_get(sock, &w->sock,
                (&(struct w_tuple){
                    .sip = sip, .dip = dip, .sport = sport, .dport = dport}));
-    return unlikely(k == kh_end(sock)) ? 0 : kh_val(sock, k);
+    return unlikely(k == kh_end(&w->sock)) ? 0 : kh_val(&w->sock, k);
 }
 
 
 static void __attribute__((nonnull))
 ins_sock(struct w_engine * const w, struct w_sock * const s)
 {
-    khash_t(sock) * const sock = w->sock;
     int ret;
-    const khiter_t k = kh_put(sock, sock, &s->tup, &ret);
+    const khiter_t k = kh_put(sock, &w->sock, &s->tup, &ret);
     ensure(ret >= 1, "inserted is %d", ret);
-    kh_val(sock, k) = s;
+    kh_val(&w->sock, k) = s;
 }
 
 
 static void __attribute__((nonnull))
 rem_sock(struct w_engine * const w, struct w_sock * const s)
 {
-    khash_t(sock) * const sock = w->sock;
-    const khiter_t k = kh_get(sock, sock, &s->tup);
-    ensure(k != kh_end(sock), "found");
-    kh_del(sock, sock, k);
+    const khiter_t k = kh_get(sock, &w->sock, &s->tup);
+    ensure(k != kh_end(&w->sock), "found");
+    kh_del(sock, &w->sock, k);
 }
 
 
@@ -383,13 +380,11 @@ void w_cleanup(struct w_engine * const w)
 
     // close all sockets
     struct w_sock * s;
-    kh_foreach_value((khash_t(sock) *)w->sock, s, { w_close(s); });
-    kh_destroy(sock, (khash_t(sock) *)w->sock);
+    kh_foreach_value(&w->sock, s, { w_close(s); });
+    kh_release(sock, &w->sock);
 
     backend_cleanup(w);
     sl_remove(&engines, w, w_engine, next);
-    free(w->ifname);
-    free(w->drvname);
     free(w->b);
     free(w);
 }
@@ -436,7 +431,6 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
     ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
 
     // initialize lists of sockets and iovs
-    w->sock = kh_init(sock);
     sq_init(&w->iov);
 
 #ifndef PARTICLE
@@ -475,9 +469,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
                 link_up = plat_get_link(i);
                 // mpbs can be zero on generic platforms and loopback interfaces
                 w->mbps = plat_get_mbps(i);
-                char drvname[32];
-                plat_get_iface_driver(i, drvname, sizeof(drvname));
-                w->drvname = strdup(drvname);
+                plat_get_iface_driver(i, w->drvname, sizeof(w->drvname));
 #if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
                 char mac[ETH_ADDR_STRLEN];
                 ether_ntoa_r(&w->mac, mac);
@@ -528,8 +520,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
          rip ? ", router " : "", rip ? rip_str : "");
 #endif
 
-    w->ifname = strndup(ifname, IFNAMSIZ);
-    ensure(w->ifname, "could not strndup");
+    strncpy(w->ifname, ifname, sizeof(w->ifname));
 
     // set the IP address of our default router
     w->rip = rip;
@@ -728,4 +719,17 @@ struct w_iov * w_alloc_iov_base(struct w_engine * const w)
         ASAN_UNPOISON_MEMORY_REGION(v->base, w->mtu);
     }
     return v;
+}
+
+
+khint_t tuple_hash(const struct w_tuple * const tup)
+{
+    return fnv1a_32(tup, sizeof(*tup));
+}
+
+
+khint_t tuple_equal(const struct w_tuple * const a,
+                    const struct w_tuple * const b)
+{
+    return memcmp(a, b, sizeof(*a)) == 0;
 }

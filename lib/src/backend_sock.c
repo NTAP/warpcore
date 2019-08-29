@@ -565,7 +565,7 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
     return b->n > 0;
 
 #else
-    const size_t cur_n = kh_size((khash_t(sock) *)w->sock);
+    const size_t cur_n = kh_size(&w->sock);
     if (unlikely(cur_n == 0)) {
         backend_cleanup(w);
         return false;
@@ -581,7 +581,7 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 
     struct w_sock * s = 0;
     int n = 0;
-    kh_foreach_value((khash_t(sock) *)w->sock, s, {
+    kh_foreach_value(&w->sock, s, {
         b->fds[n].fd = s->fd;
         b->fds[n].events = POLLIN;
         b->socks[n++] = s;

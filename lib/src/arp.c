@@ -302,7 +302,7 @@ void
         // check if any socket has an IP address matching this ARP
         // reply, and if so, change its destination MAC
         struct w_sock * s;
-        kh_foreach_value((khash_t(sock) *)w->sock, s, {
+        kh_foreach_value(&w->sock, s, {
             if ( // is local-net socket and ARP src IP matches its dst
                 ((mk_net(s->w->ip, s->w->mask) ==
                       mk_net(s->tup.dip, s->w->mask) &&

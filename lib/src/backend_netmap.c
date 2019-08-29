@@ -427,7 +427,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     // insert all sockets with pending inbound data
     struct w_sock * s;
     uint32_t n = 0;
-    kh_foreach_value((khash_t(sock) *)w->sock, s, {
+    kh_foreach_value(&w->sock, s, {
         if (!sq_empty(&s->iv)) {
             sl_insert_head(sl, s, next_rx);
             n++;
