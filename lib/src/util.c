@@ -127,6 +127,7 @@ static const char * util_executable;
 static struct timeval util_epoch;
 
 
+#ifndef PARTICLE
 #define NRM "\x1B[0m" ///< ANSI escape sequence: reset all to normal
 #define BLD "\x1B[1m" ///< ANSI escape sequence: bold
 // #define DIM "\x1B[2m"   ///< ANSI escape sequence: dim
@@ -144,6 +145,17 @@ static struct timeval util_epoch;
 #define WHT "\x1B[37m"  ///< ANSI escape sequence: white
 #define BMAG "\x1B[45m" ///< ANSI escape sequence: background magenta
 #define BWHT "\x1B[47m" ///< ANSI escape sequence: background white
+#else
+#define NRM ""
+#define BLD ""
+#define REV ""
+#define RED ""
+#define GRN ""
+#define YEL ""
+#define BLU ""
+#define MAG ""
+#define CYN ""
+#endif
 
 
 /// Constructor function to initialize the debug framework before main()
@@ -448,6 +460,12 @@ void util_die(const char * const func,
 }
 
 
+#ifndef PARTICLE
+#define hexlog(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define hexlog(...) LOG_PRINTF(ERROR, __VA_ARGS__)
+#endif
+
 // See the hexdump() macro.
 //
 void util_hexdump(const void * const ptr,
@@ -457,45 +475,51 @@ void util_hexdump(const void * const ptr,
                   const char * const file,
                   const unsigned line)
 {
+#ifndef PARTICLE
     DTHREAD_LOCK;
     struct timeval now;
     struct timeval elapsed;
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &elapsed);
 
-    fprintf(stderr,
-            DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM MAG " %s" BLK " " BLU
-                                "%s:%u " NRM
-                                "hex-dumping %lu byte%s of %s from %p\n",
-            DTHREAD_ID, elapsed.tv_sec % 1000,
-            (long long)(elapsed.tv_usec / 1000), func, file, line,
-            (unsigned long)len, plural(len), ptr_name, ptr);
+    hexlog(DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM MAG " %s" BLK " " BLU
+                               "%s:%u " NRM,
+           DTHREAD_ID, elapsed.tv_sec % 1000,
+           (long long)(elapsed.tv_usec / 1000), func, file, line);
+#endif
+
+    hexlog("hex-dumping %lu byte%s of %s from %p\n", (unsigned long)len,
+           plural(len), ptr_name, ptr);
 
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
-        fprintf(stderr,
-                DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM " " BLU
-                                    "0x%04lx:  " NRM,
-                DTHREAD_ID, elapsed.tv_sec % 1000,
-                (long long)(elapsed.tv_usec / 1000), (unsigned long)i);
+#ifndef PARTICLE
+        hexlog(DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM " " BLU,
+               DTHREAD_ID, elapsed.tv_sec % 1000,
+               (long long)(elapsed.tv_usec / 1000));
+#endif
+        hexlog("0x%04lx:  " NRM, (unsigned long)i);
+
         for (size_t j = 0; j < 16; j++) {
             if (i + j < len)
-                fprintf(stderr, "%02hhx", buf[i + j]);
+                hexlog("%02x", buf[i + j]);
             else
-                fprintf(stderr, "  ");
+                hexlog("  ");
             if (j % 2)
-                fputc(' ', stderr);
+                hexlog(" ");
         }
-        fprintf(stderr, " " GRN);
+        hexlog(" " GRN);
         for (size_t j = 0; j < 16; j++) {
             if (i + j < len)
-                fputc(isprint(buf[i + j]) ? buf[i + j] : '.', stderr);
+                hexlog("%c", isprint(buf[i + j]) ? buf[i + j] : '.');
         }
-        fprintf(stderr, NRM "\n");
+        hexlog(NRM "\n");
     }
 
+#ifndef PARTICLE
     fflush(stderr);
     DTHREAD_UNLOCK;
+#endif
 }
 
 

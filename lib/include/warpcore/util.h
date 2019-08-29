@@ -258,7 +258,6 @@ util_die(const char * const func,
 /// @param[in]  ptr   The beginning of the memory region to hexdump.
 /// @param[in]  len   The length of the memory region to hexdump.
 ///
-#ifndef PARTICLE
 #define hexdump(ptr, len)                                                      \
     util_hexdump(ptr, len, #ptr, __func__, __FILENAME__, __LINE__)
 
@@ -269,9 +268,6 @@ extern void __attribute__((nonnull)) util_hexdump(const void * const ptr,
                                                   const char * const file,
                                                   const unsigned line);
 
-#else
-#define hexdump(ptr, len) LOG_DUMP(PANIC, ptr, len)
-#endif
 
 extern uint64_t __attribute__((nonnull
 #if defined(__clang__)
