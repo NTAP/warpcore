@@ -50,8 +50,6 @@
 
 #define strerror(...) ""
 
-static LogAttributes util_attr = {sizeof(util_attr), {0}};
-
 int gettimeofday(struct timeval * restrict tp,
                  void * restrict tzp __attribute__((unused)))
 {
@@ -116,15 +114,18 @@ static pthread_t util_master;
 
 #endif
 
-
+#ifdef HAVE_BACKTRACE
 /// Stores a pointer to name of the executable, i.e., argv[0].
 static const char * util_executable;
+#endif
 
 
+#ifndef PARTICLE
 /// Stores the timeval at the start of the program, used to print relative times
 /// in warn(), die(), etc.
 ///
 static struct timeval util_epoch;
+#endif
 
 
 #ifndef PARTICLE
@@ -158,6 +159,7 @@ static struct timeval util_epoch;
 #endif
 
 
+#ifndef PARTICLE
 /// Constructor function to initialize the debug framework before main()
 /// executes.
 ///
@@ -175,6 +177,7 @@ premain(const int argc __attribute__((unused)),
     // Get the current time
     gettimeofday(&util_epoch, 0);
 
+#ifdef HAVE_BACKTRACE
     // Remember executable name (musl doesn't pass argv, and FreeBSD crashes on
     // accessing it)
     util_executable =
@@ -182,6 +185,7 @@ premain(const int argc __attribute__((unused)),
         argv ? argv[0] :
 #endif
              0;
+#endif
 
 #ifdef DTHREADED
     // Initialize a recursive logging lock
@@ -223,6 +227,7 @@ static void __attribute__((destructor)) postmain()
     pthread_mutex_destroy(&util_lock);
 #endif
 }
+#endif
 
 
 short util_dlevel = DLEVEL;
@@ -288,11 +293,12 @@ util_warn_valist(const unsigned dlevel,
 
 #else
 
-    static const int util_level_trans[] = {
+    const int util_level_trans[] = {
         [CRT] = LOG_LEVEL_PANIC, [ERR] = LOG_LEVEL_ERROR,
         [WRN] = LOG_LEVEL_WARN,  [NTE] = LOG_LEVEL_INFO,
         [INF] = LOG_LEVEL_INFO,  [DBG] = LOG_LEVEL_TRACE};
 
+    LogAttributes util_attr = {sizeof(util_attr), {0}};
     if (*file)
         LOG_ATTR_SET(util_attr, file, file);
     if (line)
@@ -307,7 +313,7 @@ util_warn_valist(const unsigned dlevel,
 
     log_message_v(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
                   fmt, ap);
-    // HAL_Delay_Microseconds(50 * MS_PER_S);
+    HAL_Delay_Microseconds(50 * MS_PER_S);
 
 #endif
 }
