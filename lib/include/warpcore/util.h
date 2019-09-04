@@ -208,7 +208,7 @@ util_rwarn(time_t * const rt0,
 /// @param      ...   Subsequent arguments to be converted for output according
 ///                   to @p fmt.
 ///
-#ifndef PARTICLE
+#if !defined(PARTICLE) || DLEVEL >= INF
 #define die(...) util_die(__func__, __FILENAME__, __LINE__, __VA_ARGS__)
 #else
 #define die(...) util_die("", "", 0, __VA_ARGS__)
@@ -236,7 +236,7 @@ util_die(const char * const func,
 /// @param      fmt     A printf()-style format string.
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
-#ifndef PARTICLE
+#if !defined(PARTICLE) || DLEVEL >= INF
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (unlikely(!(e)))                                                    \

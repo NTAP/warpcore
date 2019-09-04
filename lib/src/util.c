@@ -48,6 +48,8 @@
 #include <logging.h>
 #include <timer_hal.h>
 
+extern void * stack_start;
+
 #define strerror(...) ""
 
 int gettimeofday(struct timeval * restrict tp,
@@ -306,14 +308,18 @@ util_warn_valist(const unsigned dlevel,
     if (*func)
         LOG_ATTR_SET(util_attr, function, func);
 
-    // runtime_info_t info = {.size = sizeof(info)};
-    // HAL_Core_Runtime_Info(&info, NULL);
-    // log_message(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
-    //             "%u", info.freeheap);
+    // if (stack_start - __builtin_frame_address(0) > 1024) {
+    //     runtime_info_t info = {.size = sizeof(info)};
+    //     HAL_Core_Runtime_Info(&info, NULL);
+    //     log_message(util_level_trans[dlevel], LOG_MODULE_CATEGORY,
+    //     &util_attr,
+    //                 0, "stack=%u, heap=%u",
+    //                 stack_start - __builtin_frame_address(0), info.freeheap);
+    // }
 
     log_message_v(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
                   fmt, ap);
-    HAL_Delay_Microseconds(50 * MS_PER_S);
+    // HAL_Delay_Microseconds(50 * MS_PER_S);
 
 #endif
 }
