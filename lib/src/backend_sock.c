@@ -127,8 +127,7 @@ void backend_init(struct w_engine * const w,
     w->backend_name = "socket";
 
     for (uint32_t i = 0; i < nbufs; i++) {
-        w->bufs[i].idx = i;
-        init_iov(w, &w->bufs[i]);
+        init_iov(w, &w->bufs[i], i);
         sq_insert_head(&w->iov, &w->bufs[i], next);
         ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, w->mtu);
     }
@@ -413,6 +412,11 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 }
 
 
+#ifdef PARTICLE
+#define PARTICLE_LIMIT 3
+#endif
+
+
 /// Calls recvmsg() or recvmmsg() for all sockets associated with the engine,
 /// emulating the operation of netmap backend_rx() function. Appends all data to
 /// the w_sock::iv socket buffers of the respective w_sock structures.
@@ -433,6 +437,9 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #define RECV_SIZE 1
 #endif
     ssize_t n = 0;
+#ifdef PARTICLE
+    uint32_t total = 0;
+#endif
     do {
         struct sockaddr peer[RECV_SIZE];
         struct w_iov * v[RECV_SIZE];
@@ -519,10 +526,18 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                      strerror(errno));
             n = 0;
         }
+
+#ifdef PARTICLE
+        total += n;
+#endif
+
         // return any unused buffers
         for (ssize_t j = n; likely(j < nbufs); j++)
-            sq_insert_head(&s->w->iov, v[j], next);
+            w_free_iov(v[j]);
     } while (
+#ifdef PARTICLE
+        total <= PARTICLE_LIMIT &&
+#endif
 #ifdef HAVE_RECVMMSG
         n == RECV_SIZE
 #else

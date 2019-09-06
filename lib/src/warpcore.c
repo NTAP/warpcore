@@ -60,6 +60,8 @@
 #include <sanitizer/asan_interface.h>
 #endif
 
+// #define DEBUG_BUFFERS
+
 #include "backend.h"
 
 #ifdef WITH_NETMAP
@@ -96,6 +98,27 @@ static krng_t w_rand_state;
 /// interfaces.
 ///
 struct w_engines engines = sl_head_initializer(engines);
+
+
+#ifdef DEBUG_BUFFERS
+static void __attribute__((nonnull))
+dump_bufs(const char * const label, const struct w_iov_sq * const q)
+{
+    char line[400] = "";
+    int pos = 0;
+    struct w_iov * v;
+    uint32_t cnt = 0;
+    sq_foreach (v, q, next) {
+        cnt++;
+        pos += snprintf(&line[pos], sizeof(line) - (size_t)pos, "%s%" PRIu32,
+                        pos ? ", " : "", v->idx);
+        if ((size_t)pos >= sizeof(line))
+            break;
+    }
+    warn(DBG, "%s: %" PRIu " bufs: %s", label, w_iov_sq_cnt(q), line);
+    ensure(cnt == w_iov_sq_cnt(q), "cnt mismatch");
+}
+#endif
 
 
 /// Get the socket bound to the given four-tuple <source IP, source port,
@@ -154,6 +177,9 @@ rem_sock(struct w_engine * const w, struct w_sock * const s)
 struct w_iov *
 w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
 {
+#ifdef DEBUG_BUFFERS
+    warn(DBG, "w_alloc_iov len %u, off %u", len, off);
+#endif
     struct w_iov * const v = w_alloc_iov_base(w);
     if (likely(v)) {
 #ifdef WITH_NETMAP
@@ -169,6 +195,9 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
         v->len = len ? len : v->len;
         // warn(DBG, "alloc w_iov off %u len %u", v->buf - v->base, v->len);
     }
+#ifdef DEBUG_BUFFERS
+    dump_bufs(__func__, &w->iov);
+#endif
     return v;
 }
 
@@ -195,6 +224,10 @@ void w_alloc_len(struct w_engine * const w,
                  const uint16_t len,
                  const uint16_t off)
 {
+#ifdef DEBUG_BUFFERS
+    warn(DBG, "w_alloc_len qlen %" PRIu ", len %u, off %u", qlen, len, off);
+    ensure(sq_empty(q), "q not empty");
+#endif
     uint_t needed = qlen;
     while (likely(needed)) {
         struct w_iov * const v = w_alloc_iov(w, len, off);
@@ -209,6 +242,10 @@ void w_alloc_len(struct w_engine * const w,
         }
         sq_insert_tail(q, v, next);
     }
+#ifdef DEBUG_BUFFERS
+    dump_bufs(__func__, &w->iov);
+    dump_bufs("allocated chain", q);
+#endif
 }
 
 
@@ -234,12 +271,20 @@ void w_alloc_cnt(struct w_engine * const w,
                  const uint16_t len,
                  const uint16_t off)
 {
+#ifdef DEBUG_BUFFERS
+    warn(DBG, "w_alloc_cnt count %" PRIu ", len %u, off %u", count, len, off);
+    ensure(sq_empty(q), "q not empty");
+#endif
     for (uint_t needed = 0; likely(needed < count); needed++) {
         struct w_iov * const v = w_alloc_iov(w, len, off);
         if (unlikely(v == 0))
             return;
         sq_insert_tail(q, v, next);
     }
+#ifdef DEBUG_BUFFERS
+    dump_bufs(__func__, &w->iov);
+    dump_bufs("allocated chain", q);
+#endif
 }
 
 
@@ -296,7 +341,7 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     }
     ins_sock(s->w, s);
 
-#ifndef NDEBUG
+#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
     char str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &s->tup.dip, str, INET_ADDRSTRLEN);
     warn(DBG, "socket connected to %s port %d", str, bswap16(s->tup.dport));
@@ -540,8 +585,8 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
     sl_insert_head(&engines, w, next);
 
     warn(INF, "%s/%s (%s) %s using %" PRIu " %u-byte bufs on %s", warpcore_name,
-         w->backend_name, w->backend_variant, warpcore_version, sq_len(&w->iov),
-         w->mtu, w->ifname);
+         w->backend_name, w->backend_variant, warpcore_version,
+         w_iov_sq_cnt(&w->iov), w->mtu, w->ifname);
     return w;
 }
 
@@ -571,11 +616,18 @@ void w_free(struct w_iov_sq * const q)
     if (unlikely(sq_empty(q)))
         return;
     struct w_engine * const w = sq_first(q)->w;
-    sq_concat(&w->iov, q);
-#ifndef NDEBUG
+#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
     struct w_iov * v;
-    sq_foreach (v, q, next)
-        ASAN_POISON_MEMORY_REGION(v->base, w->mtu);
+    sq_foreach (v, q, next) {
+#ifdef DEBUG_BUFFERS
+        warn(DBG, "w_free idx %" PRIu32, v->idx);
+#endif
+        ASAN_POISON_MEMORY_REGION(v->base, v->w->mtu);
+    }
+#endif
+    sq_concat(&w->iov, q);
+#ifdef DEBUG_BUFFERS
+    dump_bufs(__func__, &w->iov);
 #endif
 }
 
@@ -587,8 +639,20 @@ void w_free(struct w_iov_sq * const q)
 ///
 void w_free_iov(struct w_iov * const v)
 {
+#ifdef DEBUG_BUFFERS
+    warn(DBG, "w_free_iov idx %" PRIu32, v->idx);
+#endif
+    ensure(sq_next(v, next) == 0,
+           "idx %" PRIu32 " still linked to idx %" PRIu32, v->idx,
+           sq_next(v, next)->idx);
+#ifdef DEBUG_BUFFERS
+    dump_bufs(__func__, &v->w->iov);
+#endif
     sq_insert_head(&v->w->iov, v, next);
     ASAN_POISON_MEMORY_REGION(v->base, v->w->mtu);
+#ifdef DEBUG_BUFFERS
+    dump_bufs(__func__, &v->w->iov);
+#endif
 }
 
 
@@ -698,15 +762,23 @@ const struct sockaddr * w_get_addr(const struct w_sock * const s,
 }
 
 
-void init_iov(struct w_engine * const w, struct w_iov * const v)
+static void reinit_iov(struct w_iov * const v)
 {
-    v->w = w;
-    if (unlikely(v->base == 0))
-        v->base = idx_to_buf(w, v->idx);
     v->buf = v->base;
-    v->len = w->mtu;
+    v->len = v->w->mtu;
     v->o = 0;
     sq_next(v, next) = 0;
+}
+
+
+void init_iov(struct w_engine * const w,
+              struct w_iov * const v,
+              const uint32_t idx)
+{
+    v->w = w;
+    v->idx = idx;
+    v->base = idx_to_buf(w, v->idx);
+    reinit_iov(v);
 }
 
 
@@ -715,9 +787,12 @@ struct w_iov * w_alloc_iov_base(struct w_engine * const w)
     struct w_iov * const v = sq_first(&w->iov);
     if (likely(v)) {
         sq_remove_head(&w->iov, next);
-        init_iov(w, v);
+        reinit_iov(v);
         ASAN_UNPOISON_MEMORY_REGION(v->base, w->mtu);
     }
+#ifdef DEBUG_BUFFERS
+    warn(DBG, "w_alloc_iov_base idx %" PRIu32, v ? v->idx : UINT32_MAX);
+#endif
     return v;
 }
 

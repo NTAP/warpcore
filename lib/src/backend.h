@@ -157,7 +157,7 @@ mk_net(const uint32_t ip, const uint32_t mask)
 
 
 extern void __attribute__((nonnull))
-init_iov(struct w_engine * const w, struct w_iov * const v);
+init_iov(struct w_engine * const w, struct w_iov * const v, const uint32_t idx);
 
 extern struct w_iov * __attribute__((nonnull))
 w_alloc_iov_base(struct w_engine * const w);
