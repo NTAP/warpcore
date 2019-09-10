@@ -83,9 +83,6 @@ typedef struct if_list if_list;
 #define ifa_flags ifflags
 #define ifa_addr if_addr->addr
 #define ifa_netmask if_addr->netmask
-
-#include <spark_wiring_ticks.h>
-#define sleep(sec) delay((sec)*MS_PER_S)
 #endif
 
 
@@ -549,7 +546,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
                  "%s: could not obtain required interface "
                  "information, retrying",
                  ifname);
-            sleep(1);
+            w_nanosleep(1 * NS_PER_S);
         }
         freeifaddrs(ifap);
     }

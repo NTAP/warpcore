@@ -434,6 +434,13 @@ w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt);
 ///
 extern uint64_t w_now(void);
 
+
+/// Sleep for a number of nanoseconds.
+///
+/// @param[in]  ns    Sleep time in nanoseconds.
+///
+extern void w_nanosleep(const uint64_t ns);
+
 #ifdef __cplusplus
 }
 #endif

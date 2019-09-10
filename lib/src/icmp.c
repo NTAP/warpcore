@@ -135,7 +135,7 @@ void icmp_tx(struct w_engine * const w,
     eth_tx(v, sizeof(*dst_ip) + sizeof(*dst_icmp) + data_len);
     do {
 #ifndef FUZZING
-        usleep(100);
+        w_nanosleep(100 * NS_PER_US);
 #endif
         w_nic_tx(w);
     } while (v->idx != orig_idx);

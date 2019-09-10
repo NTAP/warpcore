@@ -149,7 +149,7 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf)
     eth_tx(v, sizeof(*reply));
     do {
 #ifndef FUZZING
-        usleep(100);
+        w_nanosleep(100 * NS_PER_US);
 #endif
         w_nic_tx(w);
     } while (v->idx != orig_idx);
@@ -221,7 +221,7 @@ struct ether_addr
         eth_tx(v, sizeof(*arp));
         do {
 #ifndef FUZZING
-            usleep(100);
+            w_nanosleep(100 * NS_PER_US);
 #endif
             w_nic_tx(w);
         } while (v->idx != orig_idx);

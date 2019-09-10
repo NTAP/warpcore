@@ -48,6 +48,7 @@
 #include <net/if.h>
 #include <netinet/if_ether.h>
 #else
+#include <delay_hal.h>
 #include <timer_hal.h>
 #endif
 
@@ -323,5 +324,15 @@ uint64_t w_now(void)
     return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
 #else
     return HAL_Timer_Microseconds() * NS_PER_US;
+#endif
+}
+
+
+void w_nanosleep(const uint64_t ns)
+{
+#ifdef PARTICLE
+    HAL_Delay_Microseconds(ns / NS_PER_US);
+#else
+    nanosleep(&(struct timespec){ns / NS_PER_S, (long)(ns % NS_PER_S)}, 0);
 #endif
 }
