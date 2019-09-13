@@ -46,7 +46,7 @@
 #include <time.h>
 #elif defined(HAVE_EPOLL)
 #include <sys/epoll.h>
-#elif !defined(PARTICLE)
+#elif !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <poll.h>
 #endif
 

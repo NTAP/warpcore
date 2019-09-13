@@ -39,17 +39,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <time.h>
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
 
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/if_ether.h>
-#else
-#include <delay_hal.h>
-#include <timer_hal.h>
 #endif
 
 #if defined(__linux__)
@@ -90,7 +86,7 @@ void plat_get_mac(struct ether_addr * const mac, const struct ifaddrs * const i)
     struct sockaddr_ll hw_addr;
     if_get_lladdr(iface, &hw_addr);
     memcpy(mac, hw_addr.sll_addr, ETHER_ADDR_LEN);
-#else
+#elif !defined(RIOT_VERSION)
     memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr),
            ETHER_ADDR_LEN);
 #endif
@@ -125,6 +121,8 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 
     close(s);
     return mtu;
+#elif defined(RIOT_VERSION)
+    return 0;
 #else
     const struct if_data * const ifa_data = i->ifa_data;
     return (uint16_t)ifa_data->ifi_mtu;
@@ -153,7 +151,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
         ifa_data->ifi_baudrate == 0)
         return UINT32_MAX;
     return ifa_data->ifi_baudrate / 1000000;
-#elif defined(PARTICLE)
+#elif defined(PARTICLE) || defined(RIOT_VERSION)
     return UINT32_MAX;
 #else
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -204,7 +202,7 @@ bool plat_get_link(const struct ifaddrs * i)
     if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
         return true;
 #endif
-    bool link;
+    bool link = false;
 #if defined(__FreeBSD__)
     const struct if_data * const ifa_data = i->ifa_data;
     link = ((ifa_data->ifi_link_state & LINK_STATE_UP) == LINK_STATE_UP);
@@ -214,7 +212,7 @@ bool plat_get_link(const struct ifaddrs * i)
     unsigned int flags;
     if_get_flags(iface, &flags);
     link = flags & IFF_UP;
-#else
+#elif !defined(RIOT_VERSION)
     const int s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
@@ -314,25 +312,3 @@ char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
     return buf;
 }
 #endif
-
-
-uint64_t w_now(void)
-{
-#ifndef PARTICLE
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
-#else
-    return HAL_Timer_Microseconds() * NS_PER_US;
-#endif
-}
-
-
-void w_nanosleep(const uint64_t ns)
-{
-#ifdef PARTICLE
-    HAL_Delay_Microseconds(ns / NS_PER_US);
-#else
-    nanosleep(&(struct timespec){ns / NS_PER_S, (long)(ns % NS_PER_S)}, 0);
-#endif
-}

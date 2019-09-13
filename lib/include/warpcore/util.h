@@ -36,12 +36,30 @@
     (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1   \
                                       : __FILE__)
 
-#define MS_PER_S UINT16_C(1000)       ///< Milliseconds per second.
-#define US_PER_S UINT32_C(1000000)    ///< Microseconds per second.
+#ifndef MS_PER_S
+#define MS_PER_S UINT16_C(1000) ///< Milliseconds per second.
+#endif
+
+#ifndef US_PER_S
+#define US_PER_S UINT32_C(1000000) ///< Microseconds per second.
+#endif
+
+#ifndef NS_PER_S
 #define NS_PER_S UINT64_C(1000000000) ///< Nanoseconds per second.
-#define US_PER_MS UINT16_C(1000)      ///< Microseconds per millisecond.
-#define NS_PER_MS UINT32_C(1000000)   ///< Nanoseconds per millisecond.
-#define NS_PER_US UINT16_C(1000)      ///< Nanoseconds per microsecond.
+#endif
+
+#ifndef US_PER_MS
+#define US_PER_MS UINT16_C(1000) ///< Microseconds per millisecond.
+#endif
+
+#ifndef NS_PER_MS
+#define NS_PER_MS UINT32_C(1000000) ///< Nanoseconds per millisecond.
+#endif
+
+#ifndef NS_PER_US
+#define NS_PER_US UINT16_C(1000) ///< Nanoseconds per microsecond.
+#endif
+
 
 // Approximate division by NS_PER_MS.
 #define NS_TO_MS(x) (uint32_t)((0x431BDE83 * (x)) >> 50)
@@ -115,7 +133,7 @@ util_warn(const unsigned dlevel,
           const char * const fmt,
           ...);
 
-#ifndef PARTICLE
+#if !defined(PARTICLE)
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel)))           \
@@ -138,7 +156,7 @@ util_warn(const unsigned dlevel,
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
 ///
-#ifndef PARTICLE
+#if !defined(PARTICLE)
 #define twarn(dlevel, ...)                                                     \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel)))           \
@@ -164,7 +182,7 @@ util_warn(const unsigned dlevel,
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
 ///
-#ifndef PARTICLE
+#if !defined(PARTICLE)
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \

@@ -37,7 +37,7 @@
 
 #include <warpcore/warpcore.h>
 
-#if !defined(__FreeBSD__) && !defined(PARTICLE)
+#if !defined(__FreeBSD__) && !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <dlfcn.h>
 #include <time.h>
 #endif
@@ -122,7 +122,7 @@ static const char * util_executable;
 #endif
 
 
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
 /// Stores the timeval at the start of the program, used to print relative times
 /// in warn(), die(), etc.
 ///
@@ -130,7 +130,7 @@ static struct timeval util_epoch;
 #endif
 
 
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #define NRM "\x1B[0m" ///< ANSI escape sequence: reset all to normal
 #define BLD "\x1B[1m" ///< ANSI escape sequence: bold
 // #define DIM "\x1B[2m"   ///< ANSI escape sequence: dim
@@ -151,17 +151,25 @@ static struct timeval util_epoch;
 #else
 #define NRM ""
 #define BLD ""
+#define DIM ""
+#define ULN ""
+#define BLN ""
 #define REV ""
+#define HID ""
+#define BLK ""
 #define RED ""
 #define GRN ""
 #define YEL ""
 #define BLU ""
 #define MAG ""
 #define CYN ""
+#define WHT ""
+#define BMAG ""
+#define BWHT ""
 #endif
 
 
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
 /// Constructor function to initialize the debug framework before main()
 /// executes.
 ///
@@ -253,7 +261,8 @@ util_warn_valist(const unsigned dlevel,
                  const char * const fmt,
                  va_list ap)
 {
-#ifndef PARTICLE
+#if !defined(PARTICLE)
+#if !defined(RIOT_VERSION)
     const char * const util_col[] = {BMAG, BRED, BYEL, BCYN, BBLU, BGRN};
     DTHREAD_LOCK;
 
@@ -281,7 +290,7 @@ util_warn_valist(const unsigned dlevel,
         for (size_t i = 0; i <= strlen(now_str) - 8; i++)
             fputc(' ', stderr);
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
-
+#endif
     if (util_dlevel == DBG)
         fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, file, line);
 
@@ -388,11 +397,12 @@ void util_die(const char * const func,
               const char * const fmt,
               ...)
 {
-#ifndef PARTICLE
-    DTHREAD_LOCK;
+#if !defined(PARTICLE)
     va_list ap;
     va_start(ap, fmt);
     const int e = errno;
+#if !defined(RIOT_VERSION)
+    DTHREAD_LOCK;
     struct timeval now = {0, 0};
     struct timeval dur = {0, 0};
     gettimeofday(&now, 0);
@@ -401,6 +411,7 @@ void util_die(const char * const func,
             DTHREAD_ID, (long)(dur.tv_sec % 1000), // NOLINT
             (long)(dur.tv_usec / 1000),            // NOLINT
             func, file, line);
+#endif
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     vfprintf(stderr, fmt, ap);
@@ -489,6 +500,7 @@ void util_hexdump(const void * const ptr,
 {
 #ifndef PARTICLE
     DTHREAD_LOCK;
+ #ifndef RIOT_VERSION
     struct timeval now;
     struct timeval elapsed;
     gettimeofday(&now, 0);
@@ -499,13 +511,14 @@ void util_hexdump(const void * const ptr,
            DTHREAD_ID, elapsed.tv_sec % 1000,
            (long long)(elapsed.tv_usec / 1000), func, file, line);
 #endif
+#endif
 
     hexlog("hex-dumping %lu byte%s of %s from %p\n", (unsigned long)len,
            plural(len), ptr_name, ptr);
 
     const uint8_t * const buf = ptr;
     for (size_t i = 0; i < len; i += 16) {
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
         hexlog(DTHREAD_ID_IND(NRM) "%ld.%03lld " BWHT " " NRM " " BLU,
                DTHREAD_ID, elapsed.tv_sec % 1000,
                (long long)(elapsed.tv_usec / 1000));

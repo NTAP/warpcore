@@ -36,22 +36,29 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifndef FUZZING
 #include <sys/time.h>
 #endif
 
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include "krng.h"
 #include <ifaddrs.h>
 #include <net/if.h>
-#else
+#elif defined(PARTICLE)
 #include <rng_hal.h>
 
 #define kr_srand_r(x, y)
 #define kr_rand_r(x)                                                           \
     (uint64_t)(HAL_RNG_GetRandomNumber()) << 32 | HAL_RNG_GetRandomNumber()
+#elif defined(RIOT_VERSION)
+#include <random.h>
+#include <xtimer.h>
+
+#define kr_srand_r(x, y)
+#define kr_rand_r(x) (uint64_t)(random_uint32()) << 32 | random_uint32()
 #endif
 
 #include <warpcore/warpcore.h>
@@ -83,10 +90,15 @@ typedef struct if_list if_list;
 #define ifa_flags ifflags
 #define ifa_addr if_addr->addr
 #define ifa_netmask if_addr->netmask
+
+#elif defined(RIOT_VERSION)
+#include <lwip/dhcp.h>
+#include <lwip/netif.h>
+#include <lwip/timeouts.h>
 #endif
 
 
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
 // w_init() must initialize this so that it is not all zero
 static krng_t w_rand_state;
 #endif
@@ -438,7 +450,7 @@ void w_cleanup(struct w_engine * const w)
 void w_init_rand(void)
 {
     // init state for w_rand()
-#if !defined(FUZZING) && !defined(PARTICLE)
+#if !defined(FUZZING) && !defined(PARTICLE) && !defined(RIOT_VERSION)
     struct timeval now;
     gettimeofday(&now, 0);
     const uint64_t seed = fnv1a_64(&now, sizeof(now));
@@ -475,10 +487,18 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
     // initialize lists of sockets and iovs
     sq_init(&w->iov);
 
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
     // construct interface name of a netmap pipe for this interface
     char pipe[IFNAMSIZ];
     snprintf(pipe, IFNAMSIZ, "warp-%s", ifname);
+#endif
+
+#ifdef RIOT_VERSION
+    struct netif * const i = netif_get_by_index(netif_name_to_index(ifname));
+    ensure(i, "could not find interface $s", ifname);
+    w->mtu = i->mtu;
+    memcpy(&w->mac, i->hwaddr, sizeof(w->mac));
+    w->mbps = UINT32_MAX;
 #endif
 
     // we mostly loop here because the link may be down
@@ -487,7 +507,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
     bool have_pipe = false;
     while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0 ||
            w->mbps == 0) {
-
+#ifndef RIOT_VERSION
         // get interface config
         struct ifaddrs * ifap;
         ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface info",
@@ -538,6 +558,21 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
             }
         }
         // ensure(i, "unknown interface %s", ifname);
+#else
+
+        if (netif_is_up(i)) {
+            if (link_up == false) {
+                link_up = true;
+                warn(DBG, "starting DHCP");
+                dhcp_start(i);
+                continue;
+            } else
+                sys_check_timeouts();
+
+            w->ip = ip4_addr_get_u32(netif_ip4_addr(i));
+            w->mask = ip4_addr_get_u32(netif_ip4_netmask(i));
+        }
+#endif
 
         if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0 ||
             w->mbps == 0) {
@@ -548,7 +583,9 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
                  ifname);
             w_nanosleep(1 * NS_PER_S);
         }
+#ifndef RIOT_VERSION
         freeifaddrs(ifap);
+#endif
     }
 
 #if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
@@ -567,7 +604,7 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
     // set the IP address of our default router
     w->rip = rip;
 
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
     // some interfaces can have huge MTUs, so cap to something more sensible
     w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
 #endif
@@ -671,10 +708,12 @@ uint64_t w_rand64(void)
 ///
 uint32_t w_rand32(void)
 {
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
     return (uint32_t)kr_rand_r(&w_rand_state);
-#else
+#elif defined(PARTICLE)
     return HAL_RNG_GetRandomNumber();
+#elif defined(RIOT_VERSION)
+    return random_uint32();
 #endif
 }
 
@@ -804,4 +843,30 @@ khint_t tuple_equal(const struct w_tuple * const a,
                     const struct w_tuple * const b)
 {
     return memcmp(a, b, sizeof(*a)) == 0;
+}
+
+
+uint64_t w_now(void)
+{
+#if defined(PARTICLE)
+    return HAL_Timer_Microseconds() * NS_PER_US;
+#elif defined(RIOT_VERSION)
+    return xtimer_now_usec64() * NS_PER_US;
+#else
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
+#endif
+}
+
+
+void w_nanosleep(const uint64_t ns)
+{
+#ifdef PARTICLE
+    HAL_Delay_Microseconds(ns / NS_PER_US);
+#elif defined(RIOT_VERSION)
+    xtimer_nanosleep(ns);
+#else
+    nanosleep(&(struct timespec){ns / NS_PER_S, (long)(ns % NS_PER_S)}, 0);
+#endif
 }

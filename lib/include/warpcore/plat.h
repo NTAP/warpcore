@@ -130,16 +130,18 @@ struct ifaddrs;
 #define PLAT_MMFLAGS 0
 #define SOCK_CLOEXEC 0
 
-#elif defined(PARTICLE)
+#elif defined(PARTICLE) || defined(RIOT_VERSION)
 #define ETHER_ADDR_LEN 6
 
 struct ether_addr {
     u_char ether_addr_octet[ETHER_ADDR_LEN];
 };
 
+#ifdef PARTICLE
 typedef struct if_list if_list;
 #include "ifapi.h"
 #define ifaddrs if_addrs
+#endif
 #endif
 
 #define ETH_ADDR_STRLEN ETHER_ADDR_LEN * 3
