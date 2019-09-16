@@ -33,10 +33,6 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 
-#ifndef FUZZING
-#include <unistd.h>
-#endif
-
 // IWYU pragma: no_include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 

@@ -39,10 +39,6 @@
 #include <string.h>
 #include <sys/socket.h>
 
-#ifndef FUZZING
-#include <unistd.h>
-#endif
-
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
