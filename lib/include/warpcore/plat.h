@@ -67,7 +67,7 @@ typedef int_fast32_t dint_t;
 #define UINT_C UINT32_C
 #endif
 
-struct ifaddrs;
+typedef __uint128_t uint128_t;
 
 #ifndef __has_builtin
 #define __has_builtin(x) 0
@@ -113,6 +113,9 @@ struct ifaddrs;
     (((uint64_t)bswap32((x)&0xFFFFFFFF) << 32) | bswap32((x) >> 32))
 #endif
 
+#define bswap128(x)                                                            \
+    (((uint128_t)bswap64((x)&0xFFFFFFFFFFFFFFFF) << 64) | bswap64((x) >> 64))
+
 
 #if defined(__linux__)
 #include <netinet/ether.h>
@@ -144,8 +147,9 @@ typedef struct if_list if_list;
 #endif
 #endif
 
-#define ETH_ADDR_STRLEN ETHER_ADDR_LEN * 3
+#define ETH_ADDR_STRLEN (ETHER_ADDR_LEN * 3 + 1)
 
+struct ifaddrs;
 
 extern void __attribute__((nonnull))
 plat_get_mac(struct ether_addr * const mac, const struct ifaddrs * const i);

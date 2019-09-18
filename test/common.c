@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <stdbool.h>
@@ -104,22 +103,10 @@ bool io(const uint_t len)
         ensure(ov->flags == iv->flags, "TOS byte 0x%02x != 0x%02x", ov->flags,
                iv->flags);
 #endif
-        ensure(((struct sockaddr_in *)&iv->addr)->sin_port ==
-                   ((const struct sockaddr_in *)(const void *)w_get_addr(s_clnt,
-                                                                         true))
-                       ->sin_port,
-               "port %u != port %u",
-               bswap16(((struct sockaddr_in *)&iv->addr)->sin_port),
-               bswap16(((const struct sockaddr_in *)(const void *)w_get_addr(
-                            s_clnt, true))
-                           ->sin_port));
+        ensure(iv->saddr.port == w_get_sockaddr(s_clnt, true)->port,
+               "port mismatch");
 
-        ensure(((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr == 0 ||
-                   ((struct sockaddr_in *)&iv->addr)->sin_addr.s_addr ==
-                       ((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr,
-               "IP %08x != IP %08x",
-               bswap32(((struct sockaddr_in *)&iv->addr)->sin_addr.s_addr),
-               bswap32(((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr));
+        ensure(iv->saddr.addr.ip6 == ov->saddr.addr.ip6, "IP mismatch");
 
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);
@@ -145,14 +132,15 @@ void init(const uint_t len)
     w_clnt = w_init(i, 0, len);
 
     // bind server socket
-    s_serv = w_bind(w_serv, bswap16(55555), 0);
+    s_serv = w_bind(w_serv, 0, bswap16(55555), 0);
 
     // connect to server
-    s_clnt = w_bind(w_clnt, 0, 0);
-    w_connect(s_clnt, (struct sockaddr *)&(struct sockaddr_in){
-                          .sin_family = AF_INET,
-                          .sin_addr.s_addr = inet_addr("127.0.0.1"),
-                          .sin_port = bswap16(55555)});
+    s_clnt = w_bind(w_clnt, 0, 0, 0);
+    w_connect(s_clnt, (struct sockaddr *)&(struct sockaddr_in6){
+                          .sin6_len = sizeof(struct sockaddr_in6),
+                          .sin6_family = AF_INET6,
+                          .sin6_addr = IN6ADDR_LOOPBACK_INIT,
+                          .sin6_port = bswap16(55555)});
     ensure(w_connected(s_clnt), "not connected");
 }
 

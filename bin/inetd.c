@@ -26,6 +26,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <libgen.h>
+#include <netinet/in.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -132,10 +133,11 @@ int
     // start four inetd-like "small services" and one benchmark of our own
     struct w_sock * const srv[] = {
 #if 0
-        w_bind(w, bswap16(7), &opt),
-        w_bind(w, bswap16(9), &opt),
+        w_bind(w, 0, bswap16(7), &opt),
+        w_bind(w, 0, bswap16(9), &opt),
 #endif
-        w_bind(w, bswap16(55555), &opt)
+        w_bind(w, 0, bswap16(55555), &opt),
+        w->addr_cnt >= 2 ? w_bind(w, 1, bswap16(55555), &opt) : 0
     };
     const uint16_t n = sizeof(srv) / sizeof(srv[0]);
 
@@ -155,7 +157,10 @@ int
             w_rx(s, &i);
             if (sq_empty(&i))
                 continue;
-            warn(DBG, "received %" PRIu " bytes", w_iov_sq_len(&i));
+            char ip_str[INET6_ADDRSTRLEN];
+            w_ntop(&sq_first(&i)->saddr.addr, ip_str, sizeof(ip_str));
+            warn(DBG, "received %" PRIu " bytes from %s:%u", w_iov_sq_len(&i),
+                 ip_str, bswap16(sq_first(&i)->saddr.port));
 
             struct w_iov_sq o = w_iov_sq_initializer(o);
             uint16_t t = 0;
@@ -168,7 +173,7 @@ int
                 // discard; nothing to do
             } else
 #endif
-            if (s == srv[t++]) {
+            if (s == srv[t++] || s == srv[t++]) {
                 static struct w_iov_sq tmp = w_iov_sq_initializer(tmp);
                 static uint64_t tmp_len = 0;
                 static uint64_t nonce = 0;
@@ -228,7 +233,8 @@ int
 
     // we only get here after an interrupt; clean up
     for (uint16_t s = 0; s < n; s++)
-        w_close(srv[s]);
+        if (srv[s])
+            w_close(srv[s]);
     w_cleanup(w);
     return 0;
 }

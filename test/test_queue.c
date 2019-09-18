@@ -163,6 +163,8 @@ static void show(void)
 
 int main(void)
 {
+    w_init_rand();
+
     for (int i = 0; i < N; i++)
         sq_init(&sq[i]);
 

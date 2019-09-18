@@ -40,15 +40,14 @@ struct w_sock;
 // IWYU pragma: no_include <warpcore/warpcore.h>
 
 
-#define IP_ADDR_LEN 4 ///< Length of an IPv4 address in bytes. Four.
+#define IP4_ADDR_LEN 4  ///< Length of an IPv4 address in bytes. Four.
+#define IP6_ADDR_LEN 16 ///< Length of an IPv6 address in bytes. Four.
 
 /// String length of the representation we use for IPv4 strings. The format is
 /// "xxx.xxx.xxx.xxx\0", including a final zero byte.
 ///
-#define IP_ADDR_STRLEN 16
-
-#define IP_ANY 0x00000000   ///< IPv4 "any" address.
-#define IP_BCAST 0xffffffff ///< IPv4 broadcast address.
+#define IP4_ADDR_STRLEN 16
+#define IP6_ADDR_STRLEN 46
 
 #define IPTOS_ECN_NOTECT 0x00 // not-ECT
 #define IPTOS_ECN_ECT1 0x01   // ECN-capable transport (1)
@@ -195,3 +194,7 @@ extern void __attribute__((nonnull(1)))
 mk_ip_hdr(struct w_iov * const v,
           const uint16_t plen,
           const struct w_sock * const s);
+
+
+extern ssize_t __attribute__((nonnull))
+ip4_addr_idx(const struct w_engine * const w, const uint32_t ip);

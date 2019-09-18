@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
 #include <errno.h>
 #include <inttypes.h>
 
@@ -73,6 +72,29 @@
 #include "backend.h"
 #include "ip.h"
 #include "udp.h"
+
+
+static const struct sockaddr * __attribute__((nonnull))
+to_sockaddr(const struct w_addr * const addr, const uint16_t port)
+{
+    static struct sockaddr_storage ss;
+
+    if (addr->af == AF_INET) {
+        struct sockaddr_in * const sin = (struct sockaddr_in *)&ss;
+        sin->sin_len = sizeof(*sin);
+        sin->sin_family = AF_INET;
+        sin->sin_port = port;
+        memcpy(&sin->sin_addr, &addr->ip4, af_len(AF_INET));
+    } else {
+        struct sockaddr_in6 * const sin6 = (struct sockaddr_in6 *)&ss;
+        sin6->sin6_len = sizeof(*sin6);
+        sin6->sin6_family = AF_INET6;
+        sin6->sin6_port = port;
+        memcpy(&sin6->sin6_addr, &addr->ip6, af_len(AF_INET6));
+    }
+
+    return (const struct sockaddr *)&ss;
+}
 
 
 void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
@@ -211,33 +233,36 @@ void backend_cleanup(struct w_engine * const w)
 ///
 int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
-    s->fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    struct w_addr * const src_addr = &s->w->ifaddr[s->tup.src_idx].addr;
+    s->fd = socket(src_addr->af, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     if (unlikely(s->fd < 0))
         return errno;
 
-    struct sockaddr_in addr = {.sin_family = AF_INET,
-                               .sin_port = s->tup.sport,
-                               .sin_addr = {.s_addr = s->tup.sip}};
-    if (unlikely(bind(s->fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)) {
-        warn(ERR, "bind failed on %s:%u", inet_ntoa(addr.sin_addr),
-             bswap16(s->tup.sport));
+    const struct sockaddr * const sa = to_sockaddr(src_addr, s->tup.src_port);
+    if (unlikely(bind(s->fd, sa, sa->sa_len) != 0)) {
+        char ip_str[INET6_ADDRSTRLEN];
+        w_ntop(src_addr, ip_str, sizeof(ip_str));
+        warn(ERR, "bind failed on %s:%u", ip_str, bswap16(s->tup.src_port));
         return errno;
     }
 
-    // always enable receiving TOS information
-    ensure(setsockopt(s->fd, IPPROTO_IP, IP_RECVTOS, &(int){1}, sizeof(int)) >=
-               0,
-           "cannot setsockopt IP_RECVTOS");
+    // enable always receiving TOS information
+    ensure(setsockopt(s->fd,
+                      src_addr->af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+                      src_addr->af == AF_INET ? IP_RECVTOS : IPV6_RECVTCLASS,
+                      &(int){1}, sizeof(int)) >= 0,
+           "cannot setsockopt IP_RECVTOS/IPV6_RECVTCLASS");
 
     if (opt)
         w_set_sockopt(s, opt);
 
     // if we're binding to a random port, find out what it is
-    if (s->tup.sport == 0) {
-        socklen_t len = sizeof(addr);
-        ensure(getsockname(s->fd, (struct sockaddr *)&addr, &len) >= 0,
+    if (s->tup.src_port == 0) {
+        struct sockaddr_storage ss;
+        socklen_t len = sizeof(ss);
+        ensure(getsockname(s->fd, (struct sockaddr *)&ss, &len) >= 0,
                "getsockname");
-        s->tup.sport = addr.sin_port;
+        s->tup.src_port = sa_get_port(&ss);
     }
 
 #if defined(HAVE_KQUEUE)
@@ -262,13 +287,11 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 ///
 int backend_connect(struct w_sock * const s)
 {
-    const struct sockaddr_in addr = {.sin_family = AF_INET,
-                                     .sin_port = s->tup.dport,
-                                     .sin_addr = {.s_addr = s->tup.dip}};
-    if (unlikely(connect(s->fd, (const struct sockaddr *)&addr, sizeof(addr)) !=
-                 0)) {
-        warn(ERR, "connect to %s:%u failed", inet_ntoa(addr.sin_addr),
-             bswap16(s->tup.dport));
+    const struct sockaddr * sa = to_sockaddr(&s->tup.dst.addr, s->tup.dst.port);
+    if (unlikely(connect(s->fd, sa, sa->sa_len) != 0)) {
+        char ip_str[INET6_ADDRSTRLEN];
+        w_ntop(&s->tup.dst.addr, ip_str, sizeof(ip_str));
+        warn(ERR, "connect to %s:%u failed", ip_str, bswap16(s->tup.dst.port));
         return errno;
     }
     return 0;
@@ -330,9 +353,10 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
     struct msghdr msgvec[SEND_SIZE];
 #endif
     struct iovec msg[SEND_SIZE];
+    struct sockaddr_storage sa[SEND_SIZE];
 #ifdef __linux__
-    // kernels below 4.9 can't deal with getting an uint8_t passed in, sigh
-    __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(int))];
+    // kernels below 4.9 can't deal with getting an uint8_t passed in,
+    sigh __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(int))];
 #else
     __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(uint8_t))];
 #endif
@@ -347,21 +371,21 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
             msg[i] = (struct iovec){.iov_base = v->buf, .iov_len = v->len};
             // if w_sock is disconnected, use destination IP and port from w_iov
             // instead of the one in the template header
-            if (w_connected(s)) {
-                struct sockaddr_in * const addr4 =
-                    (struct sockaddr_in *)&v->addr;
-                addr4->sin_family = AF_INET;
-                addr4->sin_addr.s_addr = s->tup.dip;
-                addr4->sin_port = s->tup.dport;
+            if (w_connected(s))
+                v->saddr = s->tup.dst;
+            else {
+                const struct sockaddr * const dst =
+                    to_sockaddr(&v->saddr.addr, v->saddr.port);
+                memcpy(&sa[i], dst, dst->sa_len);
             }
 #ifdef HAVE_SENDMMSG
             msgvec[i].msg_hdr =
 #else
             msgvec[i] =
 #endif
-                (struct msghdr){.msg_name = w_connected(s) ? 0 : &v->addr,
+                (struct msghdr){.msg_name = w_connected(s) ? 0 : &sa[i],
                                 .msg_namelen =
-                                    w_connected(s) ? 0 : sizeof(v->addr),
+                                    w_connected(s) ? 0 : sa[i].ss_len,
                                 .msg_iov = &msg[i],
                                 .msg_iovlen = 1};
 
@@ -377,7 +401,8 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
                 struct cmsghdr * const cmsg = CMSG_FIRSTHDR(&msgvec[i]);
 #endif
                 cmsg->cmsg_level = IPPROTO_IP;
-                cmsg->cmsg_type = IP_TOS;
+                cmsg->cmsg_type =
+                    v->saddr.addr.af == AF_INET ? IP_TOS : IPV6_TCLASS;
 #ifdef __linux__
                 cmsg->cmsg_len = CMSG_LEN(sizeof(int));
                 *(int *)(void *)CMSG_DATA(cmsg) = v->flags;
@@ -385,10 +410,9 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
                 cmsg->cmsg_len = CMSG_LEN(sizeof(uint8_t));
                 *(uint8_t *)CMSG_DATA(cmsg) = v->flags;
 #endif
-            } else if (s->opt.enable_ecn) {
+            } else if (s->opt.enable_ecn)
                 // make sure that the flags reflect what went out on the wire
                 v->flags = IPTOS_ECN_ECT0;
-            }
 
             v = sq_next(v, next);
         }
@@ -441,9 +465,9 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
     uint32_t total = 0;
 #endif
     do {
-        struct sockaddr peer[RECV_SIZE];
         struct w_iov * v[RECV_SIZE];
         struct iovec msg[RECV_SIZE];
+        struct sockaddr_storage sa[RECV_SIZE];
         __extension__ uint8_t ctrl[RECV_SIZE][CMSG_SPACE(sizeof(uint8_t))];
 #ifdef HAVE_RECVMMSG
         struct mmsghdr msgvec[RECV_SIZE];
@@ -462,8 +486,8 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #else
             msgvec[j] =
 #endif
-                (struct msghdr){.msg_name = &peer[j],
-                                .msg_namelen = sizeof(peer[j]),
+                (struct msghdr){.msg_name = &sa[j],
+                                .msg_namelen = sizeof(sa[j]),
                                 .msg_iov = &msg[j],
                                 .msg_iovlen = 1,
                                 .msg_control = &ctrl[j],
@@ -484,6 +508,9 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
+                v[j]->saddr.port = sa_get_port(&sa[j]);
+                v[j]->saddr.addr.af = sa[j].ss_family;
+                memcpy(&v[j]->saddr.addr.ip4, sa_addr(&sa[j]), sa[j].ss_len);
 #ifdef HAVE_RECVMMSG
                 v[j]->len = (uint16_t)msgvec[j].msg_len;
 #else
@@ -492,7 +519,6 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 // messages for the return loop below
                 n = 1;
 #endif
-                memcpy(&v[j]->addr, &peer[j], sizeof(peer[j]));
 
 #ifndef PARTICLE
                 // FIXME: figure out why this loop doesn't terminate on Particle

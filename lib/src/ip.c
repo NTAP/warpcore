@@ -194,3 +194,22 @@ void
 
     ip_log(ip);
 }
+
+
+/// Return index of IPv4 address if present in w->addr[].
+///
+/// @param      w     Backend engine.
+/// @param[in]  ip    IPv4 address.
+///
+/// @return     Index into w->addr or -1 if not present.
+///
+ssize_t ip4_addr_idx(const struct w_engine * const w, const uint32_t ip)
+{
+    for (ssize_t i = 0; i < w->addr_cnt; i++)
+        if (((const struct sockaddr_in *)&w->addr[w->addr4_pos].addr)
+                ->sin_addr.s_addr == ip)
+            return i;
+    return -1;
+}
+
+

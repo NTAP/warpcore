@@ -85,8 +85,8 @@ void arp_cache_update(struct w_engine * w,
     }
     a->mac = mac;
 #ifndef NDEBUG
-    char ip_str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN);
+    char ip_str[IP4_ADDR_STRLEN];
+    inet_ntop(AF_INET, &ip, ip_str, IP4_ADDR_STRLEN);
     warn(INF, "ARP cache entry: %s is at %s", ip_str, ether_ntoa(&mac));
 #endif
 }
@@ -98,6 +98,7 @@ void arp_cache_update(struct w_engine * w,
 /// @param      w     Backend engine.
 /// @param      buf   Buffer containing an incoming ARP request inside an
 ///                   Ethernet frame
+/// @param[in]  ip    IPv4 address to send ARP reply for.
 ///
 static void __attribute__((nonnull
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
@@ -105,7 +106,7 @@ static void __attribute__((nonnull
                            no_sanitize("alignment")
 #endif
                                ))
-arp_is_at(struct w_engine * const w, uint8_t * const buf)
+arp_is_at(struct w_engine * const w, uint8_t * const buf, const uint32_t ip)
 {
     // grab iov for reply
     struct w_iov * const v = w_alloc_iov_base(w);
@@ -121,16 +122,16 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf)
     reply->hrd = bswap16(ARP_HRD_ETHER);
     reply->pro = ETH_TYPE_IP;
     reply->hln = ETHER_ADDR_LEN;
-    reply->pln = IP_ADDR_LEN;
+    reply->pln = IP4_ADDR_LEN;
     reply->op = bswap16(ARP_OP_REPLY);
     reply->sha = w->mac;
-    reply->spa = w->ip;
+    reply->spa = ip;
     reply->tha = req->sha;
     reply->tpa = req->spa;
 
 #ifndef NDEBUG
-    char ip_str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &reply->spa, ip_str, INET_ADDRSTRLEN);
+    char ip_str[IP4_ADDR_STRLEN];
+    inet_ntop(AF_INET, &reply->spa, ip_str, IP4_ADDR_STRLEN);
     warn(NTE, "ARP reply %s is at %s", ip_str, ether_ntoa(&reply->sha));
 #endif
 
@@ -172,8 +173,8 @@ struct ether_addr
     struct arp_entry * a = arp_cache_find(w, dip);
     while (unlikely(a == 0)) {
 #ifndef NDEBUG
-        char ip_str[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &dip, ip_str, INET_ADDRSTRLEN);
+        char ip_str[IP4_ADDR_STRLEN];
+        inet_ntop(AF_INET, &dip, ip_str, IP4_ADDR_STRLEN);
         warn(INF, "no ARP entry for %s, sending query", ip_str);
 #endif
 
@@ -197,18 +198,19 @@ struct ether_addr
         arp->hrd = bswap16(ARP_HRD_ETHER);
         arp->pro = ETH_TYPE_IP;
         arp->hln = ETHER_ADDR_LEN;
-        arp->pln = IP_ADDR_LEN;
+        arp->pln = IP4_ADDR_LEN;
         arp->op = bswap16(ARP_OP_REQUEST);
         arp->sha = w->mac;
-        arp->spa = w->ip;
+        arp->spa = ((struct sockaddr_in *)&w->addr[w->addr4_pos].addr)
+                       ->sin_addr.s_addr;
         memset(&arp->tha, 0, ETHER_ADDR_LEN);
         arp->tpa = dip;
 
 #ifndef NDEBUG
-        char tpa[INET_ADDRSTRLEN];
-        char spa[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN);
-        inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN);
+        char tpa[IP4_ADDR_STRLEN];
+        char spa[IP4_ADDR_STRLEN];
+        inet_ntop(AF_INET, &arp->tpa, tpa, IP4_ADDR_STRLEN);
+        inet_ntop(AF_INET, &arp->spa, spa, IP4_ADDR_STRLEN);
         warn(NTE, "ARP request who has %s tell %s", tpa, spa);
 #endif
 
@@ -258,7 +260,7 @@ void
         return;
     }
 
-    if (arp->pro != ETH_TYPE_IP || arp->pln != IP_ADDR_LEN) {
+    if (arp->pro != ETH_TYPE_IP || arp->pln != IP4_ADDR_LEN) {
 #ifndef FUZZING
         warn(INF, "unhandled ARP protocol format %d with len %d",
              bswap16(arp->pro), arp->pln);
@@ -270,14 +272,14 @@ void
     switch (op) {
     case ARP_OP_REQUEST: {
 #ifndef NDEBUG
-        char tpa[INET_ADDRSTRLEN];
-        char spa[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &arp->tpa, tpa, INET_ADDRSTRLEN);
-        inet_ntop(AF_INET, &arp->spa, spa, INET_ADDRSTRLEN);
+        char tpa[IP4_ADDR_STRLEN];
+        char spa[IP4_ADDR_STRLEN];
+        inet_ntop(AF_INET, &arp->tpa, tpa, IP4_ADDR_STRLEN);
+        inet_ntop(AF_INET, &arp->spa, spa, IP4_ADDR_STRLEN);
         warn(NTE, "ARP request who has %s tell %s", tpa, spa);
 #endif
-        if (arp->tpa == w->ip)
-            arp_is_at(w, buf);
+        if (ip4_addr_idx(w, arp->tpa) >= 0)
+            arp_is_at(w, buf, arp->tpa);
         else
             warn(WRN, "ignoring ARP request not asking for us");
 
@@ -288,9 +290,9 @@ void
 
     case ARP_OP_REPLY: {
 #ifndef NDEBUG
-        char ip_str[INET_ADDRSTRLEN];
+        char ip_str[IP4_ADDR_STRLEN];
         warn(NTE, "ARP reply %s is at %s",
-             inet_ntop(AF_INET, &arp->spa, ip_str, INET_ADDRSTRLEN),
+             inet_ntop(AF_INET, &arp->spa, ip_str, IP4_ADDR_STRLEN),
              ether_ntoa(&arp->sha));
 #endif
         arp_cache_update(w, arp->spa, arp->sha);
@@ -299,15 +301,24 @@ void
         // reply, and if so, change its destination MAC
         struct w_sock * s;
         kh_foreach_value(&w->sock, s, {
+            const struct w_ifaddr * const wa = &w->addr[s->tup.src_idx];
+
+            if (wa->addr.ss_family != AF_INET)
+                continue;
+
+            const uint32_t dip =
+                ((const struct sockaddr_in *)&wa->addr)->sin_addr.s_addr;
+            const uint32_t mask =
+                ((const struct sockaddr_in *)&wa->mask)->sin_addr.s_addr;
+
             if ( // is local-net socket and ARP src IP matches its dst
-                ((mk_net(s->w->ip, s->w->mask) ==
-                      mk_net(s->tup.dip, s->w->mask) &&
-                  arp->spa == s->tup.dip)) ||
+                ((mk_net(arp->tpa, mask) == mk_net(dip, mask) &&
+                  arp->spa == dip)) ||
                 // or non-local socket and ARP src IP matches router
-                (s->w->rip && (s->w->rip == arp->spa))) {
+                (memcmp(&s->w->rip, &arp->sha, sizeof(arp->sha)) == 0)) {
                 warn(NTE, "updating socket on local port %u with %s for %s",
                      bswap16(s->tup.sport), ether_ntoa(&arp->sha),
-                     inet_ntop(AF_INET, &arp->spa, ip_str, INET_ADDRSTRLEN));
+                     inet_ntop(AF_INET, &arp->spa, ip_str, IP4_ADDR_STRLEN));
                 s->dmac = arp->sha;
             }
         });

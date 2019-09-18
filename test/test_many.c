@@ -25,7 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <sys/socket.h>
@@ -43,13 +42,14 @@ int main(void)
 
     int n = 0;
     while (1) {
-        struct w_sock * const s = w_bind(w_clnt, 0, 0);
+        struct w_sock * const s = w_bind(w_clnt, 0, 0, 0);
         if (s == 0)
             break;
-        w_connect(s, (struct sockaddr *)&(struct sockaddr_in){
-                         .sin_family = AF_INET,
-                         .sin_addr.s_addr = inet_addr("127.0.0.1"),
-                         .sin_port = bswap16(55555)});
+        w_connect(s, (struct sockaddr *)&(struct sockaddr_in6){
+                         .sin6_len = sizeof(struct sockaddr_in6),
+                         .sin6_family = AF_INET6,
+                         .sin6_addr = IN6ADDR_LOOPBACK_INIT,
+                         .sin6_port = bswap16(55555)});
         if (w_connected(s) == false)
             break;
         n++;

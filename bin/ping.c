@@ -173,7 +173,7 @@ int
     if (end < start)
         end = start;
 
-    const struct addrinfo hints = {.ai_family = PF_INET,
+    const struct addrinfo hints = {.ai_family = AF_UNSPEC,
                                    .ai_protocol = IPPROTO_UDP};
     uint32_t rip = 0;
     if (rtr) {
@@ -193,9 +193,16 @@ int
     struct addrinfo * peer;
     ensure(getaddrinfo(dst, "55555", &hints, &peer) == 0, "getaddrinfo peer");
 
+    // find a src address of the same family as the peer address
+    uint16_t idx = 0;
+    for (; idx < w->addr_cnt; idx++)
+        if (w->ifaddr[idx].addr.af == peer->ai_family)
+            break;
+    ensure(idx < w->addr_cnt, "peer address family not available locally");
+
     for (uint32_t c = 0; c < conns; c++) {
         // connect to the peer
-        s[c] = w_bind(w, 0, &opt);
+        s[c] = w_bind(w, idx, 0, &opt);
         w_connect(s[c], peer->ai_addr);
     }
 
@@ -293,9 +300,8 @@ int
             const uint_t pkts = w_iov_sq_cnt(&i);
             timespec_sub(&after_tx, &before_tx, &diff);
             ensure(diff.tv_sec == 0, "time difference > %lu sec", diff.tv_sec);
-            printf("%s\t%s\t%u\t%" PRIu "\t%" PRIu "\t%ld\t%s\n",
-                   w_ifname(w), w_drvname(w), w_mbps(w), i_len, pkts,
-                   diff.tv_nsec, rx);
+            printf("%s\t%s\t%u\t%" PRIu "\t%" PRIu "\t%ld\t%s\n", w_ifname(w),
+                   w_drvname(w), w_mbps(w), i_len, pkts, diff.tv_nsec, rx);
 
             // we are done with the received data
             w_free(&i);

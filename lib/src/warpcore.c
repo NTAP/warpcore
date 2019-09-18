@@ -47,6 +47,8 @@
 #include "krng.h"
 #include <ifaddrs.h>
 #include <net/if.h>
+#include <netinet6/in6_var.h>
+#include <sys/ioctl.h>
 #elif defined(PARTICLE)
 #include <rng_hal.h>
 
@@ -133,24 +135,22 @@ dump_bufs(const char * const label, const struct w_iov_sq * const q)
 /// Get the socket bound to the given four-tuple <source IP, source port,
 /// destination IP, destination port>.
 ///
-/// @param      w      Backend engine.
-/// @param[in]  sip    The source IP address.
-/// @param[in]  sport  The source port.
-/// @param[in]  dip    The destination IP address.
-/// @param[in]  dport  The destination port.
+/// @param      w         Backend engine.
+/// @param[in]  src_idx   Index of the IP address to bind to.
+/// @param[in]  src_port  The source port.
+/// @param[in]  dst       The destination IP address and port.
 ///
 /// @return     The w_sock bound to the given four-tuple.
 ///
 struct w_sock * w_get_sock(struct w_engine * const w,
-                           const uint32_t sip,
-                           const uint16_t sport,
-                           const uint32_t dip,
-                           const uint16_t dport)
+                           const uint16_t src_idx,
+                           const uint16_t src_port,
+                           const struct sockaddr * const dst)
 {
-    const khiter_t k =
-        kh_get(sock, &w->sock,
-               (&(struct w_tuple){
-                   .sip = sip, .dip = dip, .sport = sport, .dport = dport}));
+    struct w_tuple tup = {.src_idx = src_idx, .src_port = src_port};
+    if (dst)
+        memcpy(&tup.dst, dst, dst->sa_len);
+    const khiter_t k = kh_get(sock, &w->sock, &tup);
     return unlikely(k == kh_end(&w->sock)) ? 0 : kh_val(&w->sock, k);
 }
 
@@ -313,6 +313,18 @@ uint_t w_iov_sq_len(const struct w_iov_sq * const q)
 }
 
 
+// static const struct w_sockaddr * __attribute__((nonnull))
+// to_w_sockaddr(const struct sockaddr * const sa)
+// {
+//     static struct w_sockaddr wa;
+//     wa.addr.af = sa->sa_family;
+//     wa.port = sa_get_port(sa);
+//     memcpy(&wa.addr.ip4, sa_addr(sa), af_len(sa->sa_family));
+
+//     return &wa;
+// }
+
+
 /// Connect a bound socket to a remote IP address and port. Depending on the
 /// backend, this function may block until a MAC address has been resolved with
 /// ARP.
@@ -327,33 +339,32 @@ uint_t w_iov_sq_len(const struct w_iov_sq * const q)
 ///
 int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
 {
-    if (unlikely(s->tup.dip || s->tup.dport)) {
+    if (unlikely(s->tup.dst.addr.af)) {
         warn(ERR, "socket already connected");
         return EADDRINUSE;
     }
 
-    if (unlikely(peer->sa_family != AF_INET)) {
-        warn(ERR, "peer address is not IPv4");
+    if (unlikely(peer->sa_family != AF_INET && peer->sa_family != AF_INET6)) {
+        warn(ERR, "peer address is not IP");
         return EAFNOSUPPORT;
     }
 
     rem_sock(s->w, s);
-    const struct sockaddr_in * const addr4 =
-        (const struct sockaddr_in *)(const void *)peer;
-    s->tup.dip = addr4->sin_addr.s_addr;
-    s->tup.dport = addr4->sin_port;
+    s->tup.dst.addr.af = peer->sa_family;
+    memcpy(&s->tup.dst.addr.ip4, sa_addr(peer), af_len(peer->sa_family));
+    s->tup.dst.port = sa_get_port(peer);
     const int e = backend_connect(s);
     if (unlikely(e)) {
-        s->tup.dip = s->tup.dport = 0;
+        memset(&s->tup.dst, 0, sizeof(s->tup.dst));
         ins_sock(s->w, s);
         return e;
     }
     ins_sock(s->w, s);
 
 #if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
-    char str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &s->tup.dip, str, INET_ADDRSTRLEN);
-    warn(DBG, "socket connected to %s port %d", str, bswap16(s->tup.dport));
+    char ip_str[INET6_ADDRSTRLEN];
+    w_ntop(&s->tup.dst.addr, ip_str, sizeof(ip_str));
+    warn(DBG, "socket connected to %s:%d", ip_str, bswap16(s->tup.dst.port));
 #endif
 
     return 0;
@@ -362,18 +373,21 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
 
 /// Bind a w_sock to the given local UDP port number.
 ///
-/// @param      w     The w_sock to bind.
-/// @param[in]  port  The local port number to bind to, in network byte order.
-///                   If port is zero, a random local port will be chosen.
-/// @param[in]  opt   Socket options for this socket. Can be zero.
+/// @param      w         The w_sock to bind.
+/// @param[in]  addr_idx  Index of the IP address to bind to.
+/// @param[in]  port      The local port number to bind to, in network byte
+///                       order. If port is zero, a random local port will be
+///                       chosen.
+/// @param[in]  opt       Socket options for this socket. Can be zero.
 ///
 /// @return     Pointer to a bound w_sock.
 ///
 struct w_sock * w_bind(struct w_engine * const w,
+                       const uint16_t addr_idx,
                        const uint16_t port,
                        const struct w_sockopt * const opt)
 {
-    struct w_sock * s = w_get_sock(w, w->ip, port, 0, 0);
+    struct w_sock * s = w_get_sock(w, addr_idx, port, 0);
     if (unlikely(s)) {
         warn(INF, "UDP source port %d already in bound", bswap16(port));
         // do not free, just return
@@ -383,9 +397,9 @@ struct w_sock * w_bind(struct w_engine * const w,
     if (unlikely(s = calloc(1, sizeof(*s))) == 0)
         goto fail;
 
-    s->tup.sip = w->ip;
-    s->tup.sport = port;
-    // s->tup.dip and s->tup.dport are set on w_connect()
+    s->tup.src_idx = addr_idx;
+    s->tup.src_port = port;
+    // s->tup.dip is set on w_connect()
     s->w = w;
     sq_init(&s->iv);
 
@@ -393,7 +407,9 @@ struct w_sock * w_bind(struct w_engine * const w,
         goto fail;
 
 #ifndef FUZZING
-    warn(NTE, "socket bound to port %d", bswap16(s->tup.sport));
+    char ip_str[INET6_ADDRSTRLEN];
+    w_ntop(&w->ifaddr[addr_idx].addr, ip_str, sizeof(ip_str));
+    warn(NTE, "socket bound to %s:%d", ip_str, bswap16(s->tup.src_port));
 #endif
 
     ins_sock(w, s);
@@ -461,7 +477,71 @@ void w_init_rand(void)
 }
 
 
-/// Initialize a warpcore engine on the given interface. Ethernet and IPv4
+static bool __attribute__((nonnull)) skip_ipv6_addr(struct ifaddrs * const i)
+{
+    if (((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_scope_id)
+        // skip scoped addresses
+        return true;
+
+    const int s = socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    ensure(s >= 0, "cannot open socket");
+
+    struct in6_ifreq ifr6;
+    strncpy(ifr6.ifr_name, i->ifa_name, sizeof(ifr6.ifr_name));
+    memcpy(&ifr6.ifr_addr, i->ifa_addr, sizeof(ifr6.ifr_addr));
+    const int ret = ioctl(s, SIOCGIFAFLAG_IN6, &ifr6);
+    ensure(ret >= 0, "cannot ioctl");
+    close(s);
+
+    // skip temporary addresses
+    return ifr6.ifr_ifru.ifru_flags & IN6_IFF_TEMPORARY;
+}
+
+
+static uint8_t __attribute__((nonnull))
+contig_mask_len(const int af, const void * const mask)
+{
+    uint8_t mask_len = 0;
+    if (af == AF_INET) {
+        const uint32_t mask4 = bswap32(*(const uint32_t *)mask);
+        mask_len = !(mask4 & (~mask4 >> 1));
+    } else {
+        uint128_t mask6;
+        memcpy(&mask6, mask, af_len(AF_INET6));
+        mask6 = bswap128(mask6);
+        mask_len = !(mask6 & (~mask6 >> 1));
+    }
+
+    if (mask_len == 0)
+        return 0;
+
+    uint8_t pos = 0;
+    mask_len = 0;
+    while ((pos < af_len(af)) && (((const uint8_t *)mask)[pos] == 0xff)) {
+        mask_len += 8;
+        pos++;
+    }
+
+    if (pos < af_len(af)) {
+        uint8_t val = ((const uint8_t *)mask)[pos];
+        while (val) {
+            mask_len++;
+            val = (uint8_t)(val << 1);
+        }
+    }
+
+    return mask_len;
+}
+
+
+const char *
+w_ntop(const struct w_addr * const addr, char * const dst, const size_t dst_len)
+{
+    return inet_ntop(addr->af, &addr->ip4, dst, (socklen_t)dst_len);
+}
+
+
+/// Initialize a warpcore engine on the given interface. Ethernet and IP
 /// source addresses and related information, such as the netmask, are taken
 /// from the active OS configuration of the interface. A default router,
 /// however, needs to be specified with @p rip, if communication over a WAN is
@@ -475,17 +555,11 @@ void w_init_rand(void)
 ///
 /// @return     Initialized warpcore engine.
 ///
-struct w_engine *
-w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
+struct w_engine * w_init(const char * const ifname,
+                         const uint32_t rip __attribute__((unused)),
+                         const uint_t nbufs)
 {
     w_init_rand();
-
-    // allocate engine struct
-    struct w_engine * w;
-    ensure((w = calloc(1, sizeof(*w))) != 0, "cannot allocate struct w_engine");
-
-    // initialize lists of sockets and iovs
-    sq_init(&w->iov);
 
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
     // construct interface name of a netmap pipe for this interface
@@ -502,80 +576,31 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
 #endif
 
     // we mostly loop here because the link may be down
-    bool link_up = false;
-    bool is_loopback = false;
-    bool have_pipe = false;
-    while (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0 ||
-           w->mbps == 0) {
-#ifndef RIOT_VERSION
+    uint16_t addr4_cnt = 0;
+    uint16_t addr6_cnt = 0;
+    struct ifaddrs * ifap = 0;
+    while (addr4_cnt + addr6_cnt == 0) {
         // get interface config
-        struct ifaddrs * ifap;
         ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface info",
                ifname);
 
-        struct ifaddrs * i;
-        for (i = ifap; i; i = i->ifa_next) {
-#ifndef PARTICLE
-            if (strcmp(i->ifa_name, pipe) == 0)
-                have_pipe = true;
-#endif
+        for (struct ifaddrs * i = ifap; i; i = i->ifa_next) {
             if (strcmp(i->ifa_name, ifname) != 0)
                 continue;
 
-            is_loopback = i->ifa_flags & IFF_LOOPBACK;
-
-            switch (i->ifa_addr->sa_family) {
-            case AF_LINK:
-                plat_get_mac(&w->mac, i);
-                w->mtu = plat_get_mtu(i);
-                link_up = plat_get_link(i);
-                // mpbs can be zero on generic platforms and loopback interfaces
-                w->mbps = plat_get_mbps(i);
-                plat_get_iface_driver(i, w->drvname, sizeof(w->drvname));
-#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
-                char mac[ETH_ADDR_STRLEN];
-                ether_ntoa_r(&w->mac, mac);
-                warn(NTE, "%s addr %s, MTU %d, speed %" PRIu32 "G, link %s",
-                     i->ifa_name, mac, w->mtu, w->mbps / 1000,
-                     link_up ? "up" : "down");
-#endif
-                break;
-            case AF_INET:
-                // get IP addr and netmask
-                if (w->ip == 0) {
-                    w->ip = ((struct sockaddr_in *)(void *)i->ifa_addr)
-                                ->sin_addr.s_addr;
-                    w->mask = ((struct sockaddr_in *)(void *)i->ifa_netmask)
-                                  ->sin_addr.s_addr;
-                }
-                break;
-            case AF_INET6:
-                break;
-            default:
-                warn(NTE, "ignoring unknown addr family %d on %s",
-                     i->ifa_addr->sa_family, i->ifa_name);
-                break;
-            }
-        }
-        // ensure(i, "unknown interface %s", ifname);
-#else
-
-        if (netif_is_up(i)) {
-            if (link_up == false) {
-                link_up = true;
-                warn(DBG, "starting DHCP");
-                dhcp_start(i);
+            if (plat_get_link(i) == false)
                 continue;
-            } else
-                sys_check_timeouts();
 
-            w->ip = ip4_addr_get_u32(netif_ip4_addr(i));
-            w->mask = ip4_addr_get_u32(netif_ip4_netmask(i));
+            if (i->ifa_addr->sa_family == AF_INET) {
+                addr4_cnt++;
+                continue;
+            }
+
+            if (i->ifa_addr->sa_family == AF_INET6 && !skip_ipv6_addr(i))
+                addr6_cnt++;
         }
-#endif
-
-        if (link_up == false || w->mtu == 0 || w->ip == 0 || w->mask == 0 ||
-            w->mbps == 0) {
+        if (addr4_cnt + addr6_cnt == 0) {
+            freeifaddrs(ifap);
             // sleep for a bit, so we don't burn the CPU when link is down
             warn(WRN,
                  "%s: could not obtain required interface "
@@ -583,26 +608,79 @@ w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs)
                  ifname);
             w_nanosleep(1 * NS_PER_S);
         }
-#ifndef RIOT_VERSION
-        freeifaddrs(ifap);
-#endif
     }
 
+    // allocate engine struct with room for addresses
+    struct w_engine * w;
+    ensure((w = calloc(1, sizeof(*w) + (addr4_cnt + addr6_cnt) *
+                                           sizeof(w->ifaddr[0]))) != 0,
+           "cannot allocate struct w_engine");
+    w->addr_cnt = addr4_cnt + addr6_cnt;
+
+    // initialize lists of sockets and iovs
+    sq_init(&w->iov);
+
+    bool is_loopback = false;
+    bool have_pipe = false;
+    w->addr4_pos = addr4_cnt = addr6_cnt;
+    addr6_cnt = 0;
+    for (struct ifaddrs * i = ifap; i; i = i->ifa_next) {
+#ifndef PARTICLE
+        if (strcmp(i->ifa_name, pipe) == 0)
+            have_pipe = true;
+#endif
+        if (strcmp(i->ifa_name, ifname) != 0)
+            continue;
+
+        is_loopback = i->ifa_flags & IFF_LOOPBACK;
+
+        switch (i->ifa_addr->sa_family) {
+        case AF_LINK:
+            plat_get_mac(&w->mac, i);
+            w->mtu = plat_get_mtu(i);
+            // mpbs can be zero on generic platforms and loopback interfaces
+            w->mbps = plat_get_mbps(i);
+            plat_get_iface_driver(i, w->drvname, sizeof(w->drvname));
 #if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
-    char ip_str[INET_ADDRSTRLEN];
-    char mask_str[INET_ADDRSTRLEN];
-    char rip_str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &w->ip, ip_str, INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, &w->mask, mask_str, INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, &w->rip, rip_str, INET_ADDRSTRLEN);
-    warn(NTE, "%s has IP addr %s/%s%s%s", ifname, ip_str, mask_str,
-         rip ? ", router " : "", rip ? rip_str : "");
+            char mac[ETH_ADDR_STRLEN];
+            ether_ntoa_r(&w->mac, mac);
+            warn(NTE, "%s MAC addr %s, MTU %d, speed %" PRIu32 "G", i->ifa_name,
+                 mac, w->mtu, w->mbps / 1000);
+#endif
+            break;
+        case AF_INET6:
+            if (skip_ipv6_addr(i))
+                continue;
+        case AF_INET:;
+            struct w_ifaddr * const wa =
+                &w->ifaddr[i->ifa_addr->sa_family == AF_INET ? addr4_cnt++
+                                                             : addr6_cnt++];
+            wa->addr.af = i->ifa_addr->sa_family;
+            memcpy(&wa->addr.ip4, sa_addr(i->ifa_addr), af_len(wa->addr.af));
+            wa->prefix = contig_mask_len(wa->addr.af, sa_addr(i->ifa_netmask));
+            break;
+        default:
+            warn(NTE, "ignoring unknown addr family %d on %s",
+                 i->ifa_addr->sa_family, i->ifa_name);
+            break;
+        }
+    }
+    freeifaddrs(ifap);
+
+#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
+    for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
+        char ip_str[INET6_ADDRSTRLEN];
+        struct w_ifaddr * const wa = &w->ifaddr[idx];
+        w_ntop(&wa->addr, ip_str, sizeof(ip_str));
+        warn(NTE, "%s IPv%d addr %s/%u", ifname, wa->addr.af == AF_INET ? 4 : 6,
+             ip_str, wa->prefix);
+    }
 #endif
 
     strncpy(w->ifname, ifname, sizeof(w->ifname));
 
     // set the IP address of our default router
-    w->rip = rip;
+    // w->rip = rip;
 
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
     // some interfaces can have huge MTUs, so cap to something more sensible
@@ -666,8 +744,8 @@ void w_free(struct w_iov_sq * const q)
 }
 
 
-/// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or w_rx()
-/// back to warpcore.
+/// Return a single w_iov obtained via w_alloc_len(), w_alloc_cnt() or
+/// w_rx() back to warpcore.
 ///
 /// @param      v     w_iov struct to return.
 ///
@@ -691,7 +769,8 @@ void w_free_iov(struct w_iov * const v)
 
 
 /// Return a 64-bit random number. Fast, but not cryptographically secure.
-/// Implements xoroshiro128+; see https://en.wikipedia.org/wiki/Xoroshiro128%2B.
+/// Implements xoroshiro128+; see
+/// https://en.wikipedia.org/wiki/Xoroshiro128%2B.
 ///
 /// @return     Random number.
 ///
@@ -718,8 +797,8 @@ uint32_t w_rand32(void)
 }
 
 
-/// Calculate a uniformly distributed random number in [0, upper_bound) avoiding
-/// "modulo bias".
+/// Calculate a uniformly distributed random number in [0, upper_bound)
+/// avoiding "modulo bias".
 ///
 /// @param[in]  upper_bound  The upper bound
 ///
@@ -733,9 +812,9 @@ uint64_t w_rand_uniform64(const uint64_t upper_bound)
     // 2**64 % x == (2**64 - x) % x
     const uint64_t min = (UINT64_MAX - upper_bound) % upper_bound;
 
-    // This could theoretically loop forever but each retry has p > 0.5 (worst
-    // case, usually far better) of selecting a number inside the range we
-    // need, so it should rarely need to re-roll.
+    // This could theoretically loop forever but each retry has p > 0.5
+    // (worst case, usually far better) of selecting a number inside the
+    // range we need, so it should rarely need to re-roll.
     uint64_t r;
     for (;;) {
         r = kr_rand_r(&w_rand_state);
@@ -747,8 +826,9 @@ uint64_t w_rand_uniform64(const uint64_t upper_bound)
 }
 
 
-/// Calculate a uniformly distributed random number in [0, upper_bound) avoiding
-/// "modulo bias". This can be faster on platforms with crappy 64-bit math.
+/// Calculate a uniformly distributed random number in [0, upper_bound)
+/// avoiding "modulo bias". This can be faster on platforms with crappy
+/// 64-bit math.
 ///
 /// @param[in]  upper_bound  The upper bound
 ///
@@ -762,9 +842,9 @@ uint32_t w_rand_uniform32(const uint32_t upper_bound)
     // 2**32 % x == (2**32 - x) % x
     const uint32_t min = (UINT32_MAX - upper_bound) % upper_bound;
 
-    // This could theoretically loop forever but each retry has p > 0.5 (worst
-    // case, usually far better) of selecting a number inside the range we
-    // need, so it should rarely need to re-roll.
+    // This could theoretically loop forever but each retry has p > 0.5
+    // (worst case, usually far better) of selecting a number inside the
+    // range we need, so it should rarely need to re-roll.
     uint32_t r;
     for (;;) {
         r = w_rand32();
@@ -776,25 +856,25 @@ uint32_t w_rand_uniform32(const uint32_t upper_bound)
 }
 
 
-/// Return the local or peer IPv4 address and port for a w_sock.
+/// Return the local or peer IP address and port for a w_sock.
 ///
 /// @param[in]  s      Pointer to w_sock.
-/// @param[in]  local  If true, return local IPv4 and port, else the peer's.
+/// @param[in]  local  If true, return local IP and port, else the peer's.
 ///
-/// @return     Local or remote IPv4 address and port, or zero if unbound or
+/// @return     Local or remote IP address and port, or zero if unbound or
 /// disconnected.
 ///
-const struct sockaddr * w_get_addr(const struct w_sock * const s,
-                                   const bool local)
+const struct w_sockaddr * w_get_sockaddr(const struct w_sock * const s,
+                                         const bool local)
 {
-    if ((local && s->tup.sip == 0) || (!local && s->tup.dip == 0))
-        return 0;
+    if (local) {
+        static struct w_sockaddr sa;
+        sa.addr = s->w->ifaddr[s->tup.src_idx].addr;
+        sa.port = s->tup.src_port;
+        return &sa;
+    }
 
-    static struct sockaddr_storage addr = {.ss_family = AF_INET};
-    struct sockaddr_in * const sin = (struct sockaddr_in *)&addr;
-    sin->sin_port = local ? s->tup.sport : s->tup.dport;
-    sin->sin_addr.s_addr = local ? s->tup.sip : s->tup.dip;
-    return (struct sockaddr *)&addr;
+    return &s->tup.dst;
 }
 
 

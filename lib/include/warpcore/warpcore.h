@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include <ifaddrs.h>
 #include <netinet/in.h>
 #include <stdint.h>
 #include <sys/time.h>
@@ -69,7 +70,65 @@ struct w_iov_sq {
     }
 
 
-struct w_tuple;
+#define af_len(x) ((x) == AF_INET ? 32 / 8 : 128 / 8)
+
+struct w_addr {
+    union {
+        uint32_t ip4;
+        uint128_t ip6;
+    };
+    uint8_t af; ///< Address family.
+};
+
+struct w_ifaddr {
+    struct w_addr addr;
+    uint8_t prefix; ///< Prefix length.
+};
+
+struct w_sockaddr {
+    struct w_addr addr;
+    uint16_t port;
+};
+
+
+// #define sa_set_port(s, p)                                                      \
+//     do {                                                                       \
+//         _Pragma("clang diagnostic push")                                       \
+//             _Pragma("clang diagnostic ignored \"-Wcast-align\"") if (          \
+//                 ((struct sockaddr *)(s))->sa_family ==                         \
+//                 AF_INET)((struct sockaddr_in *)(s))                            \
+//                 ->sin_port = (p);                                              \
+//         else((struct sockaddr_in6 *)(s))->sin6_port = (p);                     \
+//         _Pragma("clang diagnostic pop")                                        \
+//     } while (0)
+
+
+#define sa_get_port(s)                                                         \
+    _Pragma("clang diagnostic push")                                           \
+                _Pragma("clang diagnostic ignored \"-Wcast-align\"")(          \
+                    (const struct sockaddr *)(s))                              \
+                    ->sa_family == AF_INET                                     \
+        ? ((const struct sockaddr_in *)(s))->sin_port                          \
+        : ((const struct sockaddr_in6 *)(s))                                   \
+              ->sin6_port _Pragma("clang diagnostic pop")
+
+
+#define sa_addr(s)                                                             \
+    _Pragma("clang diagnostic push")                                           \
+        _Pragma("clang diagnostic ignored \"-Wcast-align\"")(                  \
+            ((const struct sockaddr *)(s))->sa_family == AF_INET               \
+                ? (const struct sockaddr *)&((const struct sockaddr_in *)(s))  \
+                      ->sin_addr                                               \
+                : (const struct sockaddr *)&((const struct sockaddr_in6 *)(s)) \
+                      ->sin6_addr) _Pragma("clang diagnostic pop")
+
+
+struct w_tuple {
+    uint16_t src_idx;      ///< Index of source address.
+    uint16_t src_port;     ///< Source port.
+    struct w_sockaddr dst; ///< Destination address and port.
+};
+
 
 extern khint_t __attribute__((nonnull))
 tuple_hash(const struct w_tuple * const tup);
@@ -86,14 +145,13 @@ struct w_engine {
     void * mem;           ///< Pointer to netmap or socket buffer memory region.
     struct w_iov * bufs;  ///< Pointer to w_iov buffers.
     struct w_backend * b; ///< Backend.
-    uint32_t ip;          ///< Local IPv4 address used on this interface.
-    uint32_t mask;        ///< IPv4 netmask of this interface.
-    uint32_t rip;         ///< Our default IPv4 router IP address.
     uint16_t mtu;         ///< MTU of this interface.
     uint32_t mbps;        ///< Link speed of this interface in Mb/s.
     struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
-    khash_t(sock) sock;    ///< List of open (bound) w_sock sockets.
-    struct w_iov_sq iov;   ///< Tail queue of w_iov buffers available.
+    struct ether_addr rip; ///< Ethernet MAC address of the next-hop router.
+
+    khash_t(sock) sock;  ///< List of open (bound) w_sock sockets.
+    struct w_iov_sq iov; ///< Tail queue of w_iov buffers available.
 
     sl_entry(w_engine) next;      ///< Pointer to next engine.
     char ifname[8];               ///< Name of the interface of this engine.
@@ -103,6 +161,10 @@ struct w_engine {
 
     /// Pointer to generic user data (not used by warpcore.)
     void * data;
+
+    uint16_t addr_cnt;
+    uint16_t addr4_pos;
+    struct w_ifaddr ifaddr[];
 };
 
 
@@ -131,14 +193,6 @@ struct w_sockopt {
 };
 
 
-struct w_tuple {
-    uint32_t sip;   ///< Source IP.
-    uint32_t dip;   ///< Destination IP.
-    uint16_t sport; ///< Source port.
-    uint16_t dport; ///< Destination port.
-};
-
-
 /// A warpcore socket.
 ///
 struct w_sock {
@@ -161,8 +215,8 @@ struct w_sock {
 /// mostly a pointer to the first UDP payload byte contained in a netmap packet
 /// buffer, together with some associated meta data.
 ///
-/// The meta data consists of the length of the payload data, the sender IPv4
-/// address and port number, the DSCP and ECN bits associated with the IPv4
+/// The meta data consists of the length of the payload data, the sender IP
+/// address and port number, the DSCP and ECN bits associated with the IP
 /// packet in which the payload arrived, and the netmap arrival timestamp.
 ///
 /// The w_iov structure also contains a pointer to the next I/O vector, which
@@ -181,10 +235,10 @@ struct w_iov {
 
     /// Sender IP address and port on RX. Destination IP address and port on TX
     /// on a disconnected w_sock. Ignored on TX on a connected w_sock.
-    struct sockaddr_storage addr;
+    struct w_sockaddr saddr;
 
-    /// DSCP + ECN of the received IPv4 packet on RX, DSCP + ECN to use for the
-    /// to-be-transmitted IPv4 packet on TX.
+    /// DSCP + ECN of the received IP packet on RX, DSCP + ECN to use for the
+    /// to-be-transmitted IP packet on TX.
     uint8_t flags;
 
     /// Can be used by application to maintain arbitrary data. Not used by
@@ -234,6 +288,7 @@ extern void __attribute__((nonnull)) w_cleanup(struct w_engine * const w);
 
 extern struct w_sock * __attribute__((nonnull(1)))
 w_bind(struct w_engine * const w,
+       const uint16_t addr_idx,
        const uint16_t port,
        const struct w_sockopt * const opt);
 
@@ -282,15 +337,19 @@ extern void __attribute__((nonnull)) w_free(struct w_iov_sq * const q);
 
 extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
 
-extern struct w_sock * __attribute__((nonnull))
+extern struct w_sock * __attribute__((nonnull(1)))
 w_get_sock(struct w_engine * const w,
-           const uint32_t sip,
-           const uint16_t sport,
-           const uint32_t dip,
-           const uint16_t dport);
+           const uint16_t src_idx,
+           const uint16_t src_port,
+           const struct sockaddr * const dst);
 
-extern const struct sockaddr * __attribute__((nonnull))
-w_get_addr(const struct w_sock * const s, const bool local);
+extern const struct w_sockaddr * __attribute__((nonnull))
+w_get_sockaddr(const struct w_sock * const s, const bool local);
+
+extern const char * __attribute__((nonnull))
+w_ntop(const struct w_addr * const addr,
+       char * const dst,
+       const size_t dst_len);
 
 extern void w_init_rand(void);
 
@@ -418,7 +477,7 @@ w_get_sockopt(const struct w_sock * const s)
 static inline bool __attribute__((nonnull))
 w_connected(const struct w_sock * const s)
 {
-    return s->tup.dip;
+    return s->tup.dst.port;
 }
 
 
