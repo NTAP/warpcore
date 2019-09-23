@@ -186,7 +186,7 @@ int
     // initialize a warpcore engine on the given network interface
     struct w_engine * w = w_init(ifname, rip, nbufs);
 
-    struct w_sock ** s = calloc(conns, sizeof(*s));
+    struct w_sock ** s = calloc(conns, sizeof(struct w_sock *));
     ensure(s, "got sockets");
 
     // look up the peer IP address and our benchmark port
@@ -203,6 +203,7 @@ int
     for (uint32_t c = 0; c < conns; c++) {
         // connect to the peer
         s[c] = w_bind(w, idx, 0, &opt);
+        ensure(s[c], "could not bind");
         w_connect(s[c], peer->ai_addr);
     }
 
@@ -211,7 +212,7 @@ int
 
     // set a timer handler (used with busywait)
     ensure(signal(SIGALRM, &timeout) != SIG_ERR, "signal");
-    const struct itimerval timer = {.it_value.tv_usec = 50000};
+    const struct itimerval timer = {.it_value.tv_usec = 250000};
 
     // send packet trains of sizes between "start" and "end"
     puts("iface\tdriver\tmbps\tbyte\tpkts\ttx\trx");

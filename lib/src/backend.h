@@ -52,19 +52,20 @@
 
 #ifdef WITH_NETMAP
 #include "arp.h"
+#include "neighbor.h"
 #include "udp.h"
 #endif
 
 
 struct w_backend {
 #ifdef WITH_NETMAP
-    int fd;                       ///< Netmap file descriptor.
-    uint32_t cur_txr;             ///< Index of the TX ring currently active.
-    struct netmap_if * nif;       ///< Netmap interface.
-    struct nmreq * req;           ///< Netmap request structure.
-    khash_t(arp_cache) arp_cache; ///< The ARP cache.
-    uint32_t * tail;              ///< TX ring tails after last NIOCTXSYNC call.
-    struct w_iov *** slot_buf; ///< For each ring slot, a pointer to its w_iov.
+    int fd;                     ///< Netmap file descriptor.
+    uint32_t cur_txr;           ///< Index of the TX ring currently active.
+    struct netmap_if * nif;     ///< Netmap interface.
+    struct nmreq * req;         ///< Netmap request structure.
+    khash_t(neighbor) neighbor; ///< The ARP cache.
+    uint32_t * tail;            ///< TX ring tails after last NIOCTXSYNC call.
+    struct w_iov *** slot_buf;  ///< For each ring slot, a pointer to its w_iov.
 #else
 #if defined(HAVE_KQUEUE)
     struct kevent ev[64]; // XXX arbitrary value
@@ -123,37 +124,35 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
 }
 
 
+static inline void set_ip(struct w_addr * const wa,
+                          const struct sockaddr * const sa)
+{
+    wa->af = sa->sa_family;
+    ensure(wa->af == AF_INET || wa->af == AF_INET6, "unknown AF");
+    if (wa->af == AF_INET)
+        memcpy(&wa->ip4,
+               &((const struct sockaddr_in *)(const void *)sa)->sin_addr,
+               sizeof(wa->ip4));
+    else
+        memcpy(&wa->ip6,
+               &((const struct sockaddr_in6 *)(const void *)sa)->sin6_addr,
+               sizeof(wa->ip6));
+}
+
+
+#define sa_port(s)                                                             \
+    _Pragma("clang diagnostic push")                                           \
+                _Pragma("clang diagnostic ignored \"-Wcast-align\"")(          \
+                    (const struct sockaddr *)(s))                              \
+                    ->sa_family == AF_INET                                     \
+        ? ((const struct sockaddr_in *)(s))->sin_port                          \
+        : ((const struct sockaddr_in6 *)(s))                                   \
+              ->sin6_port _Pragma("clang diagnostic pop")
+
+
 /// Global list of initialized warpcore engines.
 ///
 extern sl_head(w_engines, w_engine) engines;
-
-
-/// Compute the IPv4 broadcast address for the given IPv4 address and netmask.
-///
-/// @param      ip    The IPv4 address to compute the broadcast address for.
-/// @param      mask  The netmask associated with @p ip.
-///
-/// @return     The IPv4 broadcast address associated with @p ip and @p mask.
-///
-static inline uint32_t __attribute__((const))
-mk_bcast(const uint32_t ip, const uint32_t mask)
-{
-    return ip | (~mask);
-}
-
-
-/// The IPv4 network prefix for the given IPv4 address and netmask.
-///
-/// @param      ip    The IPv4 address to compute the prefix for.
-/// @param      mask  The netmask associated with @p ip.
-///
-/// @return     The IPv4 prefix associated with @p ip and @p mask.
-///
-static inline uint32_t __attribute__((const))
-mk_net(const uint32_t ip, const uint32_t mask)
-{
-    return ip & mask;
-}
 
 
 extern void __attribute__((nonnull))

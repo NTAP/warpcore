@@ -27,7 +27,6 @@
 
 #include <warpcore/warpcore.h>
 
-#include <netinet/in.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
@@ -38,111 +37,108 @@
 
 #include "backend.h"
 #include "eth.h"
-#include "icmp.h"
+#include "icmp4.h"
 #include "in_cksum.h"
-#include "ip.h"
-#if !defined(NDEBUG) && DLEVEL >= WRN
+#include "ip4.h"
 #include "udp.h"
-#endif
 
 
-/// Make an ICMP message with the given @p type and @p code based on the
+/// Make an ICMPv4 message with the given @p type and @p code based on the
 /// received packet in @p buf.
 ///
 /// @param      w     Backend engine.
-/// @param[in]  type  The ICMP type to send.
-/// @param[in]  code  The ICMP code to send.
-/// @param[in]  buf   The received packet to send the ICMP message for.
+/// @param[in]  type  The ICMPv4 type to send.
+/// @param[in]  code  The ICMPv4 code to send.
+/// @param[in]  buf   The received packet to send the ICMPv4 message for.
 ///
-void icmp_tx(struct w_engine * const w,
+void
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+    __attribute__((no_sanitize("alignment")))
+#endif
+    icmp4_tx(struct w_engine * const w,
              const uint8_t type,
              const uint8_t code,
              uint8_t * const buf)
 {
     struct w_iov * const v = w_alloc_iov_base(w);
     if (unlikely(v == 0)) {
-#ifndef FUZZING
-        warn(CRT, "no more bufs; ICMP not sent (type %d, code %d)", type, code);
-#endif
+        warn(CRT, "no more bufs; ICMPv4 not sent (type %d, code %d)", type,
+             code);
         return;
     }
 
-    // construct an ICMP header and set the fields
-    struct icmp_hdr * const dst_icmp = (void *)ip_data(v->base);
+    // construct an ICMPv4 header and set the fields
+    struct icmp4_hdr * const dst_icmp = (void *)ip4_data(v->base);
     dst_icmp->type = type;
     dst_icmp->code = code;
-    rwarn(INF, 10, "sending ICMP type %d, code %d", type, code);
+    rwarn(INF, 10, "sending ICMPv4 type %d, code %d", type, code);
 
-    struct ip_hdr * const src_ip = (void *)eth_data(buf);
+    struct ip4_hdr * const src_ip = (void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
     uint16_t data_len =
-        MIN(bswap16(src_ip->len),
-            w_iov_max_len(v) - sizeof(struct eth_hdr) - sizeof(struct ip_hdr));
+        MIN(bswap16(src_ip->len), w_iov_max_len(v) - sizeof(struct eth_hdr));
 
     switch (type) {
-    case ICMP_TYPE_ECHOREPLY: {
-        const struct icmp_hdr * const src_icmp = (const void *)ip_data(buf);
+    case ICMP4_TYPE_ECHOREPLY:;
+        const struct icmp4_hdr * const src_icmp = (const void *)ip4_data(buf);
         dst_icmp->id = src_icmp->id;
         dst_icmp->seq = src_icmp->seq;
 
         // copy payload data from echo request
-        const uint16_t hlen = sizeof(*src_ip) + sizeof(*src_icmp);
+        const uint16_t hlen = ip4_hl(src_ip->vhl) + sizeof(*src_icmp);
         data += hlen;
         data_len -= hlen;
         break;
-    }
 
-    case ICMP_TYPE_UNREACH:
+    case ICMP4_TYPE_UNREACH:
         // TODO: implement RFC4884
         dst_icmp->id = dst_icmp->seq = 0;
 
-        // copy IP hdr + 64 bits of the original IP packet as the ICMP payload
-        data_len = ip_hl(src_ip) + 8;
+        // copy IP hdr + 64 bits of the original IP packet as the ICMPv4 payload
+        data_len = ip4_hl(src_ip->vhl) + 8;
         break;
 
     default:
-        die("don't know how to send ICMP type %d", type);
+        die("don't know how to send ICMPv4 type %d", type);
     }
 
     // copy the required data to the reply
     memcpy((uint8_t *)dst_icmp + sizeof(*dst_icmp), data, data_len);
 
-    // calculate the new ICMP checksum
+    // calculate the new ICMPv4 checksum
     dst_icmp->cksum = 0;
     dst_icmp->cksum = ip_cksum(dst_icmp, sizeof(*dst_icmp) + data_len);
 
     // construct an IPv4 header
-    struct ip_hdr * const dst_ip = (void *)eth_data(v->base);
-    struct sockaddr_in * const addr4 = (struct sockaddr_in *)&v->addr;
-    addr4->sin_family = AF_INET;
-    addr4->sin_addr.s_addr = src_ip->src;
+    struct ip4_hdr * const dst_ip = (void *)eth_data(v->base);
+    v->saddr.addr.af = AF_INET;
+    v->saddr.addr.ip4 = src_ip->src;
+    v->len = sizeof(*dst_icmp) + data_len;
     dst_ip->p = IP_P_ICMP;
-    mk_ip_hdr(v, sizeof(*dst_icmp) + data_len, 0);
+    mk_ip4_hdr(v, 0);
 
     // set the Ethernet header
     const struct eth_hdr * const src_eth = (const void *)buf;
     struct eth_hdr * const dst_eth = (void *)v->base;
     dst_eth->dst = src_eth->src;
     dst_eth->src = w->mac;
-    dst_eth->type = ETH_TYPE_IP;
+    dst_eth->type = ETH_TYPE_IP4;
 
     // now send the packet, and make sure it went out before returning it
     const uint32_t orig_idx = v->idx;
-    eth_tx(v, sizeof(*dst_ip) + sizeof(*dst_icmp) + data_len);
+    eth_tx(v);
     do {
-#ifndef FUZZING
         w_nanosleep(100 * NS_PER_US);
-#endif
         w_nic_tx(w);
     } while (v->idx != orig_idx);
     sq_insert_head(&w->iov, v, next);
 }
 
 
-/// Analyze an inbound ICMP packet and react to it. Called from ip_rx() for all
-/// inbound ICMP packets.
+/// Analyze an inbound ICMPv4 packet and react to it. Called from ip_rx() for
+/// all inbound ICMPv4 packets.
 ///
-/// Currently only responds to ICMP echo packets.
+/// Currently only responds to ICMPv4 echo packets.
 ///
 /// The Ethernet frame to operate on is in the current netmap lot of the
 /// indicated RX ring.
@@ -151,72 +147,54 @@ void icmp_tx(struct w_engine * const w,
 /// @param      s     Currently active netmap RX slot.
 /// @param      buf   Incoming packet.
 ///
-void icmp_rx(struct w_engine * const w,
-             struct netmap_slot * const s
-#ifdef FUZZING
-             __attribute__((unused))
-#endif
-             ,
-             uint8_t * const buf)
+void icmp4_rx(struct w_engine * const w,
+              struct netmap_slot * const s,
+              uint8_t * const buf)
 {
-    struct icmp_hdr * const icmp = (void *)ip_data(buf);
-#ifndef FUZZING
-    rwarn(DBG, 10, "received ICMP type %d, code %d", icmp->type, icmp->code);
-#endif
+    const struct icmp4_hdr * const icmp = (void *)ip4_data(buf);
+    rwarn(DBG, 10, "received ICMPv4 type %d, code %d", icmp->type, icmp->code);
 
-#ifndef FUZZING
-    // validate the ICMP checksum
-    struct ip_hdr * const ip = (void *)eth_data(buf);
-    const uint16_t icmp_len =
-        MIN(ip_data_len(ip),
-            s->len - sizeof(struct eth_hdr) - sizeof(struct ip_hdr));
+    // validate the ICMPv4 checksum
+    struct ip4_hdr * const ip = (void *)eth_data(buf);
+    const uint16_t icmp4_len = MIN(
+        ip4_data_len(ip), s->len - sizeof(struct eth_hdr) - ip4_hl(ip->vhl));
 
-    if (ip_cksum(icmp, icmp_len) != 0) {
-        warn(WRN, "invalid ICMP checksum, received 0x%04x",
+    if (ip_cksum(icmp, icmp4_len) != 0) {
+        warn(WRN, "invalid ICMPv4 checksum, received 0x%04x",
              bswap16(icmp->cksum));
         return;
     }
-#endif
 
     switch (icmp->type) {
-    case ICMP_TYPE_ECHO:
+    case ICMP4_TYPE_ECHO:
         // send an echo reply
-        icmp_tx(w, ICMP_TYPE_ECHOREPLY, 0, buf);
+        icmp4_tx(w, ICMP4_TYPE_ECHOREPLY, 0, buf);
         break;
-    case ICMP_TYPE_UNREACH: {
-#if !defined(NDEBUG) && DLEVEL >= WRN
-        const struct ip_hdr * const payload_ip =
-            (const void *)((uint8_t *)icmp + sizeof(*icmp));
-#endif
+    case ICMP4_TYPE_UNREACH:
         switch (icmp->code) {
-        case ICMP_UNREACH_PROTOCOL:
-#if !defined(NDEBUG) && DLEVEL >= WRN
-            rwarn(WRN, 10, "received ICMP protocol %d unreachable",
-                  payload_ip->p);
-#endif
+        case ICMP4_UNREACH_PROTOCOL:
+            rwarn(WRN, 10, "received ICMPv4 protocol %d unreachable",
+                  ((const struct ip4_hdr * const)(
+                       const void *)((const uint8_t *)icmp + sizeof(*icmp)))
+                      ->p);
             break;
-        case ICMP_UNREACH_PORT: {
-#if !defined(NDEBUG) && DLEVEL >= WRN
-            const struct udp_hdr * const payload_udp =
-                (const void *)((const uint8_t *)payload_ip +
-                               sizeof(*payload_ip));
-            rwarn(WRN, 10, "received ICMP IP proto %d port %d unreachable",
-                  payload_ip->p, bswap16(payload_udp->dport));
-#endif
+        case ICMP4_UNREACH_PORT:
+            rwarn(WRN, 10, "received ICMPv4 IP proto %d port %d unreachable",
+                  ((const struct ip4_hdr * const)(
+                       const void *)((const uint8_t *)icmp + sizeof(*icmp)))
+                      ->p,
+                  bswap16(((const struct udp_hdr * const)(
+                               const void *)((const uint8_t *)icmp +
+                                             sizeof(*icmp) + ip4_hl(ip->vhl)))
+                              ->dport));
             break;
-        }
+
         default:
-#ifndef FUZZING
-            rwarn(WRN, 10, "unhandled ICMP code %d", icmp->code)
-#endif
-                ;
+            rwarn(WRN, 10, "unhandled ICMPv4 code %d", icmp->code);
         }
         break;
-    }
+
     default:
-#ifndef FUZZING
-        rwarn(WRN, 10, "unhandled ICMP type %d", icmp->type)
-#endif
-            ;
+        rwarn(WRN, 10, "unhandled ICMPv4 type %d", icmp->type);
     }
 }

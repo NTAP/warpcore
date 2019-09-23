@@ -26,7 +26,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <libgen.h>
-#include <netinet/in.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -134,12 +133,14 @@ int
     struct w_sock * const srv[] = {
 #if 0
         w_bind(w, 0, bswap16(7), &opt),
+        w->addr_cnt >= 2 ? w_bind(w, 1, bswap16(7), &opt) : 0,
         w_bind(w, 0, bswap16(9), &opt),
+        w->addr_cnt >= 2 ? w_bind(w, 1, bswap16(9), &opt) : 0,
 #endif
         w_bind(w, 0, bswap16(55555), &opt),
         w->addr_cnt >= 2 ? w_bind(w, 1, bswap16(55555), &opt) : 0
     };
-    const uint16_t n = sizeof(srv) / sizeof(srv[0]);
+    const uint16_t n = sizeof(srv) / sizeof(struct w_sock *);
 
     // serve requests on the four sockets until an interrupt occurs
     while (done == false) {
@@ -157,23 +158,29 @@ int
             w_rx(s, &i);
             if (sq_empty(&i))
                 continue;
-            char ip_str[INET6_ADDRSTRLEN];
-            w_ntop(&sq_first(&i)->saddr.addr, ip_str, sizeof(ip_str));
-            warn(DBG, "received %" PRIu " bytes from %s:%u", w_iov_sq_len(&i),
-                 ip_str, bswap16(sq_first(&i)->saddr.port));
+            warn(DBG, "received %" PRIu " bytes from %s:%u on %s:%u",
+                 w_iov_sq_len(&i),
+                 w_ntop(&sq_first(&i)->saddr.addr, (char[IP6_STRLEN]){""},
+                        IP6_STRLEN),
+                 bswap16(sq_first(&i)->saddr.port),
+                 w_ntop(&s->tup.local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+                 bswap16(s->tup.local.port));
 
             struct w_iov_sq o = w_iov_sq_initializer(o);
-            uint16_t t = 0;
+
+            switch (bswap16(s->tup.local.port)) {
 #if 0
-            if (s == srv[t++]) {
+            case 7:
                 // echo received data back to sender (zero-copy)
                 sq_concat(&o, &i);
-            }
-             else if (s == srv[t++]) {
+                break;
+
+            case 9:
                 // discard; nothing to do
-            } else
+                break;
 #endif
-            if (s == srv[t++] || s == srv[t++]) {
+
+            case 55555:;
                 static struct w_iov_sq tmp = w_iov_sq_initializer(tmp);
                 static uint64_t tmp_len = 0;
                 static uint64_t nonce = 0;
@@ -213,8 +220,9 @@ int
                     sq_concat(&o, &tmp);
                     nonce = tmp_len = 0;
                 }
+                break;
 
-            } else {
+            default:
                 die("unknown service");
             }
 

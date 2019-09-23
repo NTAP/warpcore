@@ -70,73 +70,71 @@ struct w_iov_sq {
     }
 
 
-#define af_len(x) ((x) == AF_INET ? 32 / 8 : 128 / 8)
+#define IP6_LEN 16 ///< Length of an IPv4 address in bytes. Sixteen.
+#define IP6_STRLEN 46
+
+
+#define IP4_LEN 4 ///< Length of an IPv4 address in bytes. Four.
+#define IP4_STRLEN 16
+
+
+#define af_len(x) (uint8_t)((x) == AF_INET ? IP4_LEN : IP6_LEN)
+
 
 struct w_addr {
+    uint8_t af; ///< Address family.
     union {
         uint32_t ip4;
         uint128_t ip6;
     };
-    uint8_t af; ///< Address family.
 };
 
 struct w_ifaddr {
     struct w_addr addr;
+    union {
+        uint32_t net4;
+        uint128_t net6;
+    };
+    union {
+        uint32_t bcast4;
+        uint128_t bcast6;
+    };
     uint8_t prefix; ///< Prefix length.
 };
 
 struct w_sockaddr {
-    struct w_addr addr;
     uint16_t port;
+    struct w_addr addr;
 };
 
 
-// #define sa_set_port(s, p)                                                      \
-//     do {                                                                       \
-//         _Pragma("clang diagnostic push")                                       \
-//             _Pragma("clang diagnostic ignored \"-Wcast-align\"") if (          \
-//                 ((struct sockaddr *)(s))->sa_family ==                         \
-//                 AF_INET)((struct sockaddr_in *)(s))                            \
-//                 ->sin_port = (p);                                              \
-//         else((struct sockaddr_in6 *)(s))->sin6_port = (p);                     \
-//         _Pragma("clang diagnostic pop")                                        \
-//     } while (0)
-
-
-#define sa_get_port(s)                                                         \
-    _Pragma("clang diagnostic push")                                           \
-                _Pragma("clang diagnostic ignored \"-Wcast-align\"")(          \
-                    (const struct sockaddr *)(s))                              \
-                    ->sa_family == AF_INET                                     \
-        ? ((const struct sockaddr_in *)(s))->sin_port                          \
-        : ((const struct sockaddr_in6 *)(s))                                   \
-              ->sin6_port _Pragma("clang diagnostic pop")
-
-
-#define sa_addr(s)                                                             \
-    _Pragma("clang diagnostic push")                                           \
-        _Pragma("clang diagnostic ignored \"-Wcast-align\"")(                  \
-            ((const struct sockaddr *)(s))->sa_family == AF_INET               \
-                ? (const struct sockaddr *)&((const struct sockaddr_in *)(s))  \
-                      ->sin_addr                                               \
-                : (const struct sockaddr *)&((const struct sockaddr_in6 *)(s)) \
-                      ->sin6_addr) _Pragma("clang diagnostic pop")
-
-
-struct w_tuple {
-    uint16_t src_idx;      ///< Index of source address.
-    uint16_t src_port;     ///< Source port.
-    struct w_sockaddr dst; ///< Destination address and port.
+struct w_socktuple {
+    struct w_sockaddr local;  ///< Local address and port.
+    struct w_sockaddr remote; ///< Remote address and port.
 };
 
 
 extern khint_t __attribute__((nonnull))
-tuple_hash(const struct w_tuple * const tup);
+w_socktuple_hash(const struct w_socktuple * const tup);
 
 extern khint_t __attribute__((nonnull))
-tuple_equal(const struct w_tuple * const a, const struct w_tuple * const b);
+w_socktuple_cmp(const struct w_socktuple * const a,
+                const struct w_socktuple * const b);
 
-KHASH_INIT(sock, struct w_tuple *, struct w_sock *, 1, tuple_hash, tuple_equal)
+KHASH_INIT(sock,
+           struct w_socktuple *,
+           struct w_sock *,
+           1,
+           w_socktuple_hash,
+           w_socktuple_cmp)
+
+
+#define ETH_LEN 6
+#define ETH_STRLEN (ETH_LEN * 3 + 1)
+
+struct eth_addr {
+    uint8_t addr[ETH_LEN];
+};
 
 
 /// A warpcore backend engine.
@@ -147,8 +145,8 @@ struct w_engine {
     struct w_backend * b; ///< Backend.
     uint16_t mtu;         ///< MTU of this interface.
     uint32_t mbps;        ///< Link speed of this interface in Mb/s.
-    struct ether_addr mac; ///< Local Ethernet MAC address of the interface.
-    struct ether_addr rip; ///< Ethernet MAC address of the next-hop router.
+    struct eth_addr mac;  ///< Local Ethernet MAC address of the interface.
+    struct eth_addr rip;  ///< Ethernet MAC address of the next-hop router.
 
     khash_t(sock) sock;  ///< List of open (bound) w_sock sockets.
     struct w_iov_sq iov; ///< Tail queue of w_iov buffers available.
@@ -164,6 +162,9 @@ struct w_engine {
 
     uint16_t addr_cnt;
     uint16_t addr4_pos;
+    uint8_t have_ip4 : 1;
+    uint8_t have_ip6 : 1;
+    uint8_t : 6;
     struct w_ifaddr ifaddr[];
 };
 
@@ -199,8 +200,8 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     struct w_engine * w;
 
-    struct w_tuple tup;     ///< Socket four-tuple.
-    struct ether_addr dmac; ///< Destination MAC address.
+    struct w_socktuple tup; ///< Socket four-tuple.
+    struct eth_addr dmac;   ///< Destination MAC address.
     struct w_sockopt opt;   ///< Socket options.
 
     int fd; ///< Socket descriptor underlying the engine.
@@ -337,14 +338,10 @@ extern void __attribute__((nonnull)) w_free(struct w_iov_sq * const q);
 
 extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
 
-extern struct w_sock * __attribute__((nonnull(1)))
+extern struct w_sock * __attribute__((nonnull(1, 2)))
 w_get_sock(struct w_engine * const w,
-           const uint16_t src_idx,
-           const uint16_t src_port,
-           const struct sockaddr * const dst);
-
-extern const struct w_sockaddr * __attribute__((nonnull))
-w_get_sockaddr(const struct w_sock * const s, const bool local);
+           const struct w_sockaddr * const local,
+           const struct w_sockaddr * const remote);
 
 extern const char * __attribute__((nonnull))
 w_ntop(const struct w_addr * const addr,
@@ -477,7 +474,7 @@ w_get_sockopt(const struct w_sock * const s)
 static inline bool __attribute__((nonnull))
 w_connected(const struct w_sock * const s)
 {
-    return s->tup.dst.port;
+    return s->tup.remote.port;
 }
 
 

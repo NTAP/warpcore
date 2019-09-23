@@ -12,7 +12,6 @@ check_function_exists(recvmmsg HAVE_RECVMMSG)
 check_function_exists(sendmmsg HAVE_SENDMMSG)
 check_function_exists(kqueue HAVE_KQUEUE)
 check_function_exists(epoll_create HAVE_EPOLL)
-check_function_exists(ether_ntoa_r HAVE_ETHER_NTOA_R)
 check_function_exists(backtrace HAVE_BACKTRACE)
 
 # Look for netmap
@@ -190,6 +189,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
             -google-runtime-references
             -hicpp-braces-around-statements
             -hicpp-signed-bitwise
+            -modernize-use-trailing-return-type
             -readability-braces-around-statements
             -readability-magic-numbers
         )

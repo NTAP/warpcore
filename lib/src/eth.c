@@ -37,7 +37,8 @@
 #include "arp.h"
 #include "backend.h"
 #include "eth.h"
-#include "ip.h"
+#include "ip4.h"
+#include "ip6.h"
 
 
 /// Receive an Ethernet frame. This is the lowest-level RX function, called for
@@ -57,31 +58,33 @@ bool eth_rx(struct w_engine * const w,
     // an Ethernet frame is at least 64 bytes, enough for the Ethernet header
     const struct eth_hdr * const eth = (void *)buf;
 
-#if !defined(NDEBUG) && !defined(FUZZING)
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
-    warn(DBG, "Eth %s -> %s, type %d, len %d", ether_ntoa_r(&eth->src, src),
-         ether_ntoa_r(&eth->dst, dst), bswap16(eth->type), s->len);
-#endif
+    warn(DBG, "Eth %s -> %s, type 0x%04x, len %d",
+         eth_ntoa(&eth->src, (char[ETH_STRLEN]){""}),
+         eth_ntoa(&eth->dst, (char[ETH_STRLEN]){""}), bswap16(eth->type),
+         s->len);
 
     // make sure the packet is for us (or broadcast)
-    if (unlikely((memcmp(&eth->dst, &w->mac, ETHER_ADDR_LEN) != 0) &&
-                 (memcmp(&eth->dst, "\xff\xff\xff\xff\xff\xff",
-                         ETHER_ADDR_LEN) != 0))) {
-#ifndef FUZZING
+    if (unlikely((memcmp(&eth->dst, &w->mac, sizeof(eth->dst)) != 0) &&
+                 (memcmp(&eth->dst, ETH_ADDR_BCAST, sizeof(eth->dst)) != 0) &&
+                 (memcmp(&eth->dst, ETH_ADDR_MCAST6, 2) != 0))) {
         warn(INF, "Ethernet packet to %s not destined to us (%s); ignoring",
-             ether_ntoa_r(&eth->dst, dst), ether_ntoa_r(&w->mac, src));
-#endif
+             eth_ntoa(&eth->dst, (char[ETH_STRLEN]){""}),
+             eth_ntoa(&w->mac, (char[ETH_STRLEN]){""}));
         return false;
     }
-    if (likely(eth->type == ETH_TYPE_IP))
-        return ip_rx(w, s, buf);
-    if (eth->type == ETH_TYPE_ARP)
-        arp_rx(w, buf);
-#ifndef FUZZING
-    else
-        warn(INF, "unhandled ethertype 0x%04x", bswap16(eth->type));
-#endif
+
+    switch (eth->type) {
+    case ETH_TYPE_IP6:
+        return likely(w->have_ip6) ? ip6_rx(w, s, buf) : false;
+    case ETH_TYPE_IP4:
+        return likely(w->have_ip4) ? ip4_rx(w, s, buf) : false;
+    case ETH_TYPE_ARP:
+        if (likely(w->have_ip4))
+            arp_rx(w, buf);
+        return false;
+    }
+
+    warn(INF, "unhandled ethertype 0x%04x", bswap16(eth->type));
     return false;
 }
 
@@ -91,11 +94,10 @@ bool eth_rx(struct w_engine * const w,
 /// if all are full - dropped.
 ///
 /// @param      v     The w_iov containing the Ethernet frame to transmit.
-/// @param[in]  len   The length of the Ethernet *payload* contained in @p v.
 ///
 /// @return     True if the buffer was placed into a TX ring, false otherwise.
 ///
-bool __attribute__((nonnull)) eth_tx(struct w_iov * const v, const uint16_t len)
+bool __attribute__((nonnull)) eth_tx(struct w_iov * const v)
 {
     struct w_backend * const b = v->w->b;
 
@@ -120,7 +122,7 @@ bool __attribute__((nonnull)) eth_tx(struct w_iov * const v, const uint16_t len)
 
     struct netmap_slot * const s = &txr->slot[txr->cur];
     b->slot_buf[txr->ringid][txr->cur] = v;
-    s->len = len + sizeof(struct eth_hdr);
+    s->len = v->len + sizeof(struct eth_hdr);
 
     if (unlikely(nm_ring_space(txr) == 1 || sq_next(v, next) == 0)) {
         // we are using the last slot in this ring, or this is the last w_iov in
@@ -129,20 +131,21 @@ bool __attribute__((nonnull)) eth_tx(struct w_iov * const v, const uint16_t len)
     } else
         s->flags = NS_BUF_CHANGED;
 
+#if 0
     warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
          v->idx, b->cur_txr, txr->cur, s->buf_idx);
+#endif
+
     // temporarily place v into the current tx ring
     const uint32_t slot_idx = s->buf_idx;
     s->buf_idx = v->idx;
     v->idx = slot_idx;
 
-#if !defined(NDEBUG) && DLEVEL >= DBG
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
     const struct eth_hdr * const eth = (void *)v->base;
-    warn(DBG, "Eth %s -> %s, type %d, len %lu", ether_ntoa_r(&eth->src, src),
-         ether_ntoa_r(&eth->dst, dst), bswap16(eth->type), len + sizeof(*eth));
-#endif
+    warn(DBG, "Eth %s -> %s, type 0x%04x, len %u",
+         eth_ntoa(&eth->src, (char[ETH_STRLEN]){""}),
+         eth_ntoa(&eth->dst, (char[ETH_STRLEN]){""}), bswap16(eth->type),
+         s->len);
 
     // advance tx ring
     txr->head = txr->cur = nm_ring_next(txr, txr->cur);

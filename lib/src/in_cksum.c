@@ -51,11 +51,14 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
+// #define CHECKSUM_SSE
 
+#ifdef CHECKSUM_SSE
 #include <emmintrin.h>
 #include <smmintrin.h>
 #include <stdint.h>
 #include <tmmintrin.h>
+#endif
 
 #ifdef __FreeBSD__
 #include <sys/socket.h> // IWYU pragma: keep
@@ -64,10 +67,8 @@
 #include <warpcore/warpcore.h>
 
 #include "in_cksum.h"
-#include "ip.h"
-#include "udp.h"
-
-#define CHECKSUM_SSE
+#include "ip4.h"
+#include "ip6.h"
 
 
 static inline uint16_t __attribute__((always_inline, const))
@@ -79,6 +80,7 @@ csum_oc16_reduce(uint32_t sum)
 }
 
 
+#ifdef CKSUM_UPDATE
 uint16_t
 ip_cksum_update32(uint16_t old_check, uint32_t old_data, uint32_t new_data)
 {
@@ -99,9 +101,8 @@ ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data)
     const uint32_t l = (uint32_t)(old_check + ~old_data + new_data);
     return csum_oc16_reduce(l);
 }
+#endif
 
-
-#ifndef CHECKSUM_SSE
 
 static inline uint32_t __attribute__((always_inline))
 csum_oc16(const uint8_t * const restrict data, const uint32_t data_len)
@@ -109,7 +110,7 @@ csum_oc16(const uint8_t * const restrict data, const uint32_t data_len)
     const uint16_t * restrict data16 = (const uint16_t *)(const void *)data;
     uint32_t sum = 0;
 
-    for (uint32_t n = 0; n < (data_len / sizeof(uint16_t)); n++)
+    for (uint64_t n = 0; n < data_len / sizeof(uint16_t); n++)
         sum += (uint32_t)data16[n];
 
     if (data_len & 1)
@@ -118,6 +119,8 @@ csum_oc16(const uint8_t * const restrict data, const uint32_t data_len)
     return sum;
 }
 
+
+#ifndef CHECKSUM_SSE
 
 /// Compute the Internet checksum over buffer @p buf of length @p len. See
 /// [RFC1071](https://tools.ietf.org/html/rfc1071).
@@ -134,29 +137,29 @@ uint16_t ip_cksum(const void * const buf, const uint16_t len)
 }
 
 
-uint16_t
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-    __attribute__((no_sanitize("alignment")))
-#endif
-    udp_cksum(const void * const buf, const uint16_t len)
+uint16_t payload_cksum(const void * const buf, const uint16_t len)
 {
-    const struct ip_hdr * const ip = (const struct ip_hdr *)buf;
-    const struct udp_hdr * const udp =
-        (const struct udp_hdr *)(const void *)((const uint8_t *)buf +
-                                               sizeof(*ip));
+    const uint8_t v = ip_v(*(const uint8_t *)buf);
+    uint16_t ip_hdr_len;
+    uint32_t sum;
 
-    // IPv4 pseudo header
-    uint32_t sum = ((uint32_t)ip->p) << 8;
-    sum += csum_oc16((const uint8_t *)&ip->src, sizeof(ip->src));
-    sum += csum_oc16((const uint8_t *)&ip->dst, sizeof(ip->dst));
-    sum += csum_oc16((const uint8_t *)&udp->len, sizeof(udp->len));
+    if (v == 4) {
+        const struct ip4_hdr * const ip = buf;
+        ip_hdr_len = ip4_hl(*(const uint8_t *)buf);
+        sum = (uint32_t)ip->p << 8;
+        sum += csum_oc16((const uint8_t *)&ip->src, 2 * sizeof(ip->src));
+        const uint16_t plen = ip->len - bswap16(ip_hdr_len);
+        sum += csum_oc16((const uint8_t *)&plen, sizeof(plen));
+    } else {
+        const struct ip6_hdr * const ip = buf;
+        ip_hdr_len = sizeof(*ip);
+        sum = (uint32_t)ip->next_hdr << 24;
+        sum += csum_oc16((const uint8_t *)&ip->src, 2 * sizeof(ip->src));
+        sum += csum_oc16((const uint8_t *)&ip->len, sizeof(ip->len));
+    }
 
-    // UDP header without checksum.
-    sum += csum_oc16((const uint8_t *)udp, sizeof(*udp) - sizeof(uint16_t));
-
-    // UDP payload
-    sum += csum_oc16((const uint8_t *)udp + sizeof(*udp),
-                     len - sizeof(*ip) - sizeof(*udp));
+    // payload
+    sum += csum_oc16((const uint8_t *)buf + ip_hdr_len, len - ip_hdr_len);
 
     return csum_oc16_reduce(sum);
 }
@@ -276,9 +279,13 @@ uint16_t ip_cksum(const void * const buf, const uint16_t len)
 }
 
 
-uint16_t udp_cksum(const void * const buf, const uint16_t len)
+uint16_t
+#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
+    __attribute__((no_sanitize("alignment")))
+#endif
+    udp_cksum(const void * const buf, const uint16_t len)
 {
-    const struct ip_hdr * ip = (const struct ip_hdr *)buf;
+    const struct ip4_hdr * ip = (const struct ip4_hdr *)buf;
     __m128i sum32a;
     __m128i sum32b;
     uint32_t sum;
@@ -289,9 +296,10 @@ uint16_t udp_cksum(const void * const buf, const uint16_t len)
      * Swap 16-bit words from big endian to little endian
      * Extend 16 bit words to 32 bit words for further with SSE
      */
-    sum32a = _mm_loadu_si128((
-        const __m128i *)(const void *)((const uint8_t *)buf +
-                                       __builtin_offsetof(struct ip_hdr, src)));
+    sum32a = _mm_loadu_si128(
+        (const __m128i *)(const void *)((const uint8_t *)buf +
+                                        __builtin_offsetof(struct ip4_hdr,
+                                                           src)));
     sum32a = _mm_shuffle_epi8(sum32a, swap16a);
 
     /**
@@ -300,14 +308,14 @@ uint16_t udp_cksum(const void * const buf, const uint16_t len)
      * Swap 16-bit words from big endian to little endian
      * Extend 16 bit words to 32 bit words for further with SSE
      */
-    sum32b =
-        _mm_loadu_si128((const __m128i *)(const void *)((const uint8_t *)buf +
-                                                        sizeof(struct ip_hdr)));
+    sum32b = _mm_loadu_si128(
+        (const __m128i *)(const void *)((const uint8_t *)buf +
+                                        sizeof(struct ip4_hdr)));
     sum32b = _mm_shuffle_epi8(sum32b, udp_mask);
 
-    sum = csum_oc16_sse((const uint8_t *)buf + sizeof(struct ip_hdr) +
+    sum = csum_oc16_sse((const uint8_t *)buf + sizeof(struct ip4_hdr) +
                             sizeof(struct udp_hdr),
-                        len - sizeof(struct ip_hdr) - sizeof(struct udp_hdr),
+                        len - sizeof(struct ip4_hdr) - sizeof(struct udp_hdr),
                         sum32a, sum32b) +
           ((uint32_t)ip->p);
 

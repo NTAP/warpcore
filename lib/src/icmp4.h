@@ -29,16 +29,35 @@
 
 #include <stdint.h>
 
-extern uint16_t __attribute__((nonnull))
-ip_cksum(const void * const buf, const uint16_t len);
+#include <net/netmap.h>
+#include <warpcore/warpcore.h>
 
-extern uint16_t __attribute__((nonnull))
-payload_cksum(const void * const buf, const uint16_t len);
 
-#ifdef CKSUM_UPDATE
-extern uint16_t __attribute__((const))
-ip_cksum_update32(uint16_t old_check, uint32_t old_data, uint32_t new_data);
+#define ICMP4_TYPE_ECHOREPLY 0 ///< ICMP echo reply type.
+#define ICMP4_TYPE_UNREACH 3   ///< ICMP unreachable type.
+#define ICMP4_TYPE_ECHO 8      ///< ICMP echo type.
 
-extern uint16_t __attribute__((const))
-ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data);
-#endif
+#define ICMP4_UNREACH_PROTOCOL 2 ///< For ICMP4_TYPE_UNREACH, bad protocol code.
+#define ICMP4_UNREACH_PORT 3     ///< For ICMP4_TYPE_UNREACH, bad port code.
+
+
+/// An ICMP header representation; see
+/// [RFC792](https://tools.ietf.org/html/rfc792).
+///
+struct icmp4_hdr {
+    uint8_t type;   ///< Type of ICMP message.
+    uint8_t code;   ///< Code of the ICMP type.
+    uint16_t cksum; ///< Ones' complement header checksum.
+    uint16_t id;
+    uint16_t seq;
+} __attribute__((aligned(1), packed));
+
+
+extern void __attribute__((nonnull)) icmp4_tx(struct w_engine * w,
+                                              const uint8_t type,
+                                              const uint8_t code,
+                                              uint8_t * const buf);
+
+extern void __attribute__((nonnull)) icmp4_rx(struct w_engine * w,
+                                              struct netmap_slot * const s,
+                                              uint8_t * const buf);

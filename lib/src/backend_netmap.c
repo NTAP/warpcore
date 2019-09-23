@@ -32,7 +32,6 @@
 #include <fcntl.h>
 #include <net/if.h>
 #include <net/netmap_user.h>
-#include <netinet/if_ether.h>
 #include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,6 +40,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 // IWYU pragma: no_include <net/netmap.h>
@@ -52,9 +52,9 @@
 #include <sanitizer/asan_interface.h>
 #endif
 
-#include "arp.h"
 #include "backend.h"
 #include "eth.h"
+#include "neighbor.h"
 #include "udp.h"
 
 
@@ -84,7 +84,9 @@ void backend_init(struct w_engine * const w,
     ensure((b->fd = open("/dev/netmap", O_RDWR | O_CLOEXEC)) != -1,
            "cannot open /dev/netmap");
     w->backend_name = "netmap";
-    w->backend_variant = "";
+    w->backend_variant =
+        is_lo ? (is_left ? "left loopback pipe" : "right loopback pipe")
+              : "default";
 
     // switch interface to netmap mode
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");
@@ -104,9 +106,10 @@ void backend_init(struct w_engine * const w,
         b->req->nr_ringid = 1 & NETMAP_RING_MASK;
 
         // preload ARP cache
-        arp_cache_update(
-            w, 0x0100007f,
-            (struct ether_addr){{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}});
+        neighbor_update(w, &(struct w_addr){.af = AF_INET, .ip4 = 0x0100007f},
+                        (struct eth_addr){ETH_ADDR_NONE});
+        neighbor_update(w, &(struct w_addr){.af = AF_INET6, .ip6 = 0x01},
+                        (struct eth_addr){ETH_ADDR_NONE});
     } else {
         struct w_engine * e;
         sl_foreach (e, &engines, next)
@@ -137,7 +140,7 @@ void backend_init(struct w_engine * const w,
     for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
         // allocate slot pointers
-        ensure(b->slot_buf[ri] = calloc(r->num_slots, sizeof(**b->slot_buf)),
+        ensure(b->slot_buf[ri] = calloc(r->num_slots, sizeof(struct w_iov *)),
                "cannot allocate slot w_iov pointers");
         // initialize tails
         b->tail[ri] = r->tail;
@@ -184,7 +187,7 @@ void backend_init(struct w_engine * const w,
 void backend_cleanup(struct w_engine * const w)
 {
     // free ARP cache
-    free_arp_cache(w);
+    free_neighbor(w);
 
     // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
@@ -212,7 +215,7 @@ void backend_cleanup(struct w_engine * const w)
 }
 
 
-static inline uint16_t __attribute__((always_inline)) pick_sport(void)
+static inline uint16_t __attribute__((always_inline)) pick_local_port(void)
 {
     // compute a random port >= 1024
     return 1024 + (uint16_t)w_rand_uniform32(UINT16_MAX - 1024);
@@ -232,8 +235,8 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     if (opt)
         w_set_sockopt(s, opt);
 
-    if (likely(s->tup.sport == 0))
-        s->tup.sport = pick_sport();
+    if (likely(s->tup.local.port == 0))
+        s->tup.local.port = pick_local_port();
 
     return 0;
 }
@@ -256,23 +259,23 @@ void backend_close(struct w_sock * const s __attribute__((unused))) {}
 ///
 int backend_connect(struct w_sock * const s)
 {
-    // find the Ethernet MAC address of the destination or the default router,
-    // and update the template header
-    const uint32_t ip = s->w->rip && (mk_net(s->tup.dip, s->w->mask) !=
-                                      mk_net(s->tup.sip, s->w->mask))
-                            ? s->w->rip
-                            : s->tup.dip;
-    s->dmac = arp_who_has(s->w, ip);
+    // // find the Ethernet MAC address of the destination or the default
+    // router,
+    // // and update the template header
+    // const uint32_t ip = s->w->rip && (mk_net(s->tup.dip, s->w->mask) !=
+    //                                   mk_net(s->tup.sip, s->w->mask))
+    //                         ? s->w->rip
+    //                         : s->tup.dip;
+    s->dmac = who_has(s->w, &s->tup.remote.addr);
 
     // see if we need to update the sport
     uint8_t n = 200;
-    do {
-        if (likely(w_get_sock(s->w, s->tup.sip, s->tup.sport, s->tup.dip,
-                              s->tup.dport) == 0))
+    while (n--) {
+        if (likely(w_get_sock(s->w, &s->tup.local, &s->tup.remote) == 0))
             break;
         // four-tuple exists, reroll sport
-        s->tup.sport = pick_sport();
-    } while (--n);
+        s->tup.local.port = pick_local_port();
+    }
 
     return n == 0;
 }
@@ -342,8 +345,10 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 {
     struct pollfd fds = {.fd = w->b->fd, .events = POLLIN};
 again:
-    if (poll(&fds, 1, (int)(nsec / NS_PER_MS)) == 0)
+    if (poll(&fds, 1, nsec < 0 ? -1 : (int)(nsec / NS_PER_MS)) == 0) {
+        warn(ERR, "done");
         return false;
+    }
 
     // loop over all rx rings
     bool rx = false;
@@ -351,8 +356,10 @@ again:
         struct netmap_ring * const r = NETMAP_RXRING(w->b->nif, i);
         while (likely(!nm_ring_empty(r))) {
             // process the current slot
+#if 0
             warn(DBG, "rx idx %u from ring %u slot %u", r->slot[r->cur].buf_idx,
                  i, r->cur);
+#endif
             rx = eth_rx(w, &r->slot[r->cur],
                         (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx));
             r->head = r->cur = nm_ring_next(r, r->cur);
@@ -391,8 +398,10 @@ void w_nic_tx(struct w_engine * const w)
              likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
             struct w_iov * const v = w->b->slot_buf[r->ringid][j];
+#if 0
             warn(DBG, "move idx %u from ring %u slot %u to w_iov (swap w/%u)",
                  s->buf_idx, i, j, v->idx);
+#endif
             const uint32_t slot_idx = s->buf_idx;
             s->buf_idx = v->idx;
             v->idx = slot_idx;

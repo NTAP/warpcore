@@ -103,8 +103,9 @@ bool io(const uint_t len)
         ensure(ov->flags == iv->flags, "TOS byte 0x%02x != 0x%02x", ov->flags,
                iv->flags);
 #endif
-        ensure(iv->saddr.port == w_get_sockaddr(s_clnt, true)->port,
-               "port mismatch");
+        ensure(iv->saddr.port == s_clnt->tup.local.port,
+               "port mismatch, in %u != out %u", bswap16(iv->saddr.port),
+               bswap16(s_clnt->tup.local.port));
 
         ensure(iv->saddr.addr.ip6 == ov->saddr.addr.ip6, "IP mismatch");
 
@@ -137,7 +138,6 @@ void init(const uint_t len)
     // connect to server
     s_clnt = w_bind(w_clnt, 0, 0, 0);
     w_connect(s_clnt, (struct sockaddr *)&(struct sockaddr_in6){
-                          .sin6_len = sizeof(struct sockaddr_in6),
                           .sin6_family = AF_INET6,
                           .sin6_addr = IN6ADDR_LOOPBACK_INIT,
                           .sin6_port = bswap16(55555)});

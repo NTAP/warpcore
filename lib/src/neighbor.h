@@ -27,18 +27,43 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <stdbool.h>
+#include <sys/socket.h>
 
-extern uint16_t __attribute__((nonnull))
-ip_cksum(const void * const buf, const uint16_t len);
+#include <warpcore/warpcore.h>
 
-extern uint16_t __attribute__((nonnull))
-payload_cksum(const void * const buf, const uint16_t len);
 
-#ifdef CKSUM_UPDATE
-extern uint16_t __attribute__((const))
-ip_cksum_update32(uint16_t old_check, uint32_t old_data, uint32_t new_data);
+extern struct eth_addr __attribute__((nonnull))
+who_has(struct w_engine * const w, const struct w_addr * const addr);
 
-extern uint16_t __attribute__((const))
-ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data);
-#endif
+extern void __attribute__((nonnull)) free_neighbor(struct w_engine * const w);
+
+extern void __attribute__((nonnull))
+neighbor_update(struct w_engine * const w,
+                const struct w_addr * const addr,
+                const struct eth_addr mac);
+
+
+static inline khint_t __attribute__((nonnull))
+w_addr_hash(const struct w_addr * const addr)
+{
+    // only hash part of the struct and rely on w_addr_hash for comparison
+    return addr->af == AF_INET ? fnv1a_32(&addr->ip4, IP4_LEN)
+                               : fnv1a_32(&addr->ip6, IP6_LEN);
+}
+
+
+static inline bool __attribute__((nonnull))
+w_addr_cmp(const struct w_addr * const a, const struct w_addr * const b)
+{
+    return a->af == b->af &&
+           (a->af == AF_INET ? (a->ip4 == b->ip4) : (a->ip6 == b->ip6));
+}
+
+
+KHASH_INIT(neighbor,
+           const struct w_addr *,
+           struct eth_addr,
+           1,
+           w_addr_hash,
+           w_addr_cmp)

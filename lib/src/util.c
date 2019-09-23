@@ -500,7 +500,7 @@ void util_hexdump(const void * const ptr,
 {
 #ifndef PARTICLE
     DTHREAD_LOCK;
- #ifndef RIOT_VERSION
+#ifndef RIOT_VERSION
     struct timeval now;
     struct timeval elapsed;
     gettimeofday(&now, 0);

@@ -33,11 +33,11 @@
 #ifdef __APPLE__
 // need to come before ifaddrs.h
 #include <sys/socket.h>
-#include <sys/types.h>
 #endif
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
@@ -45,7 +45,6 @@
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
 #include <net/if.h>
-#include <netinet/if_ether.h>
 #endif
 
 #if defined(__linux__)
@@ -72,23 +71,21 @@
 
 /// Return the Ethernet MAC address of network interface @p i.
 ///
-/// @param[out] mac   A buffer of at least ETH_ADDR_LEN bytes.
+/// @param[out] mac   A buffer of at least ETH_LEN bytes.
 /// @param[in]  i     A network interface.
 ///
-void plat_get_mac(struct ether_addr * const mac, const struct ifaddrs * const i)
+void plat_get_mac(struct eth_addr * const mac, const struct ifaddrs * const i)
 {
 #if defined(__linux__)
-    memcpy(mac, ((struct sockaddr_ll *)(void *)i->ifa_addr)->sll_addr,
-           ETHER_ADDR_LEN);
+    memcpy(mac, ((struct sockaddr_ll *)(void *)i->ifa_addr)->sll_addr, ETH_LEN);
 #elif defined(PARTICLE)
     if_t iface;
     if_get_by_name(i->ifname, &iface);
     struct sockaddr_ll hw_addr;
     if_get_lladdr(iface, &hw_addr);
-    memcpy(mac, hw_addr.sll_addr, ETHER_ADDR_LEN);
+    memcpy(mac, hw_addr.sll_addr, ETH_LEN);
 #elif !defined(RIOT_VERSION)
-    memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr),
-           ETHER_ADDR_LEN);
+    memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr), ETH_LEN);
 #endif
 }
 
@@ -300,15 +297,9 @@ done:
 }
 
 
-#ifndef HAVE_ETHER_NTOA_R
-#include <stdio.h>
-
-char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
+const char * eth_ntoa(const struct eth_addr * const addr, char * const buf)
 {
-    sprintf(buf, "%x:%x:%x:%x:%x:%x", addr->ether_addr_octet[0],
-            addr->ether_addr_octet[1], addr->ether_addr_octet[2],
-            addr->ether_addr_octet[3], addr->ether_addr_octet[4],
-            addr->ether_addr_octet[5]);
+    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", addr->addr[0], addr->addr[1],
+            addr->addr[2], addr->addr[3], addr->addr[4], addr->addr[5]);
     return buf;
 }
-#endif

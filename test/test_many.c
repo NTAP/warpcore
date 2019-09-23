@@ -46,7 +46,6 @@ int main(void)
         if (s == 0)
             break;
         w_connect(s, (struct sockaddr *)&(struct sockaddr_in6){
-                         .sin6_len = sizeof(struct sockaddr_in6),
                          .sin6_family = AF_INET6,
                          .sin6_addr = IN6ADDR_LOOPBACK_INIT,
                          .sin6_port = bswap16(55555)});

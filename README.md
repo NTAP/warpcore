@@ -5,7 +5,7 @@
 
 ## About
 
-Warpcore is a minimal userspace UDP/IPv4/Ethernet stack for the [netmap packet
+Warpcore is a minimal userspace UDP/IP/Ethernet stack for the [netmap packet
 I/O framework](http://info.iet.unipi.it/~luigi/netmap/). Due to its dependency
 on netmap, warpcore supports Linux (with a netmap-patched kernel) and FreeBSD
 (which has netmap support since release 11). However, warpcore has a backend

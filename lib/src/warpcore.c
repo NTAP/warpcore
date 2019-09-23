@@ -47,8 +47,6 @@
 #include "krng.h"
 #include <ifaddrs.h>
 #include <net/if.h>
-#include <netinet6/in6_var.h>
-#include <sys/ioctl.h>
 #elif defined(PARTICLE)
 #include <rng_hal.h>
 
@@ -75,9 +73,12 @@
 
 #ifdef WITH_NETMAP
 #include "eth.h"
-#include "ip.h"
+#include "ip4.h"
+#include "ip6.h"
 #include "udp.h"
 #endif
+
+#include "neighbor.h"
 
 #ifdef PARTICLE
 typedef struct if_list if_list;
@@ -135,21 +136,19 @@ dump_bufs(const char * const label, const struct w_iov_sq * const q)
 /// Get the socket bound to the given four-tuple <source IP, source port,
 /// destination IP, destination port>.
 ///
-/// @param      w         Backend engine.
-/// @param[in]  src_idx   Index of the IP address to bind to.
-/// @param[in]  src_port  The source port.
-/// @param[in]  dst       The destination IP address and port.
+/// @param      w       Backend engine.
+/// @param[in]  local   The local IP address and port.
+/// @param[in]  remote  The remote IP address and port.
 ///
 /// @return     The w_sock bound to the given four-tuple.
 ///
 struct w_sock * w_get_sock(struct w_engine * const w,
-                           const uint16_t src_idx,
-                           const uint16_t src_port,
-                           const struct sockaddr * const dst)
+                           const struct w_sockaddr * const local,
+                           const struct w_sockaddr * const remote)
 {
-    struct w_tuple tup = {.src_idx = src_idx, .src_port = src_port};
-    if (dst)
-        memcpy(&tup.dst, dst, dst->sa_len);
+    struct w_socktuple tup = {.local = *local};
+    if (remote)
+        tup.remote = *remote;
     const khiter_t k = kh_get(sock, &w->sock, &tup);
     return unlikely(k == kh_end(&w->sock)) ? 0 : kh_val(&w->sock, k);
 }
@@ -192,8 +191,10 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
     struct w_iov * const v = w_alloc_iov_base(w);
     if (likely(v)) {
 #ifdef WITH_NETMAP
-        const size_t diff = sizeof(struct eth_hdr) + sizeof(struct ip_hdr) +
-                            sizeof(struct udp_hdr);
+        const size_t diff =
+            sizeof(struct eth_hdr) +
+            MAX(sizeof(struct ip4_hdr), sizeof(struct ip6_hdr)) +
+            sizeof(struct udp_hdr);
         v->buf += diff;
         v->len -= diff;
 #endif
@@ -313,18 +314,6 @@ uint_t w_iov_sq_len(const struct w_iov_sq * const q)
 }
 
 
-// static const struct w_sockaddr * __attribute__((nonnull))
-// to_w_sockaddr(const struct sockaddr * const sa)
-// {
-//     static struct w_sockaddr wa;
-//     wa.addr.af = sa->sa_family;
-//     wa.port = sa_get_port(sa);
-//     memcpy(&wa.addr.ip4, sa_addr(sa), af_len(sa->sa_family));
-
-//     return &wa;
-// }
-
-
 /// Connect a bound socket to a remote IP address and port. Depending on the
 /// backend, this function may block until a MAC address has been resolved with
 /// ARP.
@@ -339,7 +328,7 @@ uint_t w_iov_sq_len(const struct w_iov_sq * const q)
 ///
 int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
 {
-    if (unlikely(s->tup.dst.addr.af)) {
+    if (unlikely(w_connected(s))) {
         warn(ERR, "socket already connected");
         return EADDRINUSE;
     }
@@ -350,22 +339,19 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     }
 
     rem_sock(s->w, s);
-    s->tup.dst.addr.af = peer->sa_family;
-    memcpy(&s->tup.dst.addr.ip4, sa_addr(peer), af_len(peer->sa_family));
-    s->tup.dst.port = sa_get_port(peer);
+    set_ip(&s->tup.remote.addr, peer);
+    s->tup.remote.port = sa_port(peer);
     const int e = backend_connect(s);
     if (unlikely(e)) {
-        memset(&s->tup.dst, 0, sizeof(s->tup.dst));
+        memset(&s->tup.remote, 0, sizeof(s->tup.remote));
         ins_sock(s->w, s);
         return e;
     }
     ins_sock(s->w, s);
 
-#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
-    char ip_str[INET6_ADDRSTRLEN];
-    w_ntop(&s->tup.dst.addr, ip_str, sizeof(ip_str));
-    warn(DBG, "socket connected to %s:%d", ip_str, bswap16(s->tup.dst.port));
-#endif
+    warn(DBG, "socket connected to %s:%d",
+         w_ntop(&s->tup.remote.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+         bswap16(s->tup.remote.port));
 
     return 0;
 }
@@ -387,30 +373,27 @@ struct w_sock * w_bind(struct w_engine * const w,
                        const uint16_t port,
                        const struct w_sockopt * const opt)
 {
-    struct w_sock * s = w_get_sock(w, addr_idx, port, 0);
+    const struct w_sockaddr local = {.addr = w->ifaddr[addr_idx].addr,
+                                     .port = port};
+    struct w_sock * s = w_get_sock(w, &local, 0);
     if (unlikely(s)) {
         warn(INF, "UDP source port %d already in bound", bswap16(port));
-        // do not free, just return
         return 0;
     }
 
     if (unlikely(s = calloc(1, sizeof(*s))) == 0)
         goto fail;
 
-    s->tup.src_idx = addr_idx;
-    s->tup.src_port = port;
-    // s->tup.dip is set on w_connect()
+    s->tup.local = local;
     s->w = w;
     sq_init(&s->iv);
 
     if (unlikely(backend_bind(s, opt) != 0))
         goto fail;
 
-#ifndef FUZZING
-    char ip_str[INET6_ADDRSTRLEN];
-    w_ntop(&w->ifaddr[addr_idx].addr, ip_str, sizeof(ip_str));
-    warn(NTE, "socket bound to %s:%d", ip_str, bswap16(s->tup.src_port));
-#endif
+    warn(NTE, "socket bound to %s:%d",
+         w_ntop(&local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+         bswap16(port));
 
     ins_sock(w, s);
     return s;
@@ -477,24 +460,25 @@ void w_init_rand(void)
 }
 
 
-static bool __attribute__((nonnull)) skip_ipv6_addr(struct ifaddrs * const i)
+static bool __attribute__((nonnull))
+skip_ipv6_addr(struct ifaddrs * const i, const bool is_loopback)
 {
-    if (((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_scope_id)
-        // skip scoped addresses
+    const struct in6_addr * const ip6 =
+        &((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_addr;
+
+    if (IN6_IS_ADDR_LINKLOCAL(ip6))
         return true;
-
-    const int s = socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-    ensure(s >= 0, "cannot open socket");
-
-    struct in6_ifreq ifr6;
-    strncpy(ifr6.ifr_name, i->ifa_name, sizeof(ifr6.ifr_name));
-    memcpy(&ifr6.ifr_addr, i->ifa_addr, sizeof(ifr6.ifr_addr));
-    const int ret = ioctl(s, SIOCGIFAFLAG_IN6, &ifr6);
-    ensure(ret >= 0, "cannot ioctl");
-    close(s);
-
-    // skip temporary addresses
-    return ifr6.ifr_ifru.ifru_flags & IN6_IFF_TEMPORARY;
+    if (IN6_IS_ADDR_SITELOCAL(ip6))
+        return true;
+    if (IN6_IS_ADDR_V4MAPPED(ip6))
+        return true;
+    if (IN6_IS_ADDR_V4COMPAT(ip6))
+        return true;
+    if (is_loopback == false && IN6_IS_ADDR_LOOPBACK(ip6))
+        return true;
+    // if (IN6_IS_ADDR_UNSPECIFIED(ip6))
+    //     return true;
+    return false;
 }
 
 
@@ -507,7 +491,7 @@ contig_mask_len(const int af, const void * const mask)
         mask_len = !(mask4 & (~mask4 >> 1));
     } else {
         uint128_t mask6;
-        memcpy(&mask6, mask, af_len(AF_INET6));
+        memcpy(&mask6, mask, IP6_LEN);
         mask6 = bswap128(mask6);
         mask_len = !(mask6 & (~mask6 >> 1));
     }
@@ -537,7 +521,10 @@ contig_mask_len(const int af, const void * const mask)
 const char *
 w_ntop(const struct w_addr * const addr, char * const dst, const size_t dst_len)
 {
-    return inet_ntop(addr->af, &addr->ip4, dst, (socklen_t)dst_len);
+    return inet_ntop(addr->af,
+                     (addr->af == AF_INET ? (const void *)&addr->ip4
+                                          : (const void *)&addr->ip6),
+                     dst, (socklen_t)dst_len);
 }
 
 
@@ -596,7 +583,8 @@ struct w_engine * w_init(const char * const ifname,
                 continue;
             }
 
-            if (i->ifa_addr->sa_family == AF_INET6 && !skip_ipv6_addr(i))
+            if (i->ifa_addr->sa_family == AF_INET6 &&
+                !skip_ipv6_addr(i, i->ifa_flags & IFF_LOOPBACK))
                 addr6_cnt++;
         }
         if (addr4_cnt + addr6_cnt == 0) {
@@ -632,33 +620,53 @@ struct w_engine * w_init(const char * const ifname,
         if (strcmp(i->ifa_name, ifname) != 0)
             continue;
 
-        is_loopback = i->ifa_flags & IFF_LOOPBACK;
-
         switch (i->ifa_addr->sa_family) {
         case AF_LINK:
+            is_loopback = i->ifa_flags & IFF_LOOPBACK;
             plat_get_mac(&w->mac, i);
             w->mtu = plat_get_mtu(i);
             // mpbs can be zero on generic platforms and loopback interfaces
             w->mbps = plat_get_mbps(i);
             plat_get_iface_driver(i, w->drvname, sizeof(w->drvname));
-#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
-            char mac[ETH_ADDR_STRLEN];
-            ether_ntoa_r(&w->mac, mac);
             warn(NTE, "%s MAC addr %s, MTU %d, speed %" PRIu32 "G", i->ifa_name,
-                 mac, w->mtu, w->mbps / 1000);
-#endif
+                 eth_ntoa(&w->mac, (char[ETH_STRLEN]){""}), w->mtu,
+                 w->mbps / 1000);
             break;
+
         case AF_INET6:
-            if (skip_ipv6_addr(i))
+            if (skip_ipv6_addr(i, i->ifa_flags & IFF_LOOPBACK))
                 continue;
-        case AF_INET:;
-            struct w_ifaddr * const wa =
-                &w->ifaddr[i->ifa_addr->sa_family == AF_INET ? addr4_cnt++
-                                                             : addr6_cnt++];
-            wa->addr.af = i->ifa_addr->sa_family;
-            memcpy(&wa->addr.ip4, sa_addr(i->ifa_addr), af_len(wa->addr.af));
-            wa->prefix = contig_mask_len(wa->addr.af, sa_addr(i->ifa_netmask));
+
+            w->have_ip6 = true;
+            struct w_ifaddr * ia = &w->ifaddr[addr6_cnt++];
+            set_ip(&ia->addr, i->ifa_addr);
+            const void * const sa_mask6 =
+                &((const struct sockaddr_in6 *)(const void *)i->ifa_netmask)
+                     ->sin6_addr;
+            ia->prefix = contig_mask_len(ia->addr.af, sa_mask6);
+
+            uint128_t mask6;
+            memcpy(&mask6, sa_mask6, sizeof(mask6));
+            ia->net6 = ia->addr.ip6 & mask6;
+            ia->bcast6 = ia->addr.ip6 | ~mask6;
             break;
+
+        case AF_INET:
+            ia = &w->ifaddr[addr4_cnt++];
+
+            w->have_ip4 = true;
+            set_ip(&ia->addr, i->ifa_addr);
+            const void * const sa_mask4 =
+                &((const struct sockaddr_in *)(const void *)i->ifa_netmask)
+                     ->sin_addr;
+            ia->prefix = contig_mask_len(ia->addr.af, sa_mask4);
+
+            uint32_t mask4;
+            memcpy(&mask4, sa_mask4, sizeof(mask4));
+            ia->net4 = ia->addr.ip4 & mask4;
+            ia->bcast4 = ia->addr.ip4 | ~mask4;
+            break;
+
         default:
             warn(NTE, "ignoring unknown addr family %d on %s",
                  i->ifa_addr->sa_family, i->ifa_name);
@@ -667,13 +675,11 @@ struct w_engine * w_init(const char * const ifname,
     }
     freeifaddrs(ifap);
 
-#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
+#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
     for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
-        char ip_str[INET6_ADDRSTRLEN];
-        struct w_ifaddr * const wa = &w->ifaddr[idx];
-        w_ntop(&wa->addr, ip_str, sizeof(ip_str));
-        warn(NTE, "%s IPv%d addr %s/%u", ifname, wa->addr.af == AF_INET ? 4 : 6,
-             ip_str, wa->prefix);
+        struct w_ifaddr * const ia = &w->ifaddr[idx];
+        warn(NTE, "%s IPv%d addr %s/%u", ifname, ia->addr.af == AF_INET ? 4 : 6,
+             w_ntop(&ia->addr, (char[IP6_STRLEN]){""}, IP6_STRLEN), ia->prefix);
     }
 #endif
 
@@ -728,7 +734,7 @@ void w_free(struct w_iov_sq * const q)
     if (unlikely(sq_empty(q)))
         return;
     struct w_engine * const w = sq_first(q)->w;
-#if !defined(NDEBUG) | defined(NDEBUG_WITH_DLOG)
+#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
     struct w_iov * v;
     sq_foreach (v, q, next) {
 #ifdef DEBUG_BUFFERS
@@ -856,28 +862,6 @@ uint32_t w_rand_uniform32(const uint32_t upper_bound)
 }
 
 
-/// Return the local or peer IP address and port for a w_sock.
-///
-/// @param[in]  s      Pointer to w_sock.
-/// @param[in]  local  If true, return local IP and port, else the peer's.
-///
-/// @return     Local or remote IP address and port, or zero if unbound or
-/// disconnected.
-///
-const struct w_sockaddr * w_get_sockaddr(const struct w_sock * const s,
-                                         const bool local)
-{
-    if (local) {
-        static struct w_sockaddr sa;
-        sa.addr = s->w->ifaddr[s->tup.src_idx].addr;
-        sa.port = s->tup.src_port;
-        return &sa;
-    }
-
-    return &s->tup.dst;
-}
-
-
 static void reinit_iov(struct w_iov * const v)
 {
     v->buf = v->base;
@@ -913,16 +897,40 @@ struct w_iov * w_alloc_iov_base(struct w_engine * const w)
 }
 
 
-khint_t tuple_hash(const struct w_tuple * const tup)
+khint_t w_socktuple_hash(const struct w_socktuple * const tup)
 {
-    return fnv1a_32(tup, sizeof(*tup));
+    // only hash part of the struct and rely on w_addr_hash for w_socktuple_cmp
+    const uint32_t h =
+        w_addr_hash(&tup->local.addr) +
+        (tup->remote.addr.af ? w_addr_hash(&tup->remote.addr) : 0);
+
+    // hexdump(tup, sizeof(*tup));
+
+    // warn(ERR, "hash of %s-%u---%s-%u = %u",
+    //      w_ntop(&tup->local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+    //      bswap16(tup->local.port),
+    //      w_ntop(&tup->remote.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+    //      bswap16(tup->remote.port), h);
+    return h;
 }
 
 
-khint_t tuple_equal(const struct w_tuple * const a,
-                    const struct w_tuple * const b)
+khint_t w_socktuple_cmp(const struct w_socktuple * const a,
+                        const struct w_socktuple * const b)
 {
-    return memcmp(a, b, sizeof(*a)) == 0;
+    // warn(ERR, "cmp a %s-%u---%s-%u b %s-%u---%s-%u",
+    //      w_ntop(&a->local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+    //      bswap16(a->local.port),
+    //      w_ntop(&a->remote.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+    //      bswap16(a->remote.port),
+    //      w_ntop(&b->local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+    //      bswap16(b->local.port),
+    //      w_ntop(&b->remote.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+    //      bswap16(b->remote.port));
+
+    return a->local.port == b->local.port && a->remote.port == b->remote.port &&
+           w_addr_cmp(&a->local.addr, &b->local.addr) &&
+           w_addr_cmp(&a->remote.addr, &b->remote.addr);
 }
 
 

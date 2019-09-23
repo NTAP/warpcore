@@ -27,7 +27,6 @@
 
 #include <warpcore/warpcore.h>
 
-#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -39,9 +38,11 @@
 
 #include "backend.h"
 #include "eth.h"
-#include "icmp.h"
+#include "icmp4.h"
+#include "icmp6.h"
 #include "in_cksum.h"
-#include "ip.h"
+#include "ip4.h"
+#include "ip6.h"
 #include "udp.h"
 
 
@@ -51,15 +52,10 @@
 /// @param      udp   The udp_hdr to print.
 ///
 #define udp_log(udp)                                                           \
-    do {                                                                       \
-        warn(DBG, "UDP :%d -> :%d, cksum 0x%04x, len %u",                      \
-             bswap16((udp)->sport), bswap16((udp)->dport),                     \
-             bswap16((udp)->cksum), bswap16((udp)->len));                      \
-    } while (0)
+    warn(DBG, "UDP :%d -> :%d, cksum 0x%04x, len %u", bswap16((udp)->sport),   \
+         bswap16((udp)->dport), bswap16((udp)->cksum), bswap16((udp)->len))
 #else
-#define udp_log(udp)                                                           \
-    do {                                                                       \
-    } while (0)
+#define udp_log(udp)
 #endif
 
 
@@ -86,48 +82,9 @@ bool
            struct netmap_slot * const s,
            uint8_t * const buf)
 {
-    const struct ip_hdr * const ip = (const void *)eth_data(buf);
-    const uint16_t ip_len = bswap16(ip->len);
-    struct udp_hdr * const udp = (void *)ip_data(buf);
-
-    if (unlikely(ip_len - sizeof(*ip) < sizeof(*udp))) {
-#ifndef FUZZING
-        warn(WRN, "IP len %lu too short for UDP", ip_len - sizeof(*ip));
-#endif
-        return false;
-    }
-
-    const uint16_t udp_len = MIN(bswap16(udp->len), ip_len - sizeof(*ip));
-    udp_log(udp);
-
-#ifndef FUZZING
-    if (likely(udp->cksum)) {
-        // validate the checksum
-        const uint16_t cksum = udp_cksum(ip, udp_len + sizeof(*ip));
-        if (unlikely(udp->cksum != cksum)) {
-            warn(WRN, "invalid UDP checksum, received 0x%04x != 0x%04x",
-                 bswap16(udp->cksum), bswap16(cksum));
-            return false;
-        }
-    }
-#endif
-
-    struct w_sock * ws =
-        w_get_sock(w, ip->dst, udp->dport, ip->src, udp->sport);
-    if (unlikely(ws == 0)) {
-        // no socket connected, check for bound-only socket
-        ws = w_get_sock(w, ip->dst, udp->dport, 0, 0);
-        if (unlikely(ws == 0)) {
-            // nobody bound to this port locally
-            // send an ICMP unreachable reply, if this was not a broadcast
-            if (ip->dst == w->ip)
-                icmp_tx(w, ICMP_TYPE_UNREACH, ICMP_UNREACH_PORT, buf);
-            return false;
-        }
-    }
     // grab an unused iov for the data in this packet
     //
-    // XXX w_alloc_iov() does some (in this case) unneeded initialization;
+    // TODO: w_alloc_iov() does some (in this case) unneeded initialization;
     // determine if that overhead is a problem
     struct w_iov * const i = w_alloc_iov_base(w);
     if (unlikely(i == 0)) {
@@ -135,14 +92,80 @@ bool
         return false;
     }
 
+    const uint8_t * const ip = eth_data(buf);
+    const uint8_t v = ip_v(*ip);
+    uint16_t ip_hdr_len;
+    struct udp_hdr * udp;
+    uint16_t ip_plen;
+    struct w_sockaddr local;
+
+    if (v == 4) {
+        const struct ip4_hdr * ip4 = (const void *)ip;
+        ip_hdr_len = ip4_hl(ip4->vhl);
+        ip_plen = bswap16(ip4->len) - ip_hdr_len;
+        udp = (void *)ip4_data(buf);
+        local.addr.af = i->saddr.addr.af = AF_INET;
+        i->saddr.addr.ip4 = ip4->src;
+        local.addr.ip4 = ip4->dst;
+        i->flags = ip4->tos;
+    } else {
+        const struct ip6_hdr * ip6 = (const void *)ip;
+        ip_hdr_len = sizeof(*ip6);
+        ip_plen = bswap16(ip6->len);
+        udp = (void *)ip6_data(buf);
+        local.addr.af = i->saddr.addr.af = AF_INET6;
+        memcpy(&i->saddr.addr.ip6, ip6->src, sizeof(i->saddr.addr.ip6));
+        memcpy(&local.addr.ip6, ip6->dst, sizeof(local.addr.ip6));
+        i->flags = ip6_tc(ip6->vtcecnfl);
+    }
+
+    if (unlikely(ip_plen < sizeof(*udp))) {
+        warn(WRN, "IP payload %u too short for UDP header", ip_plen);
+        return false;
+    }
+
+    const uint16_t udp_len = MIN(bswap16(udp->len), ip_plen);
+    i->len = udp_len - sizeof(*udp);
+    udp_log(udp);
+
+    if (likely(udp->cksum)) {
+        // validate the checksum
+        if (unlikely(payload_cksum(ip, udp_len + ip_hdr_len) != 0)) {
+            warn(WRN, "invalid UDP checksum, received 0x%04x",
+                 bswap16(udp->cksum));
+            return false;
+        }
+    }
+
+    i->saddr.port = udp->sport;
+    local.port = udp->dport;
+    struct w_sock * ws = w_get_sock(w, &local, &i->saddr);
+    if (unlikely(ws == 0)) {
+        // no socket connected, check for bound-only socket
+        ws = w_get_sock(w, &local, 0);
+        if (unlikely(ws == 0)) {
+            // nobody bound to this port locally
+            // send an ICMP unreachable reply, if this was not a broadcast
+            if (v == 4 && is_my_ip4(w, i->saddr.addr.ip4, false) != UINT16_MAX)
+                icmp4_tx(w, ICMP4_TYPE_UNREACH, ICMP4_UNREACH_PORT, buf);
+            else if (v == 6 &&
+                     is_my_ip6(w, i->saddr.addr.ip6, false) != UINT16_MAX)
+                icmp6_tx(w, ICMP6_TYPE_UNREACH, ICMP6_UNREACH_PORT, buf);
+            return false;
+        }
+    }
+
+#if 0
     warn(DBG, "%sing rx slot idx %d %s spare idx %u",
-         unlikely(is_pipe(w)) ? "copy" : "swap", s->buf_idx,
+         unlikely(is_pipe(w)) ? "copy" : "swapp", s->buf_idx,
          unlikely(is_pipe(w)) ? "into" : "and", i->idx);
+#endif
 
     if (unlikely(is_pipe(w))) {
         // we need to copy the data for pipes
         memcpy(i->base, buf, s->len);
-        i->buf = ip_data(i->base) + sizeof(*udp);
+        i->buf =
+            (v == 4 ? ip4_data(i->base) : ip6_data(i->base)) + sizeof(*udp);
     } else {
         // remember index of this buffer
         const uint32_t tmp_idx = i->idx;
@@ -156,15 +179,6 @@ bool
         s->buf_idx = tmp_idx;
         s->flags = NS_BUF_CHANGED;
     }
-
-    // tag the iov with sender information and metadata
-    i->len = udp_len - sizeof(*udp);
-
-    struct sockaddr_in * const addr4 = (struct sockaddr_in *)&i->addr;
-    addr4->sin_family = AF_INET;
-    addr4->sin_addr.s_addr = ip->src;
-    addr4->sin_port = udp->sport;
-    i->flags = ip->tos;
 
     // append the iov to the socket
     sq_insert_tail(&ws->iv, i, next);
@@ -182,30 +196,32 @@ bool
 ///
 /// @return     True if the payloads was sent, false otherwise.
 ///
-bool
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-    __attribute__((no_sanitize("alignment")))
-#endif
-    udp_tx(const struct w_sock * const s, struct w_iov * const v)
+bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
-    struct ip_hdr * const ip = (void *)eth_data(v->base);
-    struct udp_hdr * const udp = (void *)ip_data(v->base);
-    const uint16_t len = v->len + sizeof(*udp);
+    v->len += sizeof(struct udp_hdr);
 
-    mk_eth_hdr(s, v);
-    mk_ip_hdr(v, len, s);
+    uint16_t ip_hdr_len;
+    struct udp_hdr * udp;
+    if (s->tup.local.addr.af == AF_INET) {
+        mk_ip4_hdr(v, s);
+        udp = (void *)ip4_data(v->base);
+        ip_hdr_len = ip4_hl(*eth_data(v->base));
+    } else {
+        mk_ip6_hdr(v, s);
+        udp = (void *)ip6_data(v->base);
+        ip_hdr_len = sizeof(struct ip6_hdr);
+    }
 
-    udp->sport = s->tup.sport;
-    struct sockaddr_in * const addr4 = (struct sockaddr_in *)&v->addr;
-    udp->dport = w_connected(s) ? s->tup.dport : addr4->sin_port;
-    udp->len = bswap16(len);
+    udp->sport = s->tup.local.port;
+    udp->dport = w_connected(s) ? s->tup.remote.port : v->saddr.port;
+    udp->len = bswap16(v->len - ip_hdr_len);
+    udp->cksum = 0;
 
     // compute the checksum, unless disabled by a socket option
-    udp->cksum = 0;
     if (unlikely(s->opt.enable_udp_zero_checksums == false))
-        udp->cksum = udp_cksum(ip, len + sizeof(*ip));
+        udp->cksum = payload_cksum(eth_data(v->base), v->len);
 
+    mk_eth_hdr(s, v);
     udp_log(udp);
-
-    return eth_tx(v, len + sizeof(struct ip_hdr));
+    return eth_tx(v);
 }

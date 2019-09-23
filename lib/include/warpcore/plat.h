@@ -68,6 +68,7 @@ typedef int_fast32_t dint_t;
 #endif
 
 typedef __uint128_t uint128_t;
+#define UINT128_MAX ((uint128_t)UINT64_MAX << 64 | UINT64_MAX)
 
 #ifndef __has_builtin
 #define __has_builtin(x) 0
@@ -118,41 +119,31 @@ typedef __uint128_t uint128_t;
 
 
 #if defined(__linux__)
-#include <netinet/ether.h>
-#include <sys/socket.h>
+// #include <sys/socket.h>
 #define AF_LINK AF_PACKET
 #define PLAT_MMFLAGS MAP_POPULATE | MAP_LOCKED
 
 #elif defined(__FreeBSD__)
-#include <net/ethernet.h>
 /// Platform-dependent flags to pass to mmap().
 #define PLAT_MMFLAGS MAP_PREFAULT_READ | MAP_NOSYNC | MAP_ALIGNED_SUPER
 
 #elif defined(__APPLE__)
-#include <net/ethernet.h>
 #define PLAT_MMFLAGS 0
 #define SOCK_CLOEXEC 0
 
-#elif defined(PARTICLE) || defined(RIOT_VERSION)
-#define ETHER_ADDR_LEN 6
+#elif defined(PARTICLE)
 
-struct ether_addr {
-    u_char ether_addr_octet[ETHER_ADDR_LEN];
-};
-
-#ifdef PARTICLE
 typedef struct if_list if_list;
 #include "ifapi.h"
 #define ifaddrs if_addrs
-#endif
-#endif
 
-#define ETH_ADDR_STRLEN (ETHER_ADDR_LEN * 3 + 1)
+#endif
 
 struct ifaddrs;
+struct eth_addr;
 
 extern void __attribute__((nonnull))
-plat_get_mac(struct ether_addr * const mac, const struct ifaddrs * const i);
+plat_get_mac(struct eth_addr * const mac, const struct ifaddrs * const i);
 
 extern uint16_t __attribute__((nonnull))
 plat_get_mtu(const struct ifaddrs * const i);
@@ -168,7 +159,5 @@ plat_get_iface_driver(const struct ifaddrs * const i,
                       char * const name,
                       const size_t name_len);
 
-#ifndef HAVE_ETHER_NTOA_R
-extern char * __attribute__((nonnull))
-ether_ntoa_r(const struct ether_addr * const addr, char * const buf);
-#endif
+extern const char * __attribute__((nonnull))
+eth_ntoa(const struct eth_addr * const addr, char * const buf);

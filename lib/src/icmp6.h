@@ -29,47 +29,41 @@
 
 #include <stdint.h>
 
-struct netmap_slot;
-struct w_engine;
-
-// the following two lines work around a bug in iwyu 0.12:
 // IWYU pragma: no_include <net/netmap.h>
-// IWYU pragma: no_include <warpcore/warpcore.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 
-#define ICMP_TYPE_ECHOREPLY 0 ///< ICMP echo reply type.
-#define ICMP_TYPE_UNREACH 3   ///< ICMP unreachable type.
-#define ICMP_TYPE_ECHO 8      ///< ICMP echo type.
+#include <warpcore/warpcore.h>
 
-#define ICMP_UNREACH_PROTOCOL 2 ///< For ICMP_TYPE_UNREACH, bad protocol code.
-#define ICMP_UNREACH_PORT 3     ///< For ICMP_TYPE_UNREACH, bad port code.
+
+#define ICMP6_TYPE_ECHOREPLY 129 ///< ICMP echo reply type.
+#define ICMP6_TYPE_UNREACH 1     ///< ICMP unreachable type.
+#define ICMP6_TYPE_ECHO 128      ///< ICMP echo type.
+#define ICMP6_TYPE_NSOL 135      ///< ICMP neighbor solicitation type.
+#define ICMP6_TYPE_NADV 136      ///< ICMP neighbor advertisement type.
+
+#define ICMP6_UNREACH_PORT 4 ///< For ICMP6_TYPE_UNREACH, bad port code.
 
 
 /// An ICMP header representation; see
 /// [RFC792](https://tools.ietf.org/html/rfc792).
 ///
-struct icmp_hdr {
+struct icmp6_hdr {
     uint8_t type;   ///< Type of ICMP message.
     uint8_t code;   ///< Code of the ICMP type.
     uint16_t cksum; ///< Ones' complement header checksum.
     uint16_t id;
     uint16_t seq;
-} __attribute__((aligned(1)));
+} __attribute__((aligned(1), packed));
 
 
-extern void __attribute__((nonnull
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-                           ,
-                           no_sanitize("alignment")
-#endif
-                               )) icmp_tx(struct w_engine * w,
-                                          const uint8_t type,
-                                          const uint8_t code,
-                                          uint8_t * const buf);
+extern void __attribute__((nonnull)) icmp6_tx(struct w_engine * w,
+                                              const uint8_t type,
+                                              const uint8_t code,
+                                              uint8_t * const buf);
 
-extern void __attribute__((nonnull
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-                           ,
-                           no_sanitize("alignment")
-#endif
-                               ))
-icmp_rx(struct w_engine * w, struct netmap_slot * const s, uint8_t * const buf);
+extern void __attribute__((nonnull)) icmp6_rx(struct w_engine * w,
+                                              struct netmap_slot * const s,
+                                              uint8_t * const buf);
+
+extern void __attribute__((nonnull))
+icmp6_nsol(struct w_engine * const w, const uint128_t addr);

@@ -30,14 +30,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-struct netmap_slot;
-struct w_engine;
-struct w_iov;
-struct w_sock;
-
-// the following two lines work around a bug in iwyu 0.12:
 // IWYU pragma: no_include <net/netmap.h>
-// IWYU pragma: no_include <warpcore/warpcore.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
+
+#include <warpcore/warpcore.h>
 
 
 /// A representation of a UDP header; see
@@ -48,7 +44,7 @@ struct udp_hdr {
     uint16_t dport; ///< Destination port.
     uint16_t len;   ///< UDP length (header + data).
     uint16_t cksum; ///< UDP checksum.
-} __attribute__((aligned(1)));
+} __attribute__((aligned(1), packed));
 
 // #include "udp.h"
 

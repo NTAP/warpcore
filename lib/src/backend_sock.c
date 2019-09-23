@@ -70,30 +70,29 @@
 #endif
 
 #include "backend.h"
-#include "ip.h"
+#include "ip4.h"
+#include "ip6.h"
 #include "udp.h"
 
 
-static const struct sockaddr * __attribute__((nonnull))
-to_sockaddr(const struct w_addr * const addr, const uint16_t port)
+static void __attribute__((nonnull))
+to_sockaddr(struct sockaddr * const sa,
+            const struct w_addr * const addr,
+            const uint16_t port)
 {
-    static struct sockaddr_storage ss;
-
     if (addr->af == AF_INET) {
-        struct sockaddr_in * const sin = (struct sockaddr_in *)&ss;
-        sin->sin_len = sizeof(*sin);
+        struct sockaddr_in * const sin = (struct sockaddr_in *)(void *)sa;
         sin->sin_family = AF_INET;
         sin->sin_port = port;
-        memcpy(&sin->sin_addr, &addr->ip4, af_len(AF_INET));
+        memcpy(&sin->sin_addr, &addr->ip4, IP4_LEN);
     } else {
-        struct sockaddr_in6 * const sin6 = (struct sockaddr_in6 *)&ss;
-        sin6->sin6_len = sizeof(*sin6);
+        struct sockaddr_in6 * const sin6 = (struct sockaddr_in6 *)(void *)sa;
         sin6->sin6_family = AF_INET6;
         sin6->sin6_port = port;
-        memcpy(&sin6->sin6_addr, &addr->ip6, af_len(AF_INET6));
+        memcpy(&sin6->sin6_addr, &addr->ip6, IP6_LEN);
+        if (unlikely(IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)))
+            sin6->sin6_scope_id = 0x3;
     }
-
-    return (const struct sockaddr *)&ss;
 }
 
 
@@ -140,7 +139,8 @@ void backend_init(struct w_engine * const w,
                   const bool is_left __attribute__((unused)))
 {
     // lower the MTU to account for IP and UPD headers
-    w->mtu -= sizeof(struct ip_hdr) + sizeof(struct udp_hdr);
+    w->mtu -= MAX(sizeof(struct ip4_hdr), sizeof(struct ip6_hdr)) +
+              sizeof(struct udp_hdr);
 
     ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
            "cannot alloc %" PRIu32 " * %u buf mem", nbufs, w->mtu);
@@ -233,23 +233,23 @@ void backend_cleanup(struct w_engine * const w)
 ///
 int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
-    struct w_addr * const src_addr = &s->w->ifaddr[s->tup.src_idx].addr;
-    s->fd = socket(src_addr->af, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    struct w_addr * const local = &s->tup.local.addr;
+    s->fd = socket(local->af, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     if (unlikely(s->fd < 0))
         return errno;
 
-    const struct sockaddr * const sa = to_sockaddr(src_addr, s->tup.src_port);
-    if (unlikely(bind(s->fd, sa, sa->sa_len) != 0)) {
-        char ip_str[INET6_ADDRSTRLEN];
-        w_ntop(src_addr, ip_str, sizeof(ip_str));
-        warn(ERR, "bind failed on %s:%u", ip_str, bswap16(s->tup.src_port));
+    struct sockaddr_storage ss;
+    to_sockaddr((struct sockaddr *)&ss, local, s->tup.local.port);
+    if (unlikely(bind(s->fd, (struct sockaddr *)&ss, sizeof(ss)) != 0)) {
+        warn(ERR, "bind failed on %s:%u",
+             w_ntop(local, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+             bswap16(s->tup.local.port));
         return errno;
     }
 
     // enable always receiving TOS information
-    ensure(setsockopt(s->fd,
-                      src_addr->af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
-                      src_addr->af == AF_INET ? IP_RECVTOS : IPV6_RECVTCLASS,
+    ensure(setsockopt(s->fd, local->af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+                      local->af == AF_INET ? IP_RECVTOS : IPV6_RECVTCLASS,
                       &(int){1}, sizeof(int)) >= 0,
            "cannot setsockopt IP_RECVTOS/IPV6_RECVTCLASS");
 
@@ -257,12 +257,11 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
         w_set_sockopt(s, opt);
 
     // if we're binding to a random port, find out what it is
-    if (s->tup.src_port == 0) {
-        struct sockaddr_storage ss;
+    if (s->tup.local.port == 0) {
         socklen_t len = sizeof(ss);
         ensure(getsockname(s->fd, (struct sockaddr *)&ss, &len) >= 0,
                "getsockname");
-        s->tup.src_port = sa_get_port(&ss);
+        s->tup.local.port = sa_port(&ss);
     }
 
 #if defined(HAVE_KQUEUE)
@@ -287,11 +286,13 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 ///
 int backend_connect(struct w_sock * const s)
 {
-    const struct sockaddr * sa = to_sockaddr(&s->tup.dst.addr, s->tup.dst.port);
-    if (unlikely(connect(s->fd, sa, sa->sa_len) != 0)) {
-        char ip_str[INET6_ADDRSTRLEN];
-        w_ntop(&s->tup.dst.addr, ip_str, sizeof(ip_str));
-        warn(ERR, "connect to %s:%u failed", ip_str, bswap16(s->tup.dst.port));
+    struct sockaddr_storage ss;
+    to_sockaddr((struct sockaddr *)&ss, &s->tup.remote.addr,
+                s->tup.remote.port);
+    if (unlikely(connect(s->fd, (struct sockaddr *)&ss, sizeof(ss)) != 0)) {
+        warn(ERR, "connect to %s:%u failed",
+             w_ntop(&s->tup.remote.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+             bswap16(s->tup.remote.port));
         return errno;
     }
     return 0;
@@ -355,8 +356,8 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
     struct iovec msg[SEND_SIZE];
     struct sockaddr_storage sa[SEND_SIZE];
 #ifdef __linux__
-    // kernels below 4.9 can't deal with getting an uint8_t passed in,
-    sigh __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(int))];
+    // kernels below 4.9 can't deal with getting an uint8_t passed in, sigh
+    __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(int))];
 #else
     __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(uint8_t))];
 #endif
@@ -372,12 +373,10 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
             // if w_sock is disconnected, use destination IP and port from w_iov
             // instead of the one in the template header
             if (w_connected(s))
-                v->saddr = s->tup.dst;
-            else {
-                const struct sockaddr * const dst =
-                    to_sockaddr(&v->saddr.addr, v->saddr.port);
-                memcpy(&sa[i], dst, dst->sa_len);
-            }
+                v->saddr = s->tup.remote;
+            else
+                to_sockaddr((struct sockaddr *)&sa[i], &v->saddr.addr,
+                            v->saddr.port);
 #ifdef HAVE_SENDMMSG
             msgvec[i].msg_hdr =
 #else
@@ -385,7 +384,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #endif
                 (struct msghdr){.msg_name = w_connected(s) ? 0 : &sa[i],
                                 .msg_namelen =
-                                    w_connected(s) ? 0 : sa[i].ss_len,
+                                    w_connected(s) ? 0 : sizeof(sa[i]),
                                 .msg_iov = &msg[i],
                                 .msg_iovlen = 1};
 
@@ -400,7 +399,12 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
                 msgvec[i].msg_controllen = sizeof(ctrl[i]);
                 struct cmsghdr * const cmsg = CMSG_FIRSTHDR(&msgvec[i]);
 #endif
-                cmsg->cmsg_level = IPPROTO_IP;
+                cmsg->cmsg_level =
+#ifdef __linux__
+                    v->saddr.addr.af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
+#else
+                    IPPROTO_IP;
+#endif
                 cmsg->cmsg_type =
                     v->saddr.addr.af == AF_INET ? IP_TOS : IPV6_TCLASS;
 #ifdef __linux__
@@ -427,7 +431,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #else
             sendmsg(s->fd, msgvec, 0);
 #endif
-        if (unlikely(r < 0 && errno != EAGAIN && errno != ETIMEDOUT)) {
+        if (unlikely(r < 0 /*&& errno != EAGAIN && errno != ETIMEDOUT*/)) {
             warn(ERR, "sendmsg/sendmmsg returned %d (%s)", errno,
                  strerror(errno));
             break;
@@ -508,9 +512,9 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
-                v[j]->saddr.port = sa_get_port(&sa[j]);
-                v[j]->saddr.addr.af = sa[j].ss_family;
-                memcpy(&v[j]->saddr.addr.ip4, sa_addr(&sa[j]), sa[j].ss_len);
+                v[j]->saddr.port = sa_port(&sa[j]);
+                set_ip(&v[j]->saddr.addr, (struct sockaddr *)&sa[j]);
+
 #ifdef HAVE_RECVMMSG
                 v[j]->len = (uint16_t)msgvec[j].msg_len;
 #else
@@ -530,14 +534,16 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j]); cmsg;
                      cmsg = CMSG_NXTHDR(&msgvec[j], cmsg)) {
 #endif
-                    if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_len &&
+                    if (cmsg->cmsg_len &&
+                        ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type ==
 #ifdef __linux__
-                        // why do you always need to be different, Linux?
-                        cmsg->cmsg_type == IP_TOS
+                                                                IP_TOS
 #else
-                        cmsg->cmsg_type == IP_RECVTOS
+                                                                IP_RECVTOS
 #endif
-                    ) {
+                          ) ||
+                         (cmsg->cmsg_level == IPPROTO_IPV6 &&
+                          cmsg->cmsg_type == IPV6_TCLASS))) {
                         v[j]->flags = *(uint8_t *)CMSG_DATA(cmsg);
                         break;
                     }
@@ -547,7 +553,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 sq_insert_tail(i, v[j], next);
             }
         } else {
-            if (unlikely(n < 0 && errno != EAGAIN && errno != ETIMEDOUT))
+            if (unlikely(n < 0 /*&& errno != EAGAIN && errno != ETIMEDOUT*/))
                 warn(ERR, "recvmsg/recvmmsg returned %d (%s)", errno,
                      strerror(errno));
             n = 0;
