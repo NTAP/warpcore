@@ -59,7 +59,7 @@ static void __attribute__((nonnull
     struct icmp6_hdr * const icmp = (void *)(eth_data(v->base) + sizeof(*ip));
 
     // set common bits of IPv6 header
-    v->saddr.addr.af = AF_INET6;
+    v->saddr.addr.af = AF_IP6;
     ip->next_hdr = IP_P_ICMP6;
     mk_ip6_hdr(v, 0); // adds sizeof(*ip) to v->len
 
@@ -277,12 +277,11 @@ void
             sla = (const void *)data;
 
         const struct eth_hdr * src_eth = (const void *)buf;
+        const struct w_addr addr = {.af = AF_IP6, .ip6 = target};
         warn(NTE, "neighbor advertisement, %s is at %s",
-             inet_ntop(AF_INET6, &target, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+             w_ntop(&addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
              eth_ntoa(sla ? sla : &src_eth->src, (char[ETH_STRLEN]){""}));
-
-        neighbor_update(w, &(struct w_addr){.af = AF_INET6, .ip6 = target},
-                        sla ? *sla : src_eth->src);
+        neighbor_update(w, &addr, sla ? *sla : src_eth->src);
 
         break;
 
@@ -299,15 +298,14 @@ void
         if (data_len >= sizeof(target) + 8 && *(data++) == 1 && *(data++) == 1)
             sla = (const void *)data;
 
+        const struct w_addr t = {.af = AF_IP6, .ip6 = target};
         if (sla)
             warn(NTE, "neighbor solicitation, who has %s tell %s",
-                 inet_ntop(AF_INET6, &target, (char[IP6_STRLEN]){""},
-                           IP6_STRLEN),
+                 w_ntop(&t, (char[IP6_STRLEN]){""}, IP6_STRLEN),
                  eth_ntoa(sla, (char[ETH_STRLEN]){""}));
         else
             warn(NTE, "neighbor solicitation, who has %s",
-                 inet_ntop(AF_INET6, &target, (char[IP6_STRLEN]){""},
-                           IP6_STRLEN));
+                 w_ntop(&t, (char[IP6_STRLEN]){""}, IP6_STRLEN));
 
         if (is_my_ip6(w, target, false) != UINT16_MAX) {
             icmp6_tx(w, ICMP6_TYPE_NADV, 0, buf);
@@ -315,8 +313,7 @@ void
             // opportunistically store the ND mapping
             src_eth = (const void *)buf;
             memcpy(&target, &ip->src, sizeof(target)); // reuse target
-            neighbor_update(w, &(struct w_addr){.af = AF_INET6, .ip6 = target},
-                            sla ? *sla : src_eth->src);
+            neighbor_update(w, &t, sla ? *sla : src_eth->src);
         } else
             rwarn(WRN, 10,
                   "received ICMPv6 neighbor solicitation for unknown address");

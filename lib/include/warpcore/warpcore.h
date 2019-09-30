@@ -78,7 +78,11 @@ struct w_iov_sq {
 #define IP4_STRLEN 16
 
 
-#define af_len(x) (uint8_t)((x) == AF_INET ? IP4_LEN : IP6_LEN)
+#define AF_IP4 4
+#define AF_IP6 16
+
+
+#define af_len(x) ((uint8_t)(x))
 
 
 struct w_addr {

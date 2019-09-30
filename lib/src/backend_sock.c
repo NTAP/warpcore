@@ -80,7 +80,7 @@ to_sockaddr(struct sockaddr * const sa,
             const struct w_addr * const addr,
             const uint16_t port)
 {
-    if (addr->af == AF_INET) {
+    if (addr->af == AF_IP4) {
         struct sockaddr_in * const sin = (struct sockaddr_in *)(void *)sa;
         sin->sin_family = AF_INET;
         sin->sin_port = port;
@@ -248,8 +248,8 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     }
 
     // enable always receiving TOS information
-    ensure(setsockopt(s->fd, local->af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
-                      local->af == AF_INET ? IP_RECVTOS : IPV6_RECVTCLASS,
+    ensure(setsockopt(s->fd, local->af == AF_IP4 ? IPPROTO_IP : IPPROTO_IPV6,
+                      local->af == AF_IP4 ? IP_RECVTOS : IPV6_RECVTCLASS,
                       &(int){1}, sizeof(int)) >= 0,
            "cannot setsockopt IP_RECVTOS/IPV6_RECVTCLASS");
 
@@ -401,12 +401,12 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #endif
                 cmsg->cmsg_level =
 #ifdef __linux__
-                    v->saddr.addr.af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
+                    v->saddr.addr.af == AF_IP4 ? IPPROTO_IP : IPPROTO_IPV6;
 #else
                     IPPROTO_IP;
 #endif
                 cmsg->cmsg_type =
-                    v->saddr.addr.af == AF_INET ? IP_TOS : IPV6_TCLASS;
+                    v->saddr.addr.af == AF_IP4 ? IP_TOS : IPV6_TCLASS;
 #ifdef __linux__
                 cmsg->cmsg_len = CMSG_LEN(sizeof(int));
                 *(int *)(void *)CMSG_DATA(cmsg) = v->flags;

@@ -25,7 +25,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef FUZZING
 #include <string.h>
+#endif
 
 #ifdef WITH_NETMAP
 // IWYU pragma: no_include <net/netmap.h>
@@ -63,6 +65,7 @@ bool eth_rx(struct w_engine * const w,
          eth_ntoa(&eth->dst, (char[ETH_STRLEN]){""}), bswap16(eth->type),
          s->len);
 
+#ifndef FUZZING
     // make sure the packet is for us (or broadcast)
     if (unlikely((memcmp(&eth->dst, &w->mac, sizeof(eth->dst)) != 0) &&
                  (memcmp(&eth->dst, ETH_ADDR_BCAST, sizeof(eth->dst)) != 0) &&
@@ -72,6 +75,7 @@ bool eth_rx(struct w_engine * const w,
              eth_ntoa(&w->mac, (char[ETH_STRLEN]){""}));
         return false;
     }
+#endif
 
     switch (eth->type) {
     case ETH_TYPE_IP6:

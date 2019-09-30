@@ -128,8 +128,8 @@ static inline void set_ip(struct w_addr * const wa,
                           const struct sockaddr * const sa)
 {
     wa->af = sa->sa_family;
-    ensure(wa->af == AF_INET || wa->af == AF_INET6, "unknown AF");
-    if (wa->af == AF_INET)
+    ensure(wa->af == AF_IP4 || wa->af == AF_IP6, "unknown AF");
+    if (wa->af == AF_IP4)
         memcpy(&wa->ip4,
                &((const struct sockaddr_in *)(const void *)sa)->sin_addr,
                sizeof(wa->ip4));

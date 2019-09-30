@@ -486,7 +486,7 @@ static uint8_t __attribute__((nonnull))
 contig_mask_len(const int af, const void * const mask)
 {
     uint8_t mask_len = 0;
-    if (af == AF_INET) {
+    if (af == AF_IP4) {
         const uint32_t mask4 = bswap32(*(const uint32_t *)mask);
         mask_len = !(mask4 & (~mask4 >> 1));
     } else {
@@ -522,8 +522,8 @@ const char *
 w_ntop(const struct w_addr * const addr, char * const dst, const size_t dst_len)
 {
     return inet_ntop(addr->af,
-                     (addr->af == AF_INET ? (const void *)&addr->ip4
-                                          : (const void *)&addr->ip6),
+                     (addr->af == AF_IP4 ? (const void *)&addr->ip4
+                                         : (const void *)&addr->ip6),
                      dst, (socklen_t)dst_len);
 }
 
@@ -678,7 +678,7 @@ struct w_engine * w_init(const char * const ifname,
 #if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
     for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
         struct w_ifaddr * const ia = &w->ifaddr[idx];
-        warn(NTE, "%s IPv%d addr %s/%u", ifname, ia->addr.af == AF_INET ? 4 : 6,
+        warn(NTE, "%s IPv%d addr %s/%u", ifname, ia->addr.af == AF_IP4 ? 4 : 6,
              w_ntop(&ia->addr, (char[IP6_STRLEN]){""}, IP6_STRLEN), ia->prefix);
     }
 #endif
@@ -899,35 +899,18 @@ struct w_iov * w_alloc_iov_base(struct w_engine * const w)
 
 khint_t w_socktuple_hash(const struct w_socktuple * const tup)
 {
-    // only hash part of the struct and rely on w_addr_hash for w_socktuple_cmp
-    const uint32_t h =
-        w_addr_hash(&tup->local.addr) +
-        (tup->remote.addr.af ? w_addr_hash(&tup->remote.addr) : 0);
-
-    // hexdump(tup, sizeof(*tup));
-
-    // warn(ERR, "hash of %s-%u---%s-%u = %u",
-    //      w_ntop(&tup->local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-    //      bswap16(tup->local.port),
-    //      w_ntop(&tup->remote.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-    //      bswap16(tup->remote.port), h);
-    return h;
+    return w_addr_hash(&tup->local.addr) +
+           fnv1a_32(&tup->local.port, sizeof(tup->local.port)) +
+           (tup->remote.addr.af
+                ? (w_addr_hash(&tup->remote.addr) +
+                   fnv1a_32(&tup->local.port, sizeof(tup->local.port)))
+                : 0);
 }
 
 
 khint_t w_socktuple_cmp(const struct w_socktuple * const a,
                         const struct w_socktuple * const b)
 {
-    // warn(ERR, "cmp a %s-%u---%s-%u b %s-%u---%s-%u",
-    //      w_ntop(&a->local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-    //      bswap16(a->local.port),
-    //      w_ntop(&a->remote.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-    //      bswap16(a->remote.port),
-    //      w_ntop(&b->local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-    //      bswap16(b->local.port),
-    //      w_ntop(&b->remote.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-    //      bswap16(b->remote.port));
-
     return a->local.port == b->local.port && a->remote.port == b->remote.port &&
            w_addr_cmp(&a->local.addr, &b->local.addr) &&
            w_addr_cmp(&a->remote.addr, &b->remote.addr);

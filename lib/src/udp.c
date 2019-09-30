@@ -31,7 +31,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
-#include <sys/socket.h>
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
@@ -104,7 +103,7 @@ bool
         ip_hdr_len = ip4_hl(ip4->vhl);
         ip_plen = bswap16(ip4->len) - ip_hdr_len;
         udp = (void *)ip4_data(buf);
-        local.addr.af = i->saddr.addr.af = AF_INET;
+        local.addr.af = i->saddr.addr.af = AF_IP4;
         i->saddr.addr.ip4 = ip4->src;
         local.addr.ip4 = ip4->dst;
         i->flags = ip4->tos;
@@ -113,7 +112,7 @@ bool
         ip_hdr_len = sizeof(*ip6);
         ip_plen = bswap16(ip6->len);
         udp = (void *)ip6_data(buf);
-        local.addr.af = i->saddr.addr.af = AF_INET6;
+        local.addr.af = i->saddr.addr.af = AF_IP6;
         memcpy(&i->saddr.addr.ip6, ip6->src, sizeof(i->saddr.addr.ip6));
         memcpy(&local.addr.ip6, ip6->dst, sizeof(local.addr.ip6));
         i->flags = ip6_tc(ip6->vtcecnfl);
@@ -202,7 +201,7 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 
     uint16_t ip_hdr_len;
     struct udp_hdr * udp;
-    if (s->tup.local.addr.af == AF_INET) {
+    if (s->tup.local.addr.af == AF_IP4) {
         mk_ip4_hdr(v, s);
         udp = (void *)ip4_data(v->base);
         ip_hdr_len = ip4_hl(*eth_data(v->base));
