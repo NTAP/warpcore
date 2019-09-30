@@ -59,7 +59,7 @@ struct ip6_hdr {
     };
     uint8_t src[16]; ///< Source IPv6 address.
     uint8_t dst[16]; ///< Destination IPv6 address.
-} __attribute__((aligned(1), packed));
+} __attribute__((aligned(1)));
 
 
 /// Extract the traffic class out of an ip6_hdr::vtcecnfl field.

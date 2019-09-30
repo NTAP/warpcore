@@ -48,7 +48,7 @@ struct eth_hdr {
     struct eth_addr dst; ///< Destination MAC address.
     struct eth_addr src; ///< Source MAC address.
     uint16_t type;       ///< EtherType of the payload data.
-} __attribute__((aligned(1), packed));
+} __attribute__((aligned(1)));
 
 
 #define ETH_TYPE_ARP 0x0608 ///< EtherType for ARP (network byte-order).

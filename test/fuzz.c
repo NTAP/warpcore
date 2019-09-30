@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 
 // IWYU pragma: no_include <net/netmap.h>
@@ -43,7 +44,12 @@ extern int LLVMFuzzerInitialize(int * argc, char *** argv);
 
 static struct netmap_if *iface, i_init = {.ni_rx_rings = 1};
 static struct w_backend b;
-static struct w_engine w = {.b = &b};
+__extension__ static struct w_engine w = {
+    .b = &b,
+    .ifaddr = {[0] = {.addr = {.af = AF_INET, .ip4 = 0x0100007f},
+                      .net4 = 0x000000ff,
+                      .bcast4 = 0xffffff7f,
+                      .prefix = 8}}};
 
 int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
                          char *** argv __attribute__((unused)))
@@ -51,8 +57,6 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
 #ifndef NDEBUG
     util_dlevel = DBG;
 #endif
-
-    w.sock = kh_init(sock);
 
     // init the interface shim
     iface = calloc(1, sizeof(*iface) + 8192);
@@ -83,7 +87,7 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
     }
 
     for (uint16_t p = 1; p < 49152; p++)
-        w_bind(&w, bswap16(p), 0);
+        w_bind(&w, 0, bswap16(p), 0);
 
     return 0;
 }

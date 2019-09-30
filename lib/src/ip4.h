@@ -59,7 +59,7 @@ struct ip4_hdr {
     uint16_t cksum; ///< IP checksum.
     uint32_t src;   ///< Source IPv4 address.
     uint32_t dst;   ///< Destination IPv4 address.
-} __attribute__((aligned(1), packed));
+} __attribute__((aligned(1)));
 
 #define IP_P_ICMP 1   ///< IP protocol number for ICMP
 #define IP_P_UDP 17   ///< IP protocol number for UDP

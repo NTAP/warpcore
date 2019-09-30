@@ -141,11 +141,12 @@ bool eth_tx(struct w_iov * const v)
     s->buf_idx = v->idx;
     v->idx = slot_idx;
 
-    const struct eth_hdr * const eth = (void *)v->base;
     warn(DBG, "Eth %s -> %s, type 0x%04x, len %u",
-         eth_ntoa(&eth->src, (char[ETH_STRLEN]){""}),
-         eth_ntoa(&eth->dst, (char[ETH_STRLEN]){""}), bswap16(eth->type),
-         s->len);
+         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->src,
+                  (char[ETH_STRLEN]){""}),
+         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->dst,
+                  (char[ETH_STRLEN]){""}),
+         bswap16(((struct eth_hdr *)(void *)v->base)->type), s->len);
 
     // advance tx ring
     txr->head = txr->cur = nm_ring_next(txr, txr->cur);

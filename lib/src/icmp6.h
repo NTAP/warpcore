@@ -53,7 +53,7 @@ struct icmp6_hdr {
     uint16_t cksum; ///< Ones' complement header checksum.
     uint16_t id;
     uint16_t seq;
-} __attribute__((aligned(1), packed));
+} __attribute__((aligned(1)));
 
 
 extern void __attribute__((nonnull)) icmp6_tx(struct w_engine * w,

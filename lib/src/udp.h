@@ -44,7 +44,7 @@ struct udp_hdr {
     uint16_t dport; ///< Destination port.
     uint16_t len;   ///< UDP length (header + data).
     uint16_t cksum; ///< UDP checksum.
-} __attribute__((aligned(1), packed));
+} __attribute__((aligned(1)));
 
 // #include "udp.h"
 
