@@ -81,6 +81,8 @@ extern bool __attribute__((nonnull)) eth_rx(struct w_engine * const w,
 
 extern bool __attribute__((nonnull)) eth_tx(struct w_iov * const v);
 
+extern void __attribute__((nonnull)) eth_tx_and_free(struct w_iov * const v);
+
 
 static inline void __attribute__((nonnull))
 mk_eth_hdr(const struct w_sock * const s, struct w_iov * const v)

@@ -97,7 +97,7 @@ bool eth_rx(struct w_engine * const w,
 ///
 /// @return     True if the buffer was placed into a TX ring, false otherwise.
 ///
-bool __attribute__((nonnull)) eth_tx(struct w_iov * const v)
+bool eth_tx(struct w_iov * const v)
 {
     struct w_backend * const b = v->w->b;
 
@@ -150,4 +150,21 @@ bool __attribute__((nonnull)) eth_tx(struct w_iov * const v)
     // advance tx ring
     txr->head = txr->cur = nm_ring_next(txr, txr->cur);
     return true;
+}
+
+
+/// Wait until @p v has been transmitted, and return free it.
+///
+/// @param      v     The w_iov containing the Ethernet frame to transmit.
+///
+void eth_tx_and_free(struct w_iov * const v)
+{
+    // send the packet, and make sure it went out before returning
+    const uint32_t orig_idx = v->idx;
+    eth_tx(v);
+    do {
+        w_nanosleep(100 * NS_PER_US);
+        w_nic_tx(v->w);
+    } while (v->idx != orig_idx);
+    sq_insert_head(&v->w->iov, v, next);
 }

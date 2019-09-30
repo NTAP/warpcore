@@ -92,15 +92,8 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf, const uint32_t ip)
     eth->src = w->mac;
     eth->type = ETH_TYPE_ARP;
 
-    // now send the packet, and make sure it went out before returning
-    const uint32_t orig_idx = v->idx;
     v->len = sizeof(*reply);
-    eth_tx(v);
-    do {
-        w_nanosleep(100 * NS_PER_US);
-        w_nic_tx(w);
-    } while (v->idx != orig_idx);
-    sq_insert_head(&w->iov, v, next);
+    eth_tx_and_free(v);
 }
 
 
@@ -141,15 +134,8 @@ void
          inet_ntop(AF_INET, &arp->tpa, (char[IP4_STRLEN]){""}, IP4_STRLEN),
          inet_ntop(AF_INET, &arp->spa, (char[IP4_STRLEN]){""}, IP4_STRLEN));
 
-    // now send the packet, and make sure it went out before returning
-    const uint32_t orig_idx = v->idx;
     v->len = sizeof(*arp);
-    eth_tx(v);
-    do {
-        w_nanosleep(100 * NS_PER_US);
-        w_nic_tx(w);
-    } while (v->idx != orig_idx);
-    sq_insert_head(&w->iov, v, next);
+    eth_tx_and_free(v);
 }
 
 

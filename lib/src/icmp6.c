@@ -117,14 +117,7 @@ void
     eth->dst = (struct eth_addr){ETH_ADDR_MCAST6};
     *(uint32_t *)(void *)(&eth->dst.addr[2]) = addr >> 96;
 
-    // now send the packet, and make sure it went out before returning
-    const uint32_t orig_idx = v->idx;
-    eth_tx(v);
-    do {
-        w_nanosleep(100 * NS_PER_US);
-        w_nic_tx(w);
-    } while (v->idx != orig_idx);
-    sq_insert_head(&w->iov, v, next);
+    eth_tx_and_free(v);
 }
 
 
@@ -228,14 +221,7 @@ void
     struct eth_hdr * const dst_eth = (void *)v->base;
     dst_eth->dst = sla ? *sla : src_eth->src;
 
-    // now send the packet, and make sure it went out before returning
-    const uint32_t orig_idx = v->idx;
-    eth_tx(v);
-    do {
-        w_nanosleep(100 * NS_PER_US);
-        w_nic_tx(w);
-    } while (v->idx != orig_idx);
-    sq_insert_head(&w->iov, v, next);
+    eth_tx_and_free(v);
 }
 
 

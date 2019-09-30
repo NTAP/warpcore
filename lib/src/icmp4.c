@@ -124,14 +124,7 @@ void
     dst_eth->src = w->mac;
     dst_eth->type = ETH_TYPE_IP4;
 
-    // now send the packet, and make sure it went out before returning it
-    const uint32_t orig_idx = v->idx;
-    eth_tx(v);
-    do {
-        w_nanosleep(100 * NS_PER_US);
-        w_nic_tx(w);
-    } while (v->idx != orig_idx);
-    sq_insert_head(&w->iov, v, next);
+    eth_tx_and_free(v);
 }
 
 
