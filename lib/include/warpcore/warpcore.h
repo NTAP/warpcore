@@ -78,37 +78,35 @@ struct w_iov_sq {
 #define IP4_STRLEN 16
 
 
-#define AF_IP4 4
-#define AF_IP6 16
-
-
-#define af_len(x) ((uint8_t)(x))
+#define af_len(x) (uint8_t)((x) == AF_INET ? IP4_LEN : IP6_LEN)
 
 
 struct w_addr {
-    uint8_t af; ///< Address family.
+    uint16_t af; ///< Address family.
     union {
-        uint32_t ip4;
-        uint128_t ip6;
+        uint32_t ip4;  ///< IPv4 address (when w_addr::af is AF_INET).
+        uint128_t ip6; ///< IPv6 address (when w_addr::af is AF_INET6).
     };
 };
 
 struct w_ifaddr {
-    struct w_addr addr;
+    struct w_addr addr; ///< Interface address.
     union {
-        uint32_t net4;
-        uint128_t net6;
+        uint32_t net4;  ///< IPv4 netmask (when w_ifaddr::addr::af is AF_INET).
+        uint128_t net6; ///< IPv6 netmask (when w_ifaddr::addr::af is AF_INET6).
     };
     union {
-        uint32_t bcast4;
-        uint128_t bcast6;
+        uint32_t bcast4; ///< IPv4 broadcast address (when w_ifaddr::addr::af is
+                         ///< AF_INET).
+        uint128_t bcast6; ///< IPv6 broadcast address (when w_ifaddr::addr::af
+                          ///< is AF_INET6).
     };
     uint8_t prefix; ///< Prefix length.
 };
 
 struct w_sockaddr {
-    uint16_t port;
-    struct w_addr addr;
+    uint16_t port;      ///< Port number.
+    struct w_addr addr; ///< IP address.
 };
 
 
@@ -118,7 +116,12 @@ struct w_socktuple {
 };
 
 
-extern khint_t __attribute__((nonnull))
+extern khint_t __attribute__((nonnull
+#if defined(__clang__)
+                              ,
+                              no_sanitize("unsigned-integer-overflow")
+#endif
+                                  ))
 w_socktuple_hash(const struct w_socktuple * const tup);
 
 extern khint_t __attribute__((nonnull))
@@ -302,20 +305,20 @@ w_connect(struct w_sock * const s, const struct sockaddr * const peer);
 
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
-extern void __attribute__((nonnull)) w_alloc_len(struct w_engine * const w,
+extern void __attribute__((nonnull)) w_alloc_len(struct w_sock * const s,
                                                  struct w_iov_sq * const q,
                                                  const uint_t qlen,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
-extern void __attribute__((nonnull)) w_alloc_cnt(struct w_engine * const w,
+extern void __attribute__((nonnull)) w_alloc_cnt(struct w_sock * const s,
                                                  struct w_iov_sq * const q,
                                                  const uint_t count,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
 extern struct w_iov * __attribute__((nonnull))
-w_alloc_iov(struct w_engine * const w, const uint16_t len, const uint16_t off);
+w_alloc_iov(struct w_sock * const s, const uint16_t len, const uint16_t off);
 
 extern void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov_sq * const o);

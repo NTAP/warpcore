@@ -38,7 +38,7 @@
 
 
 struct w_engine *w_serv, *w_clnt;
-static struct w_sock *s_serv, *s_clnt;
+struct w_sock *s_serv, *s_clnt;
 
 #define OFFSET 64
 
@@ -46,7 +46,7 @@ bool io(const uint_t len)
 {
     // allocate a w_iov chain for tx
     struct w_iov_sq o = w_iov_sq_initializer(o);
-    w_alloc_cnt(w_clnt, &o, len, 512, OFFSET);
+    w_alloc_cnt(s_clnt, &o, len, 512, OFFSET);
     if (w_iov_sq_cnt(&o) != len) {
         w_free(&o);
         return false;

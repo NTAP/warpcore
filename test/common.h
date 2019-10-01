@@ -36,6 +36,7 @@ extern "C" {
 #include <warpcore/warpcore.h>
 
 extern struct w_engine *w_serv, *w_clnt;
+extern struct w_sock *s_serv, *s_clnt;
 
 extern bool io(const uint_t len);
 extern void init(const uint_t len);

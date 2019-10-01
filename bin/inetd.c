@@ -131,16 +131,12 @@ int
 
     // start four inetd-like "small services" and one benchmark of our own
     struct w_sock * const srv[] = {
-#if 0
-        w_bind(w, 0, bswap16(7), &opt),
-        w->addr_cnt >= 2 ? w_bind(w, 1, bswap16(7), &opt) : 0,
-        w_bind(w, 0, bswap16(9), &opt),
-        w->addr_cnt >= 2 ? w_bind(w, 1, bswap16(9), &opt) : 0,
-#endif
-        w_bind(w, 0, bswap16(55555), &opt),
-        w->addr_cnt >= 2 ? w_bind(w, 1, bswap16(55555), &opt) : 0
-    };
-    const uint16_t n = sizeof(srv) / sizeof(struct w_sock *);
+        w->have_ip6 ? w_bind(w, 0, bswap16(7), &opt) : 0,
+        w->have_ip4 ? w_bind(w, w->addr4_pos, bswap16(7), &opt) : 0,
+        w->have_ip6 ? w_bind(w, 0, bswap16(9), &opt) : 0,
+        w->have_ip4 ? w_bind(w, w->addr4_pos, bswap16(9), &opt) : 0,
+        w->have_ip6 ? w_bind(w, 0, bswap16(55555), &opt) : 0,
+        w->have_ip4 ? w_bind(w, w->addr4_pos, bswap16(55555), &opt) : 0};
 
     // serve requests on the four sockets until an interrupt occurs
     while (done == false) {
@@ -240,7 +236,7 @@ int
     }
 
     // we only get here after an interrupt; clean up
-    for (uint16_t s = 0; s < n; s++)
+    for (size_t s = 0; s < sizeof(srv) / sizeof(struct w_sock *); s++)
         if (srv[s])
             w_close(srv[s]);
     w_cleanup(w);

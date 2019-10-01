@@ -28,6 +28,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <sys/socket.h>
 
 #include <warpcore/warpcore.h>
 
@@ -47,8 +48,8 @@ static inline khint_t __attribute__((nonnull))
 w_addr_hash(const struct w_addr * const addr)
 {
     // only hash part of the struct and rely on w_addr_hash for comparison
-    return addr->af == AF_IP4 ? fnv1a_32(&addr->ip4, IP4_LEN)
-                              : fnv1a_32(&addr->ip6, IP6_LEN);
+    return addr->af == AF_INET ? fnv1a_32(&addr->ip4, IP4_LEN)
+                               : fnv1a_32(&addr->ip6, IP6_LEN);
 }
 
 
@@ -56,7 +57,7 @@ static inline bool __attribute__((nonnull))
 w_addr_cmp(const struct w_addr * const a, const struct w_addr * const b)
 {
     return a->af == b->af &&
-           (a->af == AF_IP4 ? (a->ip4 == b->ip4) : (a->ip6 == b->ip6));
+           (a->af == AF_INET ? (a->ip4 == b->ip4) : (a->ip6 == b->ip6));
 }
 
 

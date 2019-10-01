@@ -176,24 +176,26 @@ rem_sock(struct w_engine * const w, struct w_sock * const s)
 /// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
 /// returned to w->iov via sq_insert_head() or sq_concat().
 ///
-/// @param      w     Backend engine.
+/// @param      s     w_sock to allocate for.
 /// @param[in]  len   The length of each @p buf.
 /// @param[in]  off   Additional offset into the buffer.
 ///
 /// @return     Spare w_iov.
 ///
 struct w_iov *
-w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
+w_alloc_iov(struct w_sock * const s, const uint16_t len, uint16_t off)
 {
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_alloc_iov len %u, off %u", len, off);
 #endif
-    struct w_iov * const v = w_alloc_iov_base(w);
+    const uint16_t af = s->tup.local.addr.af;
+    ensure(af, "cannot alloc on unbound socket");
+    struct w_iov * const v = w_alloc_iov_base(s->w);
     if (likely(v)) {
 #ifdef WITH_NETMAP
         const size_t diff =
             sizeof(struct eth_hdr) +
-            MAX(sizeof(struct ip4_hdr), sizeof(struct ip6_hdr)) +
+            (af == AF_INET ? sizeof(struct ip4_hdr) : sizeof(struct ip6_hdr)) +
             sizeof(struct udp_hdr);
         v->buf += diff;
         v->len -= diff;
@@ -222,13 +224,13 @@ w_alloc_iov(struct w_engine * const w, const uint16_t len, uint16_t off)
 /// If there aren't enough buffers available to fulfill the request, @p q will
 /// be shorter than requested. It is up to the caller to check this.
 ///
-/// @param      w     Backend engine.
+/// @param      s     w_sock to allocate for.
 /// @param[out] q     Tail queue of w_iov structs.
 /// @param[in]  qlen  Amount of payload bytes in the returned tail queue.
 /// @param[in]  len   The length of each @p buf.
 /// @param[in]  off   Additional offset for @p buf.
 ///
-void w_alloc_len(struct w_engine * const w,
+void w_alloc_len(struct w_sock * const s,
                  struct w_iov_sq * const q,
                  const uint_t qlen,
                  const uint16_t len,
@@ -240,7 +242,7 @@ void w_alloc_len(struct w_engine * const w,
 #endif
     uint_t needed = qlen;
     while (likely(needed)) {
-        struct w_iov * const v = w_alloc_iov(w, len, off);
+        struct w_iov * const v = w_alloc_iov(s, len, off);
         if (unlikely(v == 0))
             return;
         if (likely(needed > v->len))
@@ -269,13 +271,13 @@ void w_alloc_len(struct w_engine * const w,
 /// If there aren't enough buffers available to fulfill the request, @p q will
 /// be shorter than requested. It is up to the caller to check this.
 ///
-/// @param      w      Backend engine.
+/// @param      s     w_sock to allocate for.
 /// @param[out] q      Tail queue of w_iov structs.
 /// @param[in]  count  Number of packets in the returned tail queue.
 /// @param[in]  len    The length of each @p buf.
 /// @param[in]  off    Additional offset for @p buf.
 ///
-void w_alloc_cnt(struct w_engine * const w,
+void w_alloc_cnt(struct w_sock * const s,
                  struct w_iov_sq * const q,
                  const uint_t count,
                  const uint16_t len,
@@ -286,7 +288,7 @@ void w_alloc_cnt(struct w_engine * const w,
     ensure(sq_empty(q), "q not empty");
 #endif
     for (uint_t needed = 0; likely(needed < count); needed++) {
-        struct w_iov * const v = w_alloc_iov(w, len, off);
+        struct w_iov * const v = w_alloc_iov(s, len, off);
         if (unlikely(v == 0))
             return;
         sq_insert_tail(q, v, next);
@@ -333,25 +335,30 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
         return EADDRINUSE;
     }
 
-    if (unlikely(peer->sa_family != AF_INET && peer->sa_family != AF_INET6)) {
-        warn(ERR, "peer address is not IP");
+    rem_sock(s->w, s);
+
+    if (unlikely(set_ip(&s->tup.remote.addr, peer) == false)) {
+        warn(ERR, "peer has unknown address family");
+        ins_sock(s->w, s);
         return EAFNOSUPPORT;
     }
 
-    rem_sock(s->w, s);
-    set_ip(&s->tup.remote.addr, peer);
-    s->tup.remote.port = sa_port(peer);
+    struct w_sockaddr * const remote = &s->tup.remote;
+    remote->port = sa_port(peer);
     const int e = backend_connect(s);
     if (unlikely(e)) {
-        memset(&s->tup.remote, 0, sizeof(s->tup.remote));
+        warn(ERR, "w_connect to %s:%u failed - %s",
+             w_ntop(&remote->addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+             bswap16(remote->port), strerror(e));
+        memset(&s->tup.remote, 0, sizeof(*remote));
         ins_sock(s->w, s);
         return e;
     }
     ins_sock(s->w, s);
 
     warn(DBG, "socket connected to %s:%d",
-         w_ntop(&s->tup.remote.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-         bswap16(s->tup.remote.port));
+         w_ntop(&remote->addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+         bswap16(remote->port));
 
     return 0;
 }
@@ -388,12 +395,16 @@ struct w_sock * w_bind(struct w_engine * const w,
     s->w = w;
     sq_init(&s->iv);
 
-    if (unlikely(backend_bind(s, opt) != 0))
+    if (unlikely(backend_bind(s, opt) != 0)) {
+        warn(ERR, "w_bind failed on %s:%u - %s",
+             w_ntop(&s->tup.local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+             bswap16(s->tup.local.port), strerror(errno));
         goto fail;
+    }
 
     warn(NTE, "socket bound to %s:%d",
-         w_ntop(&local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-         bswap16(port));
+         w_ntop(&s->tup.local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+         bswap16(s->tup.local.port));
 
     ins_sock(w, s);
     return s;
@@ -486,7 +497,7 @@ static uint8_t __attribute__((nonnull))
 contig_mask_len(const int af, const void * const mask)
 {
     uint8_t mask_len = 0;
-    if (af == AF_IP4) {
+    if (af == AF_INET) {
         const uint32_t mask4 = bswap32(*(const uint32_t *)mask);
         mask_len = !(mask4 & (~mask4 >> 1));
     } else {
@@ -522,8 +533,8 @@ const char *
 w_ntop(const struct w_addr * const addr, char * const dst, const size_t dst_len)
 {
     return inet_ntop(addr->af,
-                     (addr->af == AF_IP4 ? (const void *)&addr->ip4
-                                         : (const void *)&addr->ip6),
+                     (addr->af == AF_INET ? (const void *)&addr->ip4
+                                          : (const void *)&addr->ip6),
                      dst, (socklen_t)dst_len);
 }
 
@@ -639,7 +650,8 @@ struct w_engine * w_init(const char * const ifname,
 
             w->have_ip6 = true;
             struct w_ifaddr * ia = &w->ifaddr[addr6_cnt++];
-            set_ip(&ia->addr, i->ifa_addr);
+            if (set_ip(&ia->addr, i->ifa_addr) == false)
+                continue;
             const void * const sa_mask6 =
                 &((const struct sockaddr_in6 *)(const void *)i->ifa_netmask)
                      ->sin6_addr;
@@ -655,7 +667,8 @@ struct w_engine * w_init(const char * const ifname,
             ia = &w->ifaddr[addr4_cnt++];
 
             w->have_ip4 = true;
-            set_ip(&ia->addr, i->ifa_addr);
+            if (set_ip(&ia->addr, i->ifa_addr) == false)
+                continue;
             const void * const sa_mask4 =
                 &((const struct sockaddr_in *)(const void *)i->ifa_netmask)
                      ->sin_addr;
@@ -678,7 +691,7 @@ struct w_engine * w_init(const char * const ifname,
 #if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
     for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
         struct w_ifaddr * const ia = &w->ifaddr[idx];
-        warn(NTE, "%s IPv%d addr %s/%u", ifname, ia->addr.af == AF_IP4 ? 4 : 6,
+        warn(NTE, "%s IPv%d addr %s/%u", ifname, ia->addr.af == AF_INET ? 4 : 6,
              w_ntop(&ia->addr, (char[IP6_STRLEN]){""}, IP6_STRLEN), ia->prefix);
     }
 #endif
@@ -940,4 +953,22 @@ void w_nanosleep(const uint64_t ns)
 #else
     nanosleep(&(struct timespec){ns / NS_PER_S, (long)(ns % NS_PER_S)}, 0);
 #endif
+}
+
+
+bool set_ip(struct w_addr * const wa, const struct sockaddr * const sa)
+{
+    if (unlikely(sa->sa_family != AF_INET && sa->sa_family != AF_INET6))
+        return false;
+
+    wa->af = sa->sa_family;
+    if (wa->af == AF_INET)
+        memcpy(&wa->ip4,
+               &((const struct sockaddr_in *)(const void *)sa)->sin_addr,
+               sizeof(wa->ip4));
+    else
+        memcpy(&wa->ip6,
+               &((const struct sockaddr_in6 *)(const void *)sa)->sin6_addr,
+               sizeof(wa->ip6));
+    return true;
 }

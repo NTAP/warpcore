@@ -124,23 +124,6 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
 }
 
 
-static inline void set_ip(struct w_addr * const wa,
-                          const struct sockaddr * const sa)
-{
-    if (sa->sa_family == AF_INET) {
-        wa->af = AF_IP4;
-        memcpy(&wa->ip4,
-               &((const struct sockaddr_in *)(const void *)sa)->sin_addr,
-               sizeof(wa->ip4));
-    } else {
-        wa->af = AF_IP6;
-        memcpy(&wa->ip6,
-               &((const struct sockaddr_in6 *)(const void *)sa)->sin6_addr,
-               sizeof(wa->ip6));
-    }
-}
-
-
 #define sa_port(s)                                                             \
     _Pragma("clang diagnostic push")                                           \
                 _Pragma("clang diagnostic ignored \"-Wcast-align\"")(          \
@@ -155,6 +138,9 @@ static inline void set_ip(struct w_addr * const wa,
 ///
 extern sl_head(w_engines, w_engine) engines;
 
+
+extern bool __attribute__((nonnull))
+set_ip(struct w_addr * const wa, const struct sockaddr * const sa);
 
 extern void __attribute__((nonnull))
 init_iov(struct w_engine * const w, struct w_iov * const v, const uint32_t idx);

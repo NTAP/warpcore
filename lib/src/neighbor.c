@@ -103,7 +103,7 @@ struct eth_addr
         warn(INF, "no neighbor entry for %s, sending query",
              w_ntop(addr, (char[IP6_STRLEN]){""}, IP6_STRLEN));
 
-        if (addr->af == AF_IP4)
+        if (addr->af == AF_INET)
             arp_who_has(w, addr->ip4);
         else
             icmp6_nsol(w, addr->ip6);

@@ -51,8 +51,7 @@ __extension__ static struct w_engine w = {
                       .bcast4 = 0xffffff7f,
                       .prefix = 8}}};
 
-int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
-                         char *** argv __attribute__((unused)))
+static int init(void)
 {
 #ifndef NDEBUG
     util_dlevel = DBG;
@@ -86,7 +85,7 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
         s->buf_idx = idx;
     }
 
-    for (uint16_t p = 1; p < 49152; p++)
+    for (uint16_t p = 1; p < UINT16_MAX; p++)
         w_bind(&w, 0, bswap16(p), 0);
 
     return 0;
@@ -95,6 +94,10 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
 
 int LLVMFuzzerTestOneInput(const uint8_t * data, const size_t size)
 {
+    static int needs_init = 1;
+    if (needs_init)
+        needs_init = init();
+
     struct netmap_ring * const r = NETMAP_TXRING(iface, 0);
     r->cur = r->head = 1;
     r->tail = 0;

@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/socket.h>
 
 // IWYU pragma: no_include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
@@ -110,7 +111,7 @@ void
 
     // construct an IPv4 header
     struct ip4_hdr * const dst_ip = (void *)eth_data(v->base);
-    v->saddr.addr.af = AF_IP4;
+    v->saddr.addr.af = AF_INET;
     v->saddr.addr.ip4 = src_ip->src;
     v->len = sizeof(*dst_icmp) + data_len;
     dst_ip->p = IP_P_ICMP;

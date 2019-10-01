@@ -31,8 +31,6 @@
 
 #include <arpa/inet.h>
 #include <stdint.h>
-#include <string.h>
-#include <sys/param.h>
 #include <sys/socket.h>
 
 // IWYU pragma: no_include <net/netmap.h>
@@ -44,7 +42,6 @@
 #include "icmp4.h"
 #include "in_cksum.h"
 #include "ip4.h"
-#include "ip6.h"
 #include "udp.h"
 
 
@@ -155,8 +152,7 @@ void
     mk_ip4_hdr(struct w_iov * const v, const struct w_sock * const s)
 {
     struct ip4_hdr * const ip = (void *)eth_data(v->base);
-    const uint8_t hl = MAX(sizeof(*ip), sizeof(struct ip6_hdr));
-    ip->vhl = (4 << 4) | (hl >> 2);
+    ip->vhl = (4 << 4) | (sizeof(*ip) >> 2);
 
     // set DSCP and ECN
     ip->tos = v->flags;
@@ -164,7 +160,7 @@ void
     if ((v->flags & IPTOS_ECN_MASK) == 0 && likely(s) && s->opt.enable_ecn)
         ip->tos |= IPTOS_ECN_ECT0;
 
-    v->len += hl;
+    v->len += sizeof(*ip);
     ip->len = bswap16(v->len);
 
     // no need to do bswap16() for random value
@@ -184,12 +180,9 @@ void
         ip->dst = v->saddr.addr.ip4;
     }
 
-    // zero out the options
-    memset(eth_data(v->base) + sizeof(*ip), 0, hl - sizeof(*ip));
-
     // IP checksum is over header only
     ip->cksum = 0;
-    ip->cksum = ip_cksum(ip, hl);
+    ip->cksum = ip_cksum(ip, sizeof(*ip));
 
     ip4_log(ip);
 }

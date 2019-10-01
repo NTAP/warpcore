@@ -29,6 +29,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/socket.h>
 
 #ifdef WITH_NETMAP
 // IWYU pragma: no_include <net/netmap.h>
@@ -89,7 +90,7 @@ mk_eth_hdr(const struct w_sock * const s, struct w_iov * const v)
     struct eth_hdr * const eth = (void *)v->base;
     eth->dst = w_connected(s) ? s->dmac : who_has(s->w, &v->saddr.addr);
     eth->src = v->w->mac;
-    eth->type = s->tup.local.addr.af == AF_IP4 ? ETH_TYPE_IP4 : ETH_TYPE_IP6;
+    eth->type = s->tup.local.addr.af == AF_INET ? ETH_TYPE_IP4 : ETH_TYPE_IP6;
 }
 
 #endif
