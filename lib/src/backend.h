@@ -138,10 +138,6 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
 ///
 extern sl_head(w_engines, w_engine) engines;
 
-
-extern bool __attribute__((nonnull))
-set_ip(struct w_addr * const wa, const struct sockaddr * const sa);
-
 extern void __attribute__((nonnull))
 init_iov(struct w_engine * const w, struct w_iov * const v, const uint32_t idx);
 

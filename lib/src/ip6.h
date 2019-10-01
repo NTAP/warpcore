@@ -30,8 +30,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+// #ifdef WITH_NETMAP
+// // IWYU pragma: no_include <net/netmap.h>
+// #include <net/netmap_user.h> // IWYU pragma: keep
+// #endif
 
 #include <warpcore/warpcore.h>
 
@@ -114,6 +116,8 @@ ip6_data(uint8_t * const buf)
     return buf + sizeof(struct eth_hdr) + sizeof(struct ip6_hdr);
 }
 
+
+struct netmap_slot;
 
 extern bool __attribute__((nonnull)) ip6_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,

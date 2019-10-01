@@ -120,11 +120,14 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 
     if (s->opt.enable_ecn != opt->enable_ecn) {
         s->opt.enable_ecn = opt->enable_ecn;
-        ensure(setsockopt(s->fd, IPPROTO_IP, IP_TOS,
-                          &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0
-                                                   : IPTOS_ECN_NOTECT},
-                          sizeof(int)) >= 0,
-               "cannot setsockopt IP_TOS");
+        ensure(
+            setsockopt(
+                s->fd,
+                s->tup.local.addr.af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+                s->tup.local.addr.af == AF_INET ? IP_TOS : IPV6_TCLASS,
+                &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0 : IPTOS_ECN_NOTECT},
+                sizeof(int)) >= 0,
+            "cannot setsockopt IP_TOS");
     }
 }
 
@@ -510,7 +513,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
                 v[j]->saddr.port = sa_port(&sa[j]);
-                set_ip(&v[j]->saddr.addr, (struct sockaddr *)&sa[j]);
+                w_to_waddr(&v[j]->saddr.addr, (struct sockaddr *)&sa[j]);
 
 #ifdef HAVE_RECVMMSG
                 v[j]->len = (uint16_t)msgvec[j].msg_len;

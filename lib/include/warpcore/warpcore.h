@@ -490,6 +490,21 @@ w_connected(const struct w_sock * const s)
 }
 
 
+/// Compare two w_addr structs for equality.
+///
+/// @param[in]  a     First struct.
+/// @param[in]  b     Second struct.
+///
+/// @return     True if equal, false otherwise.
+///
+static inline bool __attribute__((nonnull))
+w_addr_cmp(const struct w_addr * const a, const struct w_addr * const b)
+{
+    return a->af == b->af &&
+           (a->af == AF_INET ? (a->ip4 == b->ip4) : (a->ip6 == b->ip6));
+}
+
+
 /// Set the socket options.
 ///
 /// @param[in]  s     { parameter_description }
@@ -508,6 +523,18 @@ extern uint64_t w_now(void);
 /// @param[in]  ns    Sleep time in nanoseconds.
 ///
 extern void w_nanosleep(const uint64_t ns);
+
+
+/// Initialize w_addr @p wa based on sockaddr @p sa.
+///
+/// @param      wa    The w_addr struct to initialize.
+/// @param[in]  sa    The sockaddr struct to initialize based on.
+///
+/// @return     True if the initialization succeeded.
+///
+extern bool __attribute__((nonnull))
+w_to_waddr(struct w_addr * const wa, const struct sockaddr * const sa);
+
 
 #ifdef __cplusplus
 }

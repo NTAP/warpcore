@@ -343,7 +343,7 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
 
     rem_sock(s->w, s);
 
-    if (unlikely(set_ip(&s->tup.remote.addr, peer) == false)) {
+    if (unlikely(w_to_waddr(&s->tup.remote.addr, peer) == false)) {
         warn(ERR, "peer has unknown address family");
         ins_sock(s->w, s);
         return EAFNOSUPPORT;
@@ -656,7 +656,7 @@ struct w_engine * w_init(const char * const ifname,
 
             w->have_ip6 = true;
             struct w_ifaddr * ia = &w->ifaddr[addr6_cnt++];
-            if (set_ip(&ia->addr, i->ifa_addr) == false)
+            if (w_to_waddr(&ia->addr, i->ifa_addr) == false)
                 continue;
             const void * const sa_mask6 =
                 &((const struct sockaddr_in6 *)(const void *)i->ifa_netmask)
@@ -673,7 +673,7 @@ struct w_engine * w_init(const char * const ifname,
             ia = &w->ifaddr[addr4_cnt++];
 
             w->have_ip4 = true;
-            if (set_ip(&ia->addr, i->ifa_addr) == false)
+            if (w_to_waddr(&ia->addr, i->ifa_addr) == false)
                 continue;
             const void * const sa_mask4 =
                 &((const struct sockaddr_in *)(const void *)i->ifa_netmask)
@@ -962,7 +962,7 @@ void w_nanosleep(const uint64_t ns)
 }
 
 
-bool set_ip(struct w_addr * const wa, const struct sockaddr * const sa)
+bool w_to_waddr(struct w_addr * const wa, const struct sockaddr * const sa)
 {
     if (unlikely(sa->sa_family != AF_INET && sa->sa_family != AF_INET6))
         return false;

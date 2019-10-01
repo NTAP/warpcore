@@ -30,8 +30,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+// #ifdef WITH_NETMAP
+// // IWYU pragma: no_include <net/netmap.h>
+// #include <net/netmap_user.h> // IWYU pragma: keep
+// #endif
 
 #include <warpcore/warpcore.h>
 
@@ -148,6 +150,8 @@ ip4_data_len(const struct ip4_hdr * const ip)
     return bswap16(ip->len) - ip4_hl(ip->vhl);
 }
 
+
+struct netmap_slot;
 
 extern bool __attribute__((nonnull)) ip4_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,

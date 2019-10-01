@@ -30,8 +30,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+// // IWYU pragma: no_include <net/netmap.h>
+// #include <net/netmap_user.h> // IWYU pragma: keep
 
 #include <warpcore/warpcore.h>
 
@@ -46,8 +46,8 @@ struct udp_hdr {
     uint16_t cksum; ///< UDP checksum.
 } __attribute__((aligned(1)));
 
-// #include "udp.h"
 
+struct netmap_slot;
 
 extern bool __attribute__((nonnull)) udp_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,
