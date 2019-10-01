@@ -477,7 +477,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
         ssize_t nbufs = 0;
         for (int j = 0; likely(j < RECV_SIZE); j++, nbufs++) {
-            v[j] = w_alloc_iov(s, 0, 0);
+            v[j] = w_alloc_iov(s->w, s->tup.local.addr.af, 0, 0);
             if (unlikely(v[j] == 0))
                 break;
             msg[j] =

@@ -219,14 +219,14 @@ int
 
     // send "loops" number of payloads of len "len" and wait for reply
     for (uint_t len = start; len <= end; len += (inc ? inc : len)) {
+        // allocate tx tail queue
+        struct w_iov_sq o = w_iov_sq_initializer(o);
+        w_alloc_len(w, peer->ai_family, &o, len, 0, 0);
+
         long iter = loops;
         while (likely(iter--)) {
             // pick a random connection for output
             const uint32_t c = w_rand_uniform32(conns);
-
-            // allocate tx tail queue
-            struct w_iov_sq o = w_iov_sq_initializer(o);
-            w_alloc_len(s[c], &o, len, 0, 0);
 
             // get the current time
             struct timespec before_tx;
@@ -307,8 +307,8 @@ int
 
             // we are done with the data
             w_free(&i);
-            w_free(&o);
         }
+        w_free(&o);
     }
 
     for (uint32_t c = 0; c < conns; c++)

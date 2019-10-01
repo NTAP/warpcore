@@ -305,20 +305,25 @@ w_connect(struct w_sock * const s, const struct sockaddr * const peer);
 
 extern void __attribute__((nonnull)) w_close(struct w_sock * const s);
 
-extern void __attribute__((nonnull)) w_alloc_len(struct w_sock * const s,
+extern void __attribute__((nonnull)) w_alloc_len(struct w_engine * const w,
+                                                 const int af,
                                                  struct w_iov_sq * const q,
                                                  const uint_t qlen,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
-extern void __attribute__((nonnull)) w_alloc_cnt(struct w_sock * const s,
+extern void __attribute__((nonnull)) w_alloc_cnt(struct w_engine * const w,
+                                                 const int af,
                                                  struct w_iov_sq * const q,
                                                  const uint_t count,
                                                  const uint16_t len,
                                                  const uint16_t off);
 
 extern struct w_iov * __attribute__((nonnull))
-w_alloc_iov(struct w_sock * const s, const uint16_t len, const uint16_t off);
+w_alloc_iov(struct w_engine * const w,
+            const int af,
+            const uint16_t len,
+            const uint16_t off);
 
 extern void __attribute__((nonnull))
 w_tx(const struct w_sock * const s, struct w_iov_sq * const o);

@@ -176,21 +176,23 @@ rem_sock(struct w_engine * const w, struct w_sock * const s)
 /// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
 /// returned to w->iov via sq_insert_head() or sq_concat().
 ///
-/// @param      s     w_sock to allocate for.
+/// @param      w     Backend engine.
+/// @param[in]  af    Address family to allocate packet buffers.
 /// @param[in]  len   The length of each @p buf.
 /// @param[in]  off   Additional offset into the buffer.
 ///
 /// @return     Spare w_iov.
 ///
-struct w_iov *
-w_alloc_iov(struct w_sock * const s, const uint16_t len, uint16_t off)
+struct w_iov * w_alloc_iov(struct w_engine * const w,
+                           const int af,
+                           const uint16_t len,
+                           uint16_t off)
 {
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_alloc_iov len %u, off %u", len, off);
 #endif
-    const uint16_t af = s->tup.local.addr.af;
-    ensure(af, "cannot alloc on unbound socket");
-    struct w_iov * const v = w_alloc_iov_base(s->w);
+    ensure(af == AF_INET || af == AF_INET6, "unknown address family");
+    struct w_iov * const v = w_alloc_iov_base(w);
     if (likely(v)) {
 #ifdef WITH_NETMAP
         const size_t diff =
@@ -224,13 +226,15 @@ w_alloc_iov(struct w_sock * const s, const uint16_t len, uint16_t off)
 /// If there aren't enough buffers available to fulfill the request, @p q will
 /// be shorter than requested. It is up to the caller to check this.
 ///
-/// @param      s     w_sock to allocate for.
+/// @param      w     Backend engine.
+/// @param[in]  af    Address family to allocate packet buffers.
 /// @param[out] q     Tail queue of w_iov structs.
 /// @param[in]  qlen  Amount of payload bytes in the returned tail queue.
 /// @param[in]  len   The length of each @p buf.
 /// @param[in]  off   Additional offset for @p buf.
 ///
-void w_alloc_len(struct w_sock * const s,
+void w_alloc_len(struct w_engine * const w,
+                 const int af,
                  struct w_iov_sq * const q,
                  const uint_t qlen,
                  const uint16_t len,
@@ -242,7 +246,7 @@ void w_alloc_len(struct w_sock * const s,
 #endif
     uint_t needed = qlen;
     while (likely(needed)) {
-        struct w_iov * const v = w_alloc_iov(s, len, off);
+        struct w_iov * const v = w_alloc_iov(w, af, len, off);
         if (unlikely(v == 0))
             return;
         if (likely(needed > v->len))
@@ -271,13 +275,15 @@ void w_alloc_len(struct w_sock * const s,
 /// If there aren't enough buffers available to fulfill the request, @p q will
 /// be shorter than requested. It is up to the caller to check this.
 ///
-/// @param      s     w_sock to allocate for.
+/// @param      w      Backend engine.
+/// @param[in]  af     Address family to allocate packet buffers.
 /// @param[out] q      Tail queue of w_iov structs.
 /// @param[in]  count  Number of packets in the returned tail queue.
 /// @param[in]  len    The length of each @p buf.
 /// @param[in]  off    Additional offset for @p buf.
 ///
-void w_alloc_cnt(struct w_sock * const s,
+void w_alloc_cnt(struct w_engine * const w,
+                 const int af,
                  struct w_iov_sq * const q,
                  const uint_t count,
                  const uint16_t len,
@@ -288,7 +294,7 @@ void w_alloc_cnt(struct w_sock * const s,
     ensure(sq_empty(q), "q not empty");
 #endif
     for (uint_t needed = 0; likely(needed < count); needed++) {
-        struct w_iov * const v = w_alloc_iov(s, len, off);
+        struct w_iov * const v = w_alloc_iov(w, af, len, off);
         if (unlikely(v == 0))
             return;
         sq_insert_tail(q, v, next);

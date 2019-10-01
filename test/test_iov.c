@@ -47,13 +47,13 @@ int main(void)
 
     struct w_engine * const w = w_serv;
 
-    struct w_iov * v = w_alloc_iov(s_serv, 0, 0);
+    struct w_iov * v = w_alloc_iov(w, s_serv->tup.local.addr.af, 0, 0);
     warn(DBG, "base: len %u", v->len);
     ensure(v->len == w->mtu, "base len != %u", w->mtu);
 
     for (uint16_t x = 0; x <= w->mtu; x += 200) {
         warn(INF, "off %u", x);
-        v = w_alloc_iov(s_serv, 0, x);
+        v = w_alloc_iov(w, s_serv->tup.local.addr.af, 0, x);
         ensure(v->len == w->mtu - x, "v len != %u", w->mtu - x);
         ensure(v->buf == beg(v) + x, "start incorrect %p != %p", (void *)v->buf,
                (void *)(beg(v) + x));
@@ -62,7 +62,7 @@ int main(void)
 
     for (uint16_t x = 0; x <= w->mtu; x += 200) {
         warn(INF, "len %u", x);
-        v = w_alloc_iov(s_serv, x, 0);
+        v = w_alloc_iov(w, s_serv->tup.local.addr.af, x, 0);
         ensure(v->len == (x == 0 ? w->mtu : x), "v len != %u", x);
         ensure(v->buf == beg(v), "start incorrect");
         w_free_iov(v);
@@ -71,7 +71,7 @@ int main(void)
     const uint16_t off = 100;
     for (uint16_t x = 0; x <= w->mtu - off; x += 200) {
         warn(INF, "off %u & len %u", off, x);
-        v = w_alloc_iov(s_serv, x, off);
+        v = w_alloc_iov(w, s_serv->tup.local.addr.af, x, off);
         ensure(v->len == (x == 0 ? w->mtu - off : x), "v len != %u", x);
         ensure(v->buf == beg(v) + off, "start incorrect");
         w_free_iov(v);
@@ -81,7 +81,7 @@ int main(void)
     for (uint16_t x = 0; x <= w->mtu * 3; x += (w->mtu / 3)) {
         warn(INF, "sq qlen %u", x);
         sq_init(&q);
-        w_alloc_len(s_serv, &q, x, 0, 0);
+        w_alloc_len(w, s_serv->tup.local.addr.af, &q, x, 0, 0);
         const uint64_t ql = w_iov_sq_len(&q);
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
@@ -98,7 +98,7 @@ int main(void)
     for (uint16_t x = 0; x <= w->mtu * 3; x += (w->mtu / 3)) {
         warn(INF, "sq off %u qlen %u", off, x);
         sq_init(&q);
-        w_alloc_len(s_serv, &q, x, 0, off);
+        w_alloc_len(w, s_serv->tup.local.addr.af, &q, x, 0, off);
         const uint64_t ql = w_iov_sq_len(&q);
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
@@ -117,7 +117,7 @@ int main(void)
     for (uint16_t x = 0; x <= w->mtu * 3; x += (w->mtu / 3)) {
         warn(INF, "sq off %u len %u qlen %u", off, len, x);
         sq_init(&q);
-        w_alloc_len(s_serv, &q, x, len, off);
+        w_alloc_len(w, s_serv->tup.local.addr.af, &q, x, len, off);
         const uint64_t ql = w_iov_sq_len(&q);
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
