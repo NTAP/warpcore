@@ -128,12 +128,12 @@ static inline void set_ip(struct w_addr * const wa,
                           const struct sockaddr * const sa)
 {
     if (sa->sa_family == AF_INET) {
-        wa->af == AF_IP4;
+        wa->af = AF_IP4;
         memcpy(&wa->ip4,
                &((const struct sockaddr_in *)(const void *)sa)->sin_addr,
                sizeof(wa->ip4));
     } else {
-        wa->af == AF_IP6;
+        wa->af = AF_IP6;
         memcpy(&wa->ip6,
                &((const struct sockaddr_in6 *)(const void *)sa)->sin6_addr,
                sizeof(wa->ip6));
