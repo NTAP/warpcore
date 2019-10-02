@@ -47,12 +47,23 @@
 
 #include <warpcore/warpcore.h>
 
+#if defined(__linux__)
+#define IPTOS_ECN_NOTECT IPTOS_ECN_NOT_ECT
+#endif
+
 #ifndef PARTICLE
 #include <netinet/ip.h>
 #include <sys/uio.h>
 #else
 #include <lwip/sockets.h>
 #include <socket_hal.h>
+
+#define IPTOS_ECN_NOTECT 0x00
+#define IPTOS_ECN_ECT1 0x01
+#define IPTOS_ECN_ECT0 0x02
+#define IPTOS_ECN_CE 0x03
+#define IPTOS_ECN_MASK 0x03
+
 #define SOCK_CLOEXEC 0
 #define IP_RECVTOS IP_TOS
 #define strerror(...) ""
@@ -72,7 +83,6 @@
 #endif
 
 #include "backend.h"
-// #include "ip4.h"
 
 
 #define sa_len(f)                                                              \
@@ -93,7 +103,7 @@ to_sockaddr(struct sockaddr * const sa,
         struct sockaddr_in6 * const sin6 = (struct sockaddr_in6 *)(void *)sa;
         sin6->sin6_family = AF_INET6;
         sin6->sin6_port = port;
-        memcpy(&sin6->sin6_addr, &addr->ip6, IP6_LEN);
+        memcpy(&sin6->sin6_addr, addr->ip6, IP6_LEN);
         if (unlikely(IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)))
             sin6->sin6_scope_id = 0x3;
     }

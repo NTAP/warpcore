@@ -114,8 +114,8 @@ bool
         ip_plen = bswap16(ip6->len);
         udp = (void *)ip6_data(buf);
         local.addr.af = i->wv_af = AF_INET6;
-        memcpy(&i->wv_ip6, ip6->src, sizeof(i->wv_ip6));
-        memcpy(&local.addr.ip6, ip6->dst, sizeof(local.addr.ip6));
+        memcpy(i->wv_ip6, ip6->src, sizeof(i->wv_ip6));
+        memcpy(local.addr.ip6, ip6->dst, sizeof(local.addr.ip6));
         i->flags = ip6_tc(ip6->vtcecnfl);
     }
 

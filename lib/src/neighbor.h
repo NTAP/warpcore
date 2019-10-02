@@ -48,7 +48,7 @@ w_addr_hash(const struct w_addr * const addr)
 {
     // only hash part of the struct and rely on w_addr_hash for comparison
     return addr->af == AF_INET ? fnv1a_32(&addr->ip4, IP4_LEN)
-                               : fnv1a_32(&addr->ip6, IP6_LEN);
+                               : fnv1a_32(addr->ip6, IP6_LEN);
 }
 
 

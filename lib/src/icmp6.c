@@ -214,7 +214,7 @@ void
         memcpy((uint8_t *)dst_icmp + sizeof(*dst_icmp), data, data_len);
 
     v->len = sizeof(*dst_icmp) + data_len;
-    memcpy(&v->wv_ip6, src_ip->src, sizeof(v->wv_ip6));
+    memcpy(v->wv_ip6, src_ip->src, IP6_LEN);
     mk_icmp6_pkt_hdrs(v);
 
     // set missing bits of the Ethernet header
@@ -278,7 +278,7 @@ void
 
         const struct eth_hdr * src_eth = (const void *)buf;
         struct w_addr addr = {.af = AF_INET6};
-        memcpy(&addr.ip6, target, IP6_LEN);
+        memcpy(addr.ip6, target, IP6_LEN);
         warn(NTE, "neighbor advertisement, %s is at %s", w_ntop(&addr, ip6_tmp),
              eth_ntoa(sla ? sla : &src_eth->src, eth_tmp));
         neighbor_update(w, &addr, sla ? *sla : src_eth->src);
@@ -299,7 +299,7 @@ void
             sla = (const void *)data;
 
         struct w_addr t = {.af = AF_INET6};
-        memcpy(&addr.ip6, target, IP6_LEN);
+        memcpy(t.ip6, target, IP6_LEN);
         if (sla)
             warn(NTE, "neighbor solicitation, who has %s tell %s",
                  w_ntop(&t, ip6_tmp), eth_ntoa(sla, eth_tmp));
@@ -311,7 +311,7 @@ void
 
             // opportunistically store the ND mapping
             src_eth = (const void *)buf;
-            // memcpy(&target, &ip->src, IP6_LEN); // reuse target
+            memcpy(t.ip6, &ip->src, IP6_LEN); // reuse t
             neighbor_update(w, &t, sla ? *sla : src_eth->src);
         } else
             rwarn(WRN, 10,

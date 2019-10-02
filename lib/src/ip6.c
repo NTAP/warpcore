@@ -145,11 +145,11 @@ void
         ip->next_hdr = IP_P_UDP;
 
     if (likely(s) && w_connected(s)) {
-        memcpy(ip->src, &s->ws_laddr.ip6, sizeof(ip->src));
-        memcpy(ip->dst, &s->ws_raddr.ip6, sizeof(ip->dst));
+        memcpy(ip->src, s->ws_laddr.ip6, sizeof(ip->src));
+        memcpy(ip->dst, s->ws_raddr.ip6, sizeof(ip->dst));
     } else {
-        memcpy(ip->src, &v->w->ifaddr[0].addr.ip6, sizeof(ip->src));
-        memcpy(ip->dst, &v->wv_ip6, sizeof(ip->dst));
+        memcpy(ip->src, v->w->ifaddr[0].addr.ip6, sizeof(ip->src));
+        memcpy(ip->dst, v->wv_ip6, sizeof(ip->dst));
     }
 
     v->len += sizeof(*ip);

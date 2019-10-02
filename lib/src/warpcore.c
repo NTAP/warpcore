@@ -509,7 +509,7 @@ const char * w_ntop(const struct w_addr * const addr, char * const dst)
     // we simply assume that dst is long enough
     return inet_ntop(addr->af,
                      (addr->af == AF_INET ? (const void *)&addr->ip4
-                                          : (const void *)&addr->ip6),
+                                          : (const void *)addr->ip6),
                      dst, IP_STRLEN);
 }
 

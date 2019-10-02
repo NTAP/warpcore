@@ -553,7 +553,7 @@ static inline bool __attribute__((nonnull))
 w_addr_cmp(const struct w_addr * const a, const struct w_addr * const b)
 {
     return a->af == b->af &&
-           (a->af == AF_INET ? (a->ip4 == b->ip4) : (a->ip6 == b->ip6));
+           (a->af == AF_INET ? (a->ip4 == b->ip4) : ip6_eql(a, b));
 }
 
 

@@ -63,9 +63,9 @@ static const uint8_t snma_pref[IP6_LEN] = {0xff, 0x02, 0x00, 0x00, 0x00, 0x00,
                                            0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
                                            0xff, 0x00, 0x00, 0x00};
 
-static const uint8_t snma_mask[IP6_LEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                                           0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                                           0xff, 0x00, 0x00, 0x00};
+static const uint8_t snma_mask[IP6_LEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                           0x00, 0xff, 0xff, 0xff};
 
 
 /// Extract the traffic class out of an ip6_hdr::vtcecnfl field.
@@ -127,16 +127,6 @@ ip6_invert(uint8_t * restrict const dst, const uint8_t * restrict src)
     for (uint8_t i = 0; i < IP6_LEN; i++)
         dst[i] = (uint8_t)~src[i];
 }
-
-// static inline void __attribute__((nonnull))
-// ip6_and(uint8_t * restrict const dst,
-//         const uint8_t * restrict src1,
-//         const uint8_t * restrict src2)
-// {
-//     for (uint8_t i = 0; i < IP6_LEN; i++)
-//         dst[i] = src1[i] & src2[i];
-// }
-
 
 static inline void __attribute__((nonnull))
 ip6_or(uint8_t * restrict const dst,
