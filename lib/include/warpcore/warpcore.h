@@ -86,7 +86,7 @@ struct w_iov_sq {
 
 
 struct w_addr {
-    uint16_t af; ///< Address family.
+    sa_family_t af; ///< Address family.
     union {
         uint32_t ip4;  ///< IPv4 address (when w_addr::af is AF_INET).
         uint128_t ip6; ///< IPv6 address (when w_addr::af is AF_INET6).
