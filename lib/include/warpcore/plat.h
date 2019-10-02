@@ -130,6 +130,12 @@ typedef struct if_list if_list;
 #include "ifapi.h"
 #define ifaddrs if_addrs
 
+#define IPTOS_ECN_NOTECT 0x00 // not-ECT
+#define IPTOS_ECN_ECT1 0x01   // ECN-capable transport (1)
+#define IPTOS_ECN_ECT0 0x02   // ECN-capable transport (0)
+#define IPTOS_ECN_CE 0x03     // congestion experienced
+#define IPTOS_ECN_MASK 0x03   // ECN field mask
+
 #endif
 
 struct ifaddrs;

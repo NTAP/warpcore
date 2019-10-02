@@ -55,14 +55,12 @@
 #include <netinet/ip.h>
 #include <sys/uio.h>
 #else
+#include <arpa/inet.h>
 #include <lwip/sockets.h>
 #include <socket_hal.h>
 
-#define IPTOS_ECN_NOTECT 0x00
-#define IPTOS_ECN_ECT1 0x01
-#define IPTOS_ECN_ECT0 0x02
-#define IPTOS_ECN_CE 0x03
-#define IPTOS_ECN_MASK 0x03
+#define IPV6_TCLASS IP_TOS         // unclear if this works
+#define IPV6_RECVTCLASS IP_RECVTOS // unclear if this works
 
 #define SOCK_CLOEXEC 0
 #define IP_RECVTOS IP_TOS

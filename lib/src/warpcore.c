@@ -469,12 +469,14 @@ skip_ipv6_addr(struct ifaddrs * const i, const bool is_loopback)
 
     if (IN6_IS_ADDR_LINKLOCAL(ip6))
         return true;
-    if (IN6_IS_ADDR_SITELOCAL(ip6))
-        return true;
     if (IN6_IS_ADDR_V4MAPPED(ip6))
+        return true;
+#ifndef PARTICLE
+    if (IN6_IS_ADDR_SITELOCAL(ip6))
         return true;
     if (IN6_IS_ADDR_V4COMPAT(ip6))
         return true;
+#endif
     if (is_loopback == false && IN6_IS_ADDR_LOOPBACK(ip6))
         return true;
     // if (IN6_IS_ADDR_UNSPECIFIED(ip6))
