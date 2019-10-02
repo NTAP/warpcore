@@ -27,7 +27,6 @@
 
 #pragma once
 
-#include <stdbool.h>
 #include <sys/socket.h>
 
 #include <warpcore/warpcore.h>

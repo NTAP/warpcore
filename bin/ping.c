@@ -146,7 +146,7 @@ int
             conns = (uint32_t)MIN(50000, MAX(1, strtoul(optarg, 0, 10)));
             break;
         case 'n':
-            nbufs = (uint32_t)MIN(900000, MAX(1, strtoul(optarg, 0, 10)));
+            nbufs = (uint32_t)MAX(1, strtoul(optarg, 0, 10));
             break;
         case 'b':
             busywait = true;
@@ -221,7 +221,7 @@ int
     for (uint_t len = start; len <= end; len += (inc ? inc : len)) {
         // allocate tx tail queue
         struct w_iov_sq o = w_iov_sq_initializer(o);
-        w_alloc_len(w, peer->ai_family, &o, len, 0, 0);
+        w_alloc_len(w, w->ifaddr[idx].addr.af, &o, len, 0, 0);
 
         long iter = loops;
         while (likely(iter--)) {

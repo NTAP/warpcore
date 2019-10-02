@@ -153,9 +153,7 @@ void
 
     const struct ip6_hdr * const src_ip = (void *)eth_data(buf);
     const uint8_t * data = ip6_data(buf);
-    uint16_t data_len =
-        MIN(bswap16(src_ip->len),
-            w_iov_max_len(v) - sizeof(struct eth_hdr) - sizeof(*src_ip));
+    uint16_t data_len = MIN(bswap16(src_ip->len), w->mtu - sizeof(*src_ip));
 
     const struct eth_addr * sla = 0;
     switch (type) {

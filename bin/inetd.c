@@ -104,7 +104,7 @@ int
             opt.enable_udp_zero_checksums = true;
             break;
         case 'n':
-            nbufs = (uint32_t)MIN(900000, MAX(1, strtoul(optarg, 0, 10)));
+            nbufs = (uint32_t)MAX(1, strtoul(optarg, 0, 10));
             break;
         case 'v':
             util_dlevel = (short)MIN(DLEVEL, strtoul(optarg, 0, 10));

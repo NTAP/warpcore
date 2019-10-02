@@ -71,8 +71,6 @@
 
 #include "backend.h"
 #include "ip4.h"
-#include "ip6.h"
-#include "udp.h"
 
 
 #define sa_len(f)                                                              \
@@ -145,12 +143,8 @@ void backend_init(struct w_engine * const w,
                   const bool is_lo __attribute__((unused)),
                   const bool is_left __attribute__((unused)))
 {
-    // lower the MTU to account for IP and UPD headers
-    w->mtu -= MAX(sizeof(struct ip4_hdr), sizeof(struct ip6_hdr)) +
-              sizeof(struct udp_hdr);
-
-    ensure((w->mem = calloc(nbufs, w->mtu)) != 0,
-           "cannot alloc %" PRIu32 " * %u buf mem", nbufs, w->mtu);
+    ensure((w->mem = calloc(nbufs, max_buf_len(w))) != 0,
+           "cannot alloc %" PRIu32 " * %u buf mem", nbufs, max_buf_len(w));
     ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
            "cannot alloc bufs");
     w->backend_name = "socket";
@@ -158,7 +152,7 @@ void backend_init(struct w_engine * const w,
     for (uint32_t i = 0; i < nbufs; i++) {
         init_iov(w, &w->bufs[i], i);
         sq_insert_head(&w->iov, &w->bufs[i], next);
-        ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, w->mtu);
+        ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, max_buf_len(w));
     }
 
 #if defined(HAVE_KQUEUE)
@@ -382,11 +376,11 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #else
             msgvec[i] =
 #endif
-                (struct msghdr){.msg_name = w_connected(s) ? 0 : &sa[i],
-                                .msg_namelen =
-                                    w_connected(s) ? 0 : sizeof(sa[i]),
-                                .msg_iov = &msg[i],
-                                .msg_iovlen = 1};
+                (struct msghdr){
+                    .msg_name = w_connected(s) ? 0 : &sa[i],
+                    .msg_namelen = w_connected(s) ? 0 : sa_len(sa[i].ss_family),
+                    .msg_iov = &msg[i],
+                    .msg_iovlen = 1};
 
             // set TOS from w_iov
             if (v->flags) {

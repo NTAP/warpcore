@@ -70,14 +70,6 @@
 // #define DEBUG_BUFFERS
 
 #include "backend.h"
-
-#ifdef WITH_NETMAP
-#include "eth.h"
-#include "ip4.h"
-#include "ip6.h"
-#include "udp.h"
-#endif
-
 #include "neighbor.h"
 
 #ifdef PARTICLE
@@ -128,7 +120,8 @@ dump_bufs(const char * const label, const struct w_iov_sq * const q)
             break;
     }
     warn(DBG, "%s: %" PRIu " bufs: %s", label, w_iov_sq_cnt(q), line);
-    ensure(cnt == w_iov_sq_cnt(q), "cnt mismatch");
+    ensure((size_t)pos >= sizeof(line) || cnt == w_iov_sq_cnt(q),
+           "cnt mismatch");
 }
 #endif
 
@@ -186,7 +179,7 @@ rem_sock(struct w_engine * const w, struct w_sock * const s)
 struct w_iov * w_alloc_iov(struct w_engine * const w,
                            const int af,
                            const uint16_t len,
-                           uint16_t off)
+                           const uint16_t off)
 {
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_alloc_iov len %u, off %u", len, off);
@@ -194,20 +187,12 @@ struct w_iov * w_alloc_iov(struct w_engine * const w,
     ensure(af == AF_INET || af == AF_INET6, "unknown address family");
     struct w_iov * const v = w_alloc_iov_base(w);
     if (likely(v)) {
-#ifdef WITH_NETMAP
-        const size_t diff =
-            sizeof(struct eth_hdr) +
-            (af == AF_INET ? sizeof(struct ip4_hdr) : sizeof(struct ip6_hdr)) +
-            sizeof(struct udp_hdr);
-        v->buf += diff;
-        v->len -= diff;
+        const uint16_t hdr_space = iov_off(w, af);
+        v->buf += off + hdr_space;
+        v->len = len ? len : v->len - (off + hdr_space);
+#ifdef DEBUG_BUFFERS
+        warn(DBG, "alloc w_iov off %lu len %u", v->buf - v->base, v->len);
 #endif
-        ensure(off == 0 || off <= v->len, "off %u > v->len %u", off, v->len);
-        v->buf += off;
-        v->len -= off;
-        ensure(len <= v->len, "len %u > v->len %u", len, v->len);
-        v->len = len ? len : v->len;
-        // warn(DBG, "alloc w_iov off %u len %u", v->buf - v->base, v->len);
     }
 #ifdef DEBUG_BUFFERS
     dump_bufs(__func__, &w->iov);
@@ -252,7 +237,9 @@ void w_alloc_len(struct w_engine * const w,
         if (likely(needed > v->len))
             needed -= v->len;
         else {
-            // warn(DBG, "adjust last to %u", needed);
+#ifdef DEBUG_BUFFERS
+            warn(DBG, "adjust last (%u) to %" PRIu, v->idx, needed);
+#endif
             v->len = (uint16_t)needed;
             needed = 0;
         }
@@ -353,8 +340,8 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     remote->port = sa_port(peer);
     const int e = backend_connect(s);
     if (unlikely(e)) {
-        warn(ERR, "w_connect to %s:%u failed - %s",
-             w_ntop(&remote->addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+        warn(ERR, "w_connect to %s:%u failed (%s)",
+             w_ntop(&remote->addr, (char[IP_STRLEN]){""}, IP_STRLEN),
              bswap16(remote->port), strerror(e));
         memset(&s->tup.remote, 0, sizeof(*remote));
         ins_sock(s->w, s);
@@ -363,7 +350,7 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     ins_sock(s->w, s);
 
     warn(DBG, "socket connected to %s:%d",
-         w_ntop(&remote->addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+         w_ntop(&remote->addr, (char[IP_STRLEN]){""}, IP_STRLEN),
          bswap16(remote->port));
 
     return 0;
@@ -402,14 +389,14 @@ struct w_sock * w_bind(struct w_engine * const w,
     sq_init(&s->iv);
 
     if (unlikely(backend_bind(s, opt) != 0)) {
-        warn(ERR, "w_bind failed on %s:%u - %s",
-             w_ntop(&s->tup.local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+        warn(ERR, "w_bind failed on %s:%u (%s)",
+             w_ntop(&s->tup.local.addr, (char[IP_STRLEN]){""}, IP_STRLEN),
              bswap16(s->tup.local.port), strerror(errno));
         goto fail;
     }
 
     warn(NTE, "socket bound to %s:%d",
-         w_ntop(&s->tup.local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
+         w_ntop(&s->tup.local.addr, (char[IP_STRLEN]){""}, IP_STRLEN),
          bswap16(s->tup.local.port));
 
     ins_sock(w, s);
@@ -698,7 +685,7 @@ struct w_engine * w_init(const char * const ifname,
     for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
         struct w_ifaddr * const ia = &w->ifaddr[idx];
         warn(NTE, "%s IPv%d addr %s/%u", ifname, ia->addr.af == AF_INET ? 4 : 6,
-             w_ntop(&ia->addr, (char[IP6_STRLEN]){""}, IP6_STRLEN), ia->prefix);
+             w_ntop(&ia->addr, (char[IP_STRLEN]){""}, IP_STRLEN), ia->prefix);
     }
 #endif
 
@@ -728,18 +715,19 @@ struct w_engine * w_init(const char * const ifname,
 }
 
 
-/// Return the maximum size a given w_iov may have for the given engine.
-/// Basically, subtracts the header space and any offset specified when
-/// allocating the w_iov from the MTU.
+/// Return the maximum IP payload a given w_iov may have for the given IP
+/// address family. Basically, subtracts the header space and any offset
+/// specified when allocating the w_iov from the MTU.
 ///
 /// @param[in]  v     The w_iov in question.
+/// @param[in]  af    IP address family.
 ///
-/// @return     Maximum length of the data in a w_iov for this engine.
+/// @return     Maximum length of the data in a w_iov for this address family.
 ///
-uint16_t w_iov_max_len(const struct w_iov * const v)
+uint16_t w_max_iov_len(const struct w_iov * const v, const uint16_t af)
 {
     const uint16_t offset = (const uint16_t)(v->buf - v->base);
-    return v->w->mtu - offset;
+    return v->w->mtu - offset - ip_hdr_len(af);
 }
 
 
@@ -759,7 +747,7 @@ void w_free(struct w_iov_sq * const q)
 #ifdef DEBUG_BUFFERS
         warn(DBG, "w_free idx %" PRIu32, v->idx);
 #endif
-        ASAN_POISON_MEMORY_REGION(v->base, v->w->mtu);
+        ASAN_POISON_MEMORY_REGION(v->base, max_buf_len(w));
     }
 #endif
     sq_concat(&w->iov, q);
@@ -786,7 +774,7 @@ void w_free_iov(struct w_iov * const v)
     dump_bufs(__func__, &v->w->iov);
 #endif
     sq_insert_head(&v->w->iov, v, next);
-    ASAN_POISON_MEMORY_REGION(v->base, v->w->mtu);
+    ASAN_POISON_MEMORY_REGION(v->base, max_buf_len(v->w));
 #ifdef DEBUG_BUFFERS
     dump_bufs(__func__, &v->w->iov);
 #endif
@@ -884,7 +872,7 @@ uint32_t w_rand_uniform32(const uint32_t upper_bound)
 static void reinit_iov(struct w_iov * const v)
 {
     v->buf = v->base;
-    v->len = v->w->mtu;
+    v->len = max_buf_len(v->w);
     v->o = 0;
     sq_next(v, next) = 0;
 }
@@ -907,7 +895,7 @@ struct w_iov * w_alloc_iov_base(struct w_engine * const w)
     if (likely(v)) {
         sq_remove_head(&w->iov, next);
         reinit_iov(v);
-        ASAN_UNPOISON_MEMORY_REGION(v->base, w->mtu);
+        ASAN_UNPOISON_MEMORY_REGION(v->base, v->len);
     }
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_alloc_iov_base idx %" PRIu32, v ? v->idx : UINT32_MAX);

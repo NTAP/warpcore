@@ -31,15 +31,7 @@
 #include <stdint.h>
 #include <sys/socket.h>
 
-#ifdef WITH_NETMAP
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
-#endif
-
 #include <warpcore/warpcore.h>
-
-#include "neighbor.h"
-
 
 /// An [Ethernet II MAC
 /// header](https://en.wikipedia.org/wiki/Ethernet_frame#Ethernet_II).
@@ -74,6 +66,12 @@ eth_data(uint8_t * const buf)
 
 
 #ifdef WITH_NETMAP
+
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
+
+#include "neighbor.h"
+
 
 extern bool __attribute__((nonnull)) eth_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,

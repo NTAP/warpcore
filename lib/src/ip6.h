@@ -30,20 +30,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// #ifdef WITH_NETMAP
-// // IWYU pragma: no_include <net/netmap.h>
-// #include <net/netmap_user.h> // IWYU pragma: keep
-// #endif
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 
 #include <warpcore/warpcore.h>
 
 #include "eth.h"
-
-
-/// Solicited-node multicast address prefix and mask
-static const uint128_t snmap_prefix = (uint128_t)0x2ff | (uint128_t)0xff01
-                                                             << 88;
-static const uint128_t snmap_mask = (uint128_t)0x00ffffff << 104;
 
 
 /// An IPv6 header representation; see
@@ -62,6 +54,12 @@ struct ip6_hdr {
     uint8_t src[16]; ///< Source IPv6 address.
     uint8_t dst[16]; ///< Destination IPv6 address.
 } __attribute__((aligned(1)));
+
+
+/// Solicited-node multicast address prefix and mask
+static const uint128_t snmap_prefix = (uint128_t)0x2ff | (uint128_t)0xff01
+                                                             << 88;
+static const uint128_t snmap_mask = (uint128_t)0x00ffffff << 104;
 
 
 /// Extract the traffic class out of an ip6_hdr::vtcecnfl field.
@@ -116,8 +114,6 @@ ip6_data(uint8_t * const buf)
     return buf + sizeof(struct eth_hdr) + sizeof(struct ip6_hdr);
 }
 
-
-struct netmap_slot;
 
 extern bool __attribute__((nonnull)) ip6_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,

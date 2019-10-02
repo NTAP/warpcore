@@ -75,8 +75,7 @@ void
 
     struct ip4_hdr * const src_ip = (void *)eth_data(buf);
     uint8_t * data = eth_data(buf);
-    uint16_t data_len =
-        MIN(bswap16(src_ip->len), w_iov_max_len(v) - sizeof(struct eth_hdr));
+    uint16_t data_len = MIN(bswap16(src_ip->len), w->mtu);
 
     switch (type) {
     case ICMP4_TYPE_ECHOREPLY:;

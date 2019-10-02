@@ -30,10 +30,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// #ifdef WITH_NETMAP
-// // IWYU pragma: no_include <net/netmap.h>
-// #include <net/netmap_user.h> // IWYU pragma: keep
-// #endif
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
 
 #include <warpcore/warpcore.h>
 
@@ -45,6 +43,15 @@
 #define IPTOS_ECN_ECT0 0x02   // ECN-capable transport (0)
 #define IPTOS_ECN_CE 0x03     // congestion experienced
 #define IPTOS_ECN_MASK 0x03   // ECN field mask
+
+#define IP_P_ICMP 1   ///< IP protocol number for ICMP
+#define IP_P_UDP 17   ///< IP protocol number for UDP
+#define IP_P_ICMP6 58 ///< IP protocol number for ICMPv6
+
+#define IP4_RF 0x80        ///< Reserved fragment flag (network byte-order.)
+#define IP4_DF 0x40        ///< Dont fragment flag (network byte-order.)
+#define IP4_MF 0x20        ///< More fragments flag (network byte-order.)
+#define IP4_OFFMASK 0xff1f ///< Mask for fragmenting bits (network byte-order.)
 
 
 /// An IPv4 header representation; see
@@ -62,15 +69,6 @@ struct ip4_hdr {
     uint32_t src;   ///< Source IPv4 address.
     uint32_t dst;   ///< Destination IPv4 address.
 } __attribute__((aligned(1)));
-
-#define IP_P_ICMP 1   ///< IP protocol number for ICMP
-#define IP_P_UDP 17   ///< IP protocol number for UDP
-#define IP_P_ICMP6 58 ///< IP protocol number for ICMPv6
-
-#define IP4_RF 0x80        ///< Reserved fragment flag (network byte-order.)
-#define IP4_DF 0x40        ///< Dont fragment flag (network byte-order.)
-#define IP4_MF 0x20        ///< More fragments flag (network byte-order.)
-#define IP4_OFFMASK 0xff1f ///< Mask for fragmenting bits (network byte-order.)
 
 
 /// Extract the IP version out of the first byte of an IPv4 or IPv6 header.
@@ -150,8 +148,6 @@ ip4_data_len(const struct ip4_hdr * const ip)
     return bswap16(ip->len) - ip4_hl(ip->vhl);
 }
 
-
-struct netmap_slot;
 
 extern bool __attribute__((nonnull)) ip4_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,

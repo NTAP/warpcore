@@ -52,6 +52,7 @@
 
 #ifdef WITH_NETMAP
 #include "arp.h"
+#include "eth.h"
 #include "neighbor.h"
 #include "udp.h"
 #endif
@@ -81,10 +82,20 @@ struct w_backend {
 #ifndef HAVE_KQUEUE
     /// @cond
     uint8_t _unused[4]; ///< @internal Padding.
-    /// @endcond
+                        /// @endcond
 #endif
 #endif
 };
+
+
+#ifdef WITH_NETMAP
+#define max_buf_len(w) ((w)->mtu + sizeof(struct eth_hdr))
+#define iov_off(w, af)                                                         \
+    (sizeof(struct eth_hdr) + ip_hdr_len(af) + sizeof(struct udp_hdr))
+#else
+#define max_buf_len(w) ((w)->mtu - 28) // 28 = min_hdr(IP4, IP6) + UDP hdr
+#define iov_off(w, af) 0
+#endif
 
 
 static inline bool __attribute__((nonnull))
@@ -119,7 +130,7 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
 #ifdef WITH_NETMAP
     return (uint8_t *)NETMAP_BUF(NETMAP_TXRING(w->b->nif, 0), i);
 #else
-    return (uint8_t *)w->mem + ((intptr_t)i * w->mtu);
+    return (uint8_t *)w->mem + ((intptr_t)i * max_buf_len(w));
 #endif
 }
 

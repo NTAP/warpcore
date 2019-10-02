@@ -166,7 +166,7 @@ void backend_init(struct w_engine * const w,
         init_iov(w, &w->bufs[n], i);
         sq_insert_head(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
-        ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, w->mtu);
+        ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, max_buf_len(w));
     }
 
     if (b->req->nr_arg3 != nbufs)
@@ -192,7 +192,7 @@ void backend_cleanup(struct w_engine * const w)
     // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
         uint32_t * const buf = (void *)idx_to_buf(w, w->bufs[n].idx);
-        ASAN_UNPOISON_MEMORY_REGION(buf, w->mtu);
+        ASAN_UNPOISON_MEMORY_REGION(buf, max_buf_len(w));
         if (likely(n < sq_len(&w->iov) - 1))
             *buf = w->bufs[n + 1].idx;
         else
@@ -346,7 +346,6 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
     struct pollfd fds = {.fd = w->b->fd, .events = POLLIN};
 again:
     if (poll(&fds, 1, nsec < 0 ? -1 : (int)(nsec / NS_PER_MS)) == 0) {
-        warn(ERR, "done");
         return false;
     }
 

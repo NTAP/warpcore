@@ -34,6 +34,7 @@ extern "C" {
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <stdint.h>
+#include <sys/param.h>
 #include <sys/time.h>
 
 #define klib_unused
@@ -71,14 +72,17 @@ struct w_iov_sq {
 
 
 #define IP6_LEN 16 ///< Length of an IPv4 address in bytes. Sixteen.
-#define IP6_STRLEN 46
+#define IP6_STRLEN INET6_ADDRSTRLEN
 
 
 #define IP4_LEN 4 ///< Length of an IPv4 address in bytes. Four.
-#define IP4_STRLEN 16
+#define IP4_STRLEN INET_ADDRSTRLEN
 
+#define IP_STRLEN MAX(IP4_STRLEN, IP6_STRLEN)
 
-#define af_len(x) (uint8_t)((x) == AF_INET ? IP4_LEN : IP6_LEN)
+#define af_len(af) (uint8_t)((af) == AF_INET ? IP4_LEN : IP6_LEN)
+
+#define ip_hdr_len(af) (uint8_t)((af) == AF_INET ? 20 : 40)
 
 
 struct w_addr {
@@ -219,6 +223,13 @@ struct w_sock {
 };
 
 
+#define sock_af tup.local.addr.af
+#define sock_laddr tup.local.addr
+#define sock_lport tup.local.port
+#define sock_raddr tup.remote.addr
+#define sock_rport tup.remote.port
+
+
 /// The I/O vector structure that warpcore uses at the center of its API. It is
 /// mostly a pointer to the first UDP payload byte contained in a netmap packet
 /// buffer, together with some associated meta data.
@@ -344,7 +355,7 @@ extern uint32_t __attribute__((nonnull))
 w_rx_ready(struct w_engine * const w, struct w_sock_slist * sl);
 
 extern uint16_t __attribute__((nonnull))
-w_iov_max_len(const struct w_iov * const v);
+w_max_iov_len(const struct w_iov * const v, const uint16_t af);
 
 extern void __attribute__((nonnull)) w_free(struct w_iov_sq * const q);
 
