@@ -104,8 +104,8 @@ bool
         ip_hdr_len = ip4_hl(ip4->vhl);
         ip_plen = bswap16(ip4->len) - ip_hdr_len;
         udp = (void *)ip4_data(buf);
-        local.addr.af = i->saddr.addr.af = AF_INET;
-        i->saddr.addr.ip4 = ip4->src;
+        local.addr.af = i->wv_af = AF_INET;
+        i->wv_ip4 = ip4->src;
         local.addr.ip4 = ip4->dst;
         i->flags = ip4->tos;
     } else {
@@ -113,8 +113,8 @@ bool
         ip_hdr_len = sizeof(*ip6);
         ip_plen = bswap16(ip6->len);
         udp = (void *)ip6_data(buf);
-        local.addr.af = i->saddr.addr.af = AF_INET6;
-        memcpy(&i->saddr.addr.ip6, ip6->src, sizeof(i->saddr.addr.ip6));
+        local.addr.af = i->wv_af = AF_INET6;
+        memcpy(&i->wv_ip6, ip6->src, sizeof(i->wv_ip6));
         memcpy(&local.addr.ip6, ip6->dst, sizeof(local.addr.ip6));
         i->flags = ip6_tc(ip6->vtcecnfl);
     }
@@ -146,10 +146,9 @@ bool
         if (unlikely(ws == 0)) {
             // nobody bound to this port locally
             // send an ICMP unreachable reply, if this was not a broadcast
-            if (v == 4 && is_my_ip4(w, i->saddr.addr.ip4, false) != UINT16_MAX)
+            if (v == 4 && is_my_ip4(w, i->wv_ip4, false) != UINT16_MAX)
                 icmp4_tx(w, ICMP4_TYPE_UNREACH, ICMP4_UNREACH_PORT, buf);
-            else if (v == 6 &&
-                     is_my_ip6(w, i->saddr.addr.ip6, false) != UINT16_MAX)
+            else if (v == 6 && is_my_ip6(w, i->wv_ip6, false) != UINT16_MAX)
                 icmp6_tx(w, ICMP6_TYPE_UNREACH, ICMP6_UNREACH_PORT, buf);
             return false;
         }
@@ -202,7 +201,7 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 
     uint16_t ip_hdr_len;
     struct udp_hdr * udp;
-    if (s->tup.local.addr.af == AF_INET) {
+    if (s->ws_af == AF_INET) {
         mk_ip4_hdr(v, s);
         udp = (void *)ip4_data(v->base);
         ip_hdr_len = ip4_hl(*eth_data(v->base));
@@ -212,8 +211,8 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
         ip_hdr_len = sizeof(struct ip6_hdr);
     }
 
-    udp->sport = s->tup.local.port;
-    udp->dport = w_connected(s) ? s->tup.remote.port : v->saddr.port;
+    udp->sport = s->ws_lport;
+    udp->dport = w_connected(s) ? s->ws_rport : v->saddr.port;
     udp->len = bswap16(v->len - ip_hdr_len);
     udp->cksum = 0;
 

@@ -223,11 +223,11 @@ struct w_sock {
 };
 
 
-#define sock_af tup.local.addr.af
-#define sock_laddr tup.local.addr
-#define sock_lport tup.local.port
-#define sock_raddr tup.remote.addr
-#define sock_rport tup.remote.port
+#define ws_af tup.local.addr.af
+#define ws_laddr tup.local.addr
+#define ws_lport tup.local.port
+#define ws_raddr tup.remote.addr
+#define ws_rport tup.remote.port
 
 
 /// The I/O vector structure that warpcore uses at the center of its API. It is
@@ -271,6 +271,12 @@ struct w_iov {
     ///< Pointer to the w_iov_sq this w_iov resides in. Only valid on TX.
     struct w_iov_sq * o;
 };
+
+
+#define wv_af saddr.addr.af
+#define wv_ip4 saddr.addr.ip4
+#define wv_ip6 saddr.addr.ip6
+#define wv_addr saddr.addr
 
 
 /// Return the index of w_iov @p v.

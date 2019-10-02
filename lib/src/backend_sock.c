@@ -118,14 +118,13 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 
     if (s->opt.enable_ecn != opt->enable_ecn) {
         s->opt.enable_ecn = opt->enable_ecn;
-        ensure(
-            setsockopt(
-                s->fd,
-                s->tup.local.addr.af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
-                s->tup.local.addr.af == AF_INET ? IP_TOS : IPV6_TCLASS,
-                &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0 : IPTOS_ECN_NOTECT},
-                sizeof(int)) >= 0,
-            "cannot setsockopt IP_TOS");
+        ensure(setsockopt(s->fd,
+                          s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+                          s->ws_af == AF_INET ? IP_TOS : IPV6_TCLASS,
+                          &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0
+                                                   : IPTOS_ECN_NOTECT},
+                          sizeof(int)) >= 0,
+               "cannot setsockopt IP_TOS");
     }
 }
 
@@ -234,13 +233,13 @@ void backend_cleanup(struct w_engine * const w)
 ///
 int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
-    struct w_addr * const local = &s->tup.local.addr;
+    struct w_addr * const local = &s->ws_laddr;
     s->fd = socket(local->af, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     if (unlikely(s->fd < 0))
         return errno;
 
     struct sockaddr_storage ss;
-    to_sockaddr((struct sockaddr *)&ss, local, s->tup.local.port);
+    to_sockaddr((struct sockaddr *)&ss, local, s->ws_lport);
     if (unlikely(bind(s->fd, (struct sockaddr *)&ss, sa_len(local->af)) != 0))
         return errno;
 
@@ -254,11 +253,11 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
         w_set_sockopt(s, opt);
 
     // if we're binding to a random port, find out what it is
-    if (s->tup.local.port == 0) {
+    if (s->ws_lport == 0) {
         socklen_t len = sizeof(ss);
         ensure(getsockname(s->fd, (struct sockaddr *)&ss, &len) >= 0,
                "getsockname");
-        s->tup.local.port = sa_port(&ss);
+        s->ws_lport = sa_port(&ss);
     }
 
 #if defined(HAVE_KQUEUE)
@@ -284,8 +283,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 int backend_connect(struct w_sock * const s)
 {
     struct sockaddr_storage ss;
-    to_sockaddr((struct sockaddr *)&ss, &s->tup.remote.addr,
-                s->tup.remote.port);
+    to_sockaddr((struct sockaddr *)&ss, &s->ws_raddr, s->ws_rport);
     if (unlikely(connect(s->fd, (struct sockaddr *)&ss, sa_len(ss.ss_family)) !=
                  0))
         return errno;
@@ -369,7 +367,7 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
             if (w_connected(s))
                 v->saddr = s->tup.remote;
             else
-                to_sockaddr((struct sockaddr *)&sa[i], &v->saddr.addr,
+                to_sockaddr((struct sockaddr *)&sa[i], &v->wv_addr,
                             v->saddr.port);
 #ifdef HAVE_SENDMMSG
             msgvec[i].msg_hdr =
@@ -395,12 +393,11 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #endif
                 cmsg->cmsg_level =
 #ifdef __linux__
-                    v->saddr.addr.af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
+                    v->wv_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
 #else
                     IPPROTO_IP;
 #endif
-                cmsg->cmsg_type =
-                    v->saddr.addr.af == AF_INET ? IP_TOS : IPV6_TCLASS;
+                cmsg->cmsg_type = v->wv_af == AF_INET ? IP_TOS : IPV6_TCLASS;
 #ifdef __linux__
                 cmsg->cmsg_len = CMSG_LEN(sizeof(int));
                 *(int *)(void *)CMSG_DATA(cmsg) = v->flags;
@@ -474,7 +471,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
         ssize_t nbufs = 0;
         for (int j = 0; likely(j < RECV_SIZE); j++, nbufs++) {
-            v[j] = w_alloc_iov(s->w, s->tup.local.addr.af, 0, 0);
+            v[j] = w_alloc_iov(s->w, s->ws_af, 0, 0);
             if (unlikely(v[j] == 0))
                 break;
             msg[j] =
@@ -507,7 +504,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
                 v[j]->saddr.port = sa_port(&sa[j]);
-                w_to_waddr(&v[j]->saddr.addr, (struct sockaddr *)&sa[j]);
+                w_to_waddr(&v[j]->wv_addr, (struct sockaddr *)&sa[j]);
 
 #ifdef HAVE_RECVMMSG
                 v[j]->len = (uint16_t)msgvec[j].msg_len;

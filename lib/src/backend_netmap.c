@@ -235,8 +235,8 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     if (opt)
         w_set_sockopt(s, opt);
 
-    if (likely(s->tup.local.port == 0))
-        s->tup.local.port = pick_local_port();
+    if (likely(s->ws_lport == 0))
+        s->ws_lport = pick_local_port();
 
     return 0;
 }
@@ -266,7 +266,7 @@ int backend_connect(struct w_sock * const s)
     //                                   mk_net(s->tup.sip, s->w->mask))
     //                         ? s->w->rip
     //                         : s->tup.dip;
-    s->dmac = who_has(s->w, &s->tup.remote.addr);
+    s->dmac = who_has(s->w, &s->ws_raddr);
 
     // see if we need to update the sport
     uint8_t n = 200;
@@ -274,7 +274,7 @@ int backend_connect(struct w_sock * const s)
         if (likely(w_get_sock(s->w, &s->tup.local, &s->tup.remote) == 0))
             break;
         // four-tuple exists, reroll sport
-        s->tup.local.port = pick_local_port();
+        s->ws_lport = pick_local_port();
     }
 
     return n == 0;

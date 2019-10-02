@@ -330,7 +330,7 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
 
     rem_sock(s->w, s);
 
-    if (unlikely(w_to_waddr(&s->tup.remote.addr, peer) == false)) {
+    if (unlikely(w_to_waddr(&s->ws_raddr, peer) == false)) {
         warn(ERR, "peer has unknown address family");
         ins_sock(s->w, s);
         return EAFNOSUPPORT;
@@ -390,14 +390,14 @@ struct w_sock * w_bind(struct w_engine * const w,
 
     if (unlikely(backend_bind(s, opt) != 0)) {
         warn(ERR, "w_bind failed on %s:%u (%s)",
-             w_ntop(&s->tup.local.addr, (char[IP_STRLEN]){""}, IP_STRLEN),
-             bswap16(s->tup.local.port), strerror(errno));
+             w_ntop(&s->ws_laddr, (char[IP_STRLEN]){""}, IP_STRLEN),
+             bswap16(s->ws_lport), strerror(errno));
         goto fail;
     }
 
     warn(NTE, "socket bound to %s:%d",
-         w_ntop(&s->tup.local.addr, (char[IP_STRLEN]){""}, IP_STRLEN),
-         bswap16(s->tup.local.port));
+         w_ntop(&s->ws_laddr, (char[IP_STRLEN]){""}, IP_STRLEN),
+         bswap16(s->ws_lport));
 
     ins_sock(w, s);
     return s;

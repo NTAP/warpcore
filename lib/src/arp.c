@@ -183,32 +183,6 @@ void
         warn(NTE, "ARP reply %s is at %s",
              inet_ntop(AF_INET, &arp->spa, (char[IP4_STRLEN]){""}, IP4_STRLEN),
              eth_ntoa(&arp->sha, (char[ETH_STRLEN]){""}));
-
-        // // check if any socket has an IP address matching this ARP
-        // // reply, and if so, change its destination MAC
-        // const struct w_addr tpa_mask =
-        // struct w_sock * s;
-        // kh_foreach_value(&w->sock, s, {
-        //     const struct w_ifaddr * const wa = &w->ifaddr[s->tup.src_idx];
-
-        //     if (wa->addr.af != AF_INET)
-        //         continue;
-
-        //     const w_addr mask =
-        //         ((const struct sockaddr_in *)&wa->mask)->sin_addr.s_addr;
-
-        //     if ( // is local-net socket and ARP src IP matches its dst
-        //         ((mk_net(arp->tpa, mask) == mk_net(wa->addr.ip4, mask) &&
-        //           arp->spa == wa->addr.ip4)) ||
-        //         // or non-local socket and ARP src IP matches router
-        //         (memcmp(&s->w->rip, &arp->sha, sizeof(arp->sha)) == 0)) {
-        //         warn(NTE, "updating socket on local port %u with %s for %s",
-        //              bswap16(s->tup.sport), eth_ntoa(&arp->sha,
-        //              (char[ETH_STRLEN]){""})), inet_ntop(AF_INET,
-        //              &arp->spa, ip_str, IP4_STRLEN));
-        //         s->dmac = arp->sha;
-        //     }
-        // });
         break;
 
     default:

@@ -173,11 +173,11 @@ void
         ip->p = IP_P_UDP;
 
     if (likely(s) && w_connected(s)) {
-        ip->src = s->tup.local.addr.ip4;
-        ip->dst = s->tup.remote.addr.ip4;
+        ip->src = s->ws_laddr.ip4;
+        ip->dst = s->ws_raddr.ip4;
     } else {
         ip->src = v->w->ifaddr[v->w->addr4_pos].addr.ip4;
-        ip->dst = v->saddr.addr.ip4;
+        ip->dst = v->wv_ip4;
     }
 
     // IP checksum is over header only

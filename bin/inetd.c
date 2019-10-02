@@ -156,15 +156,15 @@ int
                 continue;
             warn(DBG, "received %" PRIu " bytes from %s:%u on %s:%u",
                  w_iov_sq_len(&i),
-                 w_ntop(&sq_first(&i)->saddr.addr, (char[IP6_STRLEN]){""},
-                        IP6_STRLEN),
+                 w_ntop(&sq_first(&i)->wv_addr, (char[IP_STRLEN]){""},
+                        IP_STRLEN),
                  bswap16(sq_first(&i)->saddr.port),
-                 w_ntop(&s->tup.local.addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-                 bswap16(s->tup.local.port));
+                 w_ntop(&s->ws_laddr, (char[IP_STRLEN]){""}, IP_STRLEN),
+                 bswap16(s->ws_lport));
 
             struct w_iov_sq o = w_iov_sq_initializer(o);
 
-            switch (bswap16(s->tup.local.port)) {
+            switch (bswap16(s->ws_lport)) {
 #if 0
             case 7:
                 // echo received data back to sender (zero-copy)

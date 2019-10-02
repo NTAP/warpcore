@@ -110,8 +110,8 @@ void
 
     // construct an IPv4 header
     struct ip4_hdr * const dst_ip = (void *)eth_data(v->base);
-    v->saddr.addr.af = AF_INET;
-    v->saddr.addr.ip4 = src_ip->src;
+    v->wv_af = AF_INET;
+    v->wv_ip4 = src_ip->src;
     v->len = sizeof(*dst_icmp) + data_len;
     dst_ip->p = IP_P_ICMP;
     mk_ip4_hdr(v, 0);

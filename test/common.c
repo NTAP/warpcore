@@ -46,7 +46,7 @@ bool io(const uint_t len)
 {
     // allocate a w_iov chain for tx
     struct w_iov_sq o = w_iov_sq_initializer(o);
-    w_alloc_cnt(w_clnt, s_clnt->tup.local.addr.af, &o, len, 512, OFFSET);
+    w_alloc_cnt(w_clnt, s_clnt->ws_af, &o, len, 512, OFFSET);
     if (w_iov_sq_cnt(&o) != len) {
         w_free(&o);
         return false;
@@ -103,11 +103,11 @@ bool io(const uint_t len)
         ensure(ov->flags == iv->flags, "TOS byte 0x%02x != 0x%02x", ov->flags,
                iv->flags);
 #endif
-        ensure(iv->saddr.port == s_clnt->tup.local.port,
+        ensure(iv->saddr.port == s_clnt->ws_lport,
                "port mismatch, in %u != out %u", bswap16(iv->saddr.port),
-               bswap16(s_clnt->tup.local.port));
+               bswap16(s_clnt->ws_lport));
 
-        ensure(iv->saddr.addr.ip6 == ov->saddr.addr.ip6, "IP mismatch");
+        ensure(iv->wv_ip6 == ov->wv_ip6, "IP mismatch");
 
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);

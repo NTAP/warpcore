@@ -59,7 +59,7 @@ static void __attribute__((nonnull
     struct icmp6_hdr * const icmp = (void *)(eth_data(v->base) + sizeof(*ip));
 
     // set common bits of IPv6 header
-    v->saddr.addr.af = AF_INET6;
+    v->wv_af = AF_INET6;
     ip->next_hdr = IP_P_ICMP6;
     mk_ip6_hdr(v, 0); // adds sizeof(*ip) to v->len
 
@@ -110,7 +110,7 @@ void
          eth_ntoa(&w->mac, (char[ETH_STRLEN]){""}));
 
     v->len = (uint16_t)(resp - (uint8_t *)icmp);
-    v->saddr.addr.ip6 = snmap_prefix | (addr & snmap_mask);
+    v->wv_ip6 = snmap_prefix | (addr & snmap_mask);
     mk_icmp6_pkt_hdrs(v);
 
     // set missing bits of the Ethernet header
@@ -211,7 +211,7 @@ void
         memcpy((uint8_t *)dst_icmp + sizeof(*dst_icmp), data, data_len);
 
     v->len = sizeof(*dst_icmp) + data_len;
-    memcpy(&v->saddr.addr.ip6, src_ip->src, sizeof(v->saddr.addr.ip6));
+    memcpy(&v->wv_ip6, src_ip->src, sizeof(v->wv_ip6));
     mk_icmp6_pkt_hdrs(v);
 
     // set missing bits of the Ethernet header
