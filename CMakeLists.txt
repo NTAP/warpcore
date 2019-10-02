@@ -1,6 +1,20 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 0.46.0 LANGUAGES C CXX)
+project(warpcore VERSION 1.0.0 LANGUAGES C CXX)
+
+# See if we have google benchmark
+include(CheckCXXSymbolExists)
+include(CMakePushCheckState)
+include(CheckIncludeFile)
+set(CMAKE_REQUIRED_LIBRARIES benchmark)
+set(CMAKE_REQUIRED_INCLUDES /usr/local/include)
+set(CMAKE_REQUIRED_LINK_OPTIONS -L/usr/local/lib)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
+  set(CMAKE_REQUIRED_LINK_OPTIONS -lc++ ${CMAKE_REQUIRED_LINK_OPTIONS})
+endif()
+check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
+                        HAVE_BENCHMARK_H)
+cmake_reset_check_state()
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(HAVE_64BIT True)
@@ -8,31 +22,21 @@ endif()
 
 # Check for dependencies before mucking with the compiler flags
 include(CheckFunctionExists)
+include(CheckCXXSymbolExists)
+check_function_exists(backtrace HAVE_BACKTRACE)
+check_function_exists(epoll_create HAVE_EPOLL)
+check_function_exists(kqueue HAVE_KQUEUE)
 check_function_exists(recvmmsg HAVE_RECVMMSG)
 check_function_exists(sendmmsg HAVE_SENDMMSG)
-check_function_exists(kqueue HAVE_KQUEUE)
-check_function_exists(epoll_create HAVE_EPOLL)
-check_function_exists(backtrace HAVE_BACKTRACE)
+check_symbol_exists(htobe64 endian.h HAVE_ENDIAN_H)
+check_symbol_exists(htobe64 sys/endian.h HAVE_SYS_ENDIAN_H)
 
 # Look for netmap
-include(CheckIncludeFile)
 set(CMAKE_REQUIRED_INCLUDES
     /usr/include /usr/local/include ${PROJECT_SOURCE_DIR}/lib/include
 )
 check_include_file(net/netmap_user.h HAVE_NETMAP_H)
 include(CMakePushCheckState)
-cmake_reset_check_state()
-
-# See if we have google benchmark
-include(CheckCXXSymbolExists)
-set(CMAKE_REQUIRED_INCLUDES /usr/local/include)
-set(CMAKE_REQUIRED_LIBRARIES benchmark)
-set(CMAKE_REQUIRED_LINK_OPTIONS -L/usr/local/lib)
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
-  set(CMAKE_REQUIRED_LINK_OPTIONS -lc++ ${CMAKE_REQUIRED_LINK_OPTIONS})
-endif()
-check_cxx_symbol_exists(benchmark::Initialize benchmark/benchmark.h
-                        HAVE_BENCHMARK_H)
 cmake_reset_check_state()
 
 # See if we have google gperftools
@@ -66,11 +70,12 @@ set(CMAKE_C_STANDARD 11)
 # Set general compile flags, if they are supported
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
-foreach(FLAG -pipe -march=native -Wextra -Wpedantic -Weverything -Werror
+foreach(FLAG -pipe -Wextra -Wpedantic -Weverything -Werror
+        -fcolor-diagnostics -fdiagnostics-color=always
         -Wno-disabled-macro-expansion # clang on travis needs this
         -Wno-missing-field-initializers # and this (clang-5)
         -Wno-extra-semi-stmt # the kh_foreach* macros need this
-        -fcolor-diagnostics -fdiagnostics-color=always)
+)
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})
   if(${F})
@@ -245,13 +250,14 @@ if(NOT CMAKE_BUILD_TYPE MATCHES Release AND HAVE_PROFILER)
 endif()
 
 # flags for "Release" builds
-set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Ofast")
+set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -Ofast -march=native")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
 
 # flags for "RelWithDebInfo" builds
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELEASE} -g3")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
 
+# set debug level
 add_definitions("-UDLEVEL -DDLEVEL=${DLEVEL}")
 
 add_subdirectory(doc)

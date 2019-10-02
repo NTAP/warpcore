@@ -683,7 +683,7 @@ struct w_engine * w_init(const char * const ifname,
 
 #if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
     for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
-        struct w_ifaddr * const ia = &w->ifaddr[idx];
+        struct w_ifaddr * const ia = &w->ifaddr[idx]; // NOLINT
         warn(NTE, "%s IPv%d addr %s/%u", ifname, ia->addr.af == AF_INET ? 4 : 6,
              w_ntop(&ia->addr, (char[IP_STRLEN]){""}, IP_STRLEN), ia->prefix);
     }
