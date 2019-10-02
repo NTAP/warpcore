@@ -70,6 +70,7 @@
 // #define DEBUG_BUFFERS
 
 #include "backend.h"
+#include "ip6.h"
 #include "neighbor.h"
 
 #ifdef PARTICLE
@@ -341,16 +342,14 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     const int e = backend_connect(s);
     if (unlikely(e)) {
         warn(ERR, "w_connect to %s:%u failed (%s)",
-             w_ntop(&remote->addr, (char[IP_STRLEN]){""}, IP_STRLEN),
-             bswap16(remote->port), strerror(e));
+             w_ntop(&remote->addr, ip_tmp), bswap16(remote->port), strerror(e));
         memset(&s->tup.remote, 0, sizeof(*remote));
         ins_sock(s->w, s);
         return e;
     }
     ins_sock(s->w, s);
 
-    warn(DBG, "socket connected to %s:%d",
-         w_ntop(&remote->addr, (char[IP_STRLEN]){""}, IP_STRLEN),
+    warn(DBG, "socket connected to %s:%d", w_ntop(&remote->addr, ip_tmp),
          bswap16(remote->port));
 
     return 0;
@@ -389,14 +388,12 @@ struct w_sock * w_bind(struct w_engine * const w,
     sq_init(&s->iv);
 
     if (unlikely(backend_bind(s, opt) != 0)) {
-        warn(ERR, "w_bind failed on %s:%u (%s)",
-             w_ntop(&s->ws_laddr, (char[IP_STRLEN]){""}, IP_STRLEN),
+        warn(ERR, "w_bind failed on %s:%u (%s)", w_ntop(&s->ws_laddr, ip_tmp),
              bswap16(s->ws_lport), strerror(errno));
         goto fail;
     }
 
-    warn(NTE, "socket bound to %s:%d",
-         w_ntop(&s->ws_laddr, (char[IP_STRLEN]){""}, IP_STRLEN),
+    warn(NTE, "socket bound to %s:%d", w_ntop(&s->ws_laddr, ip_tmp),
          bswap16(s->ws_lport));
 
     ins_sock(w, s);
@@ -487,48 +484,33 @@ skip_ipv6_addr(struct ifaddrs * const i, const bool is_loopback)
 
 
 static uint8_t __attribute__((nonnull))
-contig_mask_len(const int af, const void * const mask)
+contig_mask_len(const int af, const uint8_t * const mask)
 {
     uint8_t mask_len = 0;
-    if (af == AF_INET) {
-        const uint32_t mask4 = bswap32(*(const uint32_t *)mask);
-        mask_len = !(mask4 & (~mask4 >> 1));
-    } else {
-        uint128_t mask6;
-        memcpy(&mask6, mask, IP6_LEN);
-        mask6 = bswap128(mask6);
-        mask_len = !(mask6 & (~mask6 >> 1));
-    }
-
-    if (mask_len == 0)
-        return 0;
-
-    uint8_t pos = 0;
-    mask_len = 0;
-    while ((pos < af_len(af)) && (((const uint8_t *)mask)[pos] == 0xff)) {
+    uint8_t i = 0;
+    while (i < af_len(af) && mask[i] == 0xff) {
         mask_len += 8;
-        pos++;
+        i++;
     }
 
-    if (pos < af_len(af)) {
-        uint8_t val = ((const uint8_t *)mask)[pos];
+    if (i < af_len(af)) {
+        uint8_t val = mask[i];
         while (val) {
             mask_len++;
-            val = (uint8_t)(val << 1);
+            val <<= 1;
         }
     }
-
     return mask_len;
 }
 
 
-const char *
-w_ntop(const struct w_addr * const addr, char * const dst, const size_t dst_len)
+const char * w_ntop(const struct w_addr * const addr, char * const dst)
 {
+    // we simply assume that dst is long enough
     return inet_ntop(addr->af,
                      (addr->af == AF_INET ? (const void *)&addr->ip4
                                           : (const void *)&addr->ip6),
-                     dst, (socklen_t)dst_len);
+                     dst, IP_STRLEN);
 }
 
 
@@ -633,8 +615,7 @@ struct w_engine * w_init(const char * const ifname,
             w->mbps = plat_get_mbps(i);
             plat_get_iface_driver(i, w->drvname, sizeof(w->drvname));
             warn(NTE, "%s MAC addr %s, MTU %d, speed %" PRIu32 "G", i->ifa_name,
-                 eth_ntoa(&w->mac, (char[ETH_STRLEN]){""}), w->mtu,
-                 w->mbps / 1000);
+                 eth_ntoa(&w->mac, eth_tmp), w->mtu, w->mbps / 1000);
             break;
 
         case AF_INET6:
@@ -645,15 +626,16 @@ struct w_engine * w_init(const char * const ifname,
             struct w_ifaddr * ia = &w->ifaddr[addr6_cnt++];
             if (w_to_waddr(&ia->addr, i->ifa_addr) == false)
                 continue;
-            const void * const sa_mask6 =
-                &((const struct sockaddr_in6 *)(const void *)i->ifa_netmask)
-                     ->sin6_addr;
+            const uint8_t * const sa_mask6 =
+                (const uint8_t *)&(
+                    (const struct sockaddr_in6 *)(const void *)i->ifa_netmask)
+                    ->sin6_addr;
             ia->prefix = contig_mask_len(ia->addr.af, sa_mask6);
 
-            uint128_t mask6;
-            memcpy(&mask6, sa_mask6, sizeof(mask6));
-            ia->net6 = ia->addr.ip6 & mask6;
-            ia->bcast6 = ia->addr.ip6 | ~mask6;
+            uint8_t tmp6[IP6_LEN];
+            ip6_invert(tmp6, sa_mask6);
+            ip6_or(ia->bcast6, ia->addr.ip6, tmp6);
+            ip6_mk_snma(ia->snma6, ia->addr.ip6);
             break;
 
         case AF_INET:
@@ -669,7 +651,6 @@ struct w_engine * w_init(const char * const ifname,
 
             uint32_t mask4;
             memcpy(&mask4, sa_mask4, sizeof(mask4));
-            ia->net4 = ia->addr.ip4 & mask4;
             ia->bcast4 = ia->addr.ip4 | ~mask4;
             break;
 
@@ -685,7 +666,7 @@ struct w_engine * w_init(const char * const ifname,
     for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
         struct w_ifaddr * const ia = &w->ifaddr[idx]; // NOLINT
         warn(NTE, "%s IPv%d addr %s/%u", ifname, ia->addr.af == AF_INET ? 4 : 6,
-             w_ntop(&ia->addr, (char[IP_STRLEN]){""}, IP_STRLEN), ia->prefix);
+             w_ntop(&ia->addr, ip_tmp), ia->prefix);
     }
 #endif
 
@@ -961,7 +942,7 @@ bool w_to_waddr(struct w_addr * const wa, const struct sockaddr * const sa)
                &((const struct sockaddr_in *)(const void *)sa)->sin_addr,
                sizeof(wa->ip4));
     else
-        memcpy(&wa->ip6,
+        memcpy(wa->ip6,
                &((const struct sockaddr_in6 *)(const void *)sa)->sin6_addr,
                sizeof(wa->ip6));
     return true;

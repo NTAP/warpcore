@@ -155,12 +155,9 @@ int
             if (sq_empty(&i))
                 continue;
             warn(DBG, "received %" PRIu " bytes from %s:%u on %s:%u",
-                 w_iov_sq_len(&i),
-                 w_ntop(&sq_first(&i)->wv_addr, (char[IP_STRLEN]){""},
-                        IP_STRLEN),
+                 w_iov_sq_len(&i), w_ntop(&sq_first(&i)->wv_addr, ip_tmp),
                  bswap16(sq_first(&i)->saddr.port),
-                 w_ntop(&s->ws_laddr, (char[IP_STRLEN]){""}, IP_STRLEN),
-                 bswap16(s->ws_lport));
+                 w_ntop(&s->ws_laddr, ip_tmp), bswap16(s->ws_lport));
 
             struct w_iov_sq o = w_iov_sq_initializer(o);
 

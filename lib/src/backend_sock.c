@@ -48,8 +48,10 @@
 #include <warpcore/warpcore.h>
 
 #ifndef PARTICLE
+#include <netinet/ip.h>
 #include <sys/uio.h>
 #else
+#include <lwip/sockets.h>
 #include <socket_hal.h>
 #define SOCK_CLOEXEC 0
 #define IP_RECVTOS IP_TOS
@@ -70,7 +72,7 @@
 #endif
 
 #include "backend.h"
-#include "ip4.h"
+// #include "ip4.h"
 
 
 #define sa_len(f)                                                              \

@@ -108,8 +108,13 @@ void backend_init(struct w_engine * const w,
         // preload ARP cache
         neighbor_update(w, &(struct w_addr){.af = AF_INET, .ip4 = 0x0100007f},
                         (struct eth_addr){ETH_ADDR_NONE});
-        neighbor_update(w, &(struct w_addr){.af = AF_INET6, .ip6 = 0x01},
-                        (struct eth_addr){ETH_ADDR_NONE});
+        neighbor_update(
+            w,
+            &(struct w_addr){.af = AF_INET6,
+                             .ip6 = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                     0x00, 0x01}},
+            (struct eth_addr){ETH_ADDR_NONE});
     } else {
         struct w_engine * e;
         sl_foreach (e, &engines, next)
@@ -179,8 +184,8 @@ void backend_init(struct w_engine * const w,
 }
 
 
-/// Shut a warpcore netmap engine down cleanly. This function returns all w_iov
-/// structures associated the engine to netmap.
+/// Shut a warpcore netmap engine down cleanly. This function returns all
+/// w_iov structures associated the engine to netmap.
 ///
 /// @param      w     Backend engine.
 ///
@@ -222,8 +227,8 @@ static inline uint16_t __attribute__((always_inline)) pick_local_port(void)
 }
 
 
-/// Netmap-specific code to bind a warpcore socket. Only computes a random port
-/// number if the socket is not bound to a specific port yet.
+/// Netmap-specific code to bind a warpcore socket. Only computes a random
+/// port number if the socket is not bound to a specific port yet.
 ///
 /// @param      s     The w_sock to bind.
 /// @param[in]  opt   Socket options for this socket. Can be zero.
@@ -250,8 +255,8 @@ void backend_close(struct w_sock * const s __attribute__((unused))) {}
 
 
 /// Connect the given w_sock, using the netmap backend. If the Ethernet MAC
-/// address of the destination (or the default router towards it) is not known,
-/// it will block trying to look it up via ARP.
+/// address of the destination (or the default router towards it) is not
+/// known, it will block trying to look it up via ARP.
 ///
 /// @param      s     w_sock to connect.
 ///
@@ -281,11 +286,12 @@ int backend_connect(struct w_sock * const s)
 }
 
 
-/// Return the file descriptor associated with a w_sock. For the netmap backend,
-/// this is the per-interface netmap file descriptor. It can be used for poll()
-/// or with event-loop libraries in the application.
+/// Return the file descriptor associated with a w_sock. For the netmap
+/// backend, this is the per-interface netmap file descriptor. It can be
+/// used for poll() or with event-loop libraries in the application.
 ///
-/// @param      s     w_sock socket for which to get the underlying descriptor.
+/// @param      s     w_sock socket for which to get the underlying
+/// descriptor.
 ///
 /// @return     A file descriptor.
 ///
@@ -295,11 +301,12 @@ int w_fd(const struct w_sock * const s)
 }
 
 
-/// Return any new data that has been received on a socket by appending it to
-/// the w_iov tail queue @p i. The tail queue must eventually be returned to
-/// warpcore via w_free().
+/// Return any new data that has been received on a socket by appending it
+/// to the w_iov tail queue @p i. The tail queue must eventually be returned
+/// to warpcore via w_free().
 ///
-/// @param      s     w_sock for which the application would like to receive new
+/// @param      s     w_sock for which the application would like to receive
+/// new
 ///                   data.
 /// @param      i     w_iov tail queue to append new data to.
 ///
@@ -310,11 +317,12 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 
 
 /// Loops over the w_iov structures in the w_iov_sq @p o, sending them all
-/// over w_sock @p s. Places the payloads into IPv4 UDP packets, and attempts to
-/// move them into TX rings. Will force a NIC TX if all rings are full, retry
-/// the failed w_iovs. The (last batch of) packets are not send yet; w_nic_tx()
-/// needs to be called (again) for that. This is, so that an application has
-/// control over exactly when to schedule packet I/O.
+/// over w_sock @p s. Places the payloads into IPv4 UDP packets, and
+/// attempts to move them into TX rings. Will force a NIC TX if all rings
+/// are full, retry the failed w_iovs. The (last batch of) packets are not
+/// send yet; w_nic_tx() needs to be called (again) for that. This is, so
+/// that an application has control over exactly when to schedule packet
+/// I/O.
 ///
 /// @param      s     w_sock socket to transmit over.
 /// @param      o     w_iov_sq to send.
@@ -332,11 +340,12 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 }
 
 
-/// Trigger netmap to make new received data available to w_rx(). Iterates over
-/// any new data in the RX rings, calling eth_rx() for each.
+/// Trigger netmap to make new received data available to w_rx(). Iterates
+/// over any new data in the RX rings, calling eth_rx() for each.
 ///
 /// @param[in]  w     Backend engine.
-/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate return, -1
+/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate
+/// return, -1
 ///                   for infinite wait.
 ///
 /// @return     Whether any data is ready for reading.
@@ -366,7 +375,8 @@ again:
     }
 
     // if (likely(rx) && unlikely(is_pipe(w)))
-    //     ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
+    //     ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx
+    //     ring");
 
     if (rx == false && nsec == -1)
         goto again;
@@ -375,8 +385,9 @@ again:
 }
 
 
-/// Push data placed in the TX rings via udp_tx() and similar methods out onto
-/// the link. Also move any transmitted data back into the original w_iovs.
+/// Push data placed in the TX rings via udp_tx() and similar methods out
+/// onto the link. Also move any transmitted data back into the original
+/// w_iovs.
 ///
 /// @param[in]  w     Backend engine.
 ///
@@ -391,8 +402,8 @@ void w_nic_tx(struct w_engine * const w)
         // warn(WRN, "tx ring %u: old tail %u, tail %u, cur %u, head %u", i,
         //      w->b->tail[i], r->tail, r->cur, r->head);
 
-        // XXX we need to abuse the netmap API here by touching tail until a fix
-        // is included upstream
+        // XXX we need to abuse the netmap API here by touching tail until a
+        // fix is included upstream
         for (uint32_t j = nm_ring_next(r, w->b->tail[i]);
              likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
@@ -418,11 +429,12 @@ void w_nic_tx(struct w_engine * const w)
 }
 
 
-/// Fill a w_sock_slist with pointers to some sockets with pending inbound data.
-/// Data can be obtained via w_rx() on each w_sock in the list. Call can
-/// optionally block to wait for at least one ready connection. Will return the
-/// number of ready connections, or zero if none are ready. When the return
-/// value is not zero, a repeated call may return additional ready sockets.
+/// Fill a w_sock_slist with pointers to some sockets with pending inbound
+/// data. Data can be obtained via w_rx() on each w_sock in the list. Call
+/// can optionally block to wait for at least one ready connection. Will
+/// return the number of ready connections, or zero if none are ready. When
+/// the return value is not zero, a repeated call may return additional
+/// ready sockets.
 ///
 /// @param[in]  w     Backend engine.
 /// @param      sl    Empty and initialized w_sock_slist.

@@ -66,4 +66,4 @@ extern void __attribute__((nonnull)) icmp6_rx(struct w_engine * w,
                                               uint8_t * const buf);
 
 extern void __attribute__((nonnull))
-icmp6_nsol(struct w_engine * const w, const uint128_t addr);
+icmp6_nsol(struct w_engine * const w, const uint8_t * const addr);

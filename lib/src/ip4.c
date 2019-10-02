@@ -30,6 +30,7 @@
 #endif
 
 #include <arpa/inet.h>
+#include <netinet/ip.h>
 #include <stdint.h>
 #include <sys/socket.h>
 
@@ -54,9 +55,8 @@
     warn(DBG,                                                                  \
          "IPv%u: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "                   \
          "flags [%s%s], proto %d, hlen/tot %d/%d, cksum %04x",                 \
-         ip_v((ip)->vhl),                                                      \
-         inet_ntop(AF_INET, &(ip)->src, (char[IP4_STRLEN]){""}, IP4_STRLEN),   \
-         inet_ntop(AF_INET, &(ip)->dst, (char[IP4_STRLEN]){""}, IP4_STRLEN),   \
+         ip_v((ip)->vhl), inet_ntop(AF_INET, &(ip)->src, ip4_tmp, IP4_STRLEN), \
+         inet_ntop(AF_INET, &(ip)->dst, ip4_tmp, IP4_STRLEN),                  \
          ip4_dscp((ip)->tos), ip4_ecn((ip)->tos), (ip)->ttl,                   \
          bswap16((ip)->id), ((ip)->off & IP4_MF) ? "MF" : "",                  \
          ((ip)->off & IP4_DF) ? "DF" : "", (ip)->p, ip4_hl((ip)->vhl),         \
@@ -101,8 +101,8 @@ bool
     // make sure the packet is for us (or broadcast)
     if (is_my_ip4(w, (ip)->dst, true) == UINT16_MAX) {
         warn(INF, "IP packet from %s to %s (not us); ignoring",
-             inet_ntop(AF_INET, &ip->src, (char[IP4_STRLEN]){""}, IP4_STRLEN),
-             inet_ntop(AF_INET, &ip->dst, (char[IP4_STRLEN]){""}, IP4_STRLEN));
+             inet_ntop(AF_INET, &ip->src, ip4_tmp, IP4_STRLEN),
+             inet_ntop(AF_INET, &ip->dst, ip4_tmp, IP4_STRLEN));
         return false;
     }
 

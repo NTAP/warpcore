@@ -30,6 +30,7 @@
 #endif
 
 #include <arpa/inet.h>
+#include <netinet/ip.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -53,8 +54,8 @@
          "IPv%u: %s -> %s, flow 0x%05x, hlim %d, next-hdr %u, "                \
          "plen %d, tc 0x%02x, ecn %d",                                         \
          ip_v((ip)->vfc),                                                      \
-         inet_ntop(AF_INET6, &(ip)->src, (char[IP6_STRLEN]){""}, IP6_STRLEN),  \
-         inet_ntop(AF_INET6, &(ip)->dst, (char[IP6_STRLEN]){""}, IP6_STRLEN),  \
+         inet_ntop(AF_INET6, &(ip)->src, ip6_tmp, IP6_STRLEN),                 \
+         inet_ntop(AF_INET6, &(ip)->dst, ip6_tmp, IP6_STRLEN),                 \
          bswap32(ip6_flow_label((ip)->vtcecnfl)), (ip)->hlim, (ip)->next_hdr,  \
          bswap16((ip)->len), ip6_tc((ip)->vtcecnfl), ip6_ecn((ip)->vtcecnfl))
 #else
@@ -92,12 +93,10 @@ bool
     }
 
     // make sure the packet is for us (or broadcast)
-    uint128_t dst;
-    memcpy(&dst, ip->dst, sizeof(dst));
-    if (is_my_ip6(w, dst, true) == UINT16_MAX) {
+    if (is_my_ip6(w, ip->dst, true) == UINT16_MAX) {
         warn(INF, "IPv6 packet from %s to %s (not us); ignoring",
-             inet_ntop(AF_INET6, &ip->src, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-             inet_ntop(AF_INET6, &ip->dst, (char[IP6_STRLEN]){""}, IP6_STRLEN));
+             inet_ntop(AF_INET6, &ip->src, ip6_tmp, IP6_STRLEN),
+             inet_ntop(AF_INET6, &ip->dst, ip6_tmp, IP6_STRLEN));
         return false;
     }
 
@@ -168,17 +167,15 @@ void
 /// @return     Index of the interface address, or UINT16_MAX if no match.
 ///
 uint16_t is_my_ip6(const struct w_engine * const w,
-                   const uint128_t ip,
+                   const uint8_t * const ip,
                    const bool match_mcast)
 {
     uint16_t idx = 0;
     while (idx < w->addr_cnt) {
         const struct w_ifaddr * const ia = &w->ifaddr[idx];
-        if (ip == ia->addr.ip6)
+        if (ip6_eql(ip, ia->addr.ip6))
             return idx;
-        if (match_mcast &&
-            (ip == (snmap_prefix | (ia->addr.ip6 & snmap_mask)) ||
-             ip == ia->bcast6 || ip == UINT128_MAX))
+        if (match_mcast && (ip6_eql(ip, ia->snma6) || ip6_eql(ip, ia->bcast6)))
             return idx;
         idx++;
     }

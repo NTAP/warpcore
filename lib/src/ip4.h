@@ -30,19 +30,21 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef WITH_NETMAP
 // IWYU pragma: no_include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
+#endif
 
 #include <warpcore/warpcore.h>
 
 #include "eth.h"
 
 
-#define IPTOS_ECN_NOTECT 0x00 // not-ECT
-#define IPTOS_ECN_ECT1 0x01   // ECN-capable transport (1)
-#define IPTOS_ECN_ECT0 0x02   // ECN-capable transport (0)
-#define IPTOS_ECN_CE 0x03     // congestion experienced
-#define IPTOS_ECN_MASK 0x03   // ECN field mask
+// #define IPTOS_ECN_NOTECT 0x00 // not-ECT
+// #define IPTOS_ECN_ECT1 0x01   // ECN-capable transport (1)
+// #define IPTOS_ECN_ECT0 0x02   // ECN-capable transport (0)
+// #define IPTOS_ECN_CE 0x03     // congestion experienced
+// #define IPTOS_ECN_MASK 0x03   // ECN field mask
 
 #define IP_P_ICMP 1   ///< IP protocol number for ICMP
 #define IP_P_UDP 17   ///< IP protocol number for UDP
@@ -149,6 +151,8 @@ ip4_data_len(const struct ip4_hdr * const ip)
 }
 
 
+#ifdef WITH_NETMAP
+
 extern bool __attribute__((nonnull)) ip4_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,
                                             uint8_t * const buf);
@@ -161,3 +165,5 @@ extern uint16_t __attribute__((nonnull))
 is_my_ip4(const struct w_engine * const w,
           const uint32_t ip,
           const bool match_bcast);
+
+#endif

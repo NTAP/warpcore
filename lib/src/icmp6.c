@@ -77,7 +77,7 @@ void
 #if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
     __attribute__((no_sanitize("alignment")))
 #endif
-    icmp6_nsol(struct w_engine * const w, const uint128_t addr)
+    icmp6_nsol(struct w_engine * const w, const uint8_t * const addr)
 {
     // grab a spare buffer
     struct w_iov * const v = w_alloc_iov_base(w);
@@ -98,24 +98,27 @@ void
 
     // we format the response here
     uint8_t * resp = (uint8_t *)icmp + sizeof(*icmp);
-    memcpy(resp, &addr, sizeof(addr));
-    resp += sizeof(uint128_t);
+    memcpy(resp, addr, IP6_LEN);
+    resp += IP6_LEN;
     *(resp++) = 0x01; // source link-layer address
     *(resp++) = 1;    // len in units of eight octets
     memcpy(resp, &w->mac, sizeof(w->mac));
     resp += sizeof(w->mac);
 
     warn(NTE, "neighbor solicitation, who has %s tell %s",
-         inet_ntop(AF_INET6, &addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-         eth_ntoa(&w->mac, (char[ETH_STRLEN]){""}));
+         inet_ntop(AF_INET6, addr, ip6_tmp, IP6_STRLEN),
+         eth_ntoa(&w->mac, eth_tmp));
 
     v->len = (uint16_t)(resp - (uint8_t *)icmp);
-    v->wv_ip6 = snmap_prefix | (addr & snmap_mask);
+    ip6_mk_snma(v->wv_ip6, addr);
     mk_icmp6_pkt_hdrs(v);
 
     // set missing bits of the Ethernet header
     eth->dst = (struct eth_addr){ETH_ADDR_MCAST6};
-    *(uint32_t *)(void *)(&eth->dst.addr[2]) = addr >> 96;
+    eth->dst.addr[2] = addr[12];
+    eth->dst.addr[3] = addr[13];
+    eth->dst.addr[4] = addr[14];
+    eth->dst.addr[5] = addr[15];
 
     eth_tx_and_free(v);
 }
@@ -169,8 +172,8 @@ void
         // we format the response here
         data = 0;
         uint8_t * resp = (uint8_t *)dst_icmp + sizeof(*dst_icmp);
-        memcpy(resp, ip6_data(buf) + sizeof(*dst_icmp), sizeof(uint128_t));
-        resp += sizeof(uint128_t);
+        memcpy(resp, ip6_data(buf) + sizeof(*dst_icmp), IP6_LEN);
+        resp += IP6_LEN;
         *(resp++) = 0x02; // target link-layer address
         *(resp++) = 1;    // len in units of eight octets
         memcpy(resp, &w->mac, sizeof(w->mac));
@@ -179,9 +182,9 @@ void
                               (uint16_t)sizeof(*dst_icmp));
 
         warn(NTE, "neighbor advertisement, %s is at %s",
-             inet_ntop(AF_INET6, ip6_data(buf) + sizeof(*dst_icmp),
-                       (char[IP6_STRLEN]){""}, IP6_STRLEN),
-             eth_ntoa(&w->mac, (char[ETH_STRLEN]){""}));
+             inet_ntop(AF_INET6, ip6_data(buf) + sizeof(*dst_icmp), ip6_tmp,
+                       IP6_STRLEN),
+             eth_ntoa(&w->mac, eth_tmp));
         break;
 
     case ICMP6_TYPE_ECHOREPLY:;
@@ -265,20 +268,19 @@ void
             MIN(bswap16(ip->len),
                 s->len - sizeof(struct eth_hdr) - sizeof(*ip) - sizeof(*icmp));
 
-        uint128_t target;
-        memcpy(&target, data, sizeof(target));
-        data += sizeof(target);
+        const uint8_t * target = data;
+        data += IP6_LEN;
 
         // check if there is a source link-address option
         const struct eth_addr * sla = 0;
-        if (data_len >= sizeof(target) + 8 && *(data++) == 1 && *(data++) == 1)
+        if (data_len >= IP6_LEN + 8 && *(data++) == 1 && *(data++) == 1)
             sla = (const void *)data;
 
         const struct eth_hdr * src_eth = (const void *)buf;
-        const struct w_addr addr = {.af = AF_INET6, .ip6 = target};
-        warn(NTE, "neighbor advertisement, %s is at %s",
-             w_ntop(&addr, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-             eth_ntoa(sla ? sla : &src_eth->src, (char[ETH_STRLEN]){""}));
+        struct w_addr addr = {.af = AF_INET6};
+        memcpy(&addr.ip6, target, IP6_LEN);
+        warn(NTE, "neighbor advertisement, %s is at %s", w_ntop(&addr, ip6_tmp),
+             eth_ntoa(sla ? sla : &src_eth->src, eth_tmp));
         neighbor_update(w, &addr, sla ? *sla : src_eth->src);
 
         break;
@@ -288,29 +290,28 @@ void
         data_len = MIN(bswap16(ip->len), s->len - sizeof(struct eth_hdr) -
                                              sizeof(*ip) - sizeof(*icmp));
 
-        memcpy(&target, data, sizeof(target));
-        data += sizeof(target);
+        target = data;
+        data += IP6_LEN;
 
         // check if there is a source link-address option
         sla = 0;
-        if (data_len >= sizeof(target) + 8 && *(data++) == 1 && *(data++) == 1)
+        if (data_len >= IP6_LEN + 8 && *(data++) == 1 && *(data++) == 1)
             sla = (const void *)data;
 
-        const struct w_addr t = {.af = AF_INET6, .ip6 = target};
+        struct w_addr t = {.af = AF_INET6};
+        memcpy(&addr.ip6, target, IP6_LEN);
         if (sla)
             warn(NTE, "neighbor solicitation, who has %s tell %s",
-                 w_ntop(&t, (char[IP6_STRLEN]){""}, IP6_STRLEN),
-                 eth_ntoa(sla, (char[ETH_STRLEN]){""}));
+                 w_ntop(&t, ip6_tmp), eth_ntoa(sla, eth_tmp));
         else
-            warn(NTE, "neighbor solicitation, who has %s",
-                 w_ntop(&t, (char[IP6_STRLEN]){""}, IP6_STRLEN));
+            warn(NTE, "neighbor solicitation, who has %s", w_ntop(&t, ip6_tmp));
 
         if (is_my_ip6(w, target, false) != UINT16_MAX) {
             icmp6_tx(w, ICMP6_TYPE_NADV, 0, buf);
 
             // opportunistically store the ND mapping
             src_eth = (const void *)buf;
-            memcpy(&target, &ip->src, sizeof(target)); // reuse target
+            // memcpy(&target, &ip->src, IP6_LEN); // reuse target
             neighbor_update(w, &t, sla ? *sla : src_eth->src);
         } else
             rwarn(WRN, 10,

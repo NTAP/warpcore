@@ -59,9 +59,8 @@ void neighbor_update(struct w_engine * const w,
     }
     kh_val(&w->b->neighbor, k) = mac;
 
-    warn(INF, "neighbor cache entry: %s is at %s",
-         w_ntop(addr, (char[IP_STRLEN]){""}, IP_STRLEN),
-         eth_ntoa(&mac, (char[ETH_STRLEN]){""}));
+    warn(INF, "neighbor cache entry: %s is at %s", w_ntop(addr, ip_tmp),
+         eth_ntoa(&mac, eth_tmp));
 }
 
 
@@ -101,7 +100,7 @@ struct eth_addr
     struct eth_addr a = neighbor_find(w, addr);
     while (unlikely(memcmp(&a, ETH_ADDR_NONE, sizeof(a)) == 0)) {
         warn(INF, "no neighbor entry for %s, sending query",
-             w_ntop(addr, (char[IP_STRLEN]){""}, IP_STRLEN));
+             w_ntop(addr, ip_tmp));
 
         if (addr->af == AF_INET)
             arp_who_has(w, addr->ip4);

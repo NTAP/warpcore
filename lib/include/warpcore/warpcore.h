@@ -31,7 +31,6 @@
 extern "C" {
 #endif
 
-#include <ifaddrs.h>
 #include <netinet/in.h>
 #include <stdint.h>
 #include <sys/param.h>
@@ -46,6 +45,7 @@ extern "C" {
 #include <warpcore/util.h>   // IWYU pragma: export
 
 #ifndef PARTICLE
+#include <ifaddrs.h>
 #include <sys/socket.h>
 #endif
 
@@ -74,39 +74,69 @@ struct w_iov_sq {
 #define IP6_LEN 16 ///< Length of an IPv4 address in bytes. Sixteen.
 #define IP6_STRLEN INET6_ADDRSTRLEN
 
+#define ip6_tmp                                                                \
+    (char[IP6_STRLEN])                                                         \
+    {                                                                          \
+        ""                                                                     \
+    }
 
 #define IP4_LEN 4 ///< Length of an IPv4 address in bytes. Four.
 #define IP4_STRLEN INET_ADDRSTRLEN
 
+#define ip4_tmp                                                                \
+    (char[IP4_STRLEN])                                                         \
+    {                                                                          \
+        ""                                                                     \
+    }
+
 #define IP_STRLEN MAX(IP4_STRLEN, IP6_STRLEN)
+
+#define ip_tmp                                                                 \
+    (char[IP_STRLEN])                                                          \
+    {                                                                          \
+        ""                                                                     \
+    }
 
 #define af_len(af) (uint8_t)((af) == AF_INET ? IP4_LEN : IP6_LEN)
 
 #define ip_hdr_len(af) (uint8_t)((af) == AF_INET ? 20 : 40)
 
+#define ip6_eql(a, b) (memcmp((a), (b), IP6_LEN) == 0)
+
 
 struct w_addr {
     sa_family_t af; ///< Address family.
     union {
-        uint32_t ip4;  ///< IPv4 address (when w_addr::af is AF_INET).
-        uint128_t ip6; ///< IPv6 address (when w_addr::af is AF_INET6).
+        uint32_t ip4;         ///< IPv4 address (when w_addr::af is AF_INET).
+        uint8_t ip6[IP6_LEN]; ///< IPv6 address (when w_addr::af is AF_INET6).
     };
 };
 
+
 struct w_ifaddr {
     struct w_addr addr; ///< Interface address.
+
     union {
-        uint32_t net4;  ///< IPv4 netmask (when w_ifaddr::addr::af is AF_INET).
-        uint128_t net6; ///< IPv6 netmask (when w_ifaddr::addr::af is AF_INET6).
+        /// IPv4 broadcast address (when w_ifaddr::addr::af is AF_INET).
+        uint32_t bcast4;
+
+        /// IPv6 broadcast address (when w_ifaddr::addr::af is AF_INET6).
+        uint8_t bcast6[IP6_LEN];
     };
+
     union {
-        uint32_t bcast4; ///< IPv4 broadcast address (when w_ifaddr::addr::af is
-                         ///< AF_INET).
-        uint128_t bcast6; ///< IPv6 broadcast address (when w_ifaddr::addr::af
-                          ///< is AF_INET6).
+        /// IPv4 solicited-node multicast address (when w_ifaddr::addr::af is
+        /// AF_INET).
+        uint32_t snma4;
+
+        /// IPv6 solicited-node multicast address (when w_ifaddr::addr::af is
+        /// AF_INET6).
+        uint8_t snma6[IP6_LEN];
     };
+
     uint8_t prefix; ///< Prefix length.
 };
+
 
 struct w_sockaddr {
     uint16_t port;      ///< Port number.
@@ -142,6 +172,13 @@ KHASH_INIT(sock,
 
 #define ETH_LEN 6
 #define ETH_STRLEN (ETH_LEN * 3 + 1)
+
+#define eth_tmp                                                                \
+    (char[ETH_STRLEN])                                                         \
+    {                                                                          \
+        ""                                                                     \
+    }
+
 
 struct eth_addr {
     uint8_t addr[ETH_LEN];
@@ -373,9 +410,7 @@ w_get_sock(struct w_engine * const w,
            const struct w_sockaddr * const remote);
 
 extern const char * __attribute__((nonnull))
-w_ntop(const struct w_addr * const addr,
-       char * const dst,
-       const size_t dst_len);
+w_ntop(const struct w_addr * const addr, char * const dst);
 
 extern void w_init_rand(void);
 

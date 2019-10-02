@@ -83,8 +83,8 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf, const uint32_t ip)
     reply->tpa = req->spa;
 
     warn(NTE, "ARP reply %s is at %s",
-         inet_ntop(AF_INET, &reply->spa, (char[IP4_STRLEN]){""}, IP4_STRLEN),
-         eth_ntoa(&reply->sha, (char[ETH_STRLEN]){""}));
+         inet_ntop(AF_INET, &reply->spa, ip4_tmp, IP4_STRLEN),
+         eth_ntoa(&reply->sha, eth_tmp));
 
     // send the Ethernet packet
     struct eth_hdr * const eth = (void *)v->base;
@@ -131,8 +131,8 @@ void
     arp->tpa = addr;
 
     warn(NTE, "ARP request who has %s tell %s",
-         inet_ntop(AF_INET, &arp->tpa, (char[IP4_STRLEN]){""}, IP4_STRLEN),
-         inet_ntop(AF_INET, &arp->spa, (char[IP4_STRLEN]){""}, IP4_STRLEN));
+         inet_ntop(AF_INET, &arp->tpa, ip4_tmp, IP4_STRLEN),
+         inet_ntop(AF_INET, &arp->spa, ip4_tmp, IP4_STRLEN));
 
     v->len = sizeof(*arp);
     eth_tx_and_free(v);
@@ -170,8 +170,8 @@ void
     switch (arp->op) {
     case ARP_OP_REQUEST:
         warn(NTE, "ARP request who has %s tell %s",
-             inet_ntop(AF_INET, &arp->tpa, (char[IP4_STRLEN]){""}, IP4_STRLEN),
-             inet_ntop(AF_INET, &arp->spa, (char[IP4_STRLEN]){""}, IP4_STRLEN));
+             inet_ntop(AF_INET, &arp->tpa, ip4_tmp, IP4_STRLEN),
+             inet_ntop(AF_INET, &arp->spa, ip4_tmp, IP4_STRLEN));
 
         if (likely(is_my_ip4(w, arp->tpa, false) != UINT16_MAX))
             arp_is_at(w, buf, arp->tpa);
@@ -181,8 +181,8 @@ void
 
     case ARP_OP_REPLY:;
         warn(NTE, "ARP reply %s is at %s",
-             inet_ntop(AF_INET, &arp->spa, (char[IP4_STRLEN]){""}, IP4_STRLEN),
-             eth_ntoa(&arp->sha, (char[ETH_STRLEN]){""}));
+             inet_ntop(AF_INET, &arp->spa, ip4_tmp, IP4_STRLEN),
+             eth_ntoa(&arp->sha, eth_tmp));
         break;
 
     default:

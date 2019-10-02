@@ -67,9 +67,6 @@ typedef int_fast32_t dint_t;
 #define UINT_C UINT32_C
 #endif
 
-typedef __uint128_t uint128_t;
-#define UINT128_MAX ((uint128_t)UINT64_MAX << 64 | UINT64_MAX)
-
 #ifndef __has_builtin
 #define __has_builtin(x) 0
 #endif
@@ -113,10 +110,6 @@ typedef __uint128_t uint128_t;
 #define bswap64(x)                                                             \
     (((uint64_t)bswap32((x)&0xFFFFFFFF) << 32) | bswap32((x) >> 32))
 #endif
-
-#define bswap128(x)                                                            \
-    (((uint128_t)bswap64((x)&0xFFFFFFFFFFFFFFFF) << 64) | bswap64((x) >> 64))
-
 
 #if defined(__linux__)
 // #include <sys/socket.h>

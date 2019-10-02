@@ -30,8 +30,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef WITH_NETMAP
 // IWYU pragma: no_include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
+#endif
 
 #include <warpcore/warpcore.h>
 
@@ -57,9 +59,13 @@ struct ip6_hdr {
 
 
 /// Solicited-node multicast address prefix and mask
-static const uint128_t snmap_prefix = (uint128_t)0x2ff | (uint128_t)0xff01
-                                                             << 88;
-static const uint128_t snmap_mask = (uint128_t)0x00ffffff << 104;
+static const uint8_t snma_pref[IP6_LEN] = {0xff, 0x02, 0x00, 0x00, 0x00, 0x00,
+                                           0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+                                           0xff, 0x00, 0x00, 0x00};
+
+static const uint8_t snma_mask[IP6_LEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                           0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                           0xff, 0x00, 0x00, 0x00};
 
 
 /// Extract the traffic class out of an ip6_hdr::vtcecnfl field.
@@ -115,6 +121,43 @@ ip6_data(uint8_t * const buf)
 }
 
 
+static inline void __attribute__((nonnull))
+ip6_invert(uint8_t * restrict const dst, const uint8_t * restrict src)
+{
+    for (uint8_t i = 0; i < IP6_LEN; i++)
+        dst[i] = (uint8_t)~src[i];
+}
+
+// static inline void __attribute__((nonnull))
+// ip6_and(uint8_t * restrict const dst,
+//         const uint8_t * restrict src1,
+//         const uint8_t * restrict src2)
+// {
+//     for (uint8_t i = 0; i < IP6_LEN; i++)
+//         dst[i] = src1[i] & src2[i];
+// }
+
+
+static inline void __attribute__((nonnull))
+ip6_or(uint8_t * restrict const dst,
+       const uint8_t * restrict src1,
+       const uint8_t * restrict src2)
+{
+    for (uint8_t i = 0; i < IP6_LEN; i++)
+        dst[i] = src1[i] | src2[i];
+}
+
+
+static inline void __attribute__((nonnull))
+ip6_mk_snma(uint8_t * restrict const dst, const uint8_t * restrict src)
+{
+    for (uint8_t i = 0; i < IP6_LEN; i++)
+        dst[i] = snma_pref[i] | (src[i] & snma_mask[i]);
+}
+
+
+#ifdef WITH_NETMAP
+
 extern bool __attribute__((nonnull)) ip6_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,
                                             uint8_t * const buf);
@@ -125,5 +168,7 @@ mk_ip6_hdr(struct w_iov * const v, const struct w_sock * const s);
 
 extern uint16_t __attribute__((nonnull))
 is_my_ip6(const struct w_engine * const w,
-          const uint128_t ip,
+          const uint8_t * const ip,
           const bool match_mcast);
+
+#endif
