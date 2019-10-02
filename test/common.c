@@ -107,7 +107,7 @@ bool io(const uint_t len)
                "port mismatch, in %u != out %u", bswap16(iv->saddr.port),
                bswap16(s_clnt->ws_lport));
 
-        ensure(iv->wv_ip6 == ov->wv_ip6, "IP mismatch");
+        ensure(ip6_eql(iv->wv_ip6, ov->wv_ip6), "IP mismatch");
 
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);

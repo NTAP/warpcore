@@ -538,7 +538,7 @@ w_get_sockopt(const struct w_sock * const s)
 static inline bool __attribute__((nonnull))
 w_connected(const struct w_sock * const s)
 {
-    return s->tup.remote.port;
+    return s->ws_rport;
 }
 
 
