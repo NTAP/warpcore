@@ -136,6 +136,8 @@ typedef struct if_list if_list;
 #define IPTOS_ECN_CE 0x03     // congestion experienced
 #define IPTOS_ECN_MASK 0x03   // ECN field mask
 
+#define O_CLOEXEC 0
+
 #endif
 
 struct ifaddrs;

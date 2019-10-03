@@ -86,6 +86,45 @@
 #endif
 
 
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+#define NRM "\x1B[0m"   ///< ANSI escape sequence: reset all to normal
+#define BLD "\x1B[1m"   ///< ANSI escape sequence: bold
+#define DIM "\x1B[2m"   ///< ANSI escape sequence: dim
+#define ULN "\x1B[3m"   ///< ANSI escape sequence: underline
+#define BLN "\x1B[5m"   ///< ANSI escape sequence: blink
+#define REV "\x1B[7m"   ///< ANSI escape sequence: reverse
+#define HID "\x1B[8m"   ///< ANSI escape sequence: hidden
+#define BLK "\x1B[30m"  ///< ANSI escape sequence: black
+#define RED "\x1B[31m"  ///< ANSI escape sequence: red
+#define GRN "\x1B[32m"  ///< ANSI escape sequence: green
+#define YEL "\x1B[33m"  ///< ANSI escape sequence: yellow
+#define BLU "\x1B[34m"  ///< ANSI escape sequence: blue
+#define MAG "\x1B[35m"  ///< ANSI escape sequence: magenta
+#define CYN "\x1B[36m"  ///< ANSI escape sequence: cyan
+#define WHT "\x1B[37m"  ///< ANSI escape sequence: white
+#define BMAG "\x1B[45m" ///< ANSI escape sequence: background magenta
+#define BWHT "\x1B[47m" ///< ANSI escape sequence: background white
+#else
+#define NRM ""
+#define BLD ""
+#define DIM ""
+#define ULN ""
+#define BLN ""
+#define REV ""
+#define HID ""
+#define BLK ""
+#define RED ""
+#define GRN ""
+#define YEL ""
+#define BLU ""
+#define MAG ""
+#define CYN ""
+#define WHT ""
+#define BMAG ""
+#define BWHT ""
+#endif
+
+
 /// Dynamically adjust util_dlevel from your code to show or suppress debug
 /// messages at runtime. Increasing this past what was compiled in by setting
 /// DLEVEL is obviously not going to have any effect.
