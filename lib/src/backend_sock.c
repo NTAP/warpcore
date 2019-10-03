@@ -446,11 +446,6 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 }
 
 
-#ifdef PARTICLE
-#define PARTICLE_LIMIT 3
-#endif
-
-
 /// Calls recvmsg() or recvmmsg() for all sockets associated with the engine,
 /// emulating the operation of netmap backend_rx() function. Appends all data to
 /// the w_sock::iv socket buffers of the respective w_sock structures.
@@ -471,9 +466,6 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #define RECV_SIZE 1
 #endif
     ssize_t n = 0;
-#ifdef PARTICLE
-    uint32_t total = 0;
-#endif
     do {
         struct w_iov * v[RECV_SIZE];
         struct iovec msg[RECV_SIZE];
@@ -531,8 +523,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
 
 #ifndef PARTICLE
-                // FIXME: figure out why this loop doesn't terminate on Particle
-                // extract TOS byte
+                // extract TOS byte (Particle uses recvfrom w/o cmsg support)
 #ifdef HAVE_RECVMMSG
                 for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j].msg_hdr);
                      cmsg; cmsg = CMSG_NXTHDR(&msgvec[j].msg_hdr, cmsg)) {
@@ -540,16 +531,15 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j]); cmsg;
                      cmsg = CMSG_NXTHDR(&msgvec[j], cmsg)) {
 #endif
-                    if (cmsg->cmsg_len &&
-                        ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type ==
+                    if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type ==
 #ifdef __linux__
-                                                                IP_TOS
+                                                               IP_TOS
 #else
-                                                                IP_RECVTOS
+                                                               IP_RECVTOS
 #endif
-                          ) ||
-                         (cmsg->cmsg_level == IPPROTO_IPV6 &&
-                          cmsg->cmsg_type == IPV6_TCLASS))) {
+                         ) ||
+                        (cmsg->cmsg_level == IPPROTO_IPV6 &&
+                         cmsg->cmsg_type == IPV6_TCLASS)) {
                         v[j]->flags = *(uint8_t *)CMSG_DATA(cmsg);
                         break;
                     }
@@ -565,17 +555,10 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
             n = 0;
         }
 
-#ifdef PARTICLE
-        total += n;
-#endif
-
         // return any unused buffers
         for (ssize_t j = n; likely(j < nbufs); j++)
             w_free_iov(v[j]);
     } while (
-#ifdef PARTICLE
-        total <= PARTICLE_LIMIT &&
-#endif
 #ifdef HAVE_RECVMMSG
         n == RECV_SIZE
 #else
