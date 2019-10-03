@@ -58,6 +58,11 @@
 #include "udp.h"
 
 
+/// Set the socket options.
+///
+/// @param      s     The w_sock to change options for.
+/// @param[in]  opt   Socket options for this socket.
+///
 void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     s->opt = *opt;
@@ -118,7 +123,7 @@ void backend_init(struct w_engine * const w,
     } else {
         struct w_engine * e;
         sl_foreach (e, &engines, next)
-            ensure(strncmp(w->ifname, w_ifname(e), IFNAMSIZ),
+            ensure(strncmp(w->ifname, e->ifname, IFNAMSIZ),
                    "can only have one warpcore engine active on %s", w->ifname);
 
         strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);

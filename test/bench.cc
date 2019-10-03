@@ -44,7 +44,8 @@ static void BM_io(benchmark::State & state)
             state.SkipWithError("ran out of bufs or saw packet loss");
             return;
         }
-    state.SetBytesProcessed(int64_t(state.iterations()) * len * w_mtu(w_serv));
+    state.SetBytesProcessed(int64_t(state.iterations()) * len *
+                            w_max_udp_payload(s_serv));
 }
 
 

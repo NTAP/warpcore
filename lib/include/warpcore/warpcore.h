@@ -74,6 +74,7 @@ struct w_iov_sq {
 #define IP6_LEN 16 ///< Length of an IPv4 address in bytes. Sixteen.
 #define IP6_STRLEN INET6_ADDRSTRLEN
 
+/// Initializer for temporary string for holding an IPv6 address.
 #define ip6_tmp                                                                \
     (char[IP6_STRLEN])                                                         \
     {                                                                          \
@@ -83,6 +84,7 @@ struct w_iov_sq {
 #define IP4_LEN 4 ///< Length of an IPv4 address in bytes. Four.
 #define IP4_STRLEN INET_ADDRSTRLEN
 
+/// Initializer for temporary string for holding an IPv4 address.
 #define ip4_tmp                                                                \
     (char[IP4_STRLEN])                                                         \
     {                                                                          \
@@ -91,16 +93,39 @@ struct w_iov_sq {
 
 #define IP_STRLEN MAX(IP4_STRLEN, IP6_STRLEN)
 
+/// Initializer for temporary string for holding an IPv4 or IPv6 address.
 #define ip_tmp                                                                 \
     (char[IP_STRLEN])                                                          \
     {                                                                          \
         ""                                                                     \
     }
 
+
+/// Return the length of the IP address of address family @p af.
+///
+/// @param      af    AF_INET or AF_INET6.
+///
+/// @return     Length of an IP address of the given family.
+///
 #define af_len(af) (uint8_t)((af) == AF_INET ? IP4_LEN : IP6_LEN)
 
+
+/// Return the length of an IP header (without options) of address family @p af.
+///
+/// @param      af    AF_INET or AF_INET6.
+///
+/// @return     Length of an IP header of the given family.
+///
 #define ip_hdr_len(af) (uint8_t)((af) == AF_INET ? 20 : 40)
 
+
+/// Compare two IPv6 addresses for equality.
+///
+/// @param      a     An IPv6 address.
+/// @param      b     Another IPv6 address.
+///
+/// @return     True if equal, false otherwise.
+///
 #define ip6_eql(a, b) (memcmp((a), (b), IP6_LEN) == 0)
 
 
@@ -126,7 +151,7 @@ struct w_ifaddr {
 
     union {
         /// IPv4 solicited-node multicast address (when w_ifaddr::addr::af is
-        /// AF_INET).
+        /// AF_INET). (Not currently in use.)
         uint32_t snma4;
 
         /// IPv6 solicited-node multicast address (when w_ifaddr::addr::af is
@@ -150,12 +175,7 @@ struct w_socktuple {
 };
 
 
-extern khint_t __attribute__((nonnull
-#if defined(__clang__)
-                              ,
-                              no_sanitize("unsigned-integer-overflow")
-#endif
-                                  ))
+extern khint_t __attribute__((nonnull))
 w_socktuple_hash(const struct w_socktuple * const tup);
 
 extern khint_t __attribute__((nonnull))
@@ -343,6 +363,86 @@ w_iov(const struct w_engine * const w, const uint32_t i)
 }
 
 
+/// Return the number of w_iov structs in @p q that are still waiting for
+/// transmission. Only valid after w_tx() has been called on @p p.
+///
+/// @param      q     A tail queue of w_iov structs.
+///
+/// @return     Number of w_iov structs not yet transmitted.
+///
+static inline uint32_t __attribute__((nonnull))
+w_tx_pending(const struct w_iov_sq * const q)
+{
+    return q->tx_pending;
+}
+
+
+/// Return warpcore engine serving w_sock @p s.
+///
+/// @param[in]  s     A w_sock.
+///
+/// @return     The warpcore engine for w_sock @p s.
+///
+static inline struct w_engine * __attribute__((nonnull))
+w_engine(const struct w_sock * const s)
+{
+    return s->w;
+}
+
+
+/// Return the maximum UDP payload for a given socket.
+///
+/// @param[in]  s     A w_sock.
+///
+/// @return     Maximum UDP payload.
+///
+static inline uint16_t __attribute__((nonnull))
+w_max_udp_payload(const struct w_sock * const s)
+{
+    return s->w->mtu - ip_hdr_len(s->ws_af) - 8; // 8 = sizeof(struct udp_hdr)
+}
+
+
+/// Return the number of w_iov structures in the w_iov tail queue @p c.
+///
+/// @param[in]  q     The w_iov tail queue to compute the payload length of.
+///
+/// @return     Number of w_iov structs in @p q.
+///
+static inline uint_t __attribute__((nonnull))
+w_iov_sq_cnt(const struct w_iov_sq * const q)
+{
+    return sq_len(q);
+}
+
+
+/// Return the current socket options.
+///
+/// @param[in]  s     A w_sock.
+///
+/// @return     The socket options for w_sock @p s.
+///
+static inline const struct w_sockopt * __attribute__((nonnull))
+w_get_sockopt(const struct w_sock * const s)
+{
+    return &s->opt;
+}
+
+
+/// Return whether a socket is connected (i.e., w_connect() has been called on
+/// it) or not.
+///
+/// @param[in]  s     Connection.
+///
+/// @return     True when connected, zero otherwise.
+///
+static inline bool __attribute__((nonnull))
+w_connected(const struct w_sock * const s)
+{
+    return s->ws_rport;
+}
+
+
 extern struct w_engine * __attribute__((nonnull))
 w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs);
 
@@ -422,168 +522,20 @@ extern uint32_t w_rand32(void);
 
 extern uint32_t w_rand_uniform32(const uint32_t upper_bound);
 
-/// Return the number of w_iov structs in @p q that are still waiting for
-/// transmission. Only valid after w_tx() has been called on @p p.
-///
-/// @param      q     A tail queue of w_iov structs.
-///
-/// @return     Number of w_iov structs not yet transmitted.
-///
-static inline uint32_t __attribute__((nonnull))
-w_tx_pending(const struct w_iov_sq * const q)
-{
-    return q->tx_pending;
-}
+extern bool __attribute__((nonnull))
+w_addr_cmp(const struct w_addr * const a, const struct w_addr * const b);
 
+extern bool __attribute__((nonnull))
+w_sockaddr_cmp(const struct w_sockaddr * const a,
+               const struct w_sockaddr * const b);
 
-/// Return warpcore engine serving w_sock @p s.
-///
-/// @param[in]  s     A w_sock.
-///
-/// @return     The warpcore engine for w_sock @p s.
-///
-static inline struct w_engine * __attribute__((nonnull))
-w_engine(const struct w_sock * const s)
-{
-    return s->w;
-}
-
-
-/// Return name of interface associated with a warpcore engine.
-///
-/// @param      w     Backend engine.
-///
-/// @return     Interface name.
-///
-static inline const char * __attribute__((nonnull))
-w_ifname(const struct w_engine * const w)
-{
-    return w->ifname;
-}
-
-
-/// Return MTU of w_engine @p w.
-///
-/// @param[in]  w     Backend engine.
-///
-/// @return     MTU value in use by engine @p w.
-///
-static inline uint16_t __attribute__((nonnull))
-w_mtu(const struct w_engine * const w)
-{
-    return w->mtu;
-}
-
-
-/// Return the number of w_iov structures in the w_iov tail queue @p c.
-///
-/// @param[in]  q     The w_iov tail queue to compute the payload length of.
-///
-/// @return     Number of w_iov structs in @p q.
-///
-static inline uint_t __attribute__((nonnull))
-w_iov_sq_cnt(const struct w_iov_sq * const q)
-{
-    return sq_len(q);
-}
-
-
-/// Return link speed of w_engine @p w in Mb/s.
-///
-/// @param[in]  w     Backend engine.
-///
-/// @return     Link speed of @p w.
-///
-static inline uint32_t __attribute__((nonnull))
-w_mbps(const struct w_engine * const w)
-{
-    return w->mbps;
-}
-
-
-/// Return name of the driver associated with the interface of a warpcore
-/// engine.
-///
-/// @param[in]  w     Backend engine.
-///
-/// @return     Driver name @p w.
-///
-static inline const char * __attribute__((nonnull))
-w_drvname(const struct w_engine * const w)
-{
-    return w->drvname;
-}
-
-
-/// Return the current socket options.
-///
-/// @param[in]  s     A w_sock.
-///
-/// @return     The socket options for w_sock @p s.
-///
-static inline const struct w_sockopt * __attribute__((nonnull))
-w_get_sockopt(const struct w_sock * const s)
-{
-    return &s->opt;
-}
-
-
-/// Return whether a socket is connected (i.e., w_connect() has been called on
-/// it) or not.
-///
-/// @param[in]  s     Connection.
-///
-/// @return     True when connected, zero otherwise.
-///
-static inline bool __attribute__((nonnull))
-w_connected(const struct w_sock * const s)
-{
-    return s->ws_rport;
-}
-
-
-/// Compare two w_addr structs for equality.
-///
-/// @param[in]  a     First struct.
-/// @param[in]  b     Second struct.
-///
-/// @return     True if equal, false otherwise.
-///
-static inline bool __attribute__((nonnull))
-w_addr_cmp(const struct w_addr * const a, const struct w_addr * const b)
-{
-    return a->af == b->af &&
-           (a->af == AF_INET ? (a->ip4 == b->ip4) : ip6_eql(a, b));
-}
-
-
-/// Set the socket options.
-///
-/// @param[in]  s     { parameter_description }
-///
 extern void __attribute__((nonnull))
 w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt);
 
-
-/// Return the relative time in nanoseconds since an undefined epoch.
-///
 extern uint64_t w_now(void);
 
-
-/// Sleep for a number of nanoseconds.
-///
-/// @param[in]  ns    Sleep time in nanoseconds.
-///
 extern void w_nanosleep(const uint64_t ns);
 
-
-/// Initialize w_addr @p wa based on sockaddr @p sa.
-///
-/// @param      wa    The w_addr struct to initialize.
-/// @param[in]  sa    The sockaddr struct to initialize based on.
-///
-/// @return     True if the initialization succeeded.
-///
 extern bool __attribute__((nonnull))
 w_to_waddr(struct w_addr * const wa, const struct sockaddr * const sa);
 

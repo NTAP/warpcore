@@ -302,8 +302,8 @@ int
             const uint_t pkts = w_iov_sq_cnt(&i);
             timespec_sub(&after_tx, &before_tx, &diff);
             ensure(diff.tv_sec == 0, "time difference > %lu sec", diff.tv_sec);
-            printf("%s\t%s\t%u\t%" PRIu "\t%" PRIu "\t%ld\t%s\n", w_ifname(w),
-                   w_drvname(w), w_mbps(w), i_len, pkts, diff.tv_nsec, rx);
+            printf("%s\t%s\t%u\t%" PRIu "\t%" PRIu "\t%ld\t%s\n", w->ifname,
+                   w->drvname, w->mbps, i_len, pkts, diff.tv_nsec, rx);
 
             // we are done with the data
             w_free(&i);

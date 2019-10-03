@@ -499,7 +499,7 @@ contig_mask_len(const int af, const uint8_t * const mask)
         uint8_t val = mask[i];
         while (val) {
             mask_len++;
-            val <<= 1;
+            val = (uint8_t)(val << 1);
         }
     }
     return mask_len;
@@ -887,7 +887,11 @@ struct w_iov * w_alloc_iov_base(struct w_engine * const w)
 }
 
 
-khint_t w_socktuple_hash(const struct w_socktuple * const tup)
+khint_t
+#if defined(__clang__)
+    __attribute__((no_sanitize("unsigned-integer-overflow")))
+#endif
+    w_socktuple_hash(const struct w_socktuple * const tup)
 {
     return w_addr_hash(&tup->local.addr) +
            fnv1a_32(&tup->local.port, sizeof(tup->local.port)) +
@@ -901,12 +905,43 @@ khint_t w_socktuple_hash(const struct w_socktuple * const tup)
 khint_t w_socktuple_cmp(const struct w_socktuple * const a,
                         const struct w_socktuple * const b)
 {
-    return a->local.port == b->local.port && a->remote.port == b->remote.port &&
-           w_addr_cmp(&a->local.addr, &b->local.addr) &&
-           w_addr_cmp(&a->remote.addr, &b->remote.addr);
+    return w_sockaddr_cmp(&a->local, &b->local) &&
+           w_sockaddr_cmp(&a->remote, &b->remote);
 }
 
 
+/// Compare two w_addr structs for equality.
+///
+/// @param[in]  a     First struct.
+/// @param[in]  b     Second struct.
+///
+/// @return     True if equal, false otherwise.
+///
+bool w_addr_cmp(const struct w_addr * const a, const struct w_addr * const b)
+{
+    return a->af == b->af &&
+           (a->af == AF_INET ? (a->ip4 == b->ip4) : ip6_eql(a, b));
+}
+
+
+/// Compare two w_sockaddr structs for equality.
+///
+/// @param[in]  a     First struct.
+/// @param[in]  b     Second struct.
+///
+/// @return     True if equal, false otherwise.
+///
+bool w_sockaddr_cmp(const struct w_sockaddr * const a,
+                    const struct w_sockaddr * const b)
+{
+    return a->port == b->port && w_addr_cmp(&a->addr, &b->addr);
+}
+
+
+/// Return the relative time in nanoseconds since an undefined epoch.
+///
+/// @return     Relative time in nanoseconds.
+///
 uint64_t w_now(void)
 {
 #if defined(PARTICLE)
@@ -921,6 +956,10 @@ uint64_t w_now(void)
 }
 
 
+/// Sleep for a number of nanoseconds.
+///
+/// @param[in]  ns    Sleep time in nanoseconds.
+///
 void w_nanosleep(const uint64_t ns)
 {
 #ifdef PARTICLE
@@ -933,6 +972,13 @@ void w_nanosleep(const uint64_t ns)
 }
 
 
+/// Initialize w_addr @p wa based on sockaddr @p sa.
+///
+/// @param      wa    The w_addr struct to initialize.
+/// @param[in]  sa    The sockaddr struct to initialize based on.
+///
+/// @return     True if the initialization succeeded.
+///
 bool w_to_waddr(struct w_addr * const wa, const struct sockaddr * const sa)
 {
     if (unlikely(sa->sa_family != AF_INET && sa->sa_family != AF_INET6))

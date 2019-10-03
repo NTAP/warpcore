@@ -108,6 +108,11 @@ to_sockaddr(struct sockaddr * const sa,
 }
 
 
+/// Set the socket options.
+///
+/// @param      s     The w_sock to change options for.
+/// @param[in]  opt   Socket options for this socket.
+///
 void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     // cppcheck-suppress duplicateConditionalAssign
