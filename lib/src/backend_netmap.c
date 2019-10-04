@@ -332,7 +332,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 /// @param      s     w_sock socket to transmit over.
 /// @param      o     w_iov_sq to send.
 ///
-void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
+void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 {
     struct w_iov * v;
     o->tx_pending = 0;

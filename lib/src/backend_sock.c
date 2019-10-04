@@ -346,7 +346,7 @@ int w_fd(const struct w_sock * const s)
 /// @param      s     w_sock socket to transmit over.
 /// @param      o     w_iov_sq to send.
 ///
-void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
+void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 {
 #ifdef HAVE_SENDMMSG
 // There is a tradeoff here in terms of how many messages we should try and
@@ -437,11 +437,9 @@ void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
 #else
             sendmsg(s->fd, msgvec, 0);
 #endif
-        if (unlikely(r < 0 && errno != EAGAIN && errno != ETIMEDOUT)) {
+        if (unlikely(r < 0 && errno != EAGAIN && errno != ETIMEDOUT))
             warn(ERR, "sendmsg/sendmmsg returned %d (%s)", errno,
                  strerror(errno));
-            break;
-        }
     } while (v);
 }
 

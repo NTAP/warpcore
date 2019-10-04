@@ -274,9 +274,15 @@ util_die(const char * const func,
 
 
 #ifdef DTHREADED
-#define DTHREAD_GAP "          "
+#define DTHREAD_GAP "  "
 #else
-#define DTHREAD_GAP "        "
+#define DTHREAD_GAP ""
+#endif
+
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+#define DTIMESTAMP_GAP DTHREAD_GAP "        "
+#else
+#define DTIMESTAMP_GAP DTHREAD_GAP ""
 #endif
 
 
@@ -291,14 +297,14 @@ util_die(const char * const func,
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (unlikely(!(e)))                                                    \
-            die("assertion failed \n" DTHREAD_GAP #e                           \
-                " \n" DTHREAD_GAP __VA_ARGS__);                                \
+            die("ASSERTION FAILED: \n" DTIMESTAMP_GAP #e                       \
+                " \n" DTIMESTAMP_GAP __VA_ARGS__);                             \
     } while (0) // NOLINT
 #else
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (unlikely(!(e)))                                                    \
-            die("assertion failed \n");                                        \
+            die("ASSERTION FAILED: \n");                                       \
     } while (0) // NOLINT
 #endif
 

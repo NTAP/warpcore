@@ -124,11 +124,12 @@ typedef int_fast32_t dint_t;
 #define PLAT_MMFLAGS 0
 #define SOCK_CLOEXEC 0
 
-#elif defined(PARTICLE)
-
+#elif defined(PARTICLE) || defined(RIOT_VERSION)
+#ifdef PARTICLE
 typedef struct if_list if_list;
 #include "ifapi.h"
 #define ifaddrs if_addrs
+#endif
 
 #define IPTOS_ECN_NOTECT 0x00 // not-ECT
 #define IPTOS_ECN_ECT1 0x01   // ECN-capable transport (1)

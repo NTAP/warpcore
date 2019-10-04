@@ -44,9 +44,14 @@ extern "C" {
 #include <warpcore/queue.h>  // IWYU pragma: export
 #include <warpcore/util.h>   // IWYU pragma: export
 
-#ifndef PARTICLE
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
 #include <sys/socket.h>
+#endif
+
+#ifdef RIOT_VERSION
+#include "net/netif.h"
+#include "net/sock/udp.h"
 #endif
 
 
@@ -205,6 +210,13 @@ struct eth_addr {
 };
 
 
+#ifndef RIOT_VERSION
+#define NAME_LEN 8
+#else
+#define NAME_LEN NETIF_NAMELENMAX
+#endif
+
+
 /// A warpcore backend engine.
 ///
 struct w_engine {
@@ -220,13 +232,17 @@ struct w_engine {
     struct w_iov_sq iov; ///< Tail queue of w_iov buffers available.
 
     sl_entry(w_engine) next;      ///< Pointer to next engine.
-    char ifname[8];               ///< Name of the interface of this engine.
-    char drvname[8];              ///< Name of the driver of this interface.
+    char ifname[NAME_LEN];        ///< Name of the interface of this engine.
+    char drvname[NAME_LEN];       ///< Name of the driver of this interface.
     const char * backend_name;    ///< Name of the backend in @p b.
     const char * backend_variant; ///< Name of the backend variant in @p b.
 
     /// Pointer to generic user data (not used by warpcore.)
     void * data;
+
+#ifdef RIOT_VERSION
+    kernel_pid_t id;
+#endif
 
     uint16_t addr_cnt;
     uint16_t addr4_pos;
@@ -272,7 +288,11 @@ struct w_sock {
     struct eth_addr dmac;   ///< Destination MAC address.
     struct w_sockopt opt;   ///< Socket options.
 
+#ifndef RIOT_VERSION
     int fd; ///< Socket descriptor underlying the engine.
+#else
+    sock_udp_t fd;
+#endif
 
     struct w_iov_sq iv; ///< Tail queue containing incoming unread data.
 
@@ -480,7 +500,7 @@ w_alloc_iov(struct w_engine * const w,
             const uint16_t off);
 
 extern void __attribute__((nonnull))
-w_tx(const struct w_sock * const s, struct w_iov_sq * const o);
+w_tx(struct w_sock * const s, struct w_iov_sq * const o);
 
 extern uint_t w_iov_sq_len(const struct w_iov_sq * const q);
 

@@ -88,9 +88,10 @@ typedef struct if_list if_list;
 #define ifa_netmask if_addr->netmask
 
 #elif defined(RIOT_VERSION)
-#include <lwip/dhcp.h>
-#include <lwip/netif.h>
-#include <lwip/timeouts.h>
+#include "net/gnrc/netif.h"
+#include "net/netif.h"
+
+#define freeifaddrs(...)
 #endif
 
 
@@ -192,7 +193,8 @@ struct w_iov * w_alloc_iov(struct w_engine * const w,
         v->buf += off + hdr_space;
         v->len = len ? len : v->len - (off + hdr_space);
 #ifdef DEBUG_BUFFERS
-        warn(DBG, "alloc w_iov off %lu len %u", v->buf - v->base, v->len);
+        warn(DBG, "alloc w_iov off %u len %u", (uint16_t)(v->buf - v->base),
+             v->len);
 #endif
     }
 #ifdef DEBUG_BUFFERS
@@ -462,13 +464,12 @@ void w_init_rand(void)
 
 
 static bool __attribute__((nonnull))
-skip_ipv6_addr(struct ifaddrs * const i, const bool is_loopback)
+skip_ipv6_addr(const struct in6_addr * const ip6, const bool is_loopback)
 {
-    const struct in6_addr * const ip6 =
-        &((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_addr;
-
+#ifndef RIOT_VERSION
     if (IN6_IS_ADDR_LINKLOCAL(ip6))
         return true;
+#endif
     if (IN6_IS_ADDR_V4MAPPED(ip6))
         return true;
 #ifndef PARTICLE
@@ -479,8 +480,6 @@ skip_ipv6_addr(struct ifaddrs * const i, const bool is_loopback)
 #endif
     if (is_loopback == false && IN6_IS_ADDR_LOOPBACK(ip6))
         return true;
-    // if (IN6_IS_ADDR_UNSPECIFIED(ip6))
-    //     return true;
     return false;
 }
 
@@ -516,6 +515,18 @@ const char * w_ntop(const struct w_addr * const addr, char * const dst)
 }
 
 
+static void __attribute__((nonnull))
+ip6_config(struct w_ifaddr * const ia, const uint8_t * const mask)
+{
+    ia->prefix = contig_mask_len(ia->addr.af, mask);
+
+    uint8_t tmp6[IP6_LEN];
+    ip6_invert(tmp6, mask);
+    ip6_or(ia->bcast6, ia->addr.ip6, tmp6);
+    ip6_mk_snma(ia->snma6, ia->addr.ip6);
+}
+
+
 /// Initialize a warpcore engine on the given interface. Ethernet and IP
 /// source addresses and related information, such as the netmask, are taken
 /// from the active OS configuration of the interface. A default router,
@@ -542,20 +553,43 @@ struct w_engine * w_init(const char * const ifname,
     snprintf(pipe, IFNAMSIZ, "warp-%s", ifname);
 #endif
 
-#ifdef RIOT_VERSION
-    struct netif * const i = netif_get_by_index(netif_name_to_index(ifname));
-    ensure(i, "could not find interface $s", ifname);
-    w->mtu = i->mtu;
-    memcpy(&w->mac, i->hwaddr, sizeof(w->mac));
-    w->mbps = UINT32_MAX;
+#ifndef RIOT_VERSION
+    struct ifaddrs * ifap = 0;
+#else
+    const gnrc_netif_t * iface;
+    ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
+    size_t addr_idx;
 #endif
 
     // we mostly loop here because the link may be down
     uint16_t addr4_cnt = 0;
     uint16_t addr6_cnt = 0;
-    struct ifaddrs * ifap = 0;
     while (addr4_cnt + addr6_cnt == 0) {
         // get interface config
+#ifdef RIOT_VERSION
+        iface = 0;
+        addr_idx = 0;
+        while ((iface = gnrc_netif_iter(iface))) {
+            uint8_t link;
+            const int ret = netif_get_opt(iface->pid, NETOPT_LINK_CONNECTED, 0,
+                                          &link, sizeof(link));
+            if (ret < 0 || link == NETOPT_DISABLE)
+                continue;
+
+            const int n = gnrc_netif_ipv6_addrs_get(iface, addr, sizeof(addr));
+            if (n < 0)
+                continue;
+            for (addr_idx = 0; addr_idx < n / sizeof(ipv6_addr_t); addr_idx++)
+                if (!skip_ipv6_addr((struct in6_addr *)&addr[addr_idx], 0)) {
+                    addr6_cnt++;
+                    // take the first interface with a valid config
+                    goto done;
+                }
+        }
+    done:
+
+#else
+
         ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface info",
                ifname);
 
@@ -572,9 +606,13 @@ struct w_engine * w_init(const char * const ifname,
             }
 
             if (i->ifa_addr->sa_family == AF_INET6 &&
-                !skip_ipv6_addr(i, i->ifa_flags & IFF_LOOPBACK))
+                skip_ipv6_addr(
+                    &((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_addr,
+                    i->ifa_flags & IFF_LOOPBACK) == false)
                 addr6_cnt++;
         }
+#endif
+
         if (addr4_cnt + addr6_cnt == 0) {
             freeifaddrs(ifap);
             // sleep for a bit, so we don't burn the CPU when link is down
@@ -600,6 +638,8 @@ struct w_engine * w_init(const char * const ifname,
     bool have_pipe = false;
     w->addr4_pos = addr4_cnt = addr6_cnt;
     addr6_cnt = 0;
+
+#ifndef RIOT_VERSION
     for (struct ifaddrs * i = ifap; i; i = i->ifa_next) {
 #ifndef PARTICLE
         if (strcmp(i->ifa_name, pipe) == 0)
@@ -616,28 +656,23 @@ struct w_engine * w_init(const char * const ifname,
             // mpbs can be zero on generic platforms and loopback interfaces
             w->mbps = plat_get_mbps(i);
             plat_get_iface_driver(i, w->drvname, sizeof(w->drvname));
-            warn(NTE, "%s MAC addr %s, MTU %d, speed %" PRIu32 "G", i->ifa_name,
-                 eth_ntoa(&w->mac, eth_tmp), w->mtu, w->mbps / 1000);
             break;
 
         case AF_INET6:
-            if (skip_ipv6_addr(i, i->ifa_flags & IFF_LOOPBACK))
+            if (skip_ipv6_addr(
+                    &((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_addr,
+                    i->ifa_flags & IFF_LOOPBACK))
                 continue;
 
             w->have_ip6 = true;
             struct w_ifaddr * ia = &w->ifaddr[addr6_cnt++];
             if (w_to_waddr(&ia->addr, i->ifa_addr) == false)
                 continue;
-            const uint8_t * const sa_mask6 =
+            ip6_config(
+                ia,
                 (const uint8_t *)&(
                     (const struct sockaddr_in6 *)(const void *)i->ifa_netmask)
-                    ->sin6_addr;
-            ia->prefix = contig_mask_len(ia->addr.af, sa_mask6);
-
-            uint8_t tmp6[IP6_LEN];
-            ip6_invert(tmp6, sa_mask6);
-            ip6_or(ia->bcast6, ia->addr.ip6, tmp6);
-            ip6_mk_snma(ia->snma6, ia->addr.ip6);
+                    ->sin6_addr);
             break;
 
         case AF_INET:
@@ -664,15 +699,41 @@ struct w_engine * w_init(const char * const ifname,
     }
     freeifaddrs(ifap);
 
-#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
-    for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
-        struct w_ifaddr * const ia = &w->ifaddr[idx]; // NOLINT
-        warn(NTE, "%s IPv%d addr %s/%u", ifname, ia->addr.af == AF_INET ? 4 : 6,
-             w_ntop(&ia->addr, ip_tmp), ia->prefix);
-    }
+#else
+
+    w->have_ip6 = true;
+    w->mtu = iface->ipv6.mtu;
+    w->mbps = UINT32_MAX;
+    memcpy(&w->mac, iface->l2addr, ETH_LEN);
+
+    struct w_ifaddr * ia = &w->ifaddr[addr6_cnt++];
+    w->id = iface->pid;
+    ia->addr.af = AF_INET6;
+    memcpy(ia->addr.ip6, &addr[addr_idx], IP6_LEN);
+    if (ipv6_addr_is_link_local(&addr[addr_idx]))
+        ip6_config(ia, (const uint8_t[]){0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                         0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+                                         0x00, 0x00, 0x00, 0x00});
+    else
+        die("TODO: handle non-link-local");
 #endif
 
+#ifndef RIOT_VERSION
     strncpy(w->ifname, ifname, sizeof(w->ifname));
+#else
+    netif_get_name(iface->pid, w->ifname);
+#endif
+
+#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
+    warn(NTE, "%s MAC addr %s, MTU %d, speed %" PRIu32 "G", w->ifname,
+         eth_ntoa(&w->mac, eth_tmp), w->mtu, w->mbps / 1000);
+    for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
+        struct w_ifaddr * const ia = &w->ifaddr[idx]; // NOLINT
+        warn(NTE, "%s IPv%d addr %s/%u", w->ifname,
+             ia->addr.af == AF_INET ? 4 : 6, w_ntop(&ia->addr, ip_tmp),
+             ia->prefix);
+    }
+#endif
 
     // set the IP address of our default router
     // w->rip = rip;
@@ -705,7 +766,8 @@ struct w_engine * w_init(const char * const ifname,
 /// @param[in]  v     The w_iov in question.
 /// @param[in]  af    IP address family.
 ///
-/// @return     Maximum length of the data in a w_iov for this address family.
+/// @return     Maximum length of the data in a w_iov for this address
+/// family.
 ///
 uint16_t w_max_iov_len(const struct w_iov * const v, const uint16_t af)
 {

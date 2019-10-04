@@ -412,13 +412,13 @@ void util_die(const char * const func,
                 char info[8192];
                 while (fgets(info, sizeof(info), fp)) {
                     translated = true;
-                    fprintf(stderr, DTHREAD_GAP BLU "%s" NRM, info);
+                    fprintf(stderr, DTIMESTAMP_GAP BLU "%s" NRM, info);
                 }
                 pclose(fp);
             }
 
             if (translated == false)
-                fprintf(stderr, DTHREAD_GAP "%s\n", bt_sym[j]);
+                fprintf(stderr, DTIMESTAMP_GAP "%s\n", bt_sym[j]);
         }
         free(bt_sym);
     }
@@ -427,6 +427,7 @@ void util_die(const char * const func,
     fflush(stderr);
     va_end(ap);
     DTHREAD_UNLOCK;
+    w_nanosleep(1 * NS_PER_S);
 
 #else
 
@@ -435,6 +436,7 @@ void util_die(const char * const func,
     va_start(ap, fmt);
     util_warn_valist(CRT, false, func, file, line, fmt, ap);
     va_end(ap);
+    w_nanosleep(1 * NS_PER_S);
 #endif
     panic_(NotUsedPanicCode, 0, HAL_Delay_Microseconds);
 
