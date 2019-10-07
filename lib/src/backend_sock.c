@@ -90,7 +90,8 @@
 static void __attribute__((nonnull))
 to_sockaddr(struct sockaddr * const sa,
             const struct w_addr * const addr,
-            const uint16_t port)
+            const uint16_t port,
+            const uint32_t scope_id)
 {
     if (addr->af == AF_INET) {
         struct sockaddr_in * const sin = (struct sockaddr_in *)(void *)sa;
@@ -102,8 +103,7 @@ to_sockaddr(struct sockaddr * const sa,
         sin6->sin6_family = AF_INET6;
         sin6->sin6_port = port;
         memcpy(&sin6->sin6_addr, addr->ip6, IP6_LEN);
-        if (unlikely(IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)))
-            sin6->sin6_scope_id = 0x3;
+        sin6->sin6_scope_id = scope_id;
     }
 }
 
@@ -254,7 +254,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
         return errno;
 
     struct sockaddr_storage ss;
-    to_sockaddr((struct sockaddr *)&ss, local, s->ws_lport);
+    to_sockaddr((struct sockaddr *)&ss, local, s->ws_lport, s->ws_scope);
     if (unlikely(bind(s->fd, (struct sockaddr *)&ss, sa_len(local->af)) != 0))
         return errno;
 
@@ -298,7 +298,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 int backend_connect(struct w_sock * const s)
 {
     struct sockaddr_storage ss;
-    to_sockaddr((struct sockaddr *)&ss, &s->ws_raddr, s->ws_rport);
+    to_sockaddr((struct sockaddr *)&ss, &s->ws_raddr, s->ws_rport, s->ws_scope);
     if (unlikely(connect(s->fd, (struct sockaddr *)&ss, sa_len(ss.ss_family)) !=
                  0))
         return errno;
@@ -382,8 +382,8 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
             if (w_connected(s))
                 v->saddr = s->tup.remote;
             else
-                to_sockaddr((struct sockaddr *)&sa[i], &v->wv_addr,
-                            v->saddr.port);
+                to_sockaddr((struct sockaddr *)&sa[i], &v->wv_addr, v->wv_port,
+                            s->ws_scope);
 #ifdef HAVE_SENDMMSG
             msgvec[i].msg_hdr =
 #else
@@ -508,7 +508,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
-                v[j]->saddr.port = sa_port(&sa[j]);
+                v[j]->wv_port = sa_port(&sa[j]);
                 w_to_waddr(&v[j]->wv_addr, (struct sockaddr *)&sa[j]);
 
 #ifdef HAVE_RECVMMSG

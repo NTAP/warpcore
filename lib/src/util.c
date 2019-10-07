@@ -368,11 +368,13 @@ void util_die(const char * const func,
     struct timeval dur = {0, 0};
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &dur);
-    fprintf(stderr, DTHREAD_ID_IND(BMAG) WHT BLD "%ld.%03ld   %s %s:%u ABORT: ",
-            DTHREAD_ID, (long)(dur.tv_sec % 1000), // NOLINT
-            (long)(dur.tv_usec / 1000),            // NOLINT
-            func, file, line);
+    fprintf(stderr, DTHREAD_ID_IND(BMAG) WHT BLD "%ld.%03ld   ", DTHREAD_ID,
+            (long)(dur.tv_sec % 1000), // NOLINT
+            (long)(dur.tv_usec / 1000) // NOLINT
+    );
 #endif
+    fprintf(stderr, "%s %s:%u ABORT: ", func, file, line);
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
     vfprintf(stderr, fmt, ap);

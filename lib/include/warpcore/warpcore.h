@@ -164,7 +164,8 @@ struct w_ifaddr {
         uint8_t snma6[IP6_LEN];
     };
 
-    uint8_t prefix; ///< Prefix length.
+    uint32_t scope_id; ///< IPv6 scope ID.
+    uint8_t prefix;    ///< Prefix length.
 };
 
 
@@ -177,6 +178,7 @@ struct w_sockaddr {
 struct w_socktuple {
     struct w_sockaddr local;  ///< Local address and port.
     struct w_sockaddr remote; ///< Remote address and port.
+    uint32_t scope_id;        ///< IPv6 scope ID.
 };
 
 
@@ -305,6 +307,7 @@ struct w_sock {
 #define ws_lport tup.local.port
 #define ws_raddr tup.remote.addr
 #define ws_rport tup.remote.port
+#define ws_scope tup.scope_id
 
 
 /// The I/O vector structure that warpcore uses at the center of its API. It is
@@ -350,6 +353,7 @@ struct w_iov {
 };
 
 
+#define wv_port saddr.port
 #define wv_af saddr.addr.af
 #define wv_ip4 saddr.addr.ip4
 #define wv_ip6 saddr.addr.ip6

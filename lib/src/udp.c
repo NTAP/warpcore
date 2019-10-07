@@ -137,7 +137,7 @@ bool
         }
     }
 
-    i->saddr.port = udp->sport;
+    i->wv_port = udp->sport;
     local.port = udp->dport;
     struct w_sock * ws = w_get_sock(w, &local, &i->saddr);
     if (unlikely(ws == 0)) {
@@ -212,7 +212,7 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
     }
 
     udp->sport = s->ws_lport;
-    udp->dport = w_connected(s) ? s->ws_rport : v->saddr.port;
+    udp->dport = w_connected(s) ? s->ws_rport : v->wv_port;
     udp->len = bswap16(v->len - ip_hdr_len);
     udp->cksum = 0;
 

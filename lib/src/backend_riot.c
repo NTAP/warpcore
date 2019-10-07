@@ -43,7 +43,7 @@ to_sock_udp_ep_t(sock_udp_ep_t * const suet,
     if (unlikely(addr->af == AF_INET))
         memcpy(&suet->addr.ipv4_u32, &addr->ip4, IP4_LEN);
     else
-        memcpy(&suet->addr.ipv6, addr->ip6, IP6_LEN);
+        memcpy(suet->addr.ipv6, addr->ip6, IP6_LEN);
 }
 
 
@@ -105,7 +105,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     // TODO: socket options
     sock_udp_ep_t local;
-    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->id);
+    to_sock_udp_ep_t(&local, &s->ws_laddr, bswap16(s->ws_lport), s->w->id);
     const int ret = sock_udp_create(&s->fd, &local, 0, 0);
     if (ret < 0)
         return ret;
@@ -113,11 +113,9 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     // if we're binding to a random port, find out what it is
     if (s->ws_lport == 0) {
         ensure(sock_udp_get_local(&s->fd, &local) >= 0, "sock_udp_get_local");
-        s->ws_lport = local.port;
+        s->ws_lport = bswap16(local.port);
     }
-
     return ret;
-    return 0;
 }
 
 
@@ -143,8 +141,8 @@ int backend_connect(struct w_sock * const s)
     backend_close(s);
     sock_udp_ep_t local;
     sock_udp_ep_t remote;
-    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->id);
-    to_sock_udp_ep_t(&remote, &s->ws_raddr, s->ws_rport, s->w->id);
+    to_sock_udp_ep_t(&local, &s->ws_laddr, bswap16(s->ws_lport), s->w->id);
+    to_sock_udp_ep_t(&remote, &s->ws_raddr, bswap16(s->ws_rport), s->w->id);
     return sock_udp_create(&s->fd, &local, &remote, 0);
 }
 
@@ -170,7 +168,10 @@ int w_fd(const struct w_sock * const s)
 ///                   data.
 /// @param      i     w_iov tail queue to append new data to.
 ///
-void w_rx(struct w_sock * const s, struct w_iov_sq * const i) {}
+void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
+{
+    sq_concat(i, &s->iv);
+}
 
 
 /// Loops over the w_iov structures in the w_iov_sq @p o, sending them all
@@ -187,7 +188,8 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
     while (v) {
         sock_udp_ep_t remote;
         if (w_connected(s) == false)
-            to_sock_udp_ep_t(&remote, &s->ws_raddr, s->ws_rport, s->w->id);
+            to_sock_udp_ep_t(&remote, &s->ws_raddr, bswap16(s->ws_rport),
+                             s->w->id);
         if (unlikely(sock_udp_send(&s->fd, v->buf, v->len,
                                    w_connected(s) ? 0 : &remote) < 0))
             warn(ERR, "sock_udp_send returned %d (%s)", errno, strerror(errno));
@@ -196,19 +198,45 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 }
 
 
-/// Trigger RIOT to make new received data available to w_rx(). Iterates
-/// over any new data in the RX rings, calling eth_rx() for each.
+/// Trigger RIOT to make new received data available to w_rx().
 ///
 /// @param[in]  w     Backend engine.
-/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate
-/// return, -1
+/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate return, -1
 ///                   for infinite wait.
 ///
 /// @return     Whether any data is ready for reading.
 ///
 bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 {
-    return false;
+    // FIXME: this is a super-ugly hack to work around missing poll & select
+    bool first = true;
+    bool rxed = false;
+    struct w_sock * s;
+again:;
+    const uint32_t usec =
+        first ? 0 : (nsec == -1 ? SOCK_NO_TIMEOUT : nsec / NS_PER_US);
+    kh_foreach_value(&w->sock, s, {
+        sock_udp_ep_t remote;
+        struct w_iov * const v = w_alloc_iov(w, s->ws_af, 0, 0);
+        const ssize_t n = sock_udp_recv(&s->fd, v->buf, v->len, usec, &remote);
+        if (n > 0) {
+            v->len = n;
+            v->wv_port = bswap16(remote.port);
+            v->wv_af = remote.family;
+            if (unlikely(remote.family == AF_INET))
+                memcpy(&v->wv_ip4, &remote.addr.ipv4_u32, IP4_LEN);
+            else
+                memcpy(v->wv_ip6, remote.addr.ipv6, IP6_LEN);
+            sq_insert_tail(&s->iv, v, next);
+            rxed = true;
+        } else
+            w_free_iov(v);
+    });
+    if (rxed == false && first == true) {
+        first = false;
+        goto again;
+    }
+    return rxed;
 }
 
 
@@ -235,5 +263,14 @@ void w_nic_tx(struct w_engine * const w) {}
 ///
 uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
 {
-    return 0;
+    // FIXME: this is a super-ugly hack to work around missing poll & select
+    uint32_t n = 0;
+    struct w_sock * s;
+    kh_foreach_value(&w->sock, s, {
+        if (!sq_empty(&s->iv)) {
+            sl_insert_head(sl, s, next_rx);
+            n++;
+        }
+    });
+    return n;
 }

@@ -386,6 +386,7 @@ struct w_sock * w_bind(struct w_engine * const w,
         goto fail;
 
     s->tup.local = local;
+    s->ws_scope = w->ifaddr[addr_idx].scope_id;
     s->w = w;
     sq_init(&s->iv);
 
@@ -466,10 +467,10 @@ void w_init_rand(void)
 static bool __attribute__((nonnull))
 skip_ipv6_addr(const struct in6_addr * const ip6, const bool is_loopback)
 {
-#ifndef RIOT_VERSION
-    if (IN6_IS_ADDR_LINKLOCAL(ip6))
-        return true;
-#endif
+    // #ifndef RIOT_VERSION
+    //     if (IN6_IS_ADDR_LINKLOCAL(ip6))
+    //         return true;
+    // #endif
     if (IN6_IS_ADDR_V4MAPPED(ip6))
         return true;
 #ifndef PARTICLE
@@ -668,6 +669,8 @@ struct w_engine * w_init(const char * const ifname,
             struct w_ifaddr * ia = &w->ifaddr[addr6_cnt++];
             if (w_to_waddr(&ia->addr, i->ifa_addr) == false)
                 continue;
+            ia->scope_id =
+                ((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_scope_id;
             ip6_config(
                 ia,
                 (const uint8_t *)&(

@@ -297,14 +297,14 @@ util_die(const char * const func,
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (unlikely(!(e)))                                                    \
-            die("ASSERTION FAILED: \n" DTIMESTAMP_GAP #e                       \
+            die("assertion failed: \n" DTIMESTAMP_GAP #e                       \
                 " \n" DTIMESTAMP_GAP __VA_ARGS__);                             \
     } while (0) // NOLINT
 #else
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (unlikely(!(e)))                                                    \
-            die("ASSERTION FAILED: \n");                                       \
+            die("assertion failed: \n");                                       \
     } while (0) // NOLINT
 #endif
 
