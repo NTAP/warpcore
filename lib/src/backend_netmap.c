@@ -40,7 +40,6 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
 // IWYU pragma: no_include <net/netmap.h>
@@ -54,6 +53,7 @@
 
 #include "backend.h"
 #include "eth.h"
+#include "ifaddr.h"
 #include "neighbor.h"
 #include "udp.h"
 
@@ -73,25 +73,23 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 /// interface to netmap mode, maps the underlying buffers into memory and locks
 /// it there, and sets up the extra buffers.
 ///
-/// @param      w        Backend engine.
-/// @param[in]  nbufs    Number of packet buffers to allocate.
-/// @param[in]  is_lo    Is this a loopback interface?
-/// @param[in]  is_left  Is this the left end of a loopback pipe?
+/// @param      w      Backend engine.
+/// @param[in]  nbufs  Number of packet buffers to allocate.
 ///
-void backend_init(struct w_engine * const w,
-                  const uint32_t nbufs,
-                  const bool is_lo,
-                  const bool is_left)
+void backend_init(struct w_engine * const w, const uint32_t nbufs)
 {
     struct w_backend * const b = w->b;
+
+    backend_addr_config(w);
 
     // open /dev/netmap
     ensure((b->fd = open("/dev/netmap", O_RDWR | O_CLOEXEC)) != -1,
            "cannot open /dev/netmap");
     w->backend_name = "netmap";
     w->backend_variant =
-        is_lo ? (is_left ? "left loopback pipe" : "right loopback pipe")
-              : "default";
+        w->is_loopback
+            ? (w->is_right_pipe ? "right loopback pipe" : "left loopback pipe")
+            : "default";
 
     // switch interface to netmap mode
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");
@@ -102,24 +100,19 @@ void backend_init(struct w_engine * const w,
     b->req->nr_flags = NR_REG_ALL_NIC;
 
     // if the interface is a netmap pipe, restore its name
-    if (is_lo) {
+    if (w->is_loopback) {
         warn(NTE, "%s is a loopback, using %s netmap pipe", w->ifname,
-             is_left ? "left" : "right");
+             w->is_right_pipe ? "right" : "left");
 
         snprintf(b->req->nr_name, IFNAMSIZ, "warp-%s", w->ifname);
-        b->req->nr_flags = is_left ? NR_REG_PIPE_SLAVE : NR_REG_PIPE_MASTER;
+        b->req->nr_flags =
+            w->is_right_pipe ? NR_REG_PIPE_MASTER : NR_REG_PIPE_SLAVE;
         b->req->nr_ringid = 1 & NETMAP_RING_MASK;
 
         // preload ARP cache
-        neighbor_update(w, &(struct w_addr){.af = AF_INET, .ip4 = 0x0100007f},
-                        (struct eth_addr){ETH_ADDR_NONE});
-        neighbor_update(
-            w,
-            &(struct w_addr){.af = AF_INET6,
-                             .ip6 = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                     0x00, 0x01}},
-            (struct eth_addr){ETH_ADDR_NONE});
+        for (uint16_t idx = 0; idx < w->addr_cnt; idx++)
+            neighbor_update(w, &w->ifaddr[idx].addr,
+                            (struct eth_addr){ETH_ADDR_NONE});
     } else {
         struct w_engine * e;
         sl_foreach (e, &engines, next)

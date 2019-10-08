@@ -45,6 +45,10 @@
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
 #include <net/if.h>
+#include <sys/time.h>
+#include <time.h>
+
+#include "krng.h"
 #endif
 
 #if defined(__linux__)
@@ -66,6 +70,21 @@
 #include <sys/ioctl.h>
 #include <sys/sockio.h>
 #include <unistd.h>
+
+#elif defined(PARTICLE)
+#include <delay_hal.h>
+#include <rng_hal.h>
+#include <timer_hal.h>
+
+#elif defined(RIOT_VERSION)
+#include <random.h>
+#include <xtimer.h>
+#endif
+
+
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+// w_init() must initialize this so that it is not all zero
+static krng_t w_rand_state;
 #endif
 
 
@@ -302,4 +321,91 @@ const char * eth_ntoa(const struct eth_addr * const addr, char * const buf)
     sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", addr->addr[0], addr->addr[1],
             addr->addr[2], addr->addr[3], addr->addr[4], addr->addr[5]);
     return buf;
+}
+
+
+/// Return the relative time in nanoseconds since an undefined epoch.
+///
+/// @return     Relative time in nanoseconds.
+///
+uint64_t w_now(void)
+{
+#if defined(PARTICLE)
+    return HAL_Timer_Microseconds() * NS_PER_US;
+#elif defined(RIOT_VERSION)
+    return xtimer_now_usec64() * NS_PER_US;
+#else
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
+#endif
+}
+
+
+/// Sleep for a number of nanoseconds.
+///
+/// @param[in]  ns    Sleep time in nanoseconds.
+///
+void w_nanosleep(const uint64_t ns)
+{
+#ifdef PARTICLE
+    HAL_Delay_Microseconds(ns / NS_PER_US);
+#elif defined(RIOT_VERSION)
+    xtimer_nanosleep(ns);
+#else
+    nanosleep(&(struct timespec){ns / NS_PER_S, (long)(ns % NS_PER_S)}, 0);
+#endif
+}
+
+
+/// Init state for w_rand() and w_rand_uniform(). This **MUST** be called once
+/// prior to calling any of these functions!
+///
+void w_init_rand(void)
+{
+    // init state for w_rand()
+#if !defined(FUZZING) && !defined(PARTICLE) && !defined(RIOT_VERSION)
+    struct timeval now;
+    gettimeofday(&now, 0);
+    const uint64_t seed = fnv1a_64(&now, sizeof(now));
+    kr_srand_r(&w_rand_state, seed);
+#else
+    warn(CRT, "FIXME: init random");
+#endif
+}
+
+
+/// Return a 64-bit random number. Fast, but not cryptographically secure.
+/// Implements xoroshiro128+; see
+/// https://en.wikipedia.org/wiki/Xoroshiro128%2B.
+///
+/// @return     Random number.
+///
+uint64_t w_rand64(void)
+{
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+    return kr_rand_r(&w_rand_state);
+#elif defined(PARTICLE)
+    return (uint64_t)(HAL_RNG_GetRandomNumber()) << 32 |
+           HAL_RNG_GetRandomNumber();
+#elif defined(RIOT_VERSION)
+    return (uint64_t)(random_uint32()) << 32 | random_uint32();
+#endif
+}
+
+
+/// Return a 32-bit random number. Fast, but not cryptographically secure.
+/// Truncates w_rand64() to 32 bits.
+///
+/// @return     Random number.
+///
+uint32_t w_rand32(void)
+{
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+    return (uint32_t)kr_rand_r(&w_rand_state);
+#elif defined(PARTICLE)
+    return HAL_RNG_GetRandomNumber();
+#elif defined(RIOT_VERSION)
+    return random_uint32();
+#endif
 }

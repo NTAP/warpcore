@@ -228,7 +228,7 @@ struct w_engine {
     uint16_t mtu;         ///< MTU of this interface.
     uint32_t mbps;        ///< Link speed of this interface in Mb/s.
     struct eth_addr mac;  ///< Local Ethernet MAC address of the interface.
-    struct eth_addr rip;  ///< Ethernet MAC address of the next-hop router.
+    // struct eth_addr rip;  ///< Ethernet MAC address of the next-hop router.
 
     khash_t(sock) sock;  ///< List of open (bound) w_sock sockets.
     struct w_iov_sq iov; ///< Tail queue of w_iov buffers available.
@@ -250,7 +250,9 @@ struct w_engine {
     uint16_t addr4_pos;
     uint8_t have_ip4 : 1;
     uint8_t have_ip6 : 1;
-    uint8_t : 6;
+    uint8_t is_loopback : 1;
+    uint8_t is_right_pipe : 1;
+    uint8_t : 4;
     struct w_ifaddr ifaddr[];
 };
 

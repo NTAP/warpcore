@@ -4,7 +4,7 @@ configure_file(src/config.c.in src/config.c)
 
 include(GNUInstallDirs)
 
-add_library(obj_all OBJECT src/plat.c src/util.c)
+add_library(obj_all OBJECT src/plat.c src/util.c src/ifaddr.c)
 
 add_library(obj_sock OBJECT src/backend_sock.c src/warpcore.c)
 add_library(sockcore ${CMAKE_CURRENT_BINARY_DIR}/src/config.c

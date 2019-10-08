@@ -110,7 +110,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
   endif()
 
   # Enable debug support in the queue.h macros
-  add_definitions(-DQUEUE_MACRO_DEBUG_TRASH)
+  # add_definitions(-DQUEUE_MACRO_DEBUG_TRASH)
 
   add_definitions("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2")
 

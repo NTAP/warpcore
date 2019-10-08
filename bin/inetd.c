@@ -130,14 +130,11 @@ int
     ensure(signal(SIGINT, &terminate) != SIG_ERR, "signal");
 
     // start four inetd-like "small services" and one benchmark of our own
-    struct w_sock * const srv[] = {
-        w->have_ip6 ? w_bind(w, 0, bswap16(7), &opt) : 0,
-        w->have_ip4 ? w_bind(w, w->addr4_pos, bswap16(7), &opt) : 0,
-        w->have_ip6 ? w_bind(w, 0, bswap16(9), &opt) : 0,
-        w->have_ip4 ? w_bind(w, w->addr4_pos, bswap16(9), &opt) : 0,
-        w->have_ip6 ? w_bind(w, 0, bswap16(55555), &opt) : 0,
-        w->have_ip4 ? w_bind(w, w->addr4_pos, bswap16(55555), &opt) : 0};
-
+    for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
+        w_bind(w, idx, bswap16(7), &opt);
+        w_bind(w, idx, bswap16(9), &opt);
+        w_bind(w, idx, bswap16(55555), &opt);
+    }
     // serve requests on the four sockets until an interrupt occurs
     while (done == false) {
         // receive new data (there may not be any if busy-waiting)
@@ -162,7 +159,6 @@ int
             struct w_iov_sq o = w_iov_sq_initializer(o);
 
             switch (bswap16(s->ws_lport)) {
-#if 0
             case 7:
                 // echo received data back to sender (zero-copy)
                 sq_concat(&o, &i);
@@ -171,7 +167,6 @@ int
             case 9:
                 // discard; nothing to do
                 break;
-#endif
 
             case 55555:;
                 static struct w_iov_sq tmp = w_iov_sq_initializer(tmp);
@@ -233,9 +228,6 @@ int
     }
 
     // we only get here after an interrupt; clean up
-    for (size_t s = 0; s < sizeof(srv) / sizeof(struct w_sock *); s++)
-        if (srv[s])
-            w_close(srv[s]);
     w_cleanup(w);
     return 0;
 }

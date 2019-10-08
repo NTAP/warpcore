@@ -151,6 +151,12 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
 extern sl_head(w_engines, w_engine) engines;
 
 extern void __attribute__((nonnull))
+ip6_config(struct w_ifaddr * const ia, const uint8_t * const mask);
+
+extern uint8_t __attribute__((nonnull))
+contig_mask_len(const int af, const uint8_t * const mask);
+
+extern void __attribute__((nonnull))
 init_iov(struct w_engine * const w, struct w_iov * const v, const uint32_t idx);
 
 extern struct w_iov * __attribute__((nonnull))
@@ -163,9 +169,7 @@ extern void __attribute__((nonnull)) backend_close(struct w_sock * const s);
 
 extern int __attribute__((nonnull)) backend_connect(struct w_sock * const s);
 
-extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
-                                                  const uint32_t nbufs,
-                                                  const bool is_lo,
-                                                  const bool is_left);
+extern void __attribute__((nonnull))
+backend_init(struct w_engine * const w, const uint32_t nbufs);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);

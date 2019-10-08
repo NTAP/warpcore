@@ -52,20 +52,75 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 }
 
 
+uint16_t backend_addr_cnt(void)
+{
+    ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
+    size_t addr_idx = 0;
+    const gnrc_netif_t * iface = 0;
+
+    while ((iface = gnrc_netif_iter(iface))) {
+        uint8_t link;
+        const int ret = netif_get_opt(iface->pid, NETOPT_LINK_CONNECTED, 0,
+                                      &link, sizeof(link));
+        if (ret < 0 || link == NETOPT_DISABLE)
+            continue;
+
+        const int n = gnrc_netif_ipv6_addrs_get(iface, addr, sizeof(addr));
+        if (n < 0)
+            continue;
+        for (addr_idx = 0; addr_idx < n / sizeof(ipv6_addr_t); addr_idx++)
+            // take the first interface with a valid config
+            return 1;
+    }
+    return 0;
+}
+
+
 /// Initialize the warpcore RIOT backend for engine @p w.
 ///
 /// @param      w        Backend engine.
 /// @param[in]  nbufs    Number of packet buffers to allocate.
-/// @param[in]  is_lo    Is this a loopback interface?
-/// @param[in]  is_left  Is this the left end of a loopback pipe?
 ///
-void backend_init(struct w_engine * const w,
-                  const uint32_t nbufs,
-                  const bool is_lo,
-                  const bool is_left)
+void backend_init(struct w_engine * const w, const uint32_t nbufs)
 {
     w->backend_name = "riot";
     w->backend_variant = "gnrc";
+
+    const gnrc_netif_t * iface;
+    ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
+    size_t addr_idx;
+
+    iface = 0;
+    addr_idx = 0;
+    while ((iface = gnrc_netif_iter(iface))) {
+        const int n = gnrc_netif_ipv6_addrs_get(iface, addr, sizeof(addr));
+        if (n < 0)
+            continue;
+        for (addr_idx = 0; addr_idx < n / sizeof(ipv6_addr_t); addr_idx++) {
+            // take the first interface with a valid config
+            goto done;
+        }
+    }
+
+done:
+    ensure(iface, "iface not found");
+    netif_get_name(iface->pid, w->ifname);
+
+    w->have_ip6 = true;
+    w->mtu = iface->ipv6.mtu;
+    w->mbps = UINT32_MAX;
+    memcpy(&w->mac, iface->l2addr, ETH_LEN);
+
+    struct w_ifaddr * ia = &w->ifaddr[0];
+    w->id = iface->pid;
+    ia->addr.af = AF_INET6;
+    memcpy(ia->addr.ip6, &addr[addr_idx], IP6_LEN);
+    if (ipv6_addr_is_link_local(&addr[addr_idx]))
+        ip6_config(ia, (const uint8_t[]){0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                         0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+                                         0x00, 0x00, 0x00, 0x00});
+    else
+        die("TODO: handle non-link-local");
 
     // TODO: shouldn't there a way to use the underlying packet buffers?
 
@@ -213,13 +268,19 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
     bool rxed = false;
     struct w_sock * s;
 again:;
+    warn(ERR, "here1");
     const uint32_t usec =
         first ? 0 : (nsec == -1 ? SOCK_NO_TIMEOUT : nsec / NS_PER_US);
     kh_foreach_value(&w->sock, s, {
-        sock_udp_ep_t remote;
+        warn(ERR, "here2 %" PRIu32, usec);
         struct w_iov * const v = w_alloc_iov(w, s->ws_af, 0, 0);
+        if (unlikely(v == 0))
+            break;
+        sock_udp_ep_t remote;
         const ssize_t n = sock_udp_recv(&s->fd, v->buf, v->len, usec, &remote);
+        warn(ERR, "here2a %d", n);
         if (n > 0) {
+            warn(ERR, "here3");
             v->len = n;
             v->wv_port = bswap16(remote.port);
             v->wv_af = remote.family;
@@ -229,13 +290,16 @@ again:;
                 memcpy(v->wv_ip6, remote.addr.ipv6, IP6_LEN);
             sq_insert_tail(&s->iv, v, next);
             rxed = true;
-        } else
+        } else {
+            warn(ERR, "here4");
             w_free_iov(v);
+        }
     });
     if (rxed == false && first == true) {
         first = false;
         goto again;
     }
+    warn(ERR, "here %u", rxed);
     return rxed;
 }
 

@@ -129,6 +129,7 @@ typedef int_fast32_t dint_t;
 typedef struct if_list if_list;
 #include "ifapi.h"
 #define ifaddrs if_addrs
+#define SOCK_CLOEXEC 0
 #endif
 
 #define IPTOS_ECN_NOTECT 0x00 // not-ECT

@@ -55,16 +55,10 @@
 #include <netinet/ip.h>
 #include <sys/uio.h>
 #else
-#include <arpa/inet.h>
-#include <lwip/sockets.h>
-#include <socket_hal.h>
-
 #define IPV6_TCLASS IP_TOS         // unclear if this works
 #define IPV6_RECVTCLASS IP_RECVTOS // unclear if this works
-
 #define SOCK_CLOEXEC 0
 #define IP_RECVTOS IP_TOS
-#define strerror(...) ""
 #endif
 
 #ifdef HAVE_ASAN
@@ -81,6 +75,7 @@
 #endif
 
 #include "backend.h"
+#include "ifaddr.h"
 
 
 #define sa_len(f)                                                              \
@@ -131,6 +126,7 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 #endif
     }
 
+#ifndef PARTICLE
     if (s->opt.enable_ecn != opt->enable_ecn) {
         s->opt.enable_ecn = opt->enable_ecn;
         ensure(setsockopt(s->fd,
@@ -141,21 +137,17 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
                           sizeof(int)) >= 0,
                "cannot setsockopt IP_TOS");
     }
+#endif
 }
 
 
 /// Initialize the warpcore socket backend for engine @p w. Sets up the extra
 /// buffers.
 ///
-/// @param      w        Backend engine.
-/// @param[in]  nbufs    Number of packet buffers to allocate.
-/// @param[in]  is_lo    Unused.
-/// @param[in]  is_left  Unused.
+/// @param      w      Backend engine.
+/// @param[in]  nbufs  Number of packet buffers to allocate.
 ///
-void backend_init(struct w_engine * const w,
-                  const uint32_t nbufs,
-                  const bool is_lo __attribute__((unused)),
-                  const bool is_left __attribute__((unused)))
+void backend_init(struct w_engine * const w, const uint32_t nbufs)
 {
     ensure((w->mem = calloc(nbufs, max_buf_len(w))) != 0,
            "cannot alloc %" PRIu32 " * %u buf mem", nbufs, max_buf_len(w));
@@ -168,6 +160,13 @@ void backend_init(struct w_engine * const w,
         sq_insert_head(&w->iov, &w->bufs[i], next);
         ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, max_buf_len(w));
     }
+
+    backend_addr_config(w);
+
+#ifndef PARTICLE
+    // some interfaces can have huge MTUs, so cap to something more sensible
+    w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
+#endif
 
 #if defined(HAVE_KQUEUE)
     w->b->kq = kqueue();

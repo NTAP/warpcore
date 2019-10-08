@@ -31,35 +31,9 @@
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
 #include <sys/socket.h>
-#include <time.h>
-#include <unistd.h>
-
-#ifndef FUZZING
-#include <sys/time.h>
-#endif
-
-#if !defined(PARTICLE) && !defined(RIOT_VERSION)
-#include "krng.h"
-#include <ifaddrs.h>
-#include <net/if.h>
-#elif defined(PARTICLE)
-#include <rng_hal.h>
-
-#define kr_srand_r(x, y)
-#define kr_rand_r(x)                                                           \
-    (uint64_t)(HAL_RNG_GetRandomNumber()) << 32 | HAL_RNG_GetRandomNumber()
-#elif defined(RIOT_VERSION)
-#include <random.h>
-#include <xtimer.h>
-
-#define kr_srand_r(x, y)
-#define kr_rand_r(x) (uint64_t)(random_uint32()) << 32 | random_uint32()
-#endif
 
 #include <warpcore/warpcore.h>
 
@@ -70,35 +44,10 @@
 // #define DEBUG_BUFFERS
 
 #include "backend.h"
+#include "ifaddr.h"
 #include "ip6.h"
 #include "neighbor.h"
 
-#ifdef PARTICLE
-typedef struct if_list if_list;
-
-#include <ifapi.h>
-#include <system_network.h>
-
-#define getifaddrs if_get_if_addrs
-#define freeifaddrs if_free_if_addrs
-#define ifa_next next
-#define ifa_name ifname
-#define ifa_flags ifflags
-#define ifa_addr if_addr->addr
-#define ifa_netmask if_addr->netmask
-
-#elif defined(RIOT_VERSION)
-#include "net/gnrc/netif.h"
-#include "net/netif.h"
-
-#define freeifaddrs(...)
-#endif
-
-
-#if !defined(PARTICLE) && !defined(RIOT_VERSION)
-// w_init() must initialize this so that it is not all zero
-static krng_t w_rand_state;
-#endif
 
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
@@ -447,46 +396,7 @@ void w_cleanup(struct w_engine * const w)
 }
 
 
-/// Init state for w_rand() and w_rand_uniform(). This **MUST** be called once
-/// prior to calling any of these functions!
-///
-void w_init_rand(void)
-{
-    // init state for w_rand()
-#if !defined(FUZZING) && !defined(PARTICLE) && !defined(RIOT_VERSION)
-    struct timeval now;
-    gettimeofday(&now, 0);
-    const uint64_t seed = fnv1a_64(&now, sizeof(now));
-    kr_srand_r(&w_rand_state, seed);
-#else
-    kr_srand_r(&w_rand_state, 0);
-#endif
-}
-
-
-static bool __attribute__((nonnull))
-skip_ipv6_addr(const struct in6_addr * const ip6, const bool is_loopback)
-{
-    // #ifndef RIOT_VERSION
-    //     if (IN6_IS_ADDR_LINKLOCAL(ip6))
-    //         return true;
-    // #endif
-    if (IN6_IS_ADDR_V4MAPPED(ip6))
-        return true;
-#ifndef PARTICLE
-    if (IN6_IS_ADDR_SITELOCAL(ip6))
-        return true;
-    if (IN6_IS_ADDR_V4COMPAT(ip6))
-        return true;
-#endif
-    if (is_loopback == false && IN6_IS_ADDR_LOOPBACK(ip6))
-        return true;
-    return false;
-}
-
-
-static uint8_t __attribute__((nonnull))
-contig_mask_len(const int af, const uint8_t * const mask)
+uint8_t contig_mask_len(const int af, const uint8_t * const mask)
 {
     uint8_t mask_len = 0;
     uint8_t i = 0;
@@ -516,8 +426,7 @@ const char * w_ntop(const struct w_addr * const addr, char * const dst)
 }
 
 
-static void __attribute__((nonnull))
-ip6_config(struct w_ifaddr * const ia, const uint8_t * const mask)
+void ip6_config(struct w_ifaddr * const ia, const uint8_t * const mask)
 {
     ia->prefix = contig_mask_len(ia->addr.af, mask);
 
@@ -548,184 +457,29 @@ struct w_engine * w_init(const char * const ifname,
 {
     w_init_rand();
 
-#if !defined(PARTICLE) && !defined(RIOT_VERSION)
-    // construct interface name of a netmap pipe for this interface
-    char pipe[IFNAMSIZ];
-    snprintf(pipe, IFNAMSIZ, "warp-%s", ifname);
-#endif
-
-#ifndef RIOT_VERSION
-    struct ifaddrs * ifap = 0;
-#else
-    const gnrc_netif_t * iface;
-    ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
-    size_t addr_idx;
-#endif
-
     // we mostly loop here because the link may be down
-    uint16_t addr4_cnt = 0;
-    uint16_t addr6_cnt = 0;
-    while (addr4_cnt + addr6_cnt == 0) {
-        // get interface config
-#ifdef RIOT_VERSION
-        iface = 0;
-        addr_idx = 0;
-        while ((iface = gnrc_netif_iter(iface))) {
-            uint8_t link;
-            const int ret = netif_get_opt(iface->pid, NETOPT_LINK_CONNECTED, 0,
-                                          &link, sizeof(link));
-            if (ret < 0 || link == NETOPT_DISABLE)
-                continue;
-
-            const int n = gnrc_netif_ipv6_addrs_get(iface, addr, sizeof(addr));
-            if (n < 0)
-                continue;
-            for (addr_idx = 0; addr_idx < n / sizeof(ipv6_addr_t); addr_idx++)
-                if (!skip_ipv6_addr((struct in6_addr *)&addr[addr_idx], 0)) {
-                    addr6_cnt++;
-                    // take the first interface with a valid config
-                    goto done;
-                }
-        }
-    done:
-
-#else
-
-        ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface info",
-               ifname);
-
-        for (struct ifaddrs * i = ifap; i; i = i->ifa_next) {
-            if (strcmp(i->ifa_name, ifname) != 0)
-                continue;
-
-            if (plat_get_link(i) == false)
-                continue;
-
-            if (i->ifa_addr->sa_family == AF_INET) {
-                addr4_cnt++;
-                continue;
-            }
-
-            if (i->ifa_addr->sa_family == AF_INET6 &&
-                skip_ipv6_addr(
-                    &((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_addr,
-                    i->ifa_flags & IFF_LOOPBACK) == false)
-                addr6_cnt++;
-        }
-#endif
-
-        if (addr4_cnt + addr6_cnt == 0) {
-            freeifaddrs(ifap);
-            // sleep for a bit, so we don't burn the CPU when link is down
-            warn(WRN,
-                 "%s: could not obtain required interface "
-                 "information, retrying",
-                 ifname);
-            w_nanosleep(1 * NS_PER_S);
-        }
+    uint16_t addr_cnt;
+    while ((addr_cnt = backend_addr_cnt(ifname)) == 0) {
+        // sleep for a bit, so we don't burn the CPU when link is down
+        warn(WRN,
+             "%s: could not obtain required interface information, retrying",
+             ifname);
+        w_nanosleep(1 * NS_PER_S);
     }
 
     // allocate engine struct with room for addresses
     struct w_engine * w;
-    ensure((w = calloc(1, sizeof(*w) + (addr4_cnt + addr6_cnt) *
-                                           sizeof(w->ifaddr[0]))) != 0,
+    ensure((w = calloc(1, sizeof(*w) + addr_cnt * sizeof(w->ifaddr[0]))) != 0,
            "cannot allocate struct w_engine");
-    w->addr_cnt = addr4_cnt + addr6_cnt;
-
-    // initialize lists of sockets and iovs
+    w->addr_cnt = addr_cnt;
+    strncpy(w->ifname, ifname, sizeof(w->ifname));
     sq_init(&w->iov);
 
-    bool is_loopback = false;
-    bool have_pipe = false;
-    w->addr4_pos = addr4_cnt = addr6_cnt;
-    addr6_cnt = 0;
-
-#ifndef RIOT_VERSION
-    for (struct ifaddrs * i = ifap; i; i = i->ifa_next) {
-#ifndef PARTICLE
-        if (strcmp(i->ifa_name, pipe) == 0)
-            have_pipe = true;
-#endif
-        if (strcmp(i->ifa_name, ifname) != 0)
-            continue;
-
-        switch (i->ifa_addr->sa_family) {
-        case AF_LINK:
-            is_loopback = i->ifa_flags & IFF_LOOPBACK;
-            plat_get_mac(&w->mac, i);
-            w->mtu = plat_get_mtu(i);
-            // mpbs can be zero on generic platforms and loopback interfaces
-            w->mbps = plat_get_mbps(i);
-            plat_get_iface_driver(i, w->drvname, sizeof(w->drvname));
-            break;
-
-        case AF_INET6:
-            if (skip_ipv6_addr(
-                    &((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_addr,
-                    i->ifa_flags & IFF_LOOPBACK))
-                continue;
-
-            w->have_ip6 = true;
-            struct w_ifaddr * ia = &w->ifaddr[addr6_cnt++];
-            if (w_to_waddr(&ia->addr, i->ifa_addr) == false)
-                continue;
-            ia->scope_id =
-                ((struct sockaddr_in6 *)(void *)i->ifa_addr)->sin6_scope_id;
-            ip6_config(
-                ia,
-                (const uint8_t *)&(
-                    (const struct sockaddr_in6 *)(const void *)i->ifa_netmask)
-                    ->sin6_addr);
-            break;
-
-        case AF_INET:
-            ia = &w->ifaddr[addr4_cnt++];
-
-            w->have_ip4 = true;
-            if (w_to_waddr(&ia->addr, i->ifa_addr) == false)
-                continue;
-            const void * const sa_mask4 =
-                &((const struct sockaddr_in *)(const void *)i->ifa_netmask)
-                     ->sin_addr;
-            ia->prefix = contig_mask_len(ia->addr.af, sa_mask4);
-
-            uint32_t mask4;
-            memcpy(&mask4, sa_mask4, sizeof(mask4));
-            ia->bcast4 = ia->addr.ip4 | ~mask4;
-            break;
-
-        default:
-            warn(NTE, "ignoring unknown addr family %d on %s",
-                 i->ifa_addr->sa_family, i->ifa_name);
-            break;
-        }
-    }
-    freeifaddrs(ifap);
-
-#else
-
-    w->have_ip6 = true;
-    w->mtu = iface->ipv6.mtu;
-    w->mbps = UINT32_MAX;
-    memcpy(&w->mac, iface->l2addr, ETH_LEN);
-
-    struct w_ifaddr * ia = &w->ifaddr[addr6_cnt++];
-    w->id = iface->pid;
-    ia->addr.af = AF_INET6;
-    memcpy(ia->addr.ip6, &addr[addr_idx], IP6_LEN);
-    if (ipv6_addr_is_link_local(&addr[addr_idx]))
-        ip6_config(ia, (const uint8_t[]){0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                                         0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
-                                         0x00, 0x00, 0x00, 0x00});
-    else
-        die("TODO: handle non-link-local");
-#endif
-
-#ifndef RIOT_VERSION
-    strncpy(w->ifname, ifname, sizeof(w->ifname));
-#else
-    netif_get_name(iface->pid, w->ifname);
-#endif
+    // backend-specific init
+    w->b = calloc(1, sizeof(*w->b));
+    ensure(w->b, "cannot alloc backend");
+    ensure(nbufs <= UINT32_MAX, "too many nbufs %" PRIu, nbufs);
+    backend_init(w, (uint32_t)nbufs);
 
 #if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
     warn(NTE, "%s MAC addr %s, MTU %d, speed %" PRIu32 "G", w->ifname,
@@ -737,20 +491,6 @@ struct w_engine * w_init(const char * const ifname,
              ia->prefix);
     }
 #endif
-
-    // set the IP address of our default router
-    // w->rip = rip;
-
-#if !defined(PARTICLE) && !defined(RIOT_VERSION)
-    // some interfaces can have huge MTUs, so cap to something more sensible
-    w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
-#endif
-
-    // backend-specific init
-    w->b = calloc(1, sizeof(*w->b));
-    ensure(w->b, "cannot alloc backend");
-    ensure(nbufs <= UINT32_MAX, "too many nbufs %" PRIu, nbufs);
-    backend_init(w, (uint32_t)nbufs, is_loopback, !have_pipe);
 
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);
@@ -829,35 +569,6 @@ void w_free_iov(struct w_iov * const v)
 }
 
 
-/// Return a 64-bit random number. Fast, but not cryptographically secure.
-/// Implements xoroshiro128+; see
-/// https://en.wikipedia.org/wiki/Xoroshiro128%2B.
-///
-/// @return     Random number.
-///
-uint64_t w_rand64(void)
-{
-    return kr_rand_r(&w_rand_state);
-}
-
-
-/// Return a 32-bit random number. Fast, but not cryptographically secure.
-/// Truncates w_rand64() to 32 bits.
-///
-/// @return     Random number.
-///
-uint32_t w_rand32(void)
-{
-#if !defined(PARTICLE) && !defined(RIOT_VERSION)
-    return (uint32_t)kr_rand_r(&w_rand_state);
-#elif defined(PARTICLE)
-    return HAL_RNG_GetRandomNumber();
-#elif defined(RIOT_VERSION)
-    return random_uint32();
-#endif
-}
-
-
 /// Calculate a uniformly distributed random number in [0, upper_bound)
 /// avoiding "modulo bias".
 ///
@@ -878,7 +589,7 @@ uint64_t w_rand_uniform64(const uint64_t upper_bound)
     // range we need, so it should rarely need to re-roll.
     uint64_t r;
     for (;;) {
-        r = kr_rand_r(&w_rand_state);
+        r = w_rand64();
         if (likely(r >= min))
             break;
     }
@@ -1000,40 +711,6 @@ bool w_sockaddr_cmp(const struct w_sockaddr * const a,
                     const struct w_sockaddr * const b)
 {
     return a->port == b->port && w_addr_cmp(&a->addr, &b->addr);
-}
-
-
-/// Return the relative time in nanoseconds since an undefined epoch.
-///
-/// @return     Relative time in nanoseconds.
-///
-uint64_t w_now(void)
-{
-#if defined(PARTICLE)
-    return HAL_Timer_Microseconds() * NS_PER_US;
-#elif defined(RIOT_VERSION)
-    return xtimer_now_usec64() * NS_PER_US;
-#else
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
-#endif
-}
-
-
-/// Sleep for a number of nanoseconds.
-///
-/// @param[in]  ns    Sleep time in nanoseconds.
-///
-void w_nanosleep(const uint64_t ns)
-{
-#ifdef PARTICLE
-    HAL_Delay_Microseconds(ns / NS_PER_US);
-#elif defined(RIOT_VERSION)
-    xtimer_nanosleep(ns);
-#else
-    nanosleep(&(struct timespec){ns / NS_PER_S, (long)(ns % NS_PER_S)}, 0);
-#endif
 }
 
 
