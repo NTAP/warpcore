@@ -146,10 +146,6 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
               ->sin6_port _Pragma("clang diagnostic pop")
 
 
-/// Global list of initialized warpcore engines.
-///
-extern sl_head(w_engines, w_engine) engines;
-
 extern void __attribute__((nonnull))
 ip6_config(struct w_ifaddr * const ia, const uint8_t * const mask);
 

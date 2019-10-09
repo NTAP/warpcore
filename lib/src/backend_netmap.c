@@ -113,14 +113,8 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
         for (uint16_t idx = 0; idx < w->addr_cnt; idx++)
             neighbor_update(w, &w->ifaddr[idx].addr,
                             (struct eth_addr){ETH_ADDR_NONE});
-    } else {
-        struct w_engine * e;
-        sl_foreach (e, &engines, next)
-            ensure(strncmp(w->ifname, e->ifname, IFNAMSIZ),
-                   "can only have one warpcore engine active on %s", w->ifname);
-
+    } else
         strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);
-    }
 
     b->req->nr_arg3 = nbufs; // request extra buffers
     ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,

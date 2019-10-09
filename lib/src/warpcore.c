@@ -49,10 +49,14 @@
 #include "neighbor.h"
 
 
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+#include <net/if.h>
+
 /// A global list of netmap engines that have been initialized for different
 /// interfaces.
 ///
-struct w_engines engines = sl_head_initializer(engines);
+static sl_head(w_engines, w_engine) engines = sl_head_initializer(engines);
+#endif
 
 
 #ifdef DEBUG_BUFFERS
@@ -74,6 +78,8 @@ dump_bufs(const char * const label, const struct w_iov_sq * const q)
     ensure((size_t)pos >= sizeof(line) || cnt == w_iov_sq_cnt(q),
            "cnt mismatch");
 }
+#else
+#define dump_bufs(...)
 #endif
 
 
@@ -146,9 +152,7 @@ struct w_iov * w_alloc_iov(struct w_engine * const w,
              v->len);
 #endif
     }
-#ifdef DEBUG_BUFFERS
     dump_bufs(__func__, &w->iov);
-#endif
     return v;
 }
 
@@ -197,10 +201,8 @@ void w_alloc_len(struct w_engine * const w,
         }
         sq_insert_tail(q, v, next);
     }
-#ifdef DEBUG_BUFFERS
     dump_bufs(__func__, &w->iov);
     dump_bufs("allocated chain", q);
-#endif
 }
 
 
@@ -238,10 +240,8 @@ void w_alloc_cnt(struct w_engine * const w,
             return;
         sq_insert_tail(q, v, next);
     }
-#ifdef DEBUG_BUFFERS
     dump_bufs(__func__, &w->iov);
     dump_bufs("allocated chain", q);
-#endif
 }
 
 
@@ -288,22 +288,16 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
         return EAFNOSUPPORT;
     }
 
-    struct w_sockaddr * const remote = &s->tup.remote;
-    remote->port = sa_port(peer);
+    s->ws_rport = sa_port(peer);
     const int e = backend_connect(s);
-    if (unlikely(e)) {
-        warn(ERR, "w_connect to %s:%u failed (%s)",
-             w_ntop(&remote->addr, ip_tmp), bswap16(remote->port), strerror(e));
-        memset(&s->tup.remote, 0, sizeof(*remote));
-        ins_sock(s->w, s);
-        return e;
-    }
+    if (unlikely(e))
+        memset(&s->tup.remote, 0, sizeof(s->tup.remote));
     ins_sock(s->w, s);
 
-    warn(DBG, "socket connected to %s:%d", w_ntop(&remote->addr, ip_tmp),
-         bswap16(remote->port));
+    warn(e ? ERR : DBG, "socket %sconnected to %s:%d", e ? "not " : "",
+         w_ntop(&s->ws_raddr, ip_tmp), bswap16(s->ws_rport));
 
-    return 0;
+    return e;
 }
 
 
@@ -390,7 +384,9 @@ void w_cleanup(struct w_engine * const w)
     kh_release(sock, &w->sock);
 
     backend_cleanup(w);
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
     sl_remove(&engines, w, w_engine, next);
+#endif
     free(w->b);
     free(w);
 }
@@ -455,6 +451,15 @@ struct w_engine * w_init(const char * const ifname,
                          const uint32_t rip __attribute__((unused)),
                          const uint_t nbufs)
 {
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+    struct w_engine * e;
+    sl_foreach (e, &engines, next)
+        if (strncmp(ifname, e->ifname, IFNAMSIZ) == 0) {
+            warn(ERR, "can only have one warpcore engine active on %s", ifname);
+            return 0;
+        }
+#endif
+
     w_init_rand();
 
     // we mostly loop here because the link may be down
@@ -492,8 +497,10 @@ struct w_engine * w_init(const char * const ifname,
     }
 #endif
 
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
     // store the initialized engine in our global list
     sl_insert_head(&engines, w, next);
+#endif
 
     warn(INF, "%s/%s (%s) %s using %" PRIu " %u-byte bufs on %s", warpcore_name,
          w->backend_name, w->backend_variant, warpcore_version,
@@ -539,9 +546,7 @@ void w_free(struct w_iov_sq * const q)
     }
 #endif
     sq_concat(&w->iov, q);
-#ifdef DEBUG_BUFFERS
     dump_bufs(__func__, &w->iov);
-#endif
 }
 
 
@@ -558,14 +563,10 @@ void w_free_iov(struct w_iov * const v)
     ensure(sq_next(v, next) == 0,
            "idx %" PRIu32 " still linked to idx %" PRIu32, v->idx,
            sq_next(v, next)->idx);
-#ifdef DEBUG_BUFFERS
     dump_bufs(__func__, &v->w->iov);
-#endif
     sq_insert_head(&v->w->iov, v, next);
     ASAN_POISON_MEMORY_REGION(v->base, max_buf_len(v->w));
-#ifdef DEBUG_BUFFERS
     dump_bufs(__func__, &v->w->iov);
-#endif
 }
 
 
@@ -696,7 +697,7 @@ khint_t w_socktuple_cmp(const struct w_socktuple * const a,
 bool w_addr_cmp(const struct w_addr * const a, const struct w_addr * const b)
 {
     return a->af == b->af &&
-           (a->af == AF_INET ? (a->ip4 == b->ip4) : ip6_eql(a, b));
+           (a->af == AF_INET ? (a->ip4 == b->ip4) : ip6_eql(a->ip6, b->ip6));
 }
 
 

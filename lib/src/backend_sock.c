@@ -126,7 +126,6 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 #endif
     }
 
-#ifndef PARTICLE
     if (s->opt.enable_ecn != opt->enable_ecn) {
         s->opt.enable_ecn = opt->enable_ecn;
         ensure(setsockopt(s->fd,
@@ -137,7 +136,6 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
                           sizeof(int)) >= 0,
                "cannot setsockopt IP_TOS");
     }
-#endif
 }
 
 

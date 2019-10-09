@@ -38,12 +38,12 @@ to_sock_udp_ep_t(sock_udp_ep_t * const suet,
                  const kernel_pid_t id)
 {
     suet->family = addr->af;
-    suet->port = port;
+    suet->port = bswap16(port);
     suet->netif = id;
     if (unlikely(addr->af == AF_INET))
         memcpy(&suet->addr.ipv4_u32, &addr->ip4, IP4_LEN);
     else
-        memcpy(suet->addr.ipv6, addr->ip6, IP6_LEN);
+        memcpy(&suet->addr.ipv6, addr->ip6, IP6_LEN);
 }
 
 
@@ -54,10 +54,7 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 
 uint16_t backend_addr_cnt(void)
 {
-    ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
-    size_t addr_idx = 0;
     const gnrc_netif_t * iface = 0;
-
     while ((iface = gnrc_netif_iter(iface))) {
         uint8_t link;
         const int ret = netif_get_opt(iface->pid, NETOPT_LINK_CONNECTED, 0,
@@ -65,10 +62,12 @@ uint16_t backend_addr_cnt(void)
         if (ret < 0 || link == NETOPT_DISABLE)
             continue;
 
+        ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
         const int n = gnrc_netif_ipv6_addrs_get(iface, addr, sizeof(addr));
         if (n < 0)
             continue;
-        for (addr_idx = 0; addr_idx < n / sizeof(ipv6_addr_t); addr_idx++)
+        for (size_t addr_idx = 0; addr_idx < n / sizeof(ipv6_addr_t);
+             addr_idx++)
             // take the first interface with a valid config
             return 1;
     }
@@ -86,12 +85,9 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     w->backend_name = "riot";
     w->backend_variant = "gnrc";
 
-    const gnrc_netif_t * iface;
     ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
     size_t addr_idx;
-
-    iface = 0;
-    addr_idx = 0;
+    const gnrc_netif_t * iface = 0;
     while ((iface = gnrc_netif_iter(iface))) {
         const int n = gnrc_netif_ipv6_addrs_get(iface, addr, sizeof(addr));
         if (n < 0)
@@ -132,7 +128,6 @@ done:
     for (uint32_t i = 0; i < nbufs; i++) {
         init_iov(w, &w->bufs[i], i);
         sq_insert_head(&w->iov, &w->bufs[i], next);
-        ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, max_buf_len(w));
     }
 }
 
@@ -145,7 +140,6 @@ void backend_cleanup(struct w_engine * const w)
 {
     free(w->mem);
     free(w->bufs);
-    w->b->n = 0;
 }
 
 
@@ -160,7 +154,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     // TODO: socket options
     sock_udp_ep_t local;
-    to_sock_udp_ep_t(&local, &s->ws_laddr, bswap16(s->ws_lport), s->w->id);
+    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->id);
     const int ret = sock_udp_create(&s->fd, &local, 0, 0);
     if (ret < 0)
         return ret;
@@ -192,13 +186,13 @@ void backend_close(struct w_sock * const s)
 ///
 int backend_connect(struct w_sock * const s)
 {
-    // TODO: can a bound socket be connected?
+    // TODO: can we connect an already-bound socket?
     backend_close(s);
     sock_udp_ep_t local;
     sock_udp_ep_t remote;
-    to_sock_udp_ep_t(&local, &s->ws_laddr, bswap16(s->ws_lport), s->w->id);
-    to_sock_udp_ep_t(&remote, &s->ws_raddr, bswap16(s->ws_rport), s->w->id);
-    return sock_udp_create(&s->fd, &local, &remote, 0);
+    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->id);
+    to_sock_udp_ep_t(&remote, &s->ws_raddr, s->ws_rport, s->w->id);
+    return sock_udp_create(&s->fd, &local, &remote, SOCK_FLAGS_REUSE_EP);
 }
 
 
@@ -237,19 +231,18 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 ///
 void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 {
-    o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
-
     struct w_iov * v = sq_first(o);
     while (v) {
-        sock_udp_ep_t remote;
+        sock_udp_ep_t dst;
         if (w_connected(s) == false)
-            to_sock_udp_ep_t(&remote, &s->ws_raddr, bswap16(s->ws_rport),
-                             s->w->id);
+            to_sock_udp_ep_t(&dst, &v->wv_addr, v->wv_port, s->w->id);
+
         if (unlikely(sock_udp_send(&s->fd, v->buf, v->len,
-                                   w_connected(s) ? 0 : &remote) < 0))
+                                   w_connected(s) ? 0 : &dst) != v->len))
             warn(ERR, "sock_udp_send returned %d (%s)", errno, strerror(errno));
         v = sq_next(v, next);
     };
+    o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
 }
 
 
@@ -264,42 +257,29 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 {
     // FIXME: this is a super-ugly hack to work around missing poll & select
-    bool first = true;
     bool rxed = false;
+    const uint32_t usec = nsec == -1 ? SOCK_NO_TIMEOUT : nsec / NS_PER_US;
+
     struct w_sock * s;
-again:;
-    warn(ERR, "here1");
-    const uint32_t usec =
-        first ? 0 : (nsec == -1 ? SOCK_NO_TIMEOUT : nsec / NS_PER_US);
     kh_foreach_value(&w->sock, s, {
-        warn(ERR, "here2 %" PRIu32, usec);
         struct w_iov * const v = w_alloc_iov(w, s->ws_af, 0, 0);
         if (unlikely(v == 0))
             break;
         sock_udp_ep_t remote;
         const ssize_t n = sock_udp_recv(&s->fd, v->buf, v->len, usec, &remote);
-        warn(ERR, "here2a %d", n);
         if (n > 0) {
-            warn(ERR, "here3");
             v->len = n;
             v->wv_port = bswap16(remote.port);
             v->wv_af = remote.family;
             if (unlikely(remote.family == AF_INET))
                 memcpy(&v->wv_ip4, &remote.addr.ipv4_u32, IP4_LEN);
             else
-                memcpy(v->wv_ip6, remote.addr.ipv6, IP6_LEN);
+                memcpy(v->wv_ip6, &remote.addr.ipv6, IP6_LEN);
             sq_insert_tail(&s->iv, v, next);
             rxed = true;
-        } else {
-            warn(ERR, "here4");
+        } else
             w_free_iov(v);
-        }
     });
-    if (rxed == false && first == true) {
-        first = false;
-        goto again;
-    }
-    warn(ERR, "here %u", rxed);
     return rxed;
 }
 
