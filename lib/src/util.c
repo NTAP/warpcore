@@ -251,8 +251,9 @@ util_warn_valist(const unsigned dlevel,
         for (size_t i = 0; i <= strlen(now_str) - 8; i++)
             fputc(' ', stderr);
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
-#else
-    fprintf(stderr, "STACK: %d --- ", thread_measure_stack_free(sched_active_thread->stack_start));
+// #else
+//     fprintf(stderr, "STACK: %d --- ",
+//             thread_measure_stack_free(sched_active_thread->stack_start));
 #endif
     if (util_dlevel == DBG)
         fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, file, line);

@@ -43,6 +43,10 @@
 
 // #define DEBUG_BUFFERS
 
+#ifdef DEBUG_BUFFERS
+#include <stdio.h>
+#endif
+
 #include "backend.h"
 #include "ifaddr.h"
 #include "ip6.h"
