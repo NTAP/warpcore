@@ -245,19 +245,18 @@ void backend_cleanup(struct w_engine * const w)
 ///
 int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
-    struct w_addr * const local = &s->ws_laddr;
-    s->fd = socket(local->af, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    s->fd = socket(s->ws_af, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     if (unlikely(s->fd < 0))
         return errno;
 
     struct sockaddr_storage ss;
-    to_sockaddr((struct sockaddr *)&ss, local, s->ws_lport, s->ws_scope);
-    if (unlikely(bind(s->fd, (struct sockaddr *)&ss, sa_len(local->af)) != 0))
+    to_sockaddr((struct sockaddr *)&ss, &s->ws_laddr, s->ws_lport, s->ws_scope);
+    if (unlikely(bind(s->fd, (struct sockaddr *)&ss, sa_len(s->ws_af)) != 0))
         return errno;
 
     // enable always receiving TOS information
-    ensure(setsockopt(s->fd, local->af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
-                      local->af == AF_INET ? IP_RECVTOS : IPV6_RECVTCLASS,
+    ensure(setsockopt(s->fd, s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+                      s->ws_af == AF_INET ? IP_RECVTOS : IPV6_RECVTCLASS,
                       &(int){1}, sizeof(int)) >= 0,
            "cannot setsockopt IP_RECVTOS/IPV6_RECVTCLASS");
 

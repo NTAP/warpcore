@@ -34,7 +34,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -173,12 +172,10 @@ int
     if (end < start)
         end = start;
 
-    const struct addrinfo hints = {.ai_family = AF_UNSPEC,
-                                   .ai_protocol = IPPROTO_UDP};
     uint32_t rip = 0;
     if (rtr) {
         struct addrinfo * router;
-        ensure(getaddrinfo(rtr, 0, &hints, &router) == 0, "getaddrinfo router");
+        ensure(getaddrinfo(rtr, 0, 0, &router) == 0, "getaddrinfo router");
         rip = ((struct sockaddr_in *)(void *)router->ai_addr)->sin_addr.s_addr;
         freeaddrinfo(router);
     }
@@ -191,7 +188,7 @@ int
 
     // look up the peer IP address and our benchmark port
     struct addrinfo * peer;
-    ensure(getaddrinfo(dst, "55555", &hints, &peer) == 0, "getaddrinfo peer");
+    ensure(getaddrinfo(dst, "55555", 0, &peer) == 0, "getaddrinfo peer");
 
     // find a src address of the same family as the peer address
     uint16_t idx = 0;

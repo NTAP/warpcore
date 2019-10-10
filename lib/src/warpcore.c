@@ -286,20 +286,21 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
 
     rem_sock(s->w, s);
 
+    int e = 0;
     if (unlikely(w_to_waddr(&s->ws_raddr, peer) == false)) {
         warn(ERR, "peer has unknown address family");
-        ins_sock(s->w, s);
-        return EAFNOSUPPORT;
+        e = EAFNOSUPPORT;
+    } else {
+        s->ws_rport = sa_port(peer);
+        e = backend_connect(s);
     }
 
-    s->ws_rport = sa_port(peer);
-    const int e = backend_connect(s);
     if (unlikely(e))
-        memset(&s->tup.remote, 0, sizeof(s->tup.remote));
+        memset(&s->ws_rem, 0, sizeof(s->ws_rem));
     ins_sock(s->w, s);
 
-    warn(e ? ERR : DBG, "socket %sconnected to %s:%d", e ? "not " : "",
-         w_ntop(&s->ws_raddr, ip_tmp), bswap16(s->ws_rport));
+    warn(e ? ERR : DBG, "socket %sconnected to %s:%d (%s)", e ? "not " : "",
+         w_ntop(&s->ws_raddr, ip_tmp), bswap16(s->ws_rport), strerror(e));
 
     return e;
 }
@@ -332,7 +333,7 @@ struct w_sock * w_bind(struct w_engine * const w,
     if (unlikely(s = calloc(1, sizeof(*s))) == 0)
         goto fail;
 
-    s->tup.local = local;
+    s->ws_loc = local;
     s->ws_scope = w->ifaddr[addr_idx].scope_id;
     s->w = w;
     sq_init(&s->iv);

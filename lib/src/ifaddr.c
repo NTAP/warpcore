@@ -152,5 +152,6 @@ void backend_addr_config(struct w_engine * const w)
             break;
         }
     }
+    w->addr4_pos++; // this will be decremented by one too many above
     freeifaddrs(ifap);
 }

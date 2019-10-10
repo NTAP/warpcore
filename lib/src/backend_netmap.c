@@ -268,7 +268,7 @@ int backend_connect(struct w_sock * const s)
     // see if we need to update the sport
     uint8_t n = 200;
     while (n--) {
-        if (likely(w_get_sock(s->w, &s->tup.local, &s->tup.remote) == 0))
+        if (likely(w_get_sock(s->w, &s->ws_loc, &s->ws_rem) == 0))
             break;
         // four-tuple exists, reroll sport
         s->ws_lport = pick_local_port();

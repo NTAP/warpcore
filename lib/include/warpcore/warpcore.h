@@ -305,8 +305,10 @@ struct w_sock {
 
 
 #define ws_af tup.local.addr.af
+#define ws_loc tup.local
 #define ws_laddr tup.local.addr
 #define ws_lport tup.local.port
+#define ws_rem tup.remote
 #define ws_raddr tup.remote.addr
 #define ws_rport tup.remote.port
 #define ws_scope tup.scope_id
@@ -564,7 +566,6 @@ extern void w_nanosleep(const uint64_t ns);
 
 extern bool __attribute__((nonnull))
 w_to_waddr(struct w_addr * const wa, const struct sockaddr * const sa);
-
 
 #ifdef __cplusplus
 }
