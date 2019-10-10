@@ -8,14 +8,20 @@
 Warpcore is a minimal userspace UDP/IP/Ethernet stack for the [netmap packet
 I/O framework](http://info.iet.unipi.it/~luigi/netmap/). Due to its dependency
 on netmap, warpcore supports Linux (with a netmap-patched kernel) and FreeBSD
-(which has netmap support since release 11). However, warpcore has a backend
-implementation using the Socket API that should compile on generic POSIX
-platforms, such as Darwin.
+(which has netmap support since release 11).
 
-Warpcore prioritizes performance over features, and likely over full standards
-compliance. It supports zero-copy transmit and receive, and uses neither
-threads, timers nor signals. It exposes the underlying file descriptors to an
-application, for easy integration with different event loops (e.g.,
+Warpcore also has a backend implementation using the Socket API that should
+compile on generic POSIX platforms, such as Linux, Darwin and others. The POSIX
+backend has experimental support for the
+[Particle](https://github.com/particle-iot/device-os) IoT stack, allowing
+applications built on warpcore (such as [quant](https://github.com/NTAP/quant))
+to support embedded devices. Warpcore also has an experimental support for
+[RIOT](http://riot-os.org/), another IoT stack.
+
+Warpcore prioritizes performance over features, and over full standards
+compliance. It supports zero-copy transmit and receive with netmap, and uses
+neither threads, timers nor signals. It exposes the underlying file descriptors
+to an application, for easy integration with different event loops (e.g.,
 [libev](http://software.schmorp.de/pkg/libev.html)).
 
 The warpcore repository is [on GitHub](https://github.com/NTAP/warpcore).
@@ -32,19 +38,21 @@ to build with `make` as a generator:
     cmake ..
     make
 
-(cmake supports other generators, such as [ninja](https://ninja-build.org/). See
-the [cmake
-documentation](https://cmake.org/cmake/help/v3.7/manual/cmake-generators.7.html).)
+(cmake supports other generators, such as [ninja](https://ninja-build.org/)
+(which I highly recommend over `make`). See the [cmake
+documentation](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html).)
 
 On platforms where netmap is available, the steps above will build a debug
-version of `libwarpcore.a` against netmap as a backend, and place it into the
-`Debug/lib`. When netmap is *not* available, the steps above should build
-warpcore against the Socket API. This allows more convenient development of
-applications that link against warpcore when netmap is not available.
+version of `libsockcore.a` against netmap as a backend, and place it into the
+`Debug/lib`. Examples (`sockping` and `sockinetd`) will be built in `Debug/bin`.
 
-Additionally, the steps above build `bin/warpping`, an example client
-application, as well as `bin/warpinetd`, which is an example server application
-implementing the [`echo`](https://www.ietf.org/rfc/rfc862.txt),
+On platforms where netmap is available, the steps above will also build a debug
+version of `libwarpcore.a` against netmap as a backend, and place it into the
+`Debug/lib`. Examples (`warpping` and `warpinetd`) will also be built in
+`Debug/bin`.
+
+The example server application implements the
+[`echo`](https://www.ietf.org/rfc/rfc862.txt),
 [`discard`](https://www.ietf.org/rfc/rfc863.txt),
 [`time`](https://www.ietf.org/rfc/rfc868.txt) and
 [`daytime`](https://www.ietf.org/rfc/rfc867.txt) services.
@@ -58,14 +66,11 @@ logging enabled. In order to build an optimized build, do this:
     cmake -DCMAKE_BUILD_TYPE=Release ..
     make
 
-If you are on a platform where netmap is not available, you can use the included
-`Vagrantfile` to bring up either a [`vagrant`](https://www.vagrantup.com/)
-FreeBSD or Linux VM, which should be automatically provisioned with netmap.
-
 
 ## Documentation
 
-Warpcore comes with  documentation. This documentation can be build by doing
+Warpcore comes with documentation. This documentation can be built (if `doxygen`
+is installed) by doing
 
     make doc
 
@@ -100,7 +105,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-## Acknowledgement
+## Acknowledgment
 
 This software has received funding from the European Union's Horizon 2020
 research and innovation program 2014-2018 under grant agreement 644866
