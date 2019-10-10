@@ -148,6 +148,10 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 void backend_init(struct w_engine * const w, const uint32_t nbufs)
 {
     backend_addr_config(w); // do this first so w->mtu is set for max_buf_len
+#ifndef PARTICLE
+    // some interfaces can have huge MTUs, so cap to something more sensible
+    w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
+#endif
 
     ensure((w->mem = calloc(nbufs, max_buf_len(w))) != 0,
            "cannot alloc %" PRIu32 " * %u buf mem", nbufs, max_buf_len(w));
@@ -160,11 +164,6 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
         sq_insert_head(&w->iov, &w->bufs[i], next);
         ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, max_buf_len(w));
     }
-
-#ifndef PARTICLE
-    // some interfaces can have huge MTUs, so cap to something more sensible
-    w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
-#endif
 
 #if defined(HAVE_KQUEUE)
     w->b->kq = kqueue();
