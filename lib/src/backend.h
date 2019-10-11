@@ -55,6 +55,13 @@
 #include "eth.h"
 #include "neighbor.h"
 #include "udp.h"
+
+KHASH_INIT(sock,
+           struct w_socktuple *,
+           struct w_sock *,
+           1,
+           w_socktuple_hash,
+           w_socktuple_cmp)
 #endif
 
 
@@ -67,6 +74,7 @@ struct w_backend {
     khash_t(neighbor) neighbor; ///< The ARP cache.
     uint32_t * tail;            ///< TX ring tails after last NIOCTXSYNC call.
     struct w_iov *** slot_buf;  ///< For each ring slot, a pointer to its w_iov.
+    khash_t(sock) sock;         ///< List of open (bound) w_sock sockets.
 #else
 #if defined(HAVE_KQUEUE)
     struct kevent ev[64]; // XXX arbitrary value
@@ -75,8 +83,12 @@ struct w_backend {
     int ep;
     struct epoll_event ev[64]; // XXX arbitrary value
 #else
+#ifndef RIOT_VERSION
     struct pollfd * fds;
-    struct w_sock ** socks;
+#else
+    kernel_pid_t id;
+#endif
+    struct w_sock_slist socks;
 #endif
     int n;
 #ifndef HAVE_KQUEUE
@@ -169,3 +181,8 @@ extern void __attribute__((nonnull))
 backend_init(struct w_engine * const w, const uint32_t nbufs);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);
+
+extern struct w_sock * __attribute__((nonnull(1, 2)))
+w_get_sock(struct w_engine * const w,
+           const struct w_sockaddr * const local,
+           const struct w_sockaddr * const remote);

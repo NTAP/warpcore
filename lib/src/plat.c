@@ -369,8 +369,6 @@ void w_init_rand(void)
     gettimeofday(&now, 0);
     const uint64_t seed = fnv1a_64(&now, sizeof(now));
     kr_srand_r(&w_rand_state, seed);
-#else
-    warn(CRT, "FIXME: init random");
 #endif
 }
 

@@ -145,7 +145,7 @@ int
         struct w_sock_slist sl = w_sock_slist_initializer(sl);
         w_rx_ready(w, &sl);
         struct w_sock * s;
-        sl_foreach (s, &sl, next_rx) {
+        sl_foreach (s, &sl, next) {
             // ...check if any new data has arrived on the socket
             struct w_iov_sq i = w_iov_sq_initializer(i);
             w_rx(s, &i);

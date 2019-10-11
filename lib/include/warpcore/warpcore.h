@@ -189,13 +189,6 @@ extern khint_t __attribute__((nonnull))
 w_socktuple_cmp(const struct w_socktuple * const a,
                 const struct w_socktuple * const b);
 
-KHASH_INIT(sock,
-           struct w_socktuple *,
-           struct w_sock *,
-           1,
-           w_socktuple_hash,
-           w_socktuple_cmp)
-
 
 #define ETH_LEN 6
 #define ETH_STRLEN (ETH_LEN * 3 + 1)
@@ -230,7 +223,6 @@ struct w_engine {
     struct eth_addr mac;  ///< Local Ethernet MAC address of the interface.
     // struct eth_addr rip;  ///< Ethernet MAC address of the next-hop router.
 
-    khash_t(sock) sock;  ///< List of open (bound) w_sock sockets.
     struct w_iov_sq iov; ///< Tail queue of w_iov buffers available.
 
     sl_entry(w_engine) next;      ///< Pointer to next engine.
@@ -241,10 +233,6 @@ struct w_engine {
 
     /// Pointer to generic user data (not used by warpcore.)
     void * data;
-
-#ifdef RIOT_VERSION
-    kernel_pid_t id;
-#endif
 
     uint16_t addr_cnt;
     uint16_t addr4_pos;
@@ -291,16 +279,14 @@ struct w_sock {
     struct w_socktuple tup; ///< Socket four-tuple.
     struct eth_addr dmac;   ///< Destination MAC address.
     struct w_sockopt opt;   ///< Socket options.
+    intptr_t fd;            ///< Socket descriptor underlying the engine.
+    struct w_iov_sq iv;     ///< Tail queue containing incoming unread data.
 
-#ifndef RIOT_VERSION
-    int fd; ///< Socket descriptor underlying the engine.
-#else
-    sock_udp_t fd;
+    sl_entry(w_sock) next; ///< Next socket.
+
+#if !defined(HAVE_KQUEUE) && !defined(HAVE_EPOLL)
+    sl_entry(w_sock) __next; ///< Internal use.
 #endif
-
-    struct w_iov_sq iv; ///< Tail queue containing incoming unread data.
-
-    sl_entry(w_sock) next_rx; ///< Next socket with unread data.
 };
 
 
@@ -512,8 +498,6 @@ w_tx(struct w_sock * const s, struct w_iov_sq * const o);
 
 extern uint_t w_iov_sq_len(const struct w_iov_sq * const q);
 
-extern int __attribute__((nonnull)) w_fd(const struct w_sock * const s);
-
 extern void __attribute__((nonnull))
 w_rx(struct w_sock * const s, struct w_iov_sq * const i);
 
@@ -531,11 +515,6 @@ w_max_iov_len(const struct w_iov * const v, const uint16_t af);
 extern void __attribute__((nonnull)) w_free(struct w_iov_sq * const q);
 
 extern void __attribute__((nonnull)) w_free_iov(struct w_iov * const v);
-
-extern struct w_sock * __attribute__((nonnull(1, 2)))
-w_get_sock(struct w_engine * const w,
-           const struct w_sockaddr * const local,
-           const struct w_sockaddr * const remote);
 
 extern const char * __attribute__((nonnull))
 w_ntop(const struct w_addr * const addr, char * const dst);

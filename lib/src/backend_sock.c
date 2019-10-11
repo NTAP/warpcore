@@ -114,12 +114,12 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
     if (s->opt.enable_udp_zero_checksums != opt->enable_udp_zero_checksums) {
         s->opt.enable_udp_zero_checksums = opt->enable_udp_zero_checksums;
 #if defined(__linux__)
-        ensure(setsockopt(s->fd, SOL_SOCKET, SO_NO_CHECK,
+        ensure(setsockopt((int)s->fd, SOL_SOCKET, SO_NO_CHECK,
                           &(int){s->opt.enable_udp_zero_checksums},
                           sizeof(int)) >= 0,
                "cannot setsockopt SO_NO_CHECK");
 #elif defined(__APPLE__)
-        ensure(setsockopt(s->fd, IPPROTO_UDP, UDP_NOCKSUM,
+        ensure(setsockopt((int)s->fd, IPPROTO_UDP, UDP_NOCKSUM,
                           &(int){s->opt.enable_udp_zero_checksums},
                           sizeof(int)) >= 0,
                "cannot setsockopt UDP_NOCKSUM");
@@ -128,7 +128,7 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 
     if (s->opt.enable_ecn != opt->enable_ecn) {
         s->opt.enable_ecn = opt->enable_ecn;
-        ensure(setsockopt(s->fd,
+        ensure(setsockopt((int)s->fd,
                           s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
                           s->ws_af == AF_INET ? IP_TOS : IPV6_TCLASS,
                           &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0
@@ -226,8 +226,9 @@ void backend_cleanup(struct w_engine * const w)
 #if !defined(HAVE_KQUEUE) && !defined(HAVE_EPOLL)
     free(w->b->fds);
     w->b->fds = 0;
-    free(w->b->socks);
-    w->b->socks = 0;
+    struct w_sock * s;
+    sl_foreach (s, &w->b->socks, __next)
+        w_close(s);
 #endif
     free(w->mem);
     free(w->bufs);
@@ -250,11 +251,13 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 
     struct sockaddr_storage ss;
     to_sockaddr((struct sockaddr *)&ss, &s->ws_laddr, s->ws_lport, s->ws_scope);
-    if (unlikely(bind(s->fd, (struct sockaddr *)&ss, sa_len(s->ws_af)) != 0))
+    if (unlikely(bind((int)s->fd, (struct sockaddr *)&ss, sa_len(s->ws_af)) !=
+                 0))
         return errno;
 
     // enable always receiving TOS information
-    ensure(setsockopt(s->fd, s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+    ensure(setsockopt((int)s->fd,
+                      s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
                       s->ws_af == AF_INET ? IP_RECVTOS : IPV6_RECVTCLASS,
                       &(int){1}, sizeof(int)) >= 0,
            "cannot setsockopt IP_RECVTOS/IPV6_RECVTCLASS");
@@ -265,7 +268,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     // if we're binding to a random port, find out what it is
     if (s->ws_lport == 0) {
         socklen_t len = sizeof(ss);
-        ensure(getsockname(s->fd, (struct sockaddr *)&ss, &len) >= 0,
+        ensure(getsockname((int)s->fd, (struct sockaddr *)&ss, &len) >= 0,
                "getsockname");
         s->ws_lport = sa_port(&ss);
     }
@@ -278,6 +281,8 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     struct epoll_event ev = {.events = EPOLLIN, .data.ptr = s};
     ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_ADD, s->fd, &ev) != -1,
            "epoll_ctl");
+#else
+    sl_insert_head(&s->w->b->socks, s, __next);
 #endif
 
     return 0;
@@ -294,8 +299,8 @@ int backend_connect(struct w_sock * const s)
 {
     struct sockaddr_storage ss;
     to_sockaddr((struct sockaddr *)&ss, &s->ws_raddr, s->ws_rport, s->ws_scope);
-    if (unlikely(connect(s->fd, (struct sockaddr *)&ss, sa_len(ss.ss_family)) !=
-                 0))
+    if (unlikely(connect((int)s->fd, (struct sockaddr *)&ss,
+                         sa_len(ss.ss_family)) != 0))
         return errno;
     return 0;
 }
@@ -315,23 +320,11 @@ void backend_close(struct w_sock * const s)
     struct epoll_event ev = {.events = EPOLLIN, .data.ptr = s};
     ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_DEL, s->fd, &ev) != -1,
            "epoll_ctl");
+#else
+    sl_remove(&s->w->b->socks, s, w_sock, __next);
 #endif
 
-    ensure(close(s->fd) == 0, "close");
-}
-
-
-/// Return the file descriptor associated with a w_sock. For the socket backend,
-/// this an OS file descriptor of the underlying socket. It can be used for
-/// poll() or with event-loop libraries in the application.
-///
-/// @param      s     w_sock socket for which to get the underlying descriptor.
-///
-/// @return     A file descriptor.
-///
-int w_fd(const struct w_sock * const s)
-{
-    return s->fd;
+    ensure(close((int)s->fd) == 0, "close");
 }
 
 
@@ -430,7 +423,7 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
                                     msgvec[0].msg_name, msgvec[0].msg_namelen)
                            : 0;
 #else
-            sendmsg(s->fd, msgvec, 0);
+            sendmsg((int)s->fd, msgvec, 0);
 #endif
         if (unlikely(r < 0 && errno != EAGAIN && errno != ETIMEDOUT))
             warn(ERR, "sendmsg/sendmmsg returned %d (%s)", errno,
@@ -493,13 +486,13 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
             return;
         }
 #if defined(HAVE_RECVMMSG)
-        n = (ssize_t)recvmmsg(s->fd, msgvec, (unsigned int)nbufs, MSG_DONTWAIT,
-                              0);
+        n = (ssize_t)recvmmsg((int)s->fd, msgvec, (unsigned int)nbufs,
+                              MSG_DONTWAIT, 0);
 #elif defined(PARTICLE)
-        n = recvfrom(s->fd, msg[0].iov_base, msg[0].iov_len, MSG_DONTWAIT,
+        n = recvfrom((int)s->fd, msg[0].iov_base, msg[0].iov_len, MSG_DONTWAIT,
                      msgvec[0].msg_name, &msgvec[0].msg_namelen);
 #else
-        n = recvmsg(s->fd, msgvec, MSG_DONTWAIT);
+        n = recvmsg((int)s->fd, msgvec, MSG_DONTWAIT);
 #endif
         if (likely(n > 0)) {
             for (int j = 0; likely(j < MIN(n, nbufs)); j++) {
@@ -594,32 +587,20 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
     return b->n > 0;
 
 #else
-    const size_t cur_n = kh_size(&w->sock);
-    if (unlikely(cur_n == 0)) {
-        backend_cleanup(w);
-        return false;
+
+    int i = 0;
+    struct w_sock * s;
+    sl_foreach (s, &b->socks, __next) {
+        if (i == b->n) {
+            b->n += 4; // arbitrary value
+            b->fds = realloc(b->fds, (size_t)b->n * sizeof(*b->fds));
+        }
+        b->fds[i].fd = (int)s->fd;
+        b->fds[i].events = POLLIN;
+        i++;
     }
 
-    // allocate and fill pollfd
-    if (unlikely(b->n == 0 || b->n < (int)cur_n)) {
-        b->n = (int)cur_n;
-        b->fds = realloc(b->fds, cur_n * sizeof(*b->fds));
-        b->socks = realloc(b->socks, cur_n * sizeof(*b->socks));
-        ensure(b->fds && b->socks, "could not realloc");
-    }
-
-    struct w_sock * s = 0;
-    int n = 0;
-    kh_foreach_value(&w->sock, s, {
-        b->fds[n].fd = s->fd;
-        b->fds[n].events = POLLIN;
-        b->socks[n++] = s;
-    });
-
-    // poll
-    n = poll(b->fds, (nfds_t)cur_n, nsec == -1 ? -1 : NS_TO_MS(nsec));
-
-    return n > 0;
+    return poll(b->fds, (nfds_t)i, nsec == -1 ? -1 : (int)NS_TO_MS(nsec)) > 0;
 #endif
 }
 
@@ -647,7 +628,7 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
 
     int i;
     for (i = 0; i < b->n; i++)
-        sl_insert_head(sl, (struct w_sock *)b->ev[i].udata, next_rx);
+        sl_insert_head(sl, (struct w_sock *)b->ev[i].udata, next);
     b->n = 0;
     return (uint32_t)i;
 
@@ -657,17 +638,18 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
 
     int i;
     for (i = 0; i < b->n; i++)
-        sl_insert_head(sl, (struct w_sock *)b->ev[i].data.ptr, next_rx);
+        sl_insert_head(sl, (struct w_sock *)b->ev[i].data.ptr, next);
     b->n = 0;
     return (uint32_t)i;
 
 #else
-    uint32_t n = 0;
-    for (int i = 0; i < b->n; i++)
-        if (b->fds[i].revents & POLLIN && b->socks[i]) {
-            sl_insert_head(sl, b->socks[i], next_rx);
-            n++;
+    uint32_t i = 0;
+    struct w_sock * s;
+    sl_foreach (s, &b->socks, __next)
+        if (b->fds[i].revents & POLLIN) {
+            sl_insert_head(sl, s, next);
+            i++;
         }
-    return n;
+    return i;
 #endif
 }

@@ -58,6 +58,23 @@
 #include "udp.h"
 
 
+static void __attribute__((nonnull)) ins_sock(struct w_sock * const s)
+{
+    int ret;
+    const khiter_t k = kh_put(sock, &s->w->b->sock, &s->tup, &ret);
+    ensure(ret >= 1, "inserted is %d", ret);
+    kh_val(&s->w->b->sock, k) = s;
+}
+
+
+static void __attribute__((nonnull)) rem_sock(struct w_sock * const s)
+{
+    const khiter_t k = kh_get(sock, &s->w->b->sock, &s->tup);
+    ensure(k != kh_end(&s->w->b->sock), "found");
+    kh_del(sock, &s->w->b->sock, k);
+}
+
+
 /// Set the socket options.
 ///
 /// @param      s     The w_sock to change options for.
@@ -183,6 +200,11 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 ///
 void backend_cleanup(struct w_engine * const w)
 {
+    // close all sockets
+    struct w_sock * s;
+    kh_foreach_value(&w->b->sock, s, { w_close(s); });
+    kh_release(sock, &w->b->sock);
+
     // free ARP cache
     free_neighbor(w);
 
@@ -229,12 +251,18 @@ static inline uint16_t __attribute__((always_inline)) pick_local_port(void)
 ///
 int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
+    if (unlikely(w_get_sock(s->w, &s->ws_loc, 0))) {
+        warn(INF, "UDP source port %d already in bound", bswap16(s->ws_lport));
+        return 0;
+    }
+
     if (opt)
         w_set_sockopt(s, opt);
 
     if (likely(s->ws_lport == 0))
         s->ws_lport = pick_local_port();
 
+    ins_sock(s);
     return 0;
 }
 
@@ -243,7 +271,11 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 ///
 /// @param      s     The w_sock to close.
 ///
-void backend_close(struct w_sock * const s __attribute__((unused))) {}
+void backend_close(struct w_sock * const s)
+{
+    // remove the socket from list of sockets
+    rem_sock(s);
+}
 
 
 /// Connect the given w_sock, using the netmap backend. If the Ethernet MAC
@@ -256,6 +288,8 @@ void backend_close(struct w_sock * const s __attribute__((unused))) {}
 ///
 int backend_connect(struct w_sock * const s)
 {
+    rem_sock(s);
+
     // // find the Ethernet MAC address of the destination or the default
     // router,
     // // and update the template header
@@ -274,22 +308,10 @@ int backend_connect(struct w_sock * const s)
         s->ws_lport = pick_local_port();
     }
 
+    if (likely(n))
+        ins_sock(s);
+
     return n == 0;
-}
-
-
-/// Return the file descriptor associated with a w_sock. For the netmap
-/// backend, this is the per-interface netmap file descriptor. It can be
-/// used for poll() or with event-loop libraries in the application.
-///
-/// @param      s     w_sock socket for which to get the underlying
-/// descriptor.
-///
-/// @return     A file descriptor.
-///
-int w_fd(const struct w_sock * const s)
-{
-    return s->w->b->fd;
 }
 
 
@@ -438,11 +460,32 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     // insert all sockets with pending inbound data
     struct w_sock * s;
     uint32_t n = 0;
-    kh_foreach_value(&w->sock, s, {
+    kh_foreach_value(&w->b->sock, s, {
         if (!sq_empty(&s->iv)) {
-            sl_insert_head(sl, s, next_rx);
+            sl_insert_head(sl, s, next);
             n++;
         }
     });
     return n;
+}
+
+
+/// Get the socket bound to the given four-tuple <source IP, source port,
+/// destination IP, destination port>.
+///
+/// @param      w       Backend engine.
+/// @param[in]  local   The local IP address and port.
+/// @param[in]  remote  The remote IP address and port.
+///
+/// @return     The w_sock bound to the given four-tuple.
+///
+struct w_sock * w_get_sock(struct w_engine * const w,
+                           const struct w_sockaddr * const local,
+                           const struct w_sockaddr * const remote)
+{
+    struct w_socktuple tup = {.local = *local};
+    if (remote)
+        tup.remote = *remote;
+    const khiter_t k = kh_get(sock, &w->b->sock, &tup);
+    return unlikely(k == kh_end(&w->b->sock)) ? 0 : kh_val(&w->b->sock, k);
 }

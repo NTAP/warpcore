@@ -108,7 +108,7 @@ done:
     memcpy(&w->mac, iface->l2addr, ETH_LEN);
 
     struct w_ifaddr * ia = &w->ifaddr[0];
-    w->id = iface->pid;
+    w->b->id = iface->pid;
     ia->addr.af = AF_INET6;
     memcpy(ia->addr.ip6, &addr[addr_idx], IP6_LEN);
     if (ipv6_addr_is_link_local(&addr[addr_idx]))
@@ -138,6 +138,9 @@ done:
 ///
 void backend_cleanup(struct w_engine * const w)
 {
+    struct w_sock * s;
+    sl_foreach (s, &w->b->socks, __next)
+        w_close(s);
     free(w->mem);
     free(w->bufs);
 }
@@ -154,16 +157,23 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     // TODO: socket options
     sock_udp_ep_t local;
-    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->id);
-    const int ret = sock_udp_create(&s->fd, &local, 0, 0);
-    if (ret < 0)
+    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->b->id);
+    s->fd = (intptr_t)malloc(sizeof(sock_udp_t));
+    if (unlikely(s->fd == 0))
+        return EDESTADDRREQ; // not quite right
+    const int ret = sock_udp_create((sock_udp_t *)s->fd, &local, 0, 0);
+    if (unlikely(ret < 0)) {
+        free((void *)s->fd);
         return ret;
+    }
 
     // if we're binding to a random port, find out what it is
     if (s->ws_lport == 0) {
-        ensure(sock_udp_get_local(&s->fd, &local) >= 0, "sock_udp_get_local");
+        ensure(sock_udp_get_local((sock_udp_t *)s->fd, &local) >= 0,
+               "sock_udp_get_local");
         s->ws_lport = bswap16(local.port);
     }
+    sl_insert_head(&s->w->b->socks, s, __next);
     return ret;
 }
 
@@ -174,7 +184,9 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 ///
 void backend_close(struct w_sock * const s)
 {
-    sock_udp_close(&s->fd);
+    sock_udp_close((sock_udp_t *)s->fd);
+    sl_remove(&s->w->b->socks, s, w_sock, __next);
+    free((void *)s->fd);
 }
 
 
@@ -187,25 +199,13 @@ void backend_close(struct w_sock * const s)
 int backend_connect(struct w_sock * const s)
 {
     // TODO: can we connect an already-bound socket?
-    backend_close(s);
+    sock_udp_close((sock_udp_t *)s->fd);
     sock_udp_ep_t local;
     sock_udp_ep_t remote;
-    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->id);
-    to_sock_udp_ep_t(&remote, &s->ws_raddr, s->ws_rport, s->w->id);
-    return sock_udp_create(&s->fd, &local, &remote, SOCK_FLAGS_REUSE_EP);
-}
-
-
-/// Return the file descriptor associated with a w_sock. For the RIOT backend,
-///
-/// @param      s     w_sock socket for which to get the underlying descriptor.
-///
-/// @return     A file descriptor.
-///
-int w_fd(const struct w_sock * const s)
-{
-    die("not implemented");
-    return 0;
+    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->b->id);
+    to_sock_udp_ep_t(&remote, &s->ws_raddr, s->ws_rport, s->w->b->id);
+    return sock_udp_create((sock_udp_t *)s->fd, &local, &remote,
+                           SOCK_FLAGS_REUSE_EP);
 }
 
 
@@ -235,9 +235,9 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
     while (v) {
         sock_udp_ep_t dst;
         if (w_connected(s) == false)
-            to_sock_udp_ep_t(&dst, &v->wv_addr, v->wv_port, s->w->id);
+            to_sock_udp_ep_t(&dst, &v->wv_addr, v->wv_port, s->w->b->id);
 
-        if (unlikely(sock_udp_send(&s->fd, v->buf, v->len,
+        if (unlikely(sock_udp_send((sock_udp_t *)s->fd, v->buf, v->len,
                                    w_connected(s) ? 0 : &dst) != v->len))
             warn(ERR, "sock_udp_send returned %d (%s)", errno, strerror(errno));
         v = sq_next(v, next);
@@ -261,12 +261,13 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
     const uint32_t usec = nsec == -1 ? SOCK_NO_TIMEOUT : nsec / NS_PER_US;
 
     struct w_sock * s;
-    kh_foreach_value(&w->sock, s, {
+    sl_foreach (s, &w->b->socks, __next) {
         struct w_iov * const v = w_alloc_iov(w, s->ws_af, 0, 0);
         if (unlikely(v == 0))
             break;
         sock_udp_ep_t remote;
-        const ssize_t n = sock_udp_recv(&s->fd, v->buf, v->len, usec, &remote);
+        const ssize_t n =
+            sock_udp_recv((sock_udp_t *)s->fd, v->buf, v->len, usec, &remote);
         if (n > 0) {
             v->len = n;
             v->wv_port = bswap16(remote.port);
@@ -279,7 +280,7 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
             rxed = true;
         } else
             w_free_iov(v);
-    });
+    }
     return rxed;
 }
 
@@ -310,11 +311,11 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     // FIXME: this is a super-ugly hack to work around missing poll & select
     uint32_t n = 0;
     struct w_sock * s;
-    kh_foreach_value(&w->sock, s, {
+    sl_foreach (s, &w->b->socks, __next) {
         if (!sq_empty(&s->iv)) {
-            sl_insert_head(sl, s, next_rx);
+            sl_insert_head(sl, s, next);
             n++;
         }
-    });
+    }
     return n;
 }

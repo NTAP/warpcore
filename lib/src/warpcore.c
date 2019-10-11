@@ -87,46 +87,6 @@ dump_bufs(const char * const label, const struct w_iov_sq * const q)
 #endif
 
 
-/// Get the socket bound to the given four-tuple <source IP, source port,
-/// destination IP, destination port>.
-///
-/// @param      w       Backend engine.
-/// @param[in]  local   The local IP address and port.
-/// @param[in]  remote  The remote IP address and port.
-///
-/// @return     The w_sock bound to the given four-tuple.
-///
-struct w_sock * w_get_sock(struct w_engine * const w,
-                           const struct w_sockaddr * const local,
-                           const struct w_sockaddr * const remote)
-{
-    struct w_socktuple tup = {.local = *local};
-    if (remote)
-        tup.remote = *remote;
-    const khiter_t k = kh_get(sock, &w->sock, &tup);
-    return unlikely(k == kh_end(&w->sock)) ? 0 : kh_val(&w->sock, k);
-}
-
-
-static void __attribute__((nonnull))
-ins_sock(struct w_engine * const w, struct w_sock * const s)
-{
-    int ret;
-    const khiter_t k = kh_put(sock, &w->sock, &s->tup, &ret);
-    ensure(ret >= 1, "inserted is %d", ret);
-    kh_val(&w->sock, k) = s;
-}
-
-
-static void __attribute__((nonnull))
-rem_sock(struct w_engine * const w, struct w_sock * const s)
-{
-    const khiter_t k = kh_get(sock, &w->sock, &s->tup);
-    ensure(k != kh_end(&w->sock), "found");
-    kh_del(sock, &w->sock, k);
-}
-
-
 /// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
 /// returned to w->iov via sq_insert_head() or sq_concat().
 ///
@@ -284,8 +244,6 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
         return EADDRINUSE;
     }
 
-    rem_sock(s->w, s);
-
     int e = 0;
     if (unlikely(w_to_waddr(&s->ws_raddr, peer) == false)) {
         warn(ERR, "peer has unknown address family");
@@ -297,7 +255,6 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
 
     if (unlikely(e))
         memset(&s->ws_rem, 0, sizeof(s->ws_rem));
-    ins_sock(s->w, s);
 
     warn(e ? ERR : DBG, "socket %sconnected to %s:%d (%s)", e ? "not " : "",
          w_ntop(&s->ws_raddr, ip_tmp), bswap16(s->ws_rport), strerror(e));
@@ -322,18 +279,12 @@ struct w_sock * w_bind(struct w_engine * const w,
                        const uint16_t port,
                        const struct w_sockopt * const opt)
 {
-    const struct w_sockaddr local = {.addr = w->ifaddr[addr_idx].addr,
-                                     .port = port};
-    struct w_sock * s = w_get_sock(w, &local, 0);
-    if (unlikely(s)) {
-        warn(INF, "UDP source port %d already in bound", bswap16(port));
-        return 0;
-    }
-
-    if (unlikely(s = calloc(1, sizeof(*s))) == 0)
+    struct w_sock * const s = calloc(1, sizeof(*s));
+    if (unlikely(s == 0))
         goto fail;
 
-    s->ws_loc = local;
+    s->ws_loc =
+        (struct w_sockaddr){.addr = w->ifaddr[addr_idx].addr, .port = port};
     s->ws_scope = w->ifaddr[addr_idx].scope_id;
     s->w = w;
     sq_init(&s->iv);
@@ -347,7 +298,6 @@ struct w_sock * w_bind(struct w_engine * const w,
     warn(NTE, "socket bound to %s:%d", w_ntop(&s->ws_laddr, ip_tmp),
          bswap16(s->ws_lport));
 
-    ins_sock(w, s);
     return s;
 
 fail:
@@ -365,9 +315,6 @@ void w_close(struct w_sock * const s)
 {
     backend_close(s);
 
-    // remove the socket from list of sockets
-    rem_sock(s->w, s);
-
     // free the socket
     free(s);
 }
@@ -382,12 +329,6 @@ void w_close(struct w_sock * const s)
 void w_cleanup(struct w_engine * const w)
 {
     warn(NTE, "warpcore shutting down");
-
-    // close all sockets
-    struct w_sock * s;
-    kh_foreach_value(&w->sock, s, { w_close(s); });
-    kh_release(sock, &w->sock);
-
     backend_cleanup(w);
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
     sl_remove(&engines, w, w_engine, next);
