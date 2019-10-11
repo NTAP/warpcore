@@ -42,6 +42,9 @@
 #include <time.h>
 #endif
 
+#ifdef __FreeBSD__
+#include <time.h>
+#endif
 
 #ifdef PARTICLE
 #include <core_hal.h>
