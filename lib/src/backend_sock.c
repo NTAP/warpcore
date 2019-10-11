@@ -279,7 +279,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
     ensure(kevent(s->w->b->kq, &ev, 1, 0, 0, 0) != -1, "kevent");
 #elif defined(HAVE_EPOLL)
     struct epoll_event ev = {.events = EPOLLIN, .data.ptr = s};
-    ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_ADD, s->fd, &ev) != -1,
+    ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_ADD, (int)s->fd, &ev) != -1,
            "epoll_ctl");
 #else
     sl_insert_head(&s->w->b->socks, s, __next);
@@ -318,7 +318,7 @@ void backend_close(struct w_sock * const s)
     ensure(kevent(s->w->b->kq, &ev, 1, 0, 0, 0) != -1, "kevent");
 #elif defined(HAVE_EPOLL)
     struct epoll_event ev = {.events = EPOLLIN, .data.ptr = s};
-    ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_DEL, s->fd, &ev) != -1,
+    ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_DEL, (int)s->fd, &ev) != -1,
            "epoll_ctl");
 #else
     sl_remove(&s->w->b->socks, s, w_sock, __next);
@@ -417,7 +417,7 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 
         const ssize_t r =
 #if defined(HAVE_SENDMMSG)
-            sendmmsg(s->fd, msgvec, (unsigned int)i, 0);
+            sendmmsg((int)s->fd, msgvec, (unsigned int)i, 0);
 #elif defined(PARTICLE)
             i == SEND_SIZE ? sendto(s->fd, msg[0].iov_base, msg[0].iov_len, 0,
                                     msgvec[0].msg_name, msgvec[0].msg_namelen)
