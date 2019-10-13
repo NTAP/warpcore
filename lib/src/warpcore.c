@@ -60,6 +60,8 @@
 /// interfaces.
 ///
 static sl_head(w_engines, w_engine) engines = sl_head_initializer(engines);
+#else
+#define strerror(...) ""
 #endif
 
 

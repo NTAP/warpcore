@@ -59,6 +59,7 @@
 #define IPV6_RECVTCLASS IP_RECVTOS // unclear if this works
 #define SOCK_CLOEXEC 0
 #define IP_RECVTOS IP_TOS
+#define strerror(...) ""
 #endif
 
 #ifdef HAVE_ASAN
