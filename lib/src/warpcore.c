@@ -63,7 +63,7 @@ static sl_head(w_engines, w_engine) engines = sl_head_initializer(engines);
 #endif
 
 
-#ifdef DEBUG_BUFFERS
+#if defined(DEBUG_BUFFERS) && !defined(NDEBUG)
 static void __attribute__((nonnull))
 dump_bufs(const char * const label, const struct w_iov_sq * const q)
 {
