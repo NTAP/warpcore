@@ -141,10 +141,6 @@ extern short util_dlevel;
 #define INF 4 ///< Informational
 #define DBG 5 ///< Debug
 
-#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
-#include <regex.h>
-
-// These macros are based on the "D" ones defined by netmap
 
 /// Print a debug message to stderr, including a black/white indicator whether
 /// the message comes from the master thread (black) or not (white), a timestamp
@@ -165,6 +161,22 @@ util_warn(const unsigned dlevel,
           const unsigned line,
           const char * const fmt,
           ...);
+
+
+extern void __attribute__((nonnull(1, 2, 5, 6, 8), format(printf, 8, 9)))
+util_rwarn(time_t * const rt0,
+           unsigned int * const rcnt,
+           const unsigned dlevel,
+           const unsigned lps,
+           const char * const func,
+           const char * const file,
+           const unsigned line,
+           const char * const fmt,
+           ...);
+
+
+#ifndef NDEBUG
+#include <regex.h>
 
 #if !defined(PARTICLE)
 #define warn(dlevel, ...)                                                      \
@@ -225,18 +237,6 @@ util_warn(const unsigned dlevel,
                        __LINE__, __VA_ARGS__);                                 \
         }                                                                      \
     } while (0) // NOLINT
-
-
-extern void __attribute__((nonnull(1, 2, 5, 6, 8), format(printf, 8, 9)))
-util_rwarn(time_t * const rt0,
-           unsigned int * const rcnt,
-           const unsigned dlevel,
-           const unsigned lps,
-           const char * const func,
-           const char * const file,
-           const unsigned line,
-           const char * const fmt,
-           ...);
 #endif
 #else
 

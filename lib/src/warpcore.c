@@ -432,7 +432,7 @@ struct w_engine * w_init(const char * const ifname,
     ensure(nbufs <= UINT32_MAX, "too many nbufs %" PRIu, nbufs);
     backend_init(w, (uint32_t)nbufs);
 
-#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
+#ifndef NDEBUG
     warn(NTE, "%s MAC addr %s, MTU %d, speed %" PRIu32 "G", w->ifname,
          eth_ntoa(&w->mac, eth_tmp), w->mtu, w->mbps / 1000);
     for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
@@ -482,7 +482,7 @@ void w_free(struct w_iov_sq * const q)
     if (unlikely(sq_empty(q)))
         return;
     struct w_engine * const w = sq_first(q)->w;
-#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
+#ifndef NDEBUG
     struct w_iov * v;
     sq_foreach (v, q, next) {
 #ifdef DEBUG_BUFFERS

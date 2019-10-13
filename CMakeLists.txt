@@ -100,18 +100,7 @@ endforeach()
 set(CMAKE_C_FLAGS_DEBUG "-g3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 
-# disable IPO by default
-set(IPO NO)
-
 if(CMAKE_BUILD_TYPE MATCHES Debug)
-  # Default debug logging level
-  if(NOT DEFINED DLEVEL)
-    set(DLEVEL "DBG")
-  endif()
-
-  # Enable debug support in the queue.h macros
-  # add_definitions(-DQUEUE_MACRO_DEBUG_TRASH)
-
   add_definitions("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2")
 
   if(NOT DEFINED ENV{CONTINUOUS_INTEGRATION} AND NOT DOCKER)
@@ -206,20 +195,18 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       endif()
     endif()
   endif()
+  set(IPO False)
 else()
-  # Default logging level
-  if(NOT DEFINED DLEVEL)
-    set(DLEVEL "NTE")
-  endif()
-
   # check for INTERPROCEDURAL_OPTIMIZATION support
   # (except on older gcc where that breaks)
-  if(NOT CMAKE_COMPILER_IS_GNUCC
-      OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-    include(CheckIPOSupported)
-    check_ipo_supported(RESULT IPO)
-  else()
-    set(IPO False)
+  if(NOT DEFINED IPO)
+    if (NOT CMAKE_COMPILER_IS_GNUCC
+        OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
+      include(CheckIPOSupported)
+      check_ipo_supported(RESULT IPO)
+    else()
+      set(IPO False)
+    endif()
   endif()
 endif()
 
@@ -256,9 +243,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
 # flags for "RelWithDebInfo" builds
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELEASE} -g3")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-
-# set debug level
-add_definitions("-UDLEVEL -DDLEVEL=${DLEVEL}")
 
 add_subdirectory(doc)
 add_subdirectory(bin)

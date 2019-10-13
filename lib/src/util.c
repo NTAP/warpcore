@@ -66,7 +66,7 @@ int gettimeofday(struct timeval * restrict tp,
 
 #endif
 
-#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
+#ifndef NDEBUG
 #ifdef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
 /// the DCOMPONENT define to a regular expression matching the components
@@ -177,7 +177,7 @@ premain(const int argc __attribute__((unused)),
     util_master = pthread_self();
 #endif
 
-#if (!defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)) && defined(DCOMPONENT)
+#if !defined(NDEBUG) && defined(DCOMPONENT)
     // Initialize the regular expression used for restricting debug output
     ensure(regcomp(&util_comp, DCOMPONENT,
                    REG_EXTENDED | REG_ICASE | REG_NOSUB) == 0,
@@ -191,7 +191,7 @@ premain(const int argc __attribute__((unused)),
 ///
 static void __attribute__((destructor)) postmain()
 {
-#if (!defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)) && defined(DCOMPONENT)
+#if !defined(NDEBUG) && defined(DCOMPONENT)
     // Free the regular expression used for restricting debug output
     regfree(&util_comp);
 #endif
@@ -206,8 +206,6 @@ static void __attribute__((destructor)) postmain()
 
 short util_dlevel = DLEVEL;
 
-
-#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
 
 #define BRED "\x1B[41m" ///< ANSI escape sequence: background red
 #define BGRN "\x1B[42m" ///< ANSI escape sequence: background green
@@ -231,27 +229,28 @@ util_warn_valist(const unsigned dlevel,
     DTHREAD_LOCK;
 
     static struct timeval last = {-1, -1};
-    struct timeval now = {0, 0};
-    struct timeval dur = {0, 0};
-    struct timeval diff = {0, 0};
+    struct timeval now;
+    struct timeval dur;
+    struct timeval diff;
     gettimeofday(&now, 0);
     timersub(&now, &util_epoch, &dur);
     timersub(&now, &last, &diff);
 
     fprintf(stderr, DTHREAD_ID_IND(NRM), DTHREAD_ID);
 
-    static char now_str[32];
+    static int now_str_len = 0;
     if (tstamp || diff.tv_sec || diff.tv_usec > 1000) {
-        snprintf(now_str, sizeof(now_str), "%s%ld.%03ld" NRM,
-                 tstamp ? BLD : NRM,
-                 (long)(dur.tv_sec % 1000), // NOLINT
-                 (long)(dur.tv_usec / 1000) // NOLINT
+        static char now_str[32];
+        now_str_len = snprintf(now_str, sizeof(now_str), "%s%ld.%03ld" NRM,
+                               tstamp ? BLD : NRM,
+                               (long)(dur.tv_sec % 1000), // NOLINT
+                               (long)(dur.tv_usec / 1000) // NOLINT
         );
         fprintf(stderr, "%s ", now_str);
         last = now;
     } else
         // subtract out the length of the ANSI control characters
-        for (size_t i = 0; i <= strlen(now_str) - 8; i++)
+        for (int i = 0; i <= now_str_len - 8; i++)
             fputc(' ', stderr);
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
 // #else
@@ -354,7 +353,6 @@ void util_rwarn(time_t * const rt0,
         va_end(ap);
     }
 }
-#endif
 
 
 // See the die() macro.
@@ -440,7 +438,7 @@ void util_die(const char * const func,
 
 #else
 
-#if !defined(NDEBUG) || defined(NDEBUG_WITH_DLOG)
+#ifndef NDEBUG
     va_list ap;
     va_start(ap, fmt);
     util_warn_valist(CRT, false, func, file, line, fmt, ap);
