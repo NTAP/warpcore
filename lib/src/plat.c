@@ -349,7 +349,7 @@ uint64_t w_now(void)
 void w_nanosleep(const uint64_t ns)
 {
 #ifdef PARTICLE
-    HAL_Delay_Microseconds(ns / NS_PER_US);
+    HAL_Delay_Microseconds(NS_TO_US(ns));
 #elif defined(RIOT_VERSION)
     xtimer_nanosleep(ns);
 #else
