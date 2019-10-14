@@ -582,3 +582,30 @@ void timespec_sub(const struct timespec * const tvp,
         vvp->tv_nsec += (long)NS_PER_S;
     }
 }
+
+
+// see
+// https://stackoverflow.com/questions/28868367/getting-the-high-part-of-64-bit-integer-multiplication
+
+uint64_t div_mulhi64(const uint64_t a, const uint64_t b)
+{
+    const uint32_t a_lo = (const uint32_t)a;
+    const uint32_t a_hi = (const uint32_t)(a >> 32);
+    const uint32_t b_lo = (const uint32_t)b;
+    const uint32_t b_hi = (const uint32_t)(b >> 32);
+
+    const uint64_t a_x_b_mid = (const uint64_t)a_hi * b_lo;
+    const uint64_t b_x_a_mid = (const uint64_t)b_hi * a_lo;
+    const uint64_t a_x_b_lo = (const uint64_t)a_lo * b_lo;
+    const uint64_t a_x_b_hi = (const uint64_t)a_hi * b_hi;
+
+    const uint32_t carry_bits =
+        ((uint64_t)(uint32_t)a_x_b_mid + (uint64_t)(uint32_t)b_x_a_mid +
+         (a_x_b_lo >> 32)) >>
+        32;
+
+    const uint64_t mulhi =
+        a_x_b_hi + (a_x_b_mid >> 32) + (b_x_a_mid >> 32) + carry_bits;
+
+    return mulhi;
+}

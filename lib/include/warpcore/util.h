@@ -61,11 +61,11 @@
 #endif
 
 
-// Approximate division by NS_PER_MS. Valid for x < 10 minutes.
-#define NS_TO_MS(x) ((0x8637bd05b * (x)) >> 55)
+// Approximate division by NS_PER_MS.
+#define NS_TO_MS(x) (div_mulhi64(0x431bde82d7b634db, (x)) >> 18)
 
-// Approximate division by NS_PER_US.  Valid for x < 10 minutes.
-#define NS_TO_US(x) ((0x4189374bc7 * (x)) >> 48)
+// Approximate division by NS_PER_US.
+#define NS_TO_US(x) (div_mulhi64(0x20c49ba5e353f7d, (x)) >> 3)
 
 
 #ifndef plural
@@ -352,3 +352,6 @@ extern void __attribute__((nonnull))
 timespec_sub(const struct timespec * const tvp,
              const struct timespec * const uvp,
              struct timespec * const vvp);
+
+
+extern uint64_t div_mulhi64(const uint64_t a, const uint64_t b);
