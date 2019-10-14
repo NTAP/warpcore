@@ -61,8 +61,12 @@
 #endif
 
 
-// Approximate division by NS_PER_MS.
-#define NS_TO_MS(x) (uint32_t)((0x431BDE83 * (x)) >> 50)
+// Approximate division by NS_PER_MS. Valid for x < 10 minutes.
+#define NS_TO_MS(x) ((0x8637bd05b * (x)) >> 55)
+
+// Approximate division by NS_PER_US.  Valid for x < 10 minutes.
+#define NS_TO_US(x) ((0x4189374bc7 * (x)) >> 48)
+
 
 #ifndef plural
 /// Helper to pluralize output words.
