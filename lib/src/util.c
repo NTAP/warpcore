@@ -291,7 +291,7 @@ util_warn_valist(const unsigned dlevel,
     runtime_info_t info = {.size = sizeof(info)};
     HAL_Core_Runtime_Info(&info, NULL);
     log_message(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
-                "stack=%td, heap=%u",
+                "stack=%d, heap=%u",
                 stack_start - (char *)__builtin_frame_address(0),
                 info.freeheap);
 #endif
@@ -316,7 +316,7 @@ void util_warn(const unsigned dlevel,
 {
 #ifdef DSTACK
     if (unlikely(stack_start == 0))
-        stack_start = __builtin_frame_address(1);
+        stack_start = __builtin_frame_address(0);
 #endif
 #ifdef DCOMPONENT
     if (!regexec(&util_comp, file, 0, 0, 0)) {

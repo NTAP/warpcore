@@ -182,20 +182,13 @@ util_rwarn(time_t * const rt0,
 #ifndef NDEBUG
 #include <regex.h>
 
-#if !defined(PARTICLE)
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel)))           \
-            util_warn((dlevel), false, __func__, __FILENAME__, __LINE__,       \
+            util_warn((dlevel), false, DLEVEL == DBG ? __func__ : "",          \
+                      DLEVEL == DBG ? __FILENAME__ : "", __LINE__,             \
                       __VA_ARGS__);                                            \
     } while (0) // NOLINT
-#else
-#define warn(dlevel, ...)                                                      \
-    do {                                                                       \
-        if (unlikely(DLEVEL >= (dlevel)))                                      \
-            util_warn((dlevel), false, "", "", 0, __VA_ARGS__);                \
-    } while (0) // NOLINT
-#endif
 
 
 /// Like warn(), but always prints a timestamp.
@@ -205,20 +198,13 @@ util_rwarn(time_t * const rt0,
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
 ///
-#if !defined(PARTICLE)
 #define twarn(dlevel, ...)                                                     \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel)))           \
-            util_warn((dlevel), true, __func__, __FILENAME__, __LINE__,        \
+            util_warn((dlevel), true, DLEVEL == DBG ? __func__ : "",           \
+                      DLEVEL == DBG ? __FILENAME__ : "", __LINE__,             \
                       __VA_ARGS__);                                            \
     } while (0) // NOLINT
-#else
-#define twarn(dlevel, ...)                                                     \
-    do {                                                                       \
-        if (unlikely(DLEVEL >= (dlevel)))                                      \
-            util_warn((dlevel), true, "", "", 0, __VA_ARGS__);                 \
-    } while (0) // NOLINT
-#endif
 
 
 /// Rate-limited variant of warn(), which repeats the message prints at most @p
@@ -231,17 +217,16 @@ util_rwarn(time_t * const rt0,
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
 ///
-#if !defined(PARTICLE)
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
             static time_t __rt0;                                               \
             unsigned int __rcnt;                                               \
-            util_rwarn(&__rt0, &__rcnt, (dlevel), lps, __func__, __FILENAME__, \
-                       __LINE__, __VA_ARGS__);                                 \
+            util_rwarn(                                                        \
+                &__rt0, &__rcnt, (dlevel), lps, DLEVEL == DBG ? __func__ : "", \
+                DLEVEL == DBG ? __FILENAME__ : "", __LINE__, __VA_ARGS__);     \
         }                                                                      \
     } while (0) // NOLINT
-#endif
 #else
 
 #define warn(...)                                                              \
@@ -263,10 +248,12 @@ util_rwarn(time_t * const rt0,
 /// @param      ...   Subsequent arguments to be converted for output according
 ///                   to @p fmt.
 ///
-#if !defined(PARTICLE) || DLEVEL >= INF
-#define die(...) util_die(__func__, __FILENAME__, __LINE__, __VA_ARGS__)
+#ifndef NDEBUG
+#define die(...)                                                               \
+    util_die(DLEVEL == DBG ? __func__ : "", DLEVEL == DBG ? __FILENAME__ : "", \
+             __LINE__, __VA_ARGS__)
 #else
-#define die(...) util_die("", "", 0, __VA_ARGS__)
+#define die(...) util_die("", "", 0, "DIED")
 #endif
 
 extern void __attribute__((nonnull(1, 2, 4), noreturn, format(printf, 4, 5)))
@@ -297,20 +284,12 @@ util_die(const char * const func,
 /// @param      fmt     A printf()-style format string.
 /// @param      ...     Subsequent arguments to be converted for output
 ///                     according to @p fmt.
-#if !defined(PARTICLE) || DLEVEL >= INF
 #define ensure(e, ...)                                                         \
     do {                                                                       \
         if (unlikely(!(e)))                                                    \
-            die("assertion failed: \n" DTIMESTAMP_GAP #e                       \
-                " \n" DTIMESTAMP_GAP __VA_ARGS__);                             \
+            die("assertion failed: \n" DTIMESTAMP_GAP #e " \n" __VA_ARGS__);   \
     } while (0) // NOLINT
-#else
-#define ensure(e, ...)                                                         \
-    do {                                                                       \
-        if (unlikely(!(e)))                                                    \
-            die("assertion failed: \n");                                       \
-    } while (0) // NOLINT
-#endif
+
 
 /// Print a hexdump of the memory region given by @p ptr and @p len to stderr.
 /// Also emits an ASCII representation. Uses util_hexdump internally to augment
