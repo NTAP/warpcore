@@ -51,10 +51,6 @@
 #include <logging.h>
 #include <timer_hal.h>
 
-extern void * stack_start;
-
-#define strerror(...) ""
-
 int gettimeofday(struct timeval * restrict tp,
                  void * restrict tzp __attribute__((unused)))
 {
@@ -130,6 +126,11 @@ static const char * util_executable;
 /// in warn(), die(), etc.
 ///
 static struct timeval util_epoch;
+#endif
+
+
+#ifdef DSTACK
+static const char * stack_start = 0;
 #endif
 
 
@@ -253,12 +254,14 @@ util_warn_valist(const unsigned dlevel,
         for (int i = 0; i <= now_str_len - 8; i++)
             fputc(' ', stderr);
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
-// #else
-//     fprintf(stderr, "STACK: %d --- ",
-//             thread_measure_stack_free(sched_active_thread->stack_start));
 #endif
-    if (util_dlevel == DBG)
+    if (util_dlevel == DBG) {
+#ifdef DSTACK
+        fprintf(stderr, "%5td ",
+                stack_start - (char *)__builtin_frame_address(0));
+#endif
         fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, file, line);
+    }
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
@@ -284,14 +287,14 @@ util_warn_valist(const unsigned dlevel,
     if (*func)
         LOG_ATTR_SET(util_attr, function, func);
 
-    // if (stack_start - __builtin_frame_address(0) > 1024) {
-    //     runtime_info_t info = {.size = sizeof(info)};
-    //     HAL_Core_Runtime_Info(&info, NULL);
-    //     log_message(util_level_trans[dlevel], LOG_MODULE_CATEGORY,
-    //     &util_attr,
-    //                 0, "stack=%u, heap=%u",
-    //                 stack_start - __builtin_frame_address(0), info.freeheap);
-    // }
+#ifdef DSTACK
+    runtime_info_t info = {.size = sizeof(info)};
+    HAL_Core_Runtime_Info(&info, NULL);
+    log_message(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
+                "stack=%td, heap=%u",
+                stack_start - (char *)__builtin_frame_address(0),
+                info.freeheap);
+#endif
 
     log_message_v(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
                   fmt, ap);
@@ -311,6 +314,10 @@ void util_warn(const unsigned dlevel,
                const char * const fmt,
                ...)
 {
+#ifdef DSTACK
+    if (unlikely(stack_start == 0))
+        stack_start = __builtin_frame_address(1);
+#endif
 #ifdef DCOMPONENT
     if (!regexec(&util_comp, file, 0, 0, 0)) {
 #endif
