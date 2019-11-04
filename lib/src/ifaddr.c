@@ -107,7 +107,7 @@ void backend_addr_config(struct w_engine * const w)
 
         switch (i->ifa_addr->sa_family) {
         case AF_LINK:
-            w->is_loopback = i->ifa_flags & IFF_LOOPBACK;
+            w->is_loopback = ((i->ifa_flags & IFF_LOOPBACK) != 0);
             plat_get_mac(&w->mac, i);
             w->mtu = plat_get_mtu(i);
             // mpbs can be zero on generic platforms and loopback interfaces

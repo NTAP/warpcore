@@ -402,7 +402,8 @@ struct w_engine * w_init(const char * const ifname,
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
     struct w_engine * e;
     sl_foreach (e, &engines, next)
-        if (strncmp(ifname, e->ifname, IFNAMSIZ) == 0) {
+        if (strncmp(ifname, e->ifname, IFNAMSIZ) == 0 &&
+            e->is_loopback == false) {
             warn(ERR, "can only have one warpcore engine active on %s", ifname);
             return 0;
         }
