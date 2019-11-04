@@ -98,11 +98,8 @@ bool io(const uint_t len)
         ensure(memcmp(iv->buf, ov->buf, iv->len) == 0,
                "ov %u = 0x%02x (len %u) != iv %u = 0x%02x (len %u)", ov->idx,
                ov->buf[0], ov->len, iv->idx, iv->buf[0], iv->len);
-#ifndef __APPLE__
-        // XXX Apple has an OS bug with TOS
         ensure(ov->flags == iv->flags, "TOS byte 0x%02x != 0x%02x", ov->flags,
                iv->flags);
-#endif
         ensure(iv->saddr.port == s_clnt->ws_lport,
                "port mismatch, in %u != out %u", bswap16(iv->saddr.port),
                bswap16(s_clnt->ws_lport));
