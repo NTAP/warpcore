@@ -86,7 +86,7 @@ struct w_backend {
 #ifndef RIOT_VERSION
     struct pollfd * fds;
 #else
-    gnrc_netif_t * nif;
+    kernel_pid_t id;
 #endif
     struct w_sock_slist socks;
 #endif
