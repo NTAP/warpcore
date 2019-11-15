@@ -335,9 +335,13 @@ uint64_t w_now(void)
 #elif defined(RIOT_VERSION)
     return xtimer_now_usec64() * NS_PER_US;
 #else
+#ifdef __APPLE__
+    return clock_gettime_nsec_np(CLOCK_REALTIME);
+#else
     struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
+    clock_gettime(CLOCK_REALTIME, &now);
     return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
+#endif
 #endif
 }
 
