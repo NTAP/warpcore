@@ -42,7 +42,10 @@ extern const char @PROJECT_NAME@_name[];
 /// The version of this library (@PROJECT_VERSION@) as a string.
 extern const char @PROJECT_NAME@_version[];
 
-#cmakedefine HAVE_64BIT
+#ifndef HAVE_64BIT
+#cmakedefine01 HAVE_64BIT
+#endif
+
 #cmakedefine HAVE_ASAN
 #cmakedefine HAVE_BACKTRACE
 #cmakedefine HAVE_ENDIAN_H

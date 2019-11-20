@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#ifdef HAVE_64BIT
+#if HAVE_64BIT
 #ifdef __OPTIMIZE_SIZE__
 typedef uint_least64_t uint_t;
 typedef int_least64_t dint_t;
