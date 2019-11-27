@@ -37,13 +37,5 @@
             "-Wextra", "-Wpedantic", "-Wno-pragma-once-outside-header",
             "-Wno-empty-translation-unit", "-Wno-unused-function"
         ],
-    },
-
-    "build_systems":
-    [
-        {
-            "name": "Ninja",
-            "shell_cmd": "cd Darwin && ninja"
-        }
-    ]
+    }
 }
