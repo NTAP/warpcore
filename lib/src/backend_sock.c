@@ -419,10 +419,6 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
         const ssize_t r =
 #if defined(HAVE_SENDMMSG)
             sendmmsg((int)s->fd, msgvec, (unsigned int)i, 0);
-#elif defined(PARTICLE)
-            i == SEND_SIZE ? sendto(s->fd, msg[0].iov_base, msg[0].iov_len, 0,
-                                    msgvec[0].msg_name, msgvec[0].msg_namelen)
-                           : 0;
 #else
             sendmsg((int)s->fd, msgvec, 0);
 #endif
@@ -489,9 +485,6 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #if defined(HAVE_RECVMMSG)
         n = (ssize_t)recvmmsg((int)s->fd, msgvec, (unsigned int)nbufs,
                               MSG_DONTWAIT, 0);
-#elif defined(PARTICLE)
-        n = recvfrom((int)s->fd, msg[0].iov_base, msg[0].iov_len, MSG_DONTWAIT,
-                     msgvec[0].msg_name, &msgvec[0].msg_namelen);
 #else
         n = recvmsg((int)s->fd, msgvec, MSG_DONTWAIT);
 #endif
@@ -509,7 +502,6 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 n = 1;
 #endif
 
-#ifndef PARTICLE
                 // extract TOS byte (Particle uses recvfrom w/o cmsg support)
 #ifdef HAVE_RECVMMSG
                 for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j].msg_hdr);
@@ -531,7 +523,6 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                         break;
                     }
                 }
-#endif
                 // add the iov to the tail of the result
                 sq_insert_tail(i, v[j], next);
             }
