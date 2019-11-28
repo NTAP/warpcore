@@ -42,7 +42,9 @@
 #include <warpcore/warpcore.h>
 
 #if defined(HAVE_BACKTRACE) || defined(DSTACK)
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <dlfcn.h>
+#endif
 #endif
 
 #if defined(HAVE_BACKTRACE)
@@ -608,36 +610,44 @@ profile_func(const bool enter,
              void * call_site __attribute__((unused)))
 {
     static const char * stack_start = 0;
-    static size_t stack_lim = 0;
-    static size_t heap_lim = 0;
+    static uint_t stack_lim = 0;
+    static uint_t heap_lim = 0;
     if (unlikely(stack_start == 0)) {
         stack_start = __builtin_frame_address(0);
+#if defined(PARTICLE)
+        stack_lim = 6144; // TODO: can this be determined dynamically?
+#elif defined(RIOT_VERSION)
+#else
         struct rlimit lim;
         getrlimit(RLIMIT_STACK, &lim);
         stack_lim = lim.rlim_cur;
+#endif
     }
 
-    size_t heap = 0;
-
-#ifdef PARTICLE
+    uint_t heap = 0;
+    const char * func = 0;
+#if defined(PARTICLE)
     runtime_info_t info = {.size = sizeof(info)};
     HAL_Core_Runtime_Info(&info, NULL);
     heap = info.freeheap;
-#endif
-
+    heap_lim = info.total_heap;
+#elif defined(RIOT_VERSION)
+#else
     Dl_info info;
     dladdr(this_fn, &info);
+    func = info.dli_sname;
+#endif
 
-
+    const uint_t stack =
+        (uint_t)(stack_start - (char *)__builtin_frame_address(0));
 #ifdef PARTICLE
-    LOG_PRINTF(
+    log_message(LOG_LEVEL_TRACE, LOG_MODULE_CATEGORY, &(LogAttributes){0}, 0,
 #else
     fprintf(stderr,
 #endif
-        "%s %s stack=%td/%zu heap=%zu/%zu\n",
-        info.dli_sname ? info.dli_sname : "???", enter ? "enter" : "exit",
-        (char *)__builtin_frame_address(0) - stack_start, stack_lim, heap,
-        heap_lim);
+                "%s %s stack=%" PRIu "/%" PRIu " heap=%" PRIu "/%" PRIu,
+                func ? func : "???", enter ? "enter" : "exit", stack, stack_lim,
+                heap, heap_lim);
 }
 
 
