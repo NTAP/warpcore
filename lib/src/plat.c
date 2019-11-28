@@ -42,10 +42,13 @@
 
 #include <warpcore/warpcore.h> // IWYU pragma: keep
 
+#if !defined(FUZZING) && !defined(PARTICLE) && !defined(RIOT_VERSION)
+#include <sys/time.h>
+#endif
+
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
 #include <net/if.h>
-#include <sys/time.h>
 #include <time.h>
 
 #include "krng.h"

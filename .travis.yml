@@ -12,22 +12,27 @@ branches:
 
 env:
   matrix:
-    - BUILD=Debug    MYCC=gcc-4.9    MYCXX=g++-4.9        FUZZ=0
-    - BUILD=Debug    MYCC=gcc-7      MYCXX=g++-7          FUZZ=0
-    - BUILD=Debug    MYCC=gcc-8      MYCXX=g++-8          FUZZ=0
-    - BUILD=Debug    MYCC=gcc-9      MYCXX=g++-9          FUZZ=0
-    - BUILD=Debug    MYCC=clang-5.0  MYCXX=clang++-5.0    FUZZ=0
-    - BUILD=Debug    MYCC=clang-6.0  MYCXX=clang++-6.0    FUZZ=0
-    - BUILD=Debug    MYCC=clang-7    MYCXX=clang++-7      FUZZ=0
-    - BUILD=Debug    MYCC=clang-8    MYCXX=clang++-8      FUZZ=0
+    - BUILD=Debug    MYCC=gcc-4.9    MYCXX=g++-4.9
+    - BUILD=Debug    MYCC=gcc-7      MYCXX=g++-7
+    - BUILD=Debug    MYCC=gcc-8      MYCXX=g++-8
+    - BUILD=Debug    MYCC=gcc-9      MYCXX=g++-9
+    - BUILD=Debug    MYCC=clang-5.0  MYCXX=clang++-5.0
+    - BUILD=Debug    MYCC=clang-6.0  MYCXX=clang++-6.0
+    - BUILD=Debug    MYCC=clang-7    MYCXX=clang++-7
+    - BUILD=Debug    MYCC=clang-8    MYCXX=clang++-8
 
-    - BUILD=Release  MYCC=gcc-9      MYCXX=g++-9          FUZZ=0
-    - BUILD=Release  MYCC=clang-8    MYCXX=clang++-8      FUZZ=0
+    - BUILD=Release  MYCC=gcc-9      MYCXX=g++-9
+    - BUILD=Release  MYCC=clang-8    MYCXX=clang++-8
 
-    - BUILD=Debug    MYCC=gcc-9      MYCXX=g++-9          FUZZ=1
-    - BUILD=Release  MYCC=gcc-9      MYCXX=g++-9          FUZZ=1
-    - BUILD=Debug    MYCC=clang-8    MYCXX=clang++-8      FUZZ=1
-    - BUILD=Release  MYCC=clang-8    MYCXX=clang++-8      FUZZ=1
+    - BUILD=Debug    MYCC=gcc-9      MYCXX=g++-9          FUZZER=1
+    - BUILD=Release  MYCC=gcc-9      MYCXX=g++-9          FUZZER=1
+    - BUILD=Debug    MYCC=clang-8    MYCXX=clang++-8      FUZZER=1
+    - BUILD=Release  MYCC=clang-8    MYCXX=clang++-8      FUZZER=1
+
+    - BUILD=Debug    MYCC=gcc-9      MYCXX=g++-9          DSTACK=1
+    - BUILD=Release  MYCC=gcc-9      MYCXX=g++-9          DSTACK=1
+    - BUILD=Debug    MYCC=clang-8    MYCXX=clang++-8      DSTACK=1
+    - BUILD=Release  MYCC=clang-8    MYCXX=clang++-8      DSTACK=1
 
   global:
     - PROJECT=warpcore

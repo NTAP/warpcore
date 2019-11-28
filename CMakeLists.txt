@@ -101,6 +101,28 @@ set(CMAKE_C_FLAGS_DEBUG "-g3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
 
 if(CMAKE_BUILD_TYPE MATCHES Debug)
+  if (DSTACK)
+    # Check if we can instrument the code
+    list(APPEND CMAKE_REQUIRED_FLAGS -finstrument-functions)
+    check_c_source_compiles("
+      int main() {}
+      void __cyg_profile_func_enter(void *this_fn, void *call_site);
+      void __cyg_profile_func_enter(void *this_fn __attribute__((unused)),
+                                    void *call_site __attribute__((unused))){}
+      void __cyg_profile_func_exit(void *this_fn, void *call_site);
+      void __cyg_profile_func_exit(void *this_fn __attribute__((unused)),
+                                   void *call_site __attribute__((unused))){}
+      " _finstrument_functions)
+    cmake_reset_check_state()
+    if(_finstrument_functions)
+      string(CONCAT CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -finstrument-functions")
+      string(CONCAT CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -finstrument-functions")
+      add_definitions("-DDSTACK")
+    else()
+      message(FATAL_ERROR "-finstrument-functions not supported by compiler")
+    endif()
+  endif()
+
   add_definitions("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2")
 
   if(NOT DEFINED ENV{CONTINUOUS_INTEGRATION} AND NOT DOCKER)

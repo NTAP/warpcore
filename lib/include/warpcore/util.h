@@ -334,3 +334,9 @@ timespec_sub(const struct timespec * const tvp,
 
 
 extern uint64_t div_mulhi64(const uint64_t a, const uint64_t b);
+
+
+#ifdef DSTACK
+void __cyg_profile_func_enter(void * this_fn, void * call_site);
+void __cyg_profile_func_exit(void * this_fn, void * call_site);
+#endif

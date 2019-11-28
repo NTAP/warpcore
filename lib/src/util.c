@@ -35,15 +35,22 @@
 #include <string.h>
 #include <sys/time.h>
 
-#include <warpcore/warpcore.h>
-
-#if !defined(__FreeBSD__) && !defined(PARTICLE) && !defined(RIOT_VERSION)
-#include <dlfcn.h>
+#ifdef __FreeBSD__
 #include <time.h>
 #endif
 
-#ifdef __FreeBSD__
+#include <warpcore/warpcore.h>
+
+#if defined(HAVE_BACKTRACE) || defined(DSTACK)
+#include <dlfcn.h>
+#endif
+
+#if defined(HAVE_BACKTRACE)
 #include <time.h>
+#endif
+
+#if defined(DSTACK)
+#include <sys/resource.h>
 #endif
 
 #ifdef PARTICLE
@@ -126,11 +133,6 @@ static const char * util_executable;
 /// in warn(), die(), etc.
 ///
 static struct timeval util_epoch;
-#endif
-
-
-#ifdef DSTACK
-static const char * stack_start = 0;
 #endif
 
 
@@ -256,10 +258,6 @@ util_warn_valist(const unsigned dlevel,
     fprintf(stderr, "%s " NRM " ", util_col[dlevel]);
 #endif
     if (util_dlevel == DBG) {
-#ifdef DSTACK
-        fprintf(stderr, "%5td ",
-                stack_start - (char *)__builtin_frame_address(0));
-#endif
         fprintf(stderr, MAG "%s" BLK " " BLU "%s:%u " NRM, func, file, line);
     }
 
@@ -287,15 +285,6 @@ util_warn_valist(const unsigned dlevel,
     if (*func)
         LOG_ATTR_SET(util_attr, function, func);
 
-#ifdef DSTACK
-    runtime_info_t info = {.size = sizeof(info)};
-    HAL_Core_Runtime_Info(&info, NULL);
-    log_message(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
-                "stack=%d, heap=%u",
-                stack_start - (char *)__builtin_frame_address(0),
-                info.freeheap);
-#endif
-
     log_message_v(util_level_trans[dlevel], LOG_MODULE_CATEGORY, &util_attr, 0,
                   fmt, ap);
     // HAL_Delay_Microseconds(50 * MS_PER_S);
@@ -314,20 +303,14 @@ void util_warn(const unsigned dlevel,
                const char * const fmt,
                ...)
 {
-#ifdef DSTACK
-    if (unlikely(stack_start == 0))
-        stack_start = __builtin_frame_address(0);
-#endif
 #ifdef DCOMPONENT
-    if (!regexec(&util_comp, file, 0, 0, 0)) {
+    if (regexec(&util_comp, file, 0, 0, 0))
+        return;
 #endif
-        va_list ap;
-        va_start(ap, fmt);
-        util_warn_valist(dlevel, tstamp, func, file, line, fmt, ap);
-        va_end(ap);
-#ifdef DCOMPONENT
-    }
-#endif
+    va_list ap;
+    va_start(ap, fmt);
+    util_warn_valist(dlevel, tstamp, func, file, line, fmt, ap);
+    va_end(ap);
 }
 
 
@@ -616,3 +599,57 @@ uint64_t div_mulhi64(const uint64_t a, const uint64_t b)
 
     return mulhi;
 }
+
+
+#ifdef DSTACK
+static void __attribute__((no_instrument_function))
+profile_func(const bool enter,
+             void * this_fn,
+             void * call_site __attribute__((unused)))
+{
+    static const char * stack_start = 0;
+    static size_t stack_lim = 0;
+    static size_t heap_lim = 0;
+    if (unlikely(stack_start == 0)) {
+        stack_start = __builtin_frame_address(0);
+        struct rlimit lim;
+        getrlimit(RLIMIT_STACK, &lim);
+        stack_lim = lim.rlim_cur;
+    }
+
+    size_t heap = 0;
+
+#ifdef PARTICLE
+    runtime_info_t info = {.size = sizeof(info)};
+    HAL_Core_Runtime_Info(&info, NULL);
+    heap = info.freeheap;
+#endif
+
+    Dl_info info;
+    dladdr(this_fn, &info);
+
+
+#ifdef PARTICLE
+    LOG_PRINTF(
+#else
+    fprintf(stderr,
+#endif
+        "%s %s stack=%td/%zu heap=%zu/%zu\n",
+        info.dli_sname ? info.dli_sname : "???", enter ? "enter" : "exit",
+        (char *)__builtin_frame_address(0) - stack_start, stack_lim, heap,
+        heap_lim);
+}
+
+
+void __attribute__((no_instrument_function))
+__cyg_profile_func_enter(void * this_fn, void * call_site)
+{
+    profile_func(true, this_fn, call_site);
+}
+
+void __attribute__((no_instrument_function))
+__cyg_profile_func_exit(void * this_fn, void * call_site)
+{
+    profile_func(false, this_fn, call_site);
+}
+#endif
