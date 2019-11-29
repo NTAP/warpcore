@@ -35,6 +35,10 @@
 #include <string.h>
 #include <sys/time.h>
 
+#if defined(DSTACK)
+#include <sys/param.h>
+#endif
+
 #ifdef __FreeBSD__
 #include <time.h>
 #endif
@@ -604,17 +608,20 @@ uint64_t div_mulhi64(const uint64_t a, const uint64_t b)
 
 
 #ifdef DSTACK
-static void __attribute__((no_instrument_function))
-profile_func(const bool enter,
-             void * this_fn,
-             void * call_site __attribute__((unused)))
+void __attribute__((no_instrument_function))
+__cyg_profile_func_enter(void * this_fn,
+                         void * call_site __attribute__((unused)))
 {
     static const char * stack_start = 0;
     static uint_t stack_lim = 0;
     static uint_t heap_lim = 0;
-    if (unlikely(stack_start == 0)) {
-        stack_start = __builtin_frame_address(0);
+    static uint_t prev_stack = 0;
+    static uint_t prev_heap = 0;
+
+    const char * const frame = __builtin_frame_address(0);
+    if (unlikely(stack_lim == 0)) {
 #if defined(PARTICLE)
+        stack_start = frame;
         stack_lim = 6144; // TODO: can this be determined dynamically?
 #elif defined(RIOT_VERSION)
 #else
@@ -625,41 +632,35 @@ profile_func(const bool enter,
     }
 
     uint_t heap = 0;
-    const char * func = 0;
 #if defined(PARTICLE)
     runtime_info_t info = {.size = sizeof(info)};
     HAL_Core_Runtime_Info(&info, NULL);
     heap = info.freeheap;
-    heap_lim = info.total_heap;
+    heap_lim = MAX(heap_lim, info.total_heap);
 #elif defined(RIOT_VERSION)
 #else
-    Dl_info info;
-    dladdr(this_fn, &info);
-    func = info.dli_sname;
+    stack_start = MAX(stack_start, frame);
 #endif
 
-    const uint_t stack =
-        (uint_t)(stack_start - (char *)__builtin_frame_address(0));
-#ifdef PARTICLE
-    log_message(LOG_LEVEL_TRACE, LOG_MODULE_CATEGORY, &(LogAttributes){0}, 0,
-#else
-    fprintf(stderr,
+    const uint_t stack = (uint_t)(stack_start - frame);
+
+    if (stack != prev_stack || heap != prev_heap) {
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+        Dl_info info;
+        dladdr(this_fn, &info);
+        DSTACK_LOG("%s" DSTACK_LOG_NEWLINE, info.dli_sname);
 #endif
-                "%s %s stack=%" PRIu "/%" PRIu " heap=%" PRIu "/%" PRIu,
-                func ? func : "???", enter ? "enter" : "exit", stack, stack_lim,
-                heap, heap_lim);
-}
-
-
-void __attribute__((no_instrument_function))
-__cyg_profile_func_enter(void * this_fn, void * call_site)
-{
-    profile_func(true, this_fn, call_site);
+        DSTACK_LOG("stack=%" PRIu "/%" PRIu " heap=%" PRIu "/%" PRIu
+                   "" DSTACK_LOG_NEWLINE,
+                   stack, stack_lim, heap, heap_lim);
+        prev_stack = stack;
+        prev_heap = heap;
+    }
 }
 
 void __attribute__((no_instrument_function))
 __cyg_profile_func_exit(void * this_fn, void * call_site)
 {
-    profile_func(false, this_fn, call_site);
+    __cyg_profile_func_enter(this_fn, call_site);
 }
 #endif

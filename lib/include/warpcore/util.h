@@ -337,6 +337,23 @@ extern uint64_t div_mulhi64(const uint64_t a, const uint64_t b);
 
 
 #ifdef DSTACK
+#if defined(PARTICLE)
+#include <logging.h>
+
+#define DSTACK_LOG_NEWLINE ""
+#define DSTACK_LOG(...)                                                        \
+    log_message(LOG_LEVEL_TRACE, LOG_MODULE_CATEGORY, &(LogAttributes){0}, 0,  \
+                __VA_ARGS__)
+#else
+#define DSTACK_LOG_NEWLINE "\n"
+#define DSTACK_LOG(...) fprintf(stderr, __VA_ARGS__)
+#endif
+
 void __cyg_profile_func_enter(void * this_fn, void * call_site);
 void __cyg_profile_func_exit(void * this_fn, void * call_site);
+#else
+#define DSTACK_LOG_NEWLINE ""
+#define DSTACK_LOG(...)                                                        \
+    do {                                                                       \
+    } while (0)
 #endif
