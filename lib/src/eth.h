@@ -33,6 +33,11 @@
 
 #include <warpcore/warpcore.h>
 
+#ifdef WITH_NETMAP
+struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
+#endif
+
+
 /// An [Ethernet II MAC
 /// header](https://en.wikipedia.org/wiki/Ethernet_frame#Ethernet_II).
 ///

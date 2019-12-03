@@ -30,10 +30,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
+struct w_engine;    // IWYU pragma: no_forward_declare w_engine
+struct w_iov;       // IWYU pragma: no_forward_declare w_iov
+struct w_sock;      // IWYU pragma: no_forward_declare w_sock
 
-#include <warpcore/warpcore.h>
+// IWYU pragma: no_include <net/netmap.h>
+// IWYU pragma: no_include <warpcore/warpcore.h>
 
 
 /// A representation of a UDP header; see

@@ -40,7 +40,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <warpcore/warpcore.h> // IWYU pragma: keep
+#include <warpcore/warpcore.h>
 
 #if !defined(FUZZING) && !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <sys/time.h>

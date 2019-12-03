@@ -30,14 +30,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#ifdef WITH_NETMAP
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
-#endif
-
 #include <warpcore/warpcore.h>
 
 #include "eth.h"
+
+#ifdef WITH_NETMAP
+struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
+// IWYU pragma: no_include <net/netmap.h>
+#endif
+
 
 #define IP_P_ICMP 1   ///< IP protocol number for ICMP
 #define IP_P_UDP 17   ///< IP protocol number for UDP
