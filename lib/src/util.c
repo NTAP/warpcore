@@ -75,6 +75,11 @@ int gettimeofday(struct timeval * restrict tp,
 
 #endif
 
+#ifdef RIOT_VERSION
+#include "esp_system.h"
+#endif
+
+
 #ifndef NDEBUG
 #ifdef DCOMPONENT
 /// Default components to see debug messages from. Can be overridden by setting
@@ -608,6 +613,8 @@ uint64_t div_mulhi64(const uint64_t a, const uint64_t b)
 
 
 #ifdef DSTACK
+static uint_t dstack_depth = 0;
+
 void __attribute__((no_instrument_function))
 __cyg_profile_func_enter(void * this_fn,
                          void * call_site __attribute__((unused)))
@@ -618,12 +625,14 @@ __cyg_profile_func_enter(void * this_fn,
     static uint_t prev_stack = 0;
     static uint_t prev_heap = 0;
 
+    dstack_depth++;
     const char * const frame = __builtin_frame_address(0);
     if (unlikely(stack_lim == 0)) {
-#if defined(PARTICLE)
         stack_start = frame;
+#if defined(PARTICLE)
         stack_lim = 6144; // TODO: can this be determined dynamically?
 #elif defined(RIOT_VERSION)
+        stack_lim = 8192; // TODO: can this be determined dynamically?
 #else
         struct rlimit lim;
         getrlimit(RLIMIT_STACK, &lim);
@@ -638,6 +647,8 @@ __cyg_profile_func_enter(void * this_fn,
     heap = info.freeheap;
     heap_lim = MAX(heap_lim, info.total_heap);
 #elif defined(RIOT_VERSION)
+    heap = esp_get_free_heap_size();
+    heap_lim = MAX(heap_lim, heap);
 #else
     stack_start = MAX(stack_start, frame);
 #endif
@@ -650,9 +661,9 @@ __cyg_profile_func_enter(void * this_fn,
         dladdr(this_fn, &info);
         DSTACK_LOG("%s" DSTACK_LOG_NEWLINE, info.dli_sname);
 #endif
-        DSTACK_LOG("stack=%" PRIu "/%" PRIu " heap=%" PRIu "/%" PRIu
-                   "" DSTACK_LOG_NEWLINE,
-                   stack, stack_lim, heap, heap_lim);
+        DSTACK_LOG("s=%" PRIu "/%" PRIu " h=%" PRIu "/%" PRIu
+                   " l=%" PRIu DSTACK_LOG_NEWLINE,
+                   stack, stack_lim, heap, heap_lim, dstack_depth);
         prev_stack = stack;
         prev_heap = heap;
     }
@@ -661,6 +672,7 @@ __cyg_profile_func_enter(void * this_fn,
 void __attribute__((no_instrument_function))
 __cyg_profile_func_exit(void * this_fn, void * call_site)
 {
+    dstack_depth -= 2;
     __cyg_profile_func_enter(this_fn, call_site);
 }
 #endif
