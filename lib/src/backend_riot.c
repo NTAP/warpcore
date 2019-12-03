@@ -27,7 +27,7 @@
 
 
 #include <stdint.h>
-
+#include "net/sock/async.h"
 #include "backend.h"
 
 
@@ -57,8 +57,8 @@ uint16_t backend_addr_cnt(void)
     const gnrc_netif_t * iface = 0;
     while ((iface = gnrc_netif_iter(iface))) {
         uint8_t link = 1;
-        const int ret = netif_get_opt(iface->pid, NETOPT_LINK_CONNECTED, 0,
-                                      &link, sizeof(link));
+        const int ret = netif_get_opt((netif_t *)iface, NETOPT_LINK_CONNECTED,
+                                      0, &link, sizeof(link));
         if (ret < 0 || link == NETOPT_DISABLE)
             continue;
 
@@ -86,9 +86,8 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 
     ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
     size_t idx;
-    const gnrc_netif_t * iface = 0;
-    while ((iface = gnrc_netif_iter(iface))) {
-        const int n = gnrc_netif_ipv6_addrs_get(iface, addr, sizeof(addr));
+    while ((w->b->nif = gnrc_netif_iter(w->b->nif))) {
+        const int n = gnrc_netif_ipv6_addrs_get(w->b->nif, addr, sizeof(addr));
         if (n < 0)
             continue;
         for (idx = 0; idx < n / sizeof(ipv6_addr_t); idx++) {
@@ -98,13 +97,13 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     }
 
 done:
-    ensure(iface, "iface not found");
-    netif_get_name(iface->pid, w->ifname);
+    ensure(w->b->nif, "iface not found");
+    netif_get_name((netif_t *)w->b->nif, w->ifname);
 
     w->have_ip6 = true;
-    w->mtu = iface->ipv6.mtu;
+    w->mtu = w->b->nif->ipv6.mtu;
     w->mbps = UINT32_MAX;
-    memcpy(&w->mac, iface->l2addr, ETH_LEN);
+    memcpy(&w->mac, w->b->nif->l2addr, ETH_LEN);
 
     struct w_ifaddr * ia = &w->ifaddr[0];
     ia->addr.af = AF_INET6;
@@ -144,6 +143,28 @@ void backend_cleanup(struct w_engine * const w)
 }
 
 
+// static void sock_callback(sock_udp_t * const sock,
+//                           const sock_async_flags_t type)
+// {
+// }
+
+
+static int mk_sock_udp(struct w_sock * const s, const bool also_remote)
+{
+    sock_udp_t * const fd = (sock_udp_t *)s->fd;
+    sock_udp_ep_t local;
+    sock_udp_ep_t remote;
+    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->b->nif->pid);
+    if (also_remote)
+        to_sock_udp_ep_t(&remote, &s->ws_raddr, s->ws_rport, s->w->b->nif->pid);
+    const int ret = sock_udp_create(fd, &local, also_remote ? &remote : 0,
+                                    also_remote ? SOCK_FLAGS_REUSE_EP : 0);
+    // if (likely(ret >= 0))
+    //     sock_udp_set_cb(fd, &sock_callback);
+    return ret;
+}
+
+
 /// RIOT-specific code to bind a warpcore socket.
 ///
 /// @param      s     The w_sock to bind.
@@ -154,12 +175,10 @@ void backend_cleanup(struct w_engine * const w)
 int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     // TODO: socket options
-    sock_udp_ep_t local;
-    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->b->id);
     s->fd = (intptr_t)malloc(sizeof(sock_udp_t));
     if (unlikely(s->fd == 0))
         return EDESTADDRREQ; // not quite right
-    const int ret = sock_udp_create((sock_udp_t *)s->fd, &local, 0, 0);
+    const int ret = mk_sock_udp(s, false);
     if (unlikely(ret < 0)) {
         free((void *)s->fd);
         return ret;
@@ -167,6 +186,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 
     // if we're binding to a random port, find out what it is
     if (s->ws_lport == 0) {
+        sock_udp_ep_t local;
         ensure(sock_udp_get_local((sock_udp_t *)s->fd, &local) >= 0,
                "sock_udp_get_local");
         s->ws_lport = bswap16(local.port);
@@ -198,12 +218,7 @@ int backend_connect(struct w_sock * const s)
 {
     // TODO: can we connect an already-bound socket?
     sock_udp_close((sock_udp_t *)s->fd);
-    sock_udp_ep_t local;
-    sock_udp_ep_t remote;
-    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->b->id);
-    to_sock_udp_ep_t(&remote, &s->ws_raddr, s->ws_rport, s->w->b->id);
-    return sock_udp_create((sock_udp_t *)s->fd, &local, &remote,
-                           SOCK_FLAGS_REUSE_EP);
+    return mk_sock_udp(s, true);
 }
 
 
@@ -233,7 +248,7 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
     while (v) {
         sock_udp_ep_t dst;
         if (w_connected(s) == false)
-            to_sock_udp_ep_t(&dst, &v->wv_addr, v->wv_port, s->w->b->id);
+            to_sock_udp_ep_t(&dst, &v->wv_addr, v->wv_port, s->w->b->nif->pid);
 
         if (unlikely(sock_udp_send((sock_udp_t *)s->fd, v->buf, v->len,
                                    w_connected(s) ? 0 : &dst) != v->len))
