@@ -228,14 +228,15 @@ short util_dlevel = DLEVEL;
 #define BCYN "\x1B[46m" ///< ANSI escape sequence: background cyan
 
 
-static void __attribute__((nonnull, , format(printf, 6, 0)))
-util_warn_valist(const unsigned dlevel,
-                 const bool tstamp,
-                 const char * const func,
-                 const char * const file,
-                 const unsigned line,
-                 const char * const fmt,
-                 va_list ap)
+static void
+    __attribute__((nonnull, no_instrument_function, format(printf, 6, 0)))
+    util_warn_valist(const unsigned dlevel,
+                     const bool tstamp,
+                     const char * const func,
+                     const char * const file,
+                     const unsigned line,
+                     const char * const fmt,
+                     va_list ap)
 {
 #if !defined(PARTICLE)
 #if !defined(RIOT_VERSION)
@@ -306,13 +307,13 @@ util_warn_valist(const unsigned dlevel,
 
 // See the warn() macro.
 //
-void util_warn(const unsigned dlevel,
-               const bool tstamp,
-               const char * const func,
-               const char * const file,
-               const unsigned line,
-               const char * const fmt,
-               ...)
+void __attribute__((no_instrument_function)) util_warn(const unsigned dlevel,
+                                                       const bool tstamp,
+                                                       const char * const func,
+                                                       const char * const file,
+                                                       const unsigned line,
+                                                       const char * const fmt,
+                                                       ...)
 {
 #ifdef DCOMPONENT
     if (regexec(&util_comp, file, 0, 0, 0))
@@ -615,6 +616,12 @@ uint64_t div_mulhi64(const uint64_t a, const uint64_t b)
 #ifdef DSTACK
 static uint_t dstack_depth = 0;
 
+#if defined(RIOT_VERSION)
+extern uint8_t _sheap;
+extern uint8_t _eheap;
+#endif
+
+
 void __attribute__((no_instrument_function))
 __cyg_profile_func_enter(void * this_fn,
                          void * call_site __attribute__((unused)))
@@ -633,6 +640,7 @@ __cyg_profile_func_enter(void * this_fn,
         stack_lim = 6144; // TODO: can this be determined dynamically?
 #elif defined(RIOT_VERSION)
         stack_lim = 8192; // TODO: can this be determined dynamically?
+        heap_lim = &_eheap - &_sheap;
 #else
         struct rlimit lim;
         getrlimit(RLIMIT_STACK, &lim);
@@ -645,10 +653,9 @@ __cyg_profile_func_enter(void * this_fn,
     runtime_info_t info = {.size = sizeof(info)};
     HAL_Core_Runtime_Info(&info, NULL);
     heap = info.freeheap;
-    heap_lim = MAX(heap_lim, info.total_heap);
+    heap_lim = info.total_init_heap;
 #elif defined(RIOT_VERSION)
     heap = esp_get_free_heap_size();
-    heap_lim = MAX(heap_lim, heap);
 #else
     stack_start = MAX(stack_start, frame);
 #endif

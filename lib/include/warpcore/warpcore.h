@@ -356,7 +356,7 @@ struct w_iov {
 ///
 /// @return     Index between 0-nfbus.
 ///
-static inline uint32_t __attribute__((nonnull))
+static inline uint32_t __attribute__((nonnull, no_instrument_function))
 w_iov_idx(const struct w_iov * const v)
 {
     return v - v->w->bufs;
@@ -370,7 +370,7 @@ w_iov_idx(const struct w_iov * const v)
 ///
 /// @return     Pointer to w_iov.
 ///
-static inline struct w_iov * __attribute__((nonnull))
+static inline struct w_iov * __attribute__((nonnull, no_instrument_function))
 w_iov(const struct w_engine * const w, const uint32_t i)
 {
     return &w->bufs[i];
@@ -384,7 +384,7 @@ w_iov(const struct w_engine * const w, const uint32_t i)
 ///
 /// @return     Number of w_iov structs not yet transmitted.
 ///
-static inline uint32_t __attribute__((nonnull))
+static inline uint32_t __attribute__((nonnull, no_instrument_function))
 w_tx_pending(const struct w_iov_sq * const q)
 {
     return q->tx_pending;
@@ -397,7 +397,7 @@ w_tx_pending(const struct w_iov_sq * const q)
 ///
 /// @return     The warpcore engine for w_sock @p s.
 ///
-static inline struct w_engine * __attribute__((nonnull))
+static inline struct w_engine * __attribute__((nonnull, no_instrument_function))
 w_engine(const struct w_sock * const s)
 {
     return s->w;
@@ -410,7 +410,7 @@ w_engine(const struct w_sock * const s)
 ///
 /// @return     Maximum UDP payload.
 ///
-static inline uint16_t __attribute__((nonnull))
+static inline uint16_t __attribute__((nonnull, no_instrument_function))
 w_max_udp_payload(const struct w_sock * const s)
 {
     return s->w->mtu - ip_hdr_len(s->ws_af) - 8; // 8 = sizeof(struct udp_hdr)
@@ -423,7 +423,7 @@ w_max_udp_payload(const struct w_sock * const s)
 ///
 /// @return     Number of w_iov structs in @p q.
 ///
-static inline uint_t __attribute__((nonnull))
+static inline uint_t __attribute__((nonnull, no_instrument_function))
 w_iov_sq_cnt(const struct w_iov_sq * const q)
 {
     return sq_len(q);
@@ -436,7 +436,8 @@ w_iov_sq_cnt(const struct w_iov_sq * const q)
 ///
 /// @return     The socket options for w_sock @p s.
 ///
-static inline const struct w_sockopt * __attribute__((nonnull))
+static inline const struct w_sockopt * __attribute__((nonnull,
+                                                      no_instrument_function))
 w_get_sockopt(const struct w_sock * const s)
 {
     return &s->opt;
@@ -450,7 +451,7 @@ w_get_sockopt(const struct w_sock * const s)
 ///
 /// @return     True when connected, zero otherwise.
 ///
-static inline bool __attribute__((nonnull))
+static inline bool __attribute__((nonnull, no_instrument_function))
 w_connected(const struct w_sock * const s)
 {
     return s->ws_rport;

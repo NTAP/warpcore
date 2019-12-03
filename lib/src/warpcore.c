@@ -99,10 +99,11 @@ dump_bufs(const char * const label, const struct w_iov_sq * const q)
 ///
 /// @return     Spare w_iov.
 ///
-struct w_iov * w_alloc_iov(struct w_engine * const w,
-                           const int af,
-                           const uint16_t len,
-                           const uint16_t off)
+struct w_iov * __attribute__((no_instrument_function))
+w_alloc_iov(struct w_engine * const w,
+            const int af,
+            const uint16_t len,
+            const uint16_t off)
 {
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_alloc_iov len %u, off %u", len, off);
@@ -504,7 +505,7 @@ void w_free(struct w_iov_sq * const q)
 ///
 /// @param      v     w_iov struct to return.
 ///
-void w_free_iov(struct w_iov * const v)
+void __attribute__((no_instrument_function)) w_free_iov(struct w_iov * const v)
 {
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_free_iov idx %" PRIu32, v->idx);
@@ -578,7 +579,8 @@ uint32_t w_rand_uniform32(const uint32_t upper_bound)
 }
 
 
-static void reinit_iov(struct w_iov * const v)
+static void __attribute__((no_instrument_function))
+reinit_iov(struct w_iov * const v)
 {
     v->buf = v->base;
     v->len = max_buf_len(v->w);
@@ -587,9 +589,8 @@ static void reinit_iov(struct w_iov * const v)
 }
 
 
-void init_iov(struct w_engine * const w,
-              struct w_iov * const v,
-              const uint32_t idx)
+void __attribute__((no_instrument_function))
+init_iov(struct w_engine * const w, struct w_iov * const v, const uint32_t idx)
 {
     v->w = w;
     v->idx = idx;
