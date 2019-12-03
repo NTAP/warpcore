@@ -30,6 +30,7 @@
 #include <stdint.h>
 
 #include <warpcore/warpcore.h>
+// IWYU pragma: no_forward_declare w_engine
 
 
 extern uint16_t __attribute__((nonnull))
