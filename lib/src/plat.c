@@ -331,7 +331,7 @@ const char * eth_ntoa(const struct eth_addr * const addr, char * const buf)
 ///
 /// @return     Relative time in nanoseconds.
 ///
-uint64_t w_now(void)
+uint64_t __attribute__((no_instrument_function)) w_now(void)
 {
 #if defined(PARTICLE)
     return HAL_Timer_Microseconds() * NS_PER_US;
