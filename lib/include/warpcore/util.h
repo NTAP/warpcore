@@ -61,11 +61,16 @@
 #endif
 
 
+#if HAVE_64BIT
+#define NS_TO_MS(x) ((x) / NS_PER_MS)
+#define NS_TO_US(x) ((x) / NS_PER_US)
+#else
 // Approximate division by NS_PER_MS.
 #define NS_TO_MS(x) (div_mulhi64(0x431bde82d7b634db, (x)) >> 18)
 
 // Approximate division by NS_PER_US.
 #define NS_TO_US(x) (div_mulhi64(0x20c49ba5e353f7d, (x)) >> 3)
+#endif
 
 
 #ifndef plural
