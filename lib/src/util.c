@@ -157,6 +157,9 @@ static struct timeval util_epoch;
 static void __attribute__((constructor))
 premain(const int argc __attribute__((unused)),
         char * const argv[]
+#ifndef HAVE_BACKTRACE
+        __attribute__((unused))
+#endif
 #ifdef __FreeBSD__
         __attribute__((unused))
 #endif
@@ -614,6 +617,9 @@ uint64_t div_mulhi64(const uint64_t a, const uint64_t b)
 
 
 #ifdef DSTACK
+static uint_t stack_lim = 0;
+static uint_t max_stack = 0;
+static uint_t heap_lim = 0;
 static uint_t dstack_depth = 0;
 
 #if defined(RIOT_VERSION)
@@ -627,11 +633,6 @@ __cyg_profile_func_enter(void * this_fn,
                          void * call_site __attribute__((unused)))
 {
     static const char * stack_start = 0;
-    static uint_t stack_lim = 0;
-    static uint_t heap_lim = 0;
-    static uint_t prev_stack = 0;
-    static uint_t prev_heap = 0;
-
     dstack_depth++;
     const char * const frame = __builtin_frame_address(0);
     if (unlikely(stack_lim == 0)) {
@@ -662,18 +663,16 @@ __cyg_profile_func_enter(void * this_fn,
 
     const uint_t stack = (uint_t)(stack_start - frame);
 
-    if (stack != prev_stack || heap != prev_heap) {
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
-        Dl_info info;
-        dladdr(this_fn, &info);
-        DSTACK_LOG("%s" DSTACK_LOG_NEWLINE, info.dli_sname);
+    Dl_info info;
+    dladdr(this_fn, &info);
+    DSTACK_LOG("%s" DSTACK_LOG_NEWLINE, info.dli_sname);
 #endif
-        DSTACK_LOG("s=%" PRIu "/%" PRIu " h=%" PRIu "/%" PRIu
-                   " l=%" PRIu DSTACK_LOG_NEWLINE,
-                   stack, stack_lim, heap, heap_lim, dstack_depth);
-        prev_stack = stack;
-        prev_heap = heap;
-    }
+    DSTACK_LOG("s=%" PRIu " h=%" PRIu " l=%" PRIu DSTACK_LOG_NEWLINE, stack,
+               heap, dstack_depth);
+
+    if (stack < UINT16_MAX)
+        max_stack = MAX(max_stack, stack);
 }
 
 void __attribute__((no_instrument_function))
@@ -681,5 +680,8 @@ __cyg_profile_func_exit(void * this_fn, void * call_site)
 {
     dstack_depth -= 2;
     __cyg_profile_func_enter(this_fn, call_site);
+    if (unlikely(dstack_depth == 0))
+        DSTACK_LOG("ms=%" PRIu " sl=%" PRIu " hl=%" PRIu DSTACK_LOG_NEWLINE,
+                   max_stack, stack_lim, heap_lim);
 }
 #endif
