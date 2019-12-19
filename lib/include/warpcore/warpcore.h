@@ -276,6 +276,9 @@ struct w_sock {
     /// Pointer back to the warpcore instance associated with this w_sock.
     struct w_engine * w;
 
+    /// Pointer to generic user data (not used by warpcore.)
+    void * data;
+
     struct w_socktuple tup; ///< Socket four-tuple.
     struct eth_addr dmac;   ///< Destination MAC address.
     struct w_sockopt opt;   ///< Socket options.
