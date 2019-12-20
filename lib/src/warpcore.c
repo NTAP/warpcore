@@ -247,6 +247,7 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
         return EADDRINUSE;
     }
 
+    backend_preconnect(s);
     int e = 0;
     if (unlikely(w_to_waddr(&s->ws_raddr, peer) == false)) {
         warn(ERR, "peer has unknown address family");

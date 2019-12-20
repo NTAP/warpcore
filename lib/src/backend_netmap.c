@@ -278,6 +278,13 @@ void backend_close(struct w_sock * const s)
 }
 
 
+void backend_preconnect(struct w_sock * const s)
+{
+    // remove the socket from list of sockets
+    rem_sock(s);
+}
+
+
 /// Connect the given w_sock, using the netmap backend. If the Ethernet MAC
 /// address of the destination (or the default router towards it) is not
 /// known, it will block trying to look it up via ARP.
@@ -288,10 +295,7 @@ void backend_close(struct w_sock * const s)
 ///
 int backend_connect(struct w_sock * const s)
 {
-    rem_sock(s);
-
-    // // find the Ethernet MAC address of the destination or the default
-    // router,
+    // // find the Ethernet MAC address of the destination or the default router,
     // // and update the template header
     // const uint32_t ip = s->w->rip && (mk_net(s->tup.dip, s->w->mask) !=
     //                                   mk_net(s->tup.sip, s->w->mask))

@@ -291,6 +291,9 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 }
 
 
+void backend_preconnect(struct w_sock * const s) {}
+
+
 /// The socket backend performs no operation here.
 ///
 /// @param      s     The w_sock to connect.
