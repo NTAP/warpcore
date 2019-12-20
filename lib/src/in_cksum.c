@@ -148,7 +148,7 @@ uint16_t payload_cksum(const void * const buf, const uint16_t len)
         ip_hdr_len = ip4_hl(*(const uint8_t *)buf);
         sum = (uint32_t)ip->p << 8;
         sum += csum_oc16((const uint8_t *)&ip->src, 2 * sizeof(ip->src));
-        const uint16_t plen = ip->len - bswap16(ip_hdr_len);
+        const uint16_t plen = bswap16(bswap16(ip->len) - ip_hdr_len);
         sum += csum_oc16((const uint8_t *)&plen, sizeof(plen));
     } else {
         const struct ip6_hdr * const ip = buf;
