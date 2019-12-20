@@ -121,7 +121,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
         warn(NTE, "%s is a loopback, using %s netmap pipe", w->ifname,
              w->is_right_pipe ? "right" : "left");
 
-        snprintf(b->req->nr_name, IFNAMSIZ, "warp-%s", w->ifname);
+        snprintf(b->req->nr_name, IFNAMSIZ, "w-%.*s", IFNAMSIZ - 3, w->ifname);
         b->req->nr_flags =
             w->is_right_pipe ? NR_REG_PIPE_MASTER : NR_REG_PIPE_SLAVE;
         b->req->nr_ringid = 1 & NETMAP_RING_MASK;

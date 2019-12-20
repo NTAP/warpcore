@@ -46,6 +46,7 @@ extern "C" {
 
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
+#include <net/if.h>
 #include <sys/socket.h>
 #endif
 
@@ -206,7 +207,7 @@ struct eth_addr {
 
 
 #ifndef RIOT_VERSION
-#define NAME_LEN 8
+#define NAME_LEN IFNAMSIZ
 #else
 #define NAME_LEN NETIF_NAMELENMAX
 #endif
