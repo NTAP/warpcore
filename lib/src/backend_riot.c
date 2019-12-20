@@ -26,9 +26,9 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
-#include <stdint.h>
-#include "net/sock/async.h"
 #include "backend.h"
+#include "net/sock/async.h"
+#include <stdint.h>
 
 
 static void __attribute__((nonnull))

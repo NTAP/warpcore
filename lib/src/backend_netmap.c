@@ -295,7 +295,8 @@ void backend_preconnect(struct w_sock * const s)
 ///
 int backend_connect(struct w_sock * const s)
 {
-    // // find the Ethernet MAC address of the destination or the default router,
+    // // find the Ethernet MAC address of the destination or the default
+    // router,
     // // and update the template header
     // const uint32_t ip = s->w->rip && (mk_net(s->tup.dip, s->w->mask) !=
     //                                   mk_net(s->tup.sip, s->w->mask))

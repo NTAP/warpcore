@@ -291,7 +291,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 }
 
 
-void backend_preconnect(struct w_sock * const s) {}
+void backend_preconnect(struct w_sock * const s __attribute__((unused))) {}
 
 
 /// The socket backend performs no operation here.
