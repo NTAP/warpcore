@@ -208,6 +208,9 @@ void backend_close(struct w_sock * const s)
 }
 
 
+void backend_preconnect(struct w_sock * const s __attribute__((unused))) {}
+
+
 /// Connect the given w_sock, using the RIOT backend.
 ///
 /// @param      s     w_sock to connect.
