@@ -176,7 +176,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       message(STATUS "Found cppcheck: ${CPPCHECK}")
       set(CMAKE_C_CPPCHECK ${CPPCHECK} -q --inline-suppr
           --enable=warning,style,performance,portability
-          -I external/include -I lib/include -I ${PROJECT_SOURCE_DIR}/lib/include
+          -I ${PROJECT_SOURCE_DIR}/lib/include
       )
       set(CMAKE_CXX_CPPCHECK ${CMAKE_C_CPPCHECK})
     endif()

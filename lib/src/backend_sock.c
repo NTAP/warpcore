@@ -111,7 +111,6 @@ to_sockaddr(struct sockaddr * const sa,
 ///
 void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 {
-    // cppcheck-suppress duplicateConditionalAssign
     if (s->ws_af == AF_INET &&
         s->opt.enable_udp_zero_checksums != opt->enable_udp_zero_checksums) {
         s->opt.enable_udp_zero_checksums = opt->enable_udp_zero_checksums;
