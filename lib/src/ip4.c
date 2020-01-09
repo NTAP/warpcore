@@ -54,7 +54,7 @@
 #define ip4_log(ip)                                                            \
     warn(DBG,                                                                  \
          "IPv%u: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "                   \
-         "flags [%s%s], proto %d, hlen/tot %d/%d, cksum %04x",                 \
+         "flags [%s%s], proto %d, hlen/tot %d/%d, cksum 0x%04x",                 \
          ip_v((ip)->vhl), inet_ntop(AF_INET, &(ip)->src, ip4_tmp, IP4_STRLEN), \
          inet_ntop(AF_INET, &(ip)->dst, ip4_tmp, IP4_STRLEN),                  \
          ip4_dscp((ip)->tos), ip4_ecn((ip)->tos), (ip)->ttl,                   \
