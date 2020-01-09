@@ -76,7 +76,7 @@ neighbor_find(struct w_engine * const w, const struct w_addr * const addr)
 {
     const khiter_t k = kh_get(neighbor, &w->b->neighbor, addr);
     if (unlikely(k == kh_end(&w->b->neighbor)))
-        return (struct eth_addr){ETH_ADDR_NONE};
+        return (struct eth_addr){ETH_ADDR_BCAST};
     return kh_val(&w->b->neighbor, k);
 }
 
@@ -98,7 +98,7 @@ struct eth_addr
     who_has(struct w_engine * const w, const struct w_addr * const addr)
 {
     struct eth_addr a = neighbor_find(w, addr);
-    while (unlikely(memcmp(&a, ETH_ADDR_NONE, sizeof(a)) == 0)) {
+    while (unlikely(memcmp(&a, ETH_ADDR_BCAST, sizeof(a)) == 0)) {
         warn(INF, "no neighbor entry for %s, sending query",
              w_ntop(addr, ip_tmp));
 

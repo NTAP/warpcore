@@ -123,12 +123,10 @@ bool eth_tx(struct w_iov * const v)
     b->slot_buf[txr->ringid][txr->cur] = v;
     s->len = v->len + sizeof(struct eth_hdr);
 
-    if (unlikely(nm_ring_space(txr) == 1 || sq_next(v, next) == 0)) {
-        // we are using the last slot in this ring, or this is the last w_iov in
-        // this batch - mark the slot for reporting
-        s->flags = NS_REPORT | NS_BUF_CHANGED;
-    } else
-        s->flags = NS_BUF_CHANGED;
+    warn(DBG, "Eth %s -> %s, type 0x%04x, len %u",
+         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->src, eth_tmp),
+         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->dst, eth_tmp),
+         bswap16(((struct eth_hdr *)(void *)v->base)->type), s->len);
 
 #if 0
     warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
@@ -139,11 +137,12 @@ bool eth_tx(struct w_iov * const v)
     const uint32_t slot_idx = s->buf_idx;
     s->buf_idx = v->idx;
     v->idx = slot_idx;
-
-    warn(DBG, "Eth %s -> %s, type 0x%04x, len %u",
-         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->src, eth_tmp),
-         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->dst, eth_tmp),
-         bswap16(((struct eth_hdr *)(void *)v->base)->type), s->len);
+    s->flags = NS_BUF_CHANGED;
+    if (unlikely(nm_ring_space(txr) == 1 || sq_next(v, next) == 0)) {
+        // we are using the last slot in this ring, or this is the last w_iov in
+        // this batch - mark the slot for reporting
+        s->flags |= NS_REPORT;
+    }
 
     // advance tx ring
     txr->head = txr->cur = nm_ring_next(txr, txr->cur);

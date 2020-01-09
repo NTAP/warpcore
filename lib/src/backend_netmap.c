@@ -373,29 +373,27 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 {
     struct pollfd fds = {.fd = w->b->fd, .events = POLLIN};
 again:
-    if (poll(&fds, 1, nsec < 0 ? -1 : (int)(nsec / NS_PER_MS)) == 0) {
+    if (poll(&fds, 1, nsec < 0 ? -1 : (int)(nsec / NS_PER_MS)) == 0)
         return false;
-    }
 
     // loop over all rx rings
     bool rx = false;
     for (uint32_t i = 0; likely(i < w->b->nif->ni_rx_rings); i++) {
         struct netmap_ring * const r = NETMAP_RXRING(w->b->nif, i);
         while (likely(!nm_ring_empty(r))) {
-            // process the current slot
 #if 0
             warn(DBG, "rx idx %u from ring %u slot %u", r->slot[r->cur].buf_idx,
                  i, r->cur);
 #endif
+            // process the current slot
             rx = eth_rx(w, &r->slot[r->cur],
                         (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx));
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
     }
 
-    // if (likely(rx) && unlikely(is_pipe(w)))
-    //     ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx
-    //     ring");
+    if (likely(rx) && unlikely(is_pipe(w)))
+        ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
 
     if (rx == false && nsec == -1)
         goto again;
@@ -418,8 +416,10 @@ void w_nic_tx(struct w_engine * const w)
     // the original w_iov_sqs, so it's not lost to the app
     for (uint32_t i = 0; likely(i < w->b->nif->ni_tx_rings); i++) {
         struct netmap_ring * const r = NETMAP_TXRING(w->b->nif, i);
-        // warn(WRN, "tx ring %u: old tail %u, tail %u, cur %u, head %u", i,
-        //      w->b->tail[i], r->tail, r->cur, r->head);
+#if 0
+        rwarn(WRN, 10, "tx ring %u: old tail %u, tail %u, cur %u, head %u", i,
+              w->b->tail[i], r->tail, r->cur, r->head);
+#endif
 
         // XXX we need to abuse the netmap API here by touching tail until a
         // fix is included upstream

@@ -86,7 +86,7 @@ void backend_addr_config(struct w_engine * const w)
 {
     // construct interface name of a netmap pipe for this interface
     char pipe[IFNAMSIZ];
-    snprintf(pipe, IFNAMSIZ, "w-%*.s", IFNAMSIZ - 3, w->ifname);
+    snprintf(pipe, IFNAMSIZ, "w-%.*s", IFNAMSIZ - 3, w->ifname);
 
     struct ifaddrs * ifap;
     ensure(getifaddrs(&ifap) != -1, "%s: cannot get interface info", w->ifname);
