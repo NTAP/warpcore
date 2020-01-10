@@ -607,10 +607,10 @@ struct w_iov * w_alloc_iov_base(struct w_engine * const w)
         sq_remove_head(&w->iov, next);
         reinit_iov(v);
         ASAN_UNPOISON_MEMORY_REGION(v->base, v->len);
-    }
 #ifdef DEBUG_BUFFERS
-    warn(DBG, "w_alloc_iov_base idx %" PRIu32, v ? v->idx : UINT32_MAX);
+        warn(DBG, "w_alloc_iov_base idx %" PRIu32, v ? v->idx : UINT32_MAX);
 #endif
+    }
     return v;
 }
 

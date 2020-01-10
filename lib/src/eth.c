@@ -128,20 +128,33 @@ bool eth_tx(struct w_iov * const v)
          eth_ntoa(&((struct eth_hdr *)(void *)v->base)->dst, eth_tmp),
          bswap16(((struct eth_hdr *)(void *)v->base)->type), s->len);
 
+
+    if (unlikely(is_pipe(v->w))) {
 #if 0
-    warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
-         v->idx, b->cur_txr, txr->cur, s->buf_idx);
+        warn(DBG, "copying iov idx %u into tx ring %u slot %d (into %u)",
+             v->idx, b->cur_txr, txr->cur, s->buf_idx);
+#endif
+        memcpy(NETMAP_BUF(txr, s->buf_idx), v->base, s->len);
+        // update tx_pending
+        if (likely(v->o))
+            v->o->tx_pending--;
+
+    } else {
+#if 0
+        warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
+             v->idx, b->cur_txr, txr->cur, s->buf_idx);
 #endif
 
-    // temporarily place v into the current tx ring
-    const uint32_t slot_idx = s->buf_idx;
-    s->buf_idx = v->idx;
-    v->idx = slot_idx;
-    s->flags = NS_BUF_CHANGED;
-    if (unlikely(nm_ring_space(txr) == 1 || sq_next(v, next) == 0)) {
-        // we are using the last slot in this ring, or this is the last w_iov in
-        // this batch - mark the slot for reporting
-        s->flags |= NS_REPORT;
+        // temporarily place v into the current tx ring
+        const uint32_t slot_idx = s->buf_idx;
+        s->buf_idx = v->idx;
+        v->idx = slot_idx;
+        s->flags = NS_BUF_CHANGED;
+        if (unlikely(nm_ring_space(txr) == 1 || sq_next(v, next) == 0)) {
+            // we are using the last slot in this ring, or this is the last
+            // w_iov in this batch - mark the slot for reporting
+            s->flags |= NS_REPORT;
+        }
     }
 
     // advance tx ring

@@ -121,6 +121,9 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
         warn(NTE, "%s is a loopback, using %s netmap pipe", w->ifname,
              w->is_right_pipe ? "right" : "left");
 
+        // loopback has typically 64KB MTU, too large for us
+        w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
+
         snprintf(b->req->nr_name, IFNAMSIZ, "w-%.*s", IFNAMSIZ - 3, w->ifname);
         b->req->nr_flags =
             w->is_right_pipe ? NR_REG_PIPE_MASTER : NR_REG_PIPE_SLAVE;
@@ -392,9 +395,6 @@ again:
         }
     }
 
-    if (likely(rx) && unlikely(is_pipe(w)))
-        ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
-
     if (rx == false && nsec == -1)
         goto again;
 
@@ -411,6 +411,9 @@ again:
 void w_nic_tx(struct w_engine * const w)
 {
     ensure(ioctl(w->b->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
+
+    if (unlikely(is_pipe(w)))
+        return;
 
     // grab the transmitted data out of the NIC rings and place it back into
     // the original w_iov_sqs, so it's not lost to the app

@@ -101,7 +101,7 @@ struct w_backend {
 
 
 #ifdef WITH_NETMAP
-#define max_buf_len(w) (uint16_t)((w)->mtu + sizeof(struct eth_hdr))
+#define max_buf_len(w) (uint16_t)((w)->mtu)
 #define iov_off(w, af)                                                         \
     (sizeof(struct eth_hdr) + ip_hdr_len(af) + sizeof(struct udp_hdr))
 #else
