@@ -121,8 +121,8 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
         warn(NTE, "%s is a loopback, using %s netmap pipe", w->ifname,
              w->is_right_pipe ? "right" : "left");
 
-        // loopback has typically 64KB MTU, too large for us
-        w->mtu = MIN(w->mtu, (uint16_t)getpagesize() / 2);
+        // loopback has typically 64KB MTU, but netmap uses 2048-byte buffers
+        w->mtu = 2048 - sizeof(struct eth_hdr);
 
         snprintf(b->req->nr_name, IFNAMSIZ, "w-%.*s", IFNAMSIZ - 3, w->ifname);
         b->req->nr_flags =
