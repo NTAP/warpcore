@@ -115,7 +115,7 @@ bool eth_tx(struct w_iov * const v)
 
     // return false if all rings are full
     if (unlikely(r == b->nif->ni_tx_rings)) {
-        warn(INF, "all tx rings are full");
+        warn(NTE, "all tx rings are full");
         return false;
     }
 

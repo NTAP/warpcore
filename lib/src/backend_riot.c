@@ -27,7 +27,6 @@
 
 
 #include "backend.h"
-#include "net/sock/async.h"
 #include <stdint.h>
 
 

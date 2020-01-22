@@ -356,8 +356,11 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
     sq_foreach (v, o, next) {
         o->tx_pending++;
         v->o = o;
-        while (unlikely(udp_tx(s, v) == false))
+        const uint16_t len = v->len;
+        while (unlikely(udp_tx(s, v) == false)) {
             w_nic_tx(s->w);
+            v->len = len;
+        }
     }
 }
 
