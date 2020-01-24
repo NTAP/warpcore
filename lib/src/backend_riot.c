@@ -61,7 +61,7 @@ uint16_t backend_addr_cnt(void)
         if (ret < 0 || link == NETOPT_DISABLE)
             continue;
 
-        ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
+        ipv6_addr_t addr[CONFIG_GNRC_NETIF_IPV6_ADDRS_NUMOF];
         const int n = gnrc_netif_ipv6_addrs_get(iface, addr, sizeof(addr));
         if (n < 0)
             continue;
@@ -83,7 +83,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     w->backend_name = "riot";
     w->backend_variant = "gnrc";
 
-    ipv6_addr_t addr[GNRC_NETIF_IPV6_ADDRS_NUMOF];
+    ipv6_addr_t addr[CONFIG_GNRC_NETIF_IPV6_ADDRS_NUMOF];
     size_t idx;
     while ((w->b->nif = gnrc_netif_iter(w->b->nif))) {
         const int n = gnrc_netif_ipv6_addrs_get(w->b->nif, addr, sizeof(addr));
