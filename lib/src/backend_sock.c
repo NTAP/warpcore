@@ -266,13 +266,14 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 #ifndef __APPLE__
     if (s->ws_af == AF_INET) {
         // enable set DF
-        const int ret = setsockopt((int)s->fd, IPPROTO_IP,
+        const int ret =
+            setsockopt((int)s->fd, IPPROTO_IP,
 #if defined(__linux__)
-                                   IP_PMTUDISC_DO,
+                       IP_MTU_DISCOVER, &(int){IP_PMTUDISC_DO}, sizeof(int)
 #else
-                                   IP_DONTFRAG,
+                       IP_DONTFRAG, &(int){1}, sizeof(int)
 #endif
-                                   &(int){1}, sizeof(int));
+            );
         ensure(ret >= 0, "cannot setsockopt IP_DONTFRAG");
     }
 #endif
