@@ -462,6 +462,16 @@ w_connected(const struct w_sock * const s)
 }
 
 
+static inline bool __attribute__((nonnull))
+w_is_linklocal(const struct w_addr * const a)
+{
+    if (a->af == AF_INET)
+        return (a->ip4 & 0xffff0000) == 0xa9fe0000; // 169.254.0.0/16
+    else
+        return a->ip6[0] == 0xfe && (a->ip6[1] & 0xc0) == 0x80;
+}
+
+
 extern struct w_engine * __attribute__((nonnull))
 w_init(const char * const ifname, const uint32_t rip, const uint_t nbufs);
 
