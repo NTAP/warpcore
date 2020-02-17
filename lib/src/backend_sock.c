@@ -263,7 +263,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
                       &(int){1}, sizeof(int)) >= 0,
            "cannot setsockopt IP_RECVTOS/IPV6_RECVTCLASS");
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(PARTICLE)
     if (s->ws_af == AF_INET) {
         // enable set DF
         const int ret =
