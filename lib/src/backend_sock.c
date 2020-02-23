@@ -264,9 +264,16 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
            "cannot setsockopt IP_RECVTOS/IPV6_RECVTCLASS");
 
     // enable always receiving TTL information
+#ifdef __APPLE__
+    ensure(setsockopt((int)s->fd,
+                      s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+                      IP_RECVTTL, &(int){1}, sizeof(int)) >= 0,
+           "cannot setsockopt IP_RECVTTL");
+#else
     ensure(setsockopt((int)s->fd, IPPROTO_IP, IP_RECVTTL, &(int){1},
                       sizeof(int)) >= 0,
            "cannot setsockopt IP_RECVTTL");
+#endif
 
 #if !defined(__APPLE__) && !defined(PARTICLE)
     if (s->ws_af == AF_INET) {
