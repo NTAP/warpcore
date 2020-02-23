@@ -108,7 +108,7 @@ bool
         i->wv_ip4 = ip4->src;
         local.addr.ip4 = ip4->dst;
         i->flags = ip4->tos;
-        i->ttl - ip4->ttl;
+        i->ttl = ip4->ttl;
     } else {
         const struct ip6_hdr * ip6 = (const void *)ip;
         ip_hdr_len = sizeof(*ip6);
