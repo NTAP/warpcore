@@ -108,6 +108,7 @@ bool
         i->wv_ip4 = ip4->src;
         local.addr.ip4 = ip4->dst;
         i->flags = ip4->tos;
+        i->ttl - ip4->ttl;
     } else {
         const struct ip6_hdr * ip6 = (const void *)ip;
         ip_hdr_len = sizeof(*ip6);
@@ -117,6 +118,7 @@ bool
         memcpy(i->wv_ip6, ip6->src, sizeof(i->wv_ip6));
         memcpy(local.addr.ip6, ip6->dst, sizeof(local.addr.ip6));
         i->flags = ip6_tc(ip6->vtcecnfl);
+        i->ttl = ip6->hlim;
     }
 
     if (unlikely(ip_plen < sizeof(*udp))) {

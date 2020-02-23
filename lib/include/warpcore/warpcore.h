@@ -334,13 +334,12 @@ struct w_iov {
     /// to-be-transmitted IP packet on TX.
     uint8_t flags;
 
+    /// TTL of received IP packets.
+    uint8_t ttl;
+
     /// Can be used by application to maintain arbitrary data. Not used by
     /// warpcore.
     uint16_t user_data;
-
-    /// @cond
-    uint8_t _unused; ///< @internal Padding.
-    /// @endcond
 
     ///< Pointer to the w_iov_sq this w_iov resides in. Only valid on TX.
     struct w_iov_sq * o;

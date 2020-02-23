@@ -263,6 +263,11 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
                       &(int){1}, sizeof(int)) >= 0,
            "cannot setsockopt IP_RECVTOS/IPV6_RECVTCLASS");
 
+    // enable always receiving TTL information
+    ensure(setsockopt((int)s->fd, IPPROTO_IP, IP_RECVTTL, &(int){1},
+                      sizeof(int)) >= 0,
+           "cannot setsockopt IP_RECVTTL");
+
 #if !defined(__APPLE__) && !defined(PARTICLE)
     if (s->ws_af == AF_INET) {
         // enable set DF
@@ -471,7 +476,8 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
         struct w_iov * v[RECV_SIZE];
         struct iovec msg[RECV_SIZE];
         struct sockaddr_storage sa[RECV_SIZE];
-        __extension__ uint8_t ctrl[RECV_SIZE][CMSG_SPACE(sizeof(uint8_t))];
+        __extension__ uint8_t ctrl[RECV_SIZE][CMSG_SPACE(sizeof(uint8_t)) +
+                                              CMSG_SPACE(sizeof(uint8_t))];
 #ifdef HAVE_RECVMMSG
         struct mmsghdr msgvec[RECV_SIZE];
 #else
@@ -528,17 +534,24 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j]); cmsg;
                      cmsg = CMSG_NXTHDR(&msgvec[j], cmsg)) {
 #endif
-                    if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type ==
+                    if (cmsg->cmsg_level == IPPROTO_IP ||
+                        cmsg->cmsg_level == IPPROTO_IPV6) {
+                        if (cmsg->cmsg_type ==
 #ifdef __linux__
-                                                               IP_TOS
+                                IP_TOS
 #else
-                                                               IP_RECVTOS
+                                IP_RECVTOS
 #endif
-                         ) ||
-                        (cmsg->cmsg_level == IPPROTO_IPV6 &&
-                         cmsg->cmsg_type == IPV6_TCLASS)) {
-                        v[j]->flags = *(uint8_t *)CMSG_DATA(cmsg);
-                        break;
+                            || cmsg->cmsg_type == IPV6_TCLASS)
+                            v[j]->flags = *(uint8_t *)CMSG_DATA(cmsg);
+                        else if (cmsg->cmsg_type ==
+#ifdef __linux__
+                                 IP_TTL
+#else
+                                 IP_RECVTTL
+#endif
+                        )
+                            v[j]->ttl = *(uint8_t *)CMSG_DATA(cmsg);
                     }
                 }
                 // add the iov to the tail of the result
