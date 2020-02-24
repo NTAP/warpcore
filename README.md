@@ -66,7 +66,6 @@ logging enabled. In order to build an optimized build, do this:
     cmake -DCMAKE_BUILD_TYPE=Release ..
     make
 
-
 ## Documentation
 
 Warpcore comes with documentation. This documentation can be built (if `doxygen`
@@ -77,7 +76,6 @@ is installed) by doing
 in any build directory. The starting page of the documentation is then
 `doc/html/index.html`.
 
-
 ## Copyright
 
 Copyright (c) 2014-2020, NetApp, Inc.
@@ -86,12 +84,12 @@ All rights reserved.
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
+  1. Redistributions of source code must retain the above copyright notice, this
+     list of conditions and the following disclaimer.
 
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
+  2. Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -104,7 +102,6 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 ## Acknowledgment
 
 This software has received funding from the European Union's Horizon 2020
@@ -112,6 +109,5 @@ research and innovation program 2014-2018 under grant agreement 644866
 (["SSICLOPS"](https://ssiclops.eu/)). The European Commission is not responsible
 for any use that may be made of this software.
 
-
-[//]: # (@example ping.c)
-[//]: # (@example inetd.c)
+[/a/]: # (@example ping.c)
+[/b/]: # (@example inetd.c)
