@@ -100,6 +100,7 @@ bool io(const uint_t len)
                ov->buf[0], ov->len, iv->idx, iv->buf[0], iv->len);
         ensure(ov->flags == iv->flags, "TOS byte 0x%02x != 0x%02x", ov->flags,
                iv->flags);
+        // warn(ERR, "TOS byte ov 0x%02x, iv 0x%02x", ov->flags, iv->flags);
         ensure(iv->saddr.port == s_clnt->ws_lport,
                "port mismatch, in %u != out %u", bswap16(iv->saddr.port),
                bswap16(s_clnt->ws_lport));
@@ -129,15 +130,23 @@ void init(const uint_t len)
     w_serv = w_init(i, 0, len);
     w_clnt = w_init(i, 0, len);
 
+    const struct w_sockopt opt = {.enable_ecn = true};
+
     // bind server socket
-    s_serv = w_bind(w_serv, 0, bswap16(55555), 0);
+    s_serv = w_bind(w_serv, 0, bswap16(55555), &opt);
+    // s_serv = w_bind(w_serv, w_serv->addr4_pos, bswap16(55555), &opt);
 
     // connect to server
-    s_clnt = w_bind(w_clnt, 0, 0, 0);
+    s_clnt = w_bind(w_clnt, 0, 0, &opt);
     w_connect(s_clnt, (struct sockaddr *)&(struct sockaddr_in6){
                           .sin6_family = AF_INET6,
                           .sin6_addr = IN6ADDR_LOOPBACK_INIT,
                           .sin6_port = bswap16(55555)});
+    // s_clnt = w_bind(w_clnt, w_clnt->addr4_pos, 0, &opt);
+    // w_connect(s_clnt, (struct sockaddr *)&(struct sockaddr_in){
+    //                       .sin_family = AF_INET,
+    //                       .sin_addr = {bswap32(INADDR_LOOPBACK)},
+    //                       .sin_port = bswap16(55555)});
     ensure(w_connected(s_clnt), "not connected");
 }
 
