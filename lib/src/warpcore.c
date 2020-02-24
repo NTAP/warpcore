@@ -580,7 +580,7 @@ uint32_t w_rand_uniform32(const uint32_t upper_bound)
 }
 
 
-static void __attribute__((no_instrument_function))
+static void __attribute__((no_instrument_function, nonnull))
 reinit_iov(struct w_iov * const v)
 {
     v->buf = v->base;
