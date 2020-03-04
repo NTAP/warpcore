@@ -583,10 +583,10 @@ uint32_t w_rand_uniform32(const uint32_t upper_bound)
 static void __attribute__((no_instrument_function, nonnull))
 reinit_iov(struct w_iov * const v)
 {
-    v->buf = v->base;
-    v->len = max_buf_len(v->w);
-    v->o = 0;
-    v->flags = v->ttl = 0;
+    v->buf = v->base;           // cppcheck-suppress nullPointerRedundantCheck
+    v->len = max_buf_len(v->w); // cppcheck-suppress nullPointerRedundantCheck
+    v->o = 0;                   // cppcheck-suppress nullPointerRedundantCheck
+    v->flags = v->ttl = 0;      // cppcheck-suppress nullPointerRedundantCheck
     sq_next(v, next) = 0;
 }
 
