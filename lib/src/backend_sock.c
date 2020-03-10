@@ -129,13 +129,13 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 
     if (s->opt.enable_ecn != opt->enable_ecn) {
         s->opt.enable_ecn = opt->enable_ecn;
-        ensure(setsockopt((int)s->fd,
-                          s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
-                          s->ws_af == AF_INET ? IP_TOS : IPV6_TCLASS,
-                          &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0
-                                                   : IPTOS_ECN_NOTECT},
-                          sizeof(int)) >= 0,
-               "cannot setsockopt IP_TOS");
+        const int ret = setsockopt(
+            (int)s->fd, s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
+            s->ws_af == AF_INET ? IP_TOS : IPV6_TCLASS,
+            &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0 : IPTOS_ECN_NOTECT},
+            sizeof(int));
+        if (unlikely(ret < 0))
+            warn(WRN, "cannot setsockopt IP_TOS/IPV6_TCLASS; running on WSL?");
     }
 }
 
