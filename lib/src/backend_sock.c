@@ -269,7 +269,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
                       s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
                       IP_RECVTTL, &(int){1}, sizeof(int)) >= 0,
            "cannot setsockopt IP_RECVTTL");
-#else
+#elif !defined(PARTICLE)
     ensure(setsockopt((int)s->fd, IPPROTO_IP, IP_RECVTTL, &(int){1},
                       sizeof(int)) >= 0,
            "cannot setsockopt IP_RECVTTL");
@@ -551,6 +551,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
                             || cmsg->cmsg_type == IPV6_TCLASS)
                             v[j]->flags = *(uint8_t *)CMSG_DATA(cmsg);
+#ifndef PARTICLE
                         else if (cmsg->cmsg_type ==
 #ifdef __linux__
                                  IP_TTL
@@ -559,6 +560,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
                         )
                             v[j]->ttl = *(uint8_t *)CMSG_DATA(cmsg);
+#endif
                     }
                 }
                 // add the iov to the tail of the result
