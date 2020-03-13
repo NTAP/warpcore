@@ -429,6 +429,7 @@ struct w_engine * w_init(const char * const ifname,
            "cannot allocate struct w_engine");
     w->addr_cnt = addr_cnt;
     strncpy(w->ifname, ifname, sizeof(w->ifname));
+    w->ifname[sizeof(w->ifname) - 1] = 0;
     sq_init(&w->iov);
 
     // backend-specific init

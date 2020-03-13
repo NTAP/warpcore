@@ -110,7 +110,7 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 
     // switch interface to netmap mode
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");
-    b->req->nr_name[sizeof b->req->nr_name - 1] = '\0';
+    b->req->nr_name[sizeof b->req->nr_name - 1] = 0;
     b->req->nr_version = NETMAP_API;
     b->req->nr_ringid &= ~NETMAP_RING_MASK;
     b->req->nr_ringid |= NETMAP_NO_TX_POLL; // don't always transmit on poll
@@ -133,8 +133,10 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
         for (uint16_t idx = 0; idx < w->addr_cnt; idx++)
             neighbor_update(w, &w->ifaddr[idx].addr,
                             (struct eth_addr){ETH_ADDR_NONE});
-    } else
+    } else {
         strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);
+        b->req->nr_name[sizeof b->req->nr_name - 1] = 0;
+    }
 
     b->req->nr_arg3 = nbufs; // request extra buffers
     ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,
