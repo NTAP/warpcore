@@ -67,11 +67,11 @@ addons:
       description: "Build submitted via Travis CI"
     notification_email: lars@netapp.com
     build_command_prepend: |
+        cov-configure --comptype gcc --compiler gcc-7 --template
         cd $TRAVIS_BUILD_DIR
         cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
-          -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
-          -DNO_SANITIZERS=True .
-    build_command: make
+          -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp .
+    build_command: make VERBOSE=1
     branch_pattern: coverity
 
 before_install:
