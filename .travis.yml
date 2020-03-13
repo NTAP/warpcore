@@ -67,13 +67,16 @@ addons:
       description: "Build submitted via Travis CI"
     notification_email: lars@netapp.com
     build_command_prepend: |
-      if [ $BUILD = "Debug" -a $MYCC = "gcc-7" -a $FUZZER = 0 ]; then
+      if [ "$BUILD" = "Debug" -a "$MYCC" = "gcc-7" -a "$FUZZER" = 0 ]; then
         cd $TRAVIS_BUILD_DIR
+        rm -rf build
+        mkdir build
+        cd build
         cmake -DCMAKE_C_COMPILER=$MYCC -DCMAKE_CXX_COMPILER=$MYCXX \
           -DCMAKE_BUILD_TYPE=$BUILD -DCMAKE_INSTALL_PREFIX:PATH=/tmp \
           -DNO_SANITIZERS=True .
       fi
-    build_command: cov-build make
+    build_command: make
     branch_pattern: coverity
 
 before_install:
@@ -104,7 +107,7 @@ script:
 # after_success:
 #   # update the documentation
 #   - |
-#     if [ $BUILD = "Debug" -a $MYCC = "gcc-7" -a $FUZZER = 0 ]; then
+#     if [ "$BUILD" = "Debug" -a "$MYCC" = "gcc-7" -a "$FUZZER" = 0 ]; then
 #       cd $TRAVIS_BUILD_DIR/build
 #       git clone -b gh-pages https://git@github.com/NTAP/$PROJECT.git gh-pages
 #       cd gh-pages
