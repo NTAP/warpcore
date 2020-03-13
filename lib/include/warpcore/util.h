@@ -225,8 +225,8 @@ util_rwarn(time_t * const rt0,
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
-            static time_t __rt0;                                               \
-            unsigned int __rcnt;                                               \
+            static time_t __rt0 = 0;                                           \
+            unsigned int __rcnt = 0;                                           \
             util_rwarn(                                                        \
                 &__rt0, &__rcnt, (dlevel), lps, DLEVEL == DBG ? __func__ : "", \
                 DLEVEL == DBG ? __FILENAME__ : "", __LINE__, __VA_ARGS__);     \
