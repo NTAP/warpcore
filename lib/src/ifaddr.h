@@ -25,38 +25,16 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <netinet/in.h>
-#include <stdbool.h>
-#include <sys/socket.h>
+#pragma once
+
+#include <stdint.h>
 
 #include <warpcore/warpcore.h>
+// IWYU pragma: no_forward_declare w_engine
 
-#include "common.h"
 
+extern uint16_t __attribute__((nonnull))
+backend_addr_cnt(const char * const ifname);
 
-int main(void)
-{
-    init(64 * 1024);
-
-    // util_dlevel = WRN;
-
-    int n = 0;
-    while (1) {
-        struct w_sock * const s = w_bind(w_clnt, 0, 0, 0);
-        if (s == 0)
-            break;
-        w_connect(s, (struct sockaddr *)&(struct sockaddr_in6){
-                         .sin6_family = AF_INET6,
-                         .sin6_addr = IN6ADDR_LOOPBACK_INIT,
-                         .sin6_port = bswap16(55555)});
-        if (w_connected(s) == false)
-            break;
-        n++;
-    }
-
-    // util_dlevel = DBG;
-
-    warn(WRN, "Was able to open %d connections", n);
-
-    cleanup();
-}
+extern void __attribute__((nonnull))
+backend_addr_config(struct w_engine * const w);

@@ -25,38 +25,36 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <netinet/in.h>
-#include <stdbool.h>
+#pragma once
+
 #include <sys/socket.h>
 
 #include <warpcore/warpcore.h>
 
-#include "common.h"
+
+extern struct eth_addr __attribute__((nonnull))
+who_has(struct w_engine * const w, const struct w_addr * const addr);
+
+extern void __attribute__((nonnull)) free_neighbor(struct w_engine * const w);
+
+extern void __attribute__((nonnull))
+neighbor_update(struct w_engine * const w,
+                const struct w_addr * const addr,
+                const struct eth_addr mac);
 
 
-int main(void)
+static inline khint_t __attribute__((nonnull))
+w_addr_hash(const struct w_addr * const addr)
 {
-    init(64 * 1024);
-
-    // util_dlevel = WRN;
-
-    int n = 0;
-    while (1) {
-        struct w_sock * const s = w_bind(w_clnt, 0, 0, 0);
-        if (s == 0)
-            break;
-        w_connect(s, (struct sockaddr *)&(struct sockaddr_in6){
-                         .sin6_family = AF_INET6,
-                         .sin6_addr = IN6ADDR_LOOPBACK_INIT,
-                         .sin6_port = bswap16(55555)});
-        if (w_connected(s) == false)
-            break;
-        n++;
-    }
-
-    // util_dlevel = DBG;
-
-    warn(WRN, "Was able to open %d connections", n);
-
-    cleanup();
+    // only hash part of the struct and rely on w_addr_hash for comparison
+    return addr->af == AF_INET ? fnv1a_32(&addr->ip4, IP4_LEN)
+                               : fnv1a_32(addr->ip6, IP6_LEN);
 }
+
+
+KHASH_INIT(neighbor,
+           const struct w_addr *,
+           struct eth_addr,
+           1,
+           w_addr_hash,
+           w_addr_cmp)

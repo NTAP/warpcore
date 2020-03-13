@@ -4,7 +4,7 @@ configure_file(src/config.c.in src/config.c)
 
 include(GNUInstallDirs)
 
-add_library(obj_all OBJECT src/plat.c src/util.c)
+add_library(obj_all OBJECT src/plat.c src/util.c src/ifaddr.c)
 
 add_library(obj_sock OBJECT src/backend_sock.c src/warpcore.c)
 add_library(sockcore ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
@@ -22,8 +22,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/warpcore/config.h
 if(HAVE_NETMAP_H)
   add_library(obj_warp
     OBJECT
-      src/arp.c src/eth.c src/icmp.c src/in_cksum.c src/ip.c
-      src/udp.c src/backend_netmap.c src/warpcore.c
+      src/arp.c src/neighbor.c src/eth.c src/icmp4.c src/icmp6.c src/ip4.c
+      src/ip6.c src/in_cksum.c src/udp.c src/backend_netmap.c src/warpcore.c
   )
   target_compile_definitions(obj_warp PRIVATE -DWITH_NETMAP)
   add_library(warpcore ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
@@ -40,8 +40,6 @@ foreach(TARGET ${TARGETS})
     SYSTEM PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
-    SYSTEM PRIVATE
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/deps/klib>
   )
   set_target_properties(${TARGET}
     PROPERTIES

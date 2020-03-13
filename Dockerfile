@@ -2,7 +2,7 @@ FROM alpine:latest
 RUN apk add --no-cache cmake ninja gcc g++ musl-dev linux-headers
 ADD . /src
 WORKDIR /src/Debug
-RUN cmake -GNinja -DNO_SANITIZERS=True -DCMAKE_INSTALL_PREFIX=/dst ..
+RUN cmake -GNinja -DDOCKER=True -DCMAKE_INSTALL_PREFIX=/dst ..
 RUN ninja install
 
 FROM alpine:latest

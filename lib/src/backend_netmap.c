@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,6 @@
 #include <fcntl.h>
 #include <net/if.h>
 #include <net/netmap_user.h>
-#include <netinet/if_ether.h>
 #include <poll.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -43,11 +42,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#define klib_unused
-
 // IWYU pragma: no_include <net/netmap.h>
 // IWYU pragma: no_include <net/netmap_legacy.h>
-#include <khash.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 
@@ -55,17 +51,35 @@
 #include <sanitizer/asan_interface.h>
 #endif
 
-#include "arp.h"
 #include "backend.h"
 #include "eth.h"
+#include "ifaddr.h"
+#include "neighbor.h"
 #include "udp.h"
 
 
-/// The backend name.
+static void __attribute__((nonnull)) ins_sock(struct w_sock * const s)
+{
+    int ret;
+    const khiter_t k = kh_put(sock, &s->w->b->sock, &s->tup, &ret);
+    ensure(ret >= 1, "inserted is %d", ret);
+    kh_val(&s->w->b->sock, k) = s;
+}
+
+
+static void __attribute__((nonnull)) rem_sock(struct w_sock * const s)
+{
+    const khiter_t k = kh_get(sock, &s->w->b->sock, &s->tup);
+    ensure(k != kh_end(&s->w->b->sock), "found");
+    kh_del(sock, &s->w->b->sock, k);
+}
+
+
+/// Set the socket options.
 ///
-static char backend_name[] = "netmap";
-
-
+/// @param      s     The w_sock to change options for.
+/// @param[in]  opt   Socket options for this socket.
+///
 void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     s->opt = *opt;
@@ -76,24 +90,23 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 /// interface to netmap mode, maps the underlying buffers into memory and locks
 /// it there, and sets up the extra buffers.
 ///
-/// @param      w        Backend engine.
-/// @param[in]  nbufs    Number of packet buffers to allocate.
-/// @param[in]  is_lo    Is this a loopback interface?
-/// @param[in]  is_left  Is this the left end of a loopback pipe?
+/// @param      w      Backend engine.
+/// @param[in]  nbufs  Number of packet buffers to allocate.
 ///
-void backend_init(struct w_engine * const w,
-                  const uint32_t nbufs,
-                  const bool is_lo,
-                  const bool is_left)
+void backend_init(struct w_engine * const w, const uint32_t nbufs)
 {
     struct w_backend * const b = w->b;
+
+    backend_addr_config(w);
 
     // open /dev/netmap
     ensure((b->fd = open("/dev/netmap", O_RDWR | O_CLOEXEC)) != -1,
            "cannot open /dev/netmap");
-    w->backend_name = backend_name;
-
-    b->arp_cache = kh_init(arp_cache);
+    w->backend_name = "netmap";
+    w->backend_variant =
+        w->is_loopback
+            ? (w->is_right_pipe ? "right loopback pipe" : "left loopback pipe")
+            : "default";
 
     // switch interface to netmap mode
     ensure((b->req = calloc(1, sizeof(*b->req))) != 0, "cannot allocate nmreq");
@@ -104,26 +117,24 @@ void backend_init(struct w_engine * const w,
     b->req->nr_flags = NR_REG_ALL_NIC;
 
     // if the interface is a netmap pipe, restore its name
-    if (is_lo) {
+    if (w->is_loopback) {
         warn(NTE, "%s is a loopback, using %s netmap pipe", w->ifname,
-             is_left ? "left" : "right");
+             w->is_right_pipe ? "right" : "left");
 
-        snprintf(b->req->nr_name, IFNAMSIZ, "warp-%s", w->ifname);
-        b->req->nr_flags = is_left ? NR_REG_PIPE_SLAVE : NR_REG_PIPE_MASTER;
+        // loopback has typically 64KB MTU, but netmap uses 2048-byte buffers
+        w->mtu = 2048 - sizeof(struct eth_hdr);
+
+        snprintf(b->req->nr_name, IFNAMSIZ, "w-%.*s", IFNAMSIZ - 3, w->ifname);
+        b->req->nr_flags =
+            w->is_right_pipe ? NR_REG_PIPE_MASTER : NR_REG_PIPE_SLAVE;
         b->req->nr_ringid = 1 & NETMAP_RING_MASK;
 
         // preload ARP cache
-        arp_cache_update(
-            w, 0x0100007f,
-            (struct ether_addr){{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}});
-    } else {
-        struct w_engine * e;
-        sl_foreach (e, &engines, next)
-            ensure(strncmp(w->ifname, w_ifname(e), IFNAMSIZ),
-                   "can only have one warpcore engine active on %s", w->ifname);
-
+        for (uint16_t idx = 0; idx < w->addr_cnt; idx++)
+            neighbor_update(w, &w->ifaddr[idx].addr,
+                            (struct eth_addr){ETH_ADDR_NONE});
+    } else
         strncpy(b->req->nr_name, w->ifname, sizeof b->req->nr_name);
-    }
 
     b->req->nr_arg3 = nbufs; // request extra buffers
     ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,
@@ -146,7 +157,7 @@ void backend_init(struct w_engine * const w,
     for (uint32_t ri = 0; likely(ri < b->nif->ni_tx_rings); ri++) {
         const struct netmap_ring * const r = NETMAP_TXRING(b->nif, ri);
         // allocate slot pointers
-        ensure(b->slot_buf[ri] = calloc(r->num_slots, sizeof(**b->slot_buf)),
+        ensure(b->slot_buf[ri] = calloc(r->num_slots, sizeof(struct w_iov *)),
                "cannot allocate slot w_iov pointers");
         // initialize tails
         b->tail[ri] = r->tail;
@@ -156,7 +167,8 @@ void backend_init(struct w_engine * const w,
 
 #ifndef NDEBUG
     for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
-        const struct netmap_ring * const r = NETMAP_RXRING(b->nif, ri);
+        const struct netmap_ring * const r = // NOLINT
+            NETMAP_RXRING(b->nif, ri);
         warn(INF, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
@@ -168,11 +180,10 @@ void backend_init(struct w_engine * const w,
 
     uint32_t i = b->nif->ni_bufs_head;
     for (uint32_t n = 0; likely(n < b->req->nr_arg3); n++) {
-        w->bufs[n].idx = i;
-        init_iov(w, &w->bufs[n]);
+        init_iov(w, &w->bufs[n], i);
         sq_insert_head(&w->iov, &w->bufs[n], next);
         memcpy(&i, w->bufs[n].buf, sizeof(i));
-        ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, w->mtu);
+        ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, max_buf_len(w));
     }
 
     if (b->req->nr_arg3 != nbufs)
@@ -185,20 +196,25 @@ void backend_init(struct w_engine * const w,
 }
 
 
-/// Shut a warpcore netmap engine down cleanly. This function returns all w_iov
-/// structures associated the engine to netmap.
+/// Shut a warpcore netmap engine down cleanly. This function returns all
+/// w_iov structures associated the engine to netmap.
 ///
 /// @param      w     Backend engine.
 ///
 void backend_cleanup(struct w_engine * const w)
 {
+    // close all sockets
+    struct w_sock * s;
+    kh_foreach_value(&w->b->sock, s, { w_close(s); });
+    kh_release(sock, &w->b->sock);
+
     // free ARP cache
-    free_arp_cache(w);
+    free_neighbor(w);
 
     // re-construct the extra bufs list, so netmap can free the memory
     for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
         uint32_t * const buf = (void *)idx_to_buf(w, w->bufs[n].idx);
-        ASAN_UNPOISON_MEMORY_REGION(buf, w->mtu);
+        ASAN_UNPOISON_MEMORY_REGION(buf, max_buf_len(w));
         if (likely(n < sq_len(&w->iov) - 1))
             *buf = w->bufs[n + 1].idx;
         else
@@ -221,15 +237,15 @@ void backend_cleanup(struct w_engine * const w)
 }
 
 
-static inline uint16_t __attribute__((always_inline)) pick_sport(void)
+static inline uint16_t __attribute__((always_inline)) pick_local_port(void)
 {
     // compute a random port >= 1024
-    return 1024 + (uint16_t)w_rand_uniform(UINT16_MAX - 1024);
+    return 1024 + (uint16_t)w_rand_uniform32(UINT16_MAX - 1024);
 }
 
 
-/// Netmap-specific code to bind a warpcore socket. Only computes a random port
-/// number if the socket is not bound to a specific port yet.
+/// Netmap-specific code to bind a warpcore socket. Only computes a random
+/// port number if the socket is not bound to a specific port yet.
 ///
 /// @param      s     The w_sock to bind.
 /// @param[in]  opt   Socket options for this socket. Can be zero.
@@ -238,12 +254,18 @@ static inline uint16_t __attribute__((always_inline)) pick_sport(void)
 ///
 int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
+    if (unlikely(w_get_sock(s->w, &s->ws_loc, 0))) {
+        warn(INF, "UDP source port %d already in bound", bswap16(s->ws_lport));
+        return 0;
+    }
+
     if (opt)
         w_set_sockopt(s, opt);
 
-    if (likely(s->tup.sport == 0))
-        s->tup.sport = pick_sport();
+    if (likely(s->ws_lport == 0))
+        s->ws_lport = pick_local_port();
 
+    ins_sock(s);
     return 0;
 }
 
@@ -252,12 +274,23 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 ///
 /// @param      s     The w_sock to close.
 ///
-void backend_close(struct w_sock * const s __attribute__((unused))) {}
+void backend_close(struct w_sock * const s)
+{
+    // remove the socket from list of sockets
+    rem_sock(s);
+}
+
+
+void backend_preconnect(struct w_sock * const s)
+{
+    // remove the socket from list of sockets
+    rem_sock(s);
+}
 
 
 /// Connect the given w_sock, using the netmap backend. If the Ethernet MAC
-/// address of the destination (or the default router towards it) is not known,
-/// it will block trying to look it up via ARP.
+/// address of the destination (or the default router towards it) is not
+/// known, it will block trying to look it up via ARP.
 ///
 /// @param      s     w_sock to connect.
 ///
@@ -265,47 +298,37 @@ void backend_close(struct w_sock * const s __attribute__((unused))) {}
 ///
 int backend_connect(struct w_sock * const s)
 {
-    // find the Ethernet MAC address of the destination or the default router,
-    // and update the template header
-    const uint32_t ip = s->w->rip && (mk_net(s->tup.dip, s->w->mask) !=
-                                      mk_net(s->tup.sip, s->w->mask))
-                            ? s->w->rip
-                            : s->tup.dip;
-    s->dmac = arp_who_has(s->w, ip);
+    // // find the Ethernet MAC address of the destination or the default
+    // router,
+    // // and update the template header
+    // const uint32_t ip = s->w->rip && (mk_net(s->tup.dip, s->w->mask) !=
+    //                                   mk_net(s->tup.sip, s->w->mask))
+    //                         ? s->w->rip
+    //                         : s->tup.dip;
+    s->dmac = who_has(s->w, &s->ws_raddr);
 
     // see if we need to update the sport
     uint8_t n = 200;
-    do {
-        if (likely(w_get_sock(s->w, s->tup.sip, s->tup.sport, s->tup.dip,
-                              s->tup.dport) == 0))
+    while (n--) {
+        if (likely(w_get_sock(s->w, &s->ws_loc, &s->ws_rem) == 0))
             break;
         // four-tuple exists, reroll sport
-        s->tup.sport = pick_sport();
-    } while (--n);
+        s->ws_lport = pick_local_port();
+    }
+
+    if (likely(n))
+        ins_sock(s);
 
     return n == 0;
 }
 
 
-/// Return the file descriptor associated with a w_sock. For the netmap backend,
-/// this is the per-interface netmap file descriptor. It can be used for poll()
-/// or with event-loop libraries in the application.
+/// Return any new data that has been received on a socket by appending it
+/// to the w_iov tail queue @p i. The tail queue must eventually be returned
+/// to warpcore via w_free().
 ///
-/// @param      s     w_sock socket for which to get the underlying descriptor.
-///
-/// @return     A file descriptor.
-///
-int w_fd(const struct w_sock * const s)
-{
-    return s->w->b->fd;
-}
-
-
-/// Return any new data that has been received on a socket by appending it to
-/// the w_iov tail queue @p i. The tail queue must eventually be returned to
-/// warpcore via w_free().
-///
-/// @param      s     w_sock for which the application would like to receive new
+/// @param      s     w_sock for which the application would like to receive
+/// new
 ///                   data.
 /// @param      i     w_iov tail queue to append new data to.
 ///
@@ -316,42 +339,47 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 
 
 /// Loops over the w_iov structures in the w_iov_sq @p o, sending them all
-/// over w_sock @p s. Places the payloads into IPv4 UDP packets, and attempts to
-/// move them into TX rings. Will force a NIC TX if all rings are full, retry
-/// the failed w_iovs. The (last batch of) packets are not send yet; w_nic_tx()
-/// needs to be called (again) for that. This is, so that an application has
-/// control over exactly when to schedule packet I/O.
+/// over w_sock @p s. Places the payloads into IPv4 UDP packets, and
+/// attempts to move them into TX rings. Will force a NIC TX if all rings
+/// are full, retry the failed w_iovs. The (last batch of) packets are not
+/// send yet; w_nic_tx() needs to be called (again) for that. This is, so
+/// that an application has control over exactly when to schedule packet
+/// I/O.
 ///
 /// @param      s     w_sock socket to transmit over.
 /// @param      o     w_iov_sq to send.
 ///
-void w_tx(const struct w_sock * const s, struct w_iov_sq * const o)
+void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 {
     struct w_iov * v;
     o->tx_pending = 0;
     sq_foreach (v, o, next) {
         o->tx_pending++;
         v->o = o;
-        while (unlikely(udp_tx(s, v) == false))
+        const uint16_t len = v->len;
+        while (unlikely(udp_tx(s, v) == false)) {
             w_nic_tx(s->w);
+            v->len = len;
+        }
     }
 }
 
 
-/// Trigger netmap to make new received data available to w_rx(). Iterates over
-/// any new data in the RX rings, calling eth_rx() for each.
+/// Trigger netmap to make new received data available to w_rx(). Iterates
+/// over any new data in the RX rings, calling eth_rx() for each.
 ///
 /// @param[in]  w     Backend engine.
-/// @param[in]  msec  Timeout in milliseconds. Pass zero for immediate return,
-///                   -1 for infinite wait.
+/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate
+/// return, -1
+///                   for infinite wait.
 ///
 /// @return     Whether any data is ready for reading.
 ///
-bool w_nic_rx(struct w_engine * const w, const int32_t msec)
+bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 {
     struct pollfd fds = {.fd = w->b->fd, .events = POLLIN};
 again:
-    if (poll(&fds, 1, msec) == 0)
+    if (poll(&fds, 1, nsec < 0 ? -1 : (int)(nsec / NS_PER_MS)) == 0)
         return false;
 
     // loop over all rx rings
@@ -359,27 +387,27 @@ again:
     for (uint32_t i = 0; likely(i < w->b->nif->ni_rx_rings); i++) {
         struct netmap_ring * const r = NETMAP_RXRING(w->b->nif, i);
         while (likely(!nm_ring_empty(r))) {
-            // process the current slot
+#if 0
             warn(DBG, "rx idx %u from ring %u slot %u", r->slot[r->cur].buf_idx,
                  i, r->cur);
+#endif
+            // process the current slot
             rx = eth_rx(w, &r->slot[r->cur],
                         (uint8_t *)NETMAP_BUF(r, r->slot[r->cur].buf_idx));
             r->head = r->cur = nm_ring_next(r, r->cur);
         }
     }
 
-    // if (likely(rx) && unlikely(is_pipe(w)))
-    //     ensure(ioctl(w->b->fd, NIOCRXSYNC, 0) != -1, "cannot kick rx ring");
-
-    if (rx == false && msec == -1)
+    if (rx == false && nsec == -1)
         goto again;
 
     return rx;
 }
 
 
-/// Push data placed in the TX rings via udp_tx() and similar methods out onto
-/// the link. Also move any transmitted data back into the original w_iovs.
+/// Push data placed in the TX rings via udp_tx() and similar methods out
+/// onto the link. Also move any transmitted data back into the original
+/// w_iovs.
 ///
 /// @param[in]  w     Backend engine.
 ///
@@ -387,21 +415,28 @@ void w_nic_tx(struct w_engine * const w)
 {
     ensure(ioctl(w->b->fd, NIOCTXSYNC, 0) != -1, "cannot kick tx ring");
 
+    if (unlikely(is_pipe(w)))
+        return;
+
     // grab the transmitted data out of the NIC rings and place it back into
     // the original w_iov_sqs, so it's not lost to the app
     for (uint32_t i = 0; likely(i < w->b->nif->ni_tx_rings); i++) {
         struct netmap_ring * const r = NETMAP_TXRING(w->b->nif, i);
-        // warn(WRN, "tx ring %u: old tail %u, tail %u, cur %u, head %u", i,
-        //      w->b->tail[i], r->tail, r->cur, r->head);
+#if 0
+        rwarn(WRN, 10, "tx ring %u: old tail %u, tail %u, cur %u, head %u", i,
+              w->b->tail[i], r->tail, r->cur, r->head);
+#endif
 
-        // XXX we need to abuse the netmap API here by touching tail until a fix
-        // is included upstream
+        // XXX we need to abuse the netmap API here by touching tail until a
+        // fix is included upstream
         for (uint32_t j = nm_ring_next(r, w->b->tail[i]);
              likely(j != nm_ring_next(r, r->tail)); j = nm_ring_next(r, j)) {
             struct netmap_slot * const s = &r->slot[j];
             struct w_iov * const v = w->b->slot_buf[r->ringid][j];
+#if 0
             warn(DBG, "move idx %u from ring %u slot %u to w_iov (swap w/%u)",
                  s->buf_idx, i, j, v->idx);
+#endif
             const uint32_t slot_idx = s->buf_idx;
             s->buf_idx = v->idx;
             v->idx = slot_idx;
@@ -419,11 +454,12 @@ void w_nic_tx(struct w_engine * const w)
 }
 
 
-/// Fill a w_sock_slist with pointers to some sockets with pending inbound data.
-/// Data can be obtained via w_rx() on each w_sock in the list. Call can
-/// optionally block to wait for at least one ready connection. Will return the
-/// number of ready connections, or zero if none are ready. When the return
-/// value is not zero, a repeated call may return additional ready sockets.
+/// Fill a w_sock_slist with pointers to some sockets with pending inbound
+/// data. Data can be obtained via w_rx() on each w_sock in the list. Call
+/// can optionally block to wait for at least one ready connection. Will
+/// return the number of ready connections, or zero if none are ready. When
+/// the return value is not zero, a repeated call may return additional
+/// ready sockets.
 ///
 /// @param[in]  w     Backend engine.
 /// @param      sl    Empty and initialized w_sock_slist.
@@ -435,11 +471,32 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     // insert all sockets with pending inbound data
     struct w_sock * s;
     uint32_t n = 0;
-    kh_foreach_value((khash_t(sock) *)w->sock, s, {
+    kh_foreach_value(&w->b->sock, s, {
         if (!sq_empty(&s->iv)) {
-            sl_insert_head(sl, s, next_rx);
+            sl_insert_head(sl, s, next);
             n++;
         }
     });
     return n;
+}
+
+
+/// Get the socket bound to the given four-tuple <source IP, source port,
+/// destination IP, destination port>.
+///
+/// @param      w       Backend engine.
+/// @param[in]  local   The local IP address and port.
+/// @param[in]  remote  The remote IP address and port.
+///
+/// @return     The w_sock bound to the given four-tuple.
+///
+struct w_sock * w_get_sock(struct w_engine * const w,
+                           const struct w_sockaddr * const local,
+                           const struct w_sockaddr * const remote)
+{
+    struct w_socktuple tup = {.local = *local};
+    if (remote)
+        tup.remote = *remote;
+    const khiter_t k = kh_get(sock, &w->b->sock, &tup);
+    return unlikely(k == kh_end(&w->b->sock)) ? 0 : kh_val(&w->b->sock, k);
 }

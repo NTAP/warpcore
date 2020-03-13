@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -47,66 +47,66 @@ int main(void)
 
     struct w_engine * const w = w_serv;
 
-    struct w_iov * v = w_alloc_iov(w, 0, 0);
+    struct w_iov * v = w_alloc_iov(w, s_serv->ws_af, 0, 0);
     warn(DBG, "base: len %u", v->len);
-    ensure(v->len == w->mtu, "base len != %u", w->mtu);
+    ensure(v->len == max_buf_len(w), "base len != %u", max_buf_len(w));
 
-    for (uint16_t x = 0; x <= w->mtu; x += 200) {
+    for (uint16_t x = 0; x <= max_buf_len(w); x += 200) {
         warn(INF, "off %u", x);
-        v = w_alloc_iov(w, 0, x);
-        ensure(v->len == w->mtu - x, "v len != %u", w->mtu - x);
+        v = w_alloc_iov(w, s_serv->ws_af, 0, x);
+        ensure(v->len == max_buf_len(w) - x, "v len != %u", max_buf_len(w) - x);
         ensure(v->buf == beg(v) + x, "start incorrect %p != %p", (void *)v->buf,
                (void *)(beg(v) + x));
         w_free_iov(v);
     }
 
-    for (uint16_t x = 0; x <= w->mtu; x += 200) {
+    for (uint16_t x = 0; x <= max_buf_len(w); x += 200) {
         warn(INF, "len %u", x);
-        v = w_alloc_iov(w, x, 0);
-        ensure(v->len == (x == 0 ? w->mtu : x), "v len != %u", x);
+        v = w_alloc_iov(w, s_serv->ws_af, x, 0);
+        ensure(v->len == (x == 0 ? max_buf_len(w) : x), "v len != %u", x);
         ensure(v->buf == beg(v), "start incorrect");
         w_free_iov(v);
     }
 
     const uint16_t off = 100;
-    for (uint16_t x = 0; x <= w->mtu - off; x += 200) {
+    for (uint16_t x = 0; x <= max_buf_len(w) - off; x += 200) {
         warn(INF, "off %u & len %u", off, x);
-        v = w_alloc_iov(w, x, off);
-        ensure(v->len == (x == 0 ? w->mtu - off : x), "v len != %u", x);
+        v = w_alloc_iov(w, s_serv->ws_af, x, off);
+        ensure(v->len == (x == 0 ? max_buf_len(w) - off : x), "v len != %u", x);
         ensure(v->buf == beg(v) + off, "start incorrect");
         w_free_iov(v);
     }
 
     struct w_iov_sq q;
-    for (uint16_t x = 0; x <= w->mtu * 3; x += (w->mtu / 3)) {
+    for (uint16_t x = 0; x <= max_buf_len(w) * 3; x += (max_buf_len(w) / 3)) {
         warn(INF, "sq qlen %u", x);
         sq_init(&q);
-        w_alloc_len(w, &q, x, 0, 0);
+        w_alloc_len(w, s_serv->ws_af, &q, x, 0, 0);
         const uint64_t ql = w_iov_sq_len(&q);
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
         sq_foreach (v, &q, next) {
-            ensure(v->len == (sq_next(v, next) ? w->mtu : x - sl),
+            ensure(v->len == (sq_next(v, next) ? max_buf_len(w) : x - sl),
                    "len %" PRIu64 " != %u", ql,
-                   (sq_next(v, next) ? w->mtu : x - sl));
+                   (sq_next(v, next) ? max_buf_len(w) : x - sl));
             ensure(v->buf == beg(v), "start incorrect");
             sl += v->len;
         }
         w_free(&q);
     }
 
-    for (uint16_t x = 0; x <= w->mtu * 3; x += (w->mtu / 3)) {
+    for (uint16_t x = 0; x <= max_buf_len(w) * 3; x += (max_buf_len(w) / 3)) {
         warn(INF, "sq off %u qlen %u", off, x);
         sq_init(&q);
-        w_alloc_len(w, &q, x, 0, off);
+        w_alloc_len(w, s_serv->ws_af, &q, x, 0, off);
         const uint64_t ql = w_iov_sq_len(&q);
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;
         sq_foreach (v, &q, next) {
-            ensure(v->len ==
-                       (sq_next(v, next) ? w->mtu - off : (uint16_t)(x - sl)),
+            ensure(v->len == (sq_next(v, next) ? max_buf_len(w) - off
+                                               : (uint16_t)(x - sl)),
                    "len %u != %u", v->len,
-                   (sq_next(v, next) ? w->mtu : x - sl));
+                   (sq_next(v, next) ? max_buf_len(w) : x - sl));
             ensure(v->buf == beg(v) + off, "start incorrect");
             sl += v->len;
         }
@@ -114,10 +114,10 @@ int main(void)
     }
 
     const uint16_t len = 1111;
-    for (uint16_t x = 0; x <= w->mtu * 3; x += (w->mtu / 3)) {
+    for (uint16_t x = 0; x <= max_buf_len(w) * 3; x += (max_buf_len(w) / 3)) {
         warn(INF, "sq off %u len %u qlen %u", off, len, x);
         sq_init(&q);
-        w_alloc_len(w, &q, x, len, off);
+        w_alloc_len(w, s_serv->ws_af, &q, x, len, off);
         const uint64_t ql = w_iov_sq_len(&q);
         ensure(ql == x, "sq len != %u", x);
         uint32_t sl = 0;

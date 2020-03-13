@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,8 +25,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
-#include <inttypes.h>
+#include <libgen.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -105,7 +104,7 @@ int
             opt.enable_udp_zero_checksums = true;
             break;
         case 'n':
-            nbufs = (uint32_t)MIN(900000, MAX(1, strtoul(optarg, 0, 10)));
+            nbufs = (uint32_t)MAX(1, strtoul(optarg, 0, 10));
             break;
         case 'v':
             util_dlevel = (short)MIN(DLEVEL, strtoul(optarg, 0, 10));
@@ -131,15 +130,11 @@ int
     ensure(signal(SIGINT, &terminate) != SIG_ERR, "signal");
 
     // start four inetd-like "small services" and one benchmark of our own
-    struct w_sock * const srv[] = {
-#if 0
-        w_bind(w, htons(7), &opt),
-        w_bind(w, htons(9), &opt),
-#endif
-        w_bind(w, htons(55555), &opt)
-    };
-    const uint16_t n = sizeof(srv) / sizeof(srv[0]);
-
+    for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
+        w_bind(w, idx, bswap16(7), &opt);
+        w_bind(w, idx, bswap16(9), &opt);
+        w_bind(w, idx, bswap16(55555), &opt);
+    }
     // serve requests on the four sockets until an interrupt occurs
     while (done == false) {
         // receive new data (there may not be any if busy-waiting)
@@ -150,26 +145,30 @@ int
         struct w_sock_slist sl = w_sock_slist_initializer(sl);
         w_rx_ready(w, &sl);
         struct w_sock * s;
-        sl_foreach (s, &sl, next_rx) {
+        sl_foreach (s, &sl, next) {
             // ...check if any new data has arrived on the socket
             struct w_iov_sq i = w_iov_sq_initializer(i);
             w_rx(s, &i);
             if (sq_empty(&i))
                 continue;
-            warn(DBG, "received %" PRIu64 " bytes", w_iov_sq_len(&i));
+            warn(DBG, "received %" PRIu " bytes from %s:%u on %s:%u",
+                 w_iov_sq_len(&i), w_ntop(&sq_first(&i)->wv_addr, ip_tmp),
+                 bswap16(sq_first(&i)->saddr.port),
+                 w_ntop(&s->ws_laddr, ip_tmp), bswap16(s->ws_lport));
 
             struct w_iov_sq o = w_iov_sq_initializer(o);
-            uint16_t t = 0;
-#if 0
-            if (s == srv[t++]) {
+
+            switch (bswap16(s->ws_lport)) {
+            case 7:
                 // echo received data back to sender (zero-copy)
                 sq_concat(&o, &i);
-            }
-             else if (s == srv[t++]) {
+                break;
+
+            case 9:
                 // discard; nothing to do
-            } else
-#endif
-            if (s == srv[t++]) {
+                break;
+
+            case 55555:;
                 static struct w_iov_sq tmp = w_iov_sq_initializer(tmp);
                 static uint64_t tmp_len = 0;
                 static uint64_t nonce = 0;
@@ -209,8 +208,9 @@ int
                     sq_concat(&o, &tmp);
                     nonce = tmp_len = 0;
                 }
+                break;
 
-            } else {
+            default:
                 die("unknown service");
             }
 
@@ -228,8 +228,6 @@ int
     }
 
     // we only get here after an interrupt; clean up
-    for (uint16_t s = 0; s < n; s++)
-        w_close(srv[s]);
     w_cleanup(w);
     return 0;
 }

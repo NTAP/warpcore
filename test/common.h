@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -32,12 +32,14 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <stdint.h>
+
+#include <warpcore/warpcore.h>
 
 extern struct w_engine *w_serv, *w_clnt;
+extern struct w_sock *s_serv, *s_clnt;
 
-extern bool io(const uint64_t len);
-extern void init(const uint64_t len);
+extern bool io(const uint_t len);
+extern void init(const uint_t len);
 extern void cleanup(void);
 
 #ifdef __cplusplus

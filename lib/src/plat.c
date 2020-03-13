@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -33,21 +33,25 @@
 #ifdef __APPLE__
 // need to come before ifaddrs.h
 #include <sys/socket.h>
-#include <sys/types.h>
 #endif
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
-#include <warpcore/warpcore.h> // IWYU pragma: keep
+#include <warpcore/warpcore.h>
 
-#ifndef PARTICLE
+#if !defined(FUZZING) && !defined(PARTICLE) && !defined(RIOT_VERSION)
+#include <sys/time.h>
+#endif
+
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
 #include <net/if.h>
-#include <netinet/if_ether.h>
-#else
-// #include <socket_hal.h>
+#include <time.h>
+
+#include "krng.h"
 #endif
 
 #if defined(__linux__)
@@ -69,29 +73,41 @@
 #include <sys/ioctl.h>
 #include <sys/sockio.h>
 #include <unistd.h>
+
+#elif defined(PARTICLE)
+#include <delay_hal.h>
+#include <rng_hal.h>
+#include <timer_hal.h>
+
+#elif defined(RIOT_VERSION)
+#include <random.h>
+#include <xtimer.h>
 #endif
 
+
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+// w_init() must initialize this so that it is not all zero
+static krng_t w_rand_state;
+#endif
 
 
 /// Return the Ethernet MAC address of network interface @p i.
 ///
-/// @param[out] mac   A buffer of at least ETH_ADDR_LEN bytes.
+/// @param[out] mac   A buffer of at least ETH_LEN bytes.
 /// @param[in]  i     A network interface.
 ///
-void plat_get_mac(struct ether_addr * const mac, const struct ifaddrs * const i)
+void plat_get_mac(struct eth_addr * const mac, const struct ifaddrs * const i)
 {
 #if defined(__linux__)
-    memcpy(mac, ((struct sockaddr_ll *)(void *)i->ifa_addr)->sll_addr,
-           ETHER_ADDR_LEN);
+    memcpy(mac, ((struct sockaddr_ll *)(void *)i->ifa_addr)->sll_addr, ETH_LEN);
 #elif defined(PARTICLE)
     if_t iface;
     if_get_by_name(i->ifname, &iface);
     struct sockaddr_ll hw_addr;
     if_get_lladdr(iface, &hw_addr);
-    memcpy(mac, hw_addr.sll_addr, ETHER_ADDR_LEN);
-#else
-    memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr),
-           ETHER_ADDR_LEN);
+    memcpy(mac, hw_addr.sll_addr, ETH_LEN);
+#elif !defined(RIOT_VERSION)
+    memcpy(mac, LLADDR((struct sockaddr_dl *)(void *)i->ifa_addr), ETH_LEN);
 #endif
 }
 
@@ -124,6 +140,8 @@ uint16_t plat_get_mtu(const struct ifaddrs * i)
 
     close(s);
     return mtu;
+#elif defined(RIOT_VERSION)
+    return 0;
 #else
     const struct if_data * const ifa_data = i->ifa_data;
     return (uint16_t)ifa_data->ifi_mtu;
@@ -152,7 +170,7 @@ uint32_t plat_get_mbps(const struct ifaddrs * i)
         ifa_data->ifi_baudrate == 0)
         return UINT32_MAX;
     return ifa_data->ifi_baudrate / 1000000;
-#elif defined(PARTICLE)
+#elif defined(PARTICLE) || defined(RIOT_VERSION)
     return UINT32_MAX;
 #else
     const int s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -203,7 +221,7 @@ bool plat_get_link(const struct ifaddrs * i)
     if ((i->ifa_flags & (IFF_LOOPBACK | IFF_UP)) == (IFF_LOOPBACK | IFF_UP))
         return true;
 #endif
-    bool link;
+    bool link = false;
 #if defined(__FreeBSD__)
     const struct if_data * const ifa_data = i->ifa_data;
     link = ((ifa_data->ifi_link_state & LINK_STATE_UP) == LINK_STATE_UP);
@@ -213,7 +231,7 @@ bool plat_get_link(const struct ifaddrs * i)
     unsigned int flags;
     if_get_flags(iface, &flags);
     link = flags & IFF_UP;
-#else
+#elif !defined(RIOT_VERSION)
     const int s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     ensure(s >= 0, "%s socket", i->ifa_name);
 
@@ -301,17 +319,98 @@ done:
 }
 
 
-#ifndef HAVE_ETHER_NTOA_R
-#include <stdio.h>
-
-char * ether_ntoa_r(const struct ether_addr * const addr, char * const buf)
+const char * eth_ntoa(const struct eth_addr * const addr, char * const buf)
 {
-    sprintf(buf, "%x:%x:%x:%x:%x:%x", addr->ether_addr_octet[0],
-            addr->ether_addr_octet[1], addr->ether_addr_octet[2],
-            addr->ether_addr_octet[3], addr->ether_addr_octet[4],
-            addr->ether_addr_octet[5]);
+    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", addr->addr[0], addr->addr[1],
+            addr->addr[2], addr->addr[3], addr->addr[4], addr->addr[5]);
     return buf;
 }
+
+
+/// Return the relative time in nanoseconds since an undefined epoch.
+///
+/// @return     Relative time in nanoseconds.
+///
+uint64_t __attribute__((no_instrument_function)) w_now(void)
+{
+#if defined(PARTICLE)
+    return HAL_Timer_Microseconds() * NS_PER_US;
+#elif defined(RIOT_VERSION)
+    return xtimer_now_usec64() * NS_PER_US;
+#else
+#ifdef __APPLE__
+    return clock_gettime_nsec_np(CLOCK_REALTIME);
+#else
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
 #endif
+#endif
+}
 
 
+/// Sleep for a number of nanoseconds.
+///
+/// @param[in]  ns    Sleep time in nanoseconds.
+///
+void w_nanosleep(const uint64_t ns)
+{
+#ifdef PARTICLE
+    HAL_Delay_Microseconds(NS_TO_US(ns));
+#elif defined(RIOT_VERSION)
+    xtimer_nanosleep(ns);
+#else
+    nanosleep(&(struct timespec){ns / NS_PER_S, (long)(ns % NS_PER_S)}, 0);
+#endif
+}
+
+
+/// Init state for w_rand() and w_rand_uniform(). This **MUST** be called once
+/// prior to calling any of these functions!
+///
+void w_init_rand(void)
+{
+    // init state for w_rand()
+#if !defined(FUZZING) && !defined(PARTICLE) && !defined(RIOT_VERSION)
+    struct timeval now;
+    gettimeofday(&now, 0);
+    const uint64_t seed = fnv1a_64(&now, sizeof(now));
+    kr_srand_r(&w_rand_state, seed);
+#endif
+}
+
+
+/// Return a 64-bit random number. Fast, but not cryptographically secure.
+/// Implements xoroshiro128+; see
+/// https://en.wikipedia.org/wiki/Xoroshiro128%2B.
+///
+/// @return     Random number.
+///
+uint64_t w_rand64(void)
+{
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+    return kr_rand_r(&w_rand_state);
+#elif defined(PARTICLE)
+    return (uint64_t)(HAL_RNG_GetRandomNumber()) << 32 |
+           HAL_RNG_GetRandomNumber();
+#elif defined(RIOT_VERSION)
+    return (uint64_t)(random_uint32()) << 32 | random_uint32();
+#endif
+}
+
+
+/// Return a 32-bit random number. Fast, but not cryptographically secure.
+/// Truncates w_rand64() to 32 bits.
+///
+/// @return     Random number.
+///
+uint32_t w_rand32(void)
+{
+#if !defined(PARTICLE) && !defined(RIOT_VERSION)
+    return (uint32_t)kr_rand_r(&w_rand_state);
+#elif defined(PARTICLE)
+    return HAL_RNG_GetRandomNumber();
+#elif defined(RIOT_VERSION)
+    return random_uint32();
+#endif
+}

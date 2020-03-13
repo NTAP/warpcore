@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,40 +27,35 @@
 
 #pragma once
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-#ifndef PARTICLE
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef WITH_NETMAP
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
-#endif
+#include <sys/socket.h>
 
 #include <warpcore/warpcore.h>
 
-#include "arp.h"
-
-struct netmap_slot;
-struct netmap_slot;
+#ifdef WITH_NETMAP
+struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
+#endif
 
 
 /// An [Ethernet II MAC
 /// header](https://en.wikipedia.org/wiki/Ethernet_frame#Ethernet_II).
 ///
 struct eth_hdr {
-    struct ether_addr dst; ///< Destination MAC address.
-    struct ether_addr src; ///< Source MAC address.
-    uint16_t type;         ///< EtherType of the payload data.
+    struct eth_addr dst; ///< Destination MAC address.
+    struct eth_addr src; ///< Source MAC address.
+    uint16_t type;       ///< EtherType of the payload data.
 } __attribute__((aligned(1)));
 
 
-#define ETH_TYPE_IP htons(0x0800)  ///< EtherType for IPv4.
-#define ETH_TYPE_ARP htons(0x0806) ///< EtherType for ARP.
+#define ETH_TYPE_ARP 0x0608 ///< EtherType for ARP (network byte-order).
+#define ETH_TYPE_IP4 0x0008 ///< EtherType for IPv4 (network byte-order).
+#define ETH_TYPE_IP6 0xdd86 ///< EtherType for IPv6 (network byte-order).
+
+#define ETH_ADDR_BCAST "\xff\xff\xff\xff\xff\xff"  ///< Broadcast MAC address.
+#define ETH_ADDR_NONE "\x00\x00\x00\x00\x00\x00"   ///< Unset MAC address.
+#define ETH_ADDR_MCAST6 "\x33\x33\x00\x00\x00\x00" ///< IPv6 multicast.
+
 
 /// Return a pointer to the first data byte inside the Ethernet frame in @p buf.
 ///
@@ -75,24 +70,30 @@ eth_data(uint8_t * const buf)
 }
 
 
+#ifdef WITH_NETMAP
+
+// IWYU pragma: no_include <net/netmap.h>
+#include <net/netmap_user.h> // IWYU pragma: keep
+
+#include "neighbor.h"
+
+
 extern bool __attribute__((nonnull)) eth_rx(struct w_engine * const w,
                                             struct netmap_slot * const s,
                                             uint8_t * const buf);
 
-#ifdef WITH_NETMAP
+extern bool __attribute__((nonnull)) eth_tx(struct w_iov * const v);
+
+extern void __attribute__((nonnull)) eth_tx_and_free(struct w_iov * const v);
+
 
 static inline void __attribute__((nonnull))
 mk_eth_hdr(const struct w_sock * const s, struct w_iov * const v)
 {
     struct eth_hdr * const eth = (void *)v->base;
-    const struct sockaddr_in * const addr4 = (struct sockaddr_in *)&v->addr;
-    eth->dst =
-        w_connected(s) ? s->dmac : arp_who_has(s->w, addr4->sin_addr.s_addr);
+    eth->dst = w_connected(s) ? s->dmac : who_has(s->w, &v->wv_addr);
     eth->src = v->w->mac;
-    eth->type = ETH_TYPE_IP;
+    eth->type = s->ws_af == AF_INET ? ETH_TYPE_IP4 : ETH_TYPE_IP6;
 }
-
-extern bool __attribute__((nonnull))
-eth_tx(struct w_iov * const v, const uint16_t len);
 
 #endif

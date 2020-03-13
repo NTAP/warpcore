@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -39,11 +39,6 @@
 #include <net/netmap_user.h> // IWYU pragma: keep
 #endif
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wreserved-id-macro"
-#include <khash.h>
-#pragma clang diagnostic pop
-
 #include <warpcore/warpcore.h>
 
 #if defined(HAVE_KQUEUE)
@@ -51,25 +46,35 @@
 #include <time.h>
 #elif defined(HAVE_EPOLL)
 #include <sys/epoll.h>
-#elif !defined(PARTICLE)
+#elif !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <poll.h>
 #endif
 
 #ifdef WITH_NETMAP
 #include "arp.h"
+#include "eth.h"
+#include "neighbor.h"
 #include "udp.h"
+
+KHASH_INIT(sock,
+           struct w_socktuple *,
+           struct w_sock *,
+           1,
+           w_socktuple_hash,
+           w_socktuple_cmp)
 #endif
 
 
 struct w_backend {
 #ifdef WITH_NETMAP
-    int fd;                         ///< Netmap file descriptor.
-    uint32_t cur_txr;               ///< Index of the TX ring currently active.
-    struct netmap_if * nif;         ///< Netmap interface.
-    struct nmreq * req;             ///< Netmap request structure.
-    khash_t(arp_cache) * arp_cache; ///< The ARP cache.
-    uint32_t * tail;           ///< TX ring tails after last NIOCTXSYNC call.
-    struct w_iov *** slot_buf; ///< For each ring slot, a pointer to its w_iov.
+    int fd;                     ///< Netmap file descriptor.
+    uint32_t cur_txr;           ///< Index of the TX ring currently active.
+    struct netmap_if * nif;     ///< Netmap interface.
+    struct nmreq * req;         ///< Netmap request structure.
+    khash_t(neighbor) neighbor; ///< The ARP cache.
+    uint32_t * tail;            ///< TX ring tails after last NIOCTXSYNC call.
+    struct w_iov *** slot_buf;  ///< For each ring slot, a pointer to its w_iov.
+    khash_t(sock) sock;         ///< List of open (bound) w_sock sockets.
 #else
 #if defined(HAVE_KQUEUE)
     struct kevent ev[64]; // XXX arbitrary value
@@ -78,17 +83,32 @@ struct w_backend {
     int ep;
     struct epoll_event ev[64]; // XXX arbitrary value
 #else
+#ifndef RIOT_VERSION
     struct pollfd * fds;
-    struct w_sock ** socks;
+#else
+    gnrc_netif_t * nif;
+#endif
+    struct w_sock_slist socks;
 #endif
     int n;
 #ifndef HAVE_KQUEUE
     /// @cond
     uint8_t _unused[4]; ///< @internal Padding.
-    /// @endcond
+                        /// @endcond
 #endif
 #endif
 };
+
+
+#ifdef WITH_NETMAP
+#define max_buf_len(w) (uint16_t)((w)->mtu)
+#define iov_off(w, af)                                                         \
+    (sizeof(struct eth_hdr) + ip_hdr_len(af) + sizeof(struct udp_hdr))
+#else
+#define max_buf_len(w)                                                         \
+    (uint16_t)((w)->mtu - 28) // 28 = min_hdr(IP4, IP6) + UDP hdr
+#define iov_off(w, af) 0
+#endif
 
 
 static inline bool __attribute__((nonnull))
@@ -123,46 +143,29 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
 #ifdef WITH_NETMAP
     return (uint8_t *)NETMAP_BUF(NETMAP_TXRING(w->b->nif, 0), i);
 #else
-    return (uint8_t *)w->mem + ((intptr_t)i * w->mtu);
+    return (uint8_t *)w->mem + ((intptr_t)i * max_buf_len(w));
 #endif
 }
 
 
-/// Global list of initialized warpcore engines.
-///
-extern sl_head(w_engines, w_engine) engines;
-
-
-/// Compute the IPv4 broadcast address for the given IPv4 address and netmask.
-///
-/// @param      ip    The IPv4 address to compute the broadcast address for.
-/// @param      mask  The netmask associated with @p ip.
-///
-/// @return     The IPv4 broadcast address associated with @p ip and @p mask.
-///
-static inline uint32_t __attribute__((const))
-mk_bcast(const uint32_t ip, const uint32_t mask)
-{
-    return ip | (~mask);
-}
-
-
-/// The IPv4 network prefix for the given IPv4 address and netmask.
-///
-/// @param      ip    The IPv4 address to compute the prefix for.
-/// @param      mask  The netmask associated with @p ip.
-///
-/// @return     The IPv4 prefix associated with @p ip and @p mask.
-///
-static inline uint32_t __attribute__((const))
-mk_net(const uint32_t ip, const uint32_t mask)
-{
-    return ip & mask;
-}
+#define sa_port(s)                                                             \
+    _Pragma("clang diagnostic push")                                           \
+                _Pragma("clang diagnostic ignored \"-Wcast-align\"")(          \
+                    (const struct sockaddr *)(s))                              \
+                    ->sa_family == AF_INET                                     \
+        ? ((const struct sockaddr_in *)(s))->sin_port                          \
+        : ((const struct sockaddr_in6 *)(s))                                   \
+              ->sin6_port _Pragma("clang diagnostic pop")
 
 
 extern void __attribute__((nonnull))
-init_iov(struct w_engine * const w, struct w_iov * const v);
+ip6_config(struct w_ifaddr * const ia, const uint8_t * const mask);
+
+extern uint8_t __attribute__((nonnull))
+contig_mask_len(const int af, const uint8_t * const mask);
+
+extern void __attribute__((nonnull))
+init_iov(struct w_engine * const w, struct w_iov * const v, const uint32_t idx);
 
 extern struct w_iov * __attribute__((nonnull))
 w_alloc_iov_base(struct w_engine * const w);
@@ -172,28 +175,17 @@ backend_bind(struct w_sock * const s, const struct w_sockopt * const opt);
 
 extern void __attribute__((nonnull)) backend_close(struct w_sock * const s);
 
+extern void __attribute__((nonnull))
+backend_preconnect(struct w_sock * const s);
+
 extern int __attribute__((nonnull)) backend_connect(struct w_sock * const s);
 
-extern void __attribute__((nonnull)) backend_init(struct w_engine * const w,
-                                                  const uint32_t nbufs,
-                                                  const bool is_lo,
-                                                  const bool is_left);
+extern void __attribute__((nonnull))
+backend_init(struct w_engine * const w, const uint32_t nbufs);
 
 extern void __attribute__((nonnull)) backend_cleanup(struct w_engine * const w);
 
-
-static inline khint_t __attribute__((nonnull))
-tuple_hash(const struct w_tuple * const tup)
-{
-    return fnv1a_32(tup, sizeof(*tup));
-}
-
-
-static inline khint_t __attribute__((nonnull))
-tuple_equal(const struct w_tuple * const a, const struct w_tuple * const b)
-{
-    return memcmp(a, b, sizeof(*a)) == 0;
-}
-
-
-KHASH_INIT(sock, struct w_tuple *, struct w_sock *, 1, tuple_hash, tuple_equal)
+extern struct w_sock * __attribute__((nonnull(1, 2)))
+w_get_sock(struct w_engine * const w,
+           const struct w_sockaddr * const local,
+           const struct w_sockaddr * const remote);

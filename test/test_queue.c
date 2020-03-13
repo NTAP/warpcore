@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,14 +25,13 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <warpcore/warpcore.h>
 
-#define r(m) ((m) == 0 ? 0 : (int)w_rand() % (m))
+#define r(m) (int)((m) == 0 ? 0 : w_rand_uniform32((uint32_t)(m)))
 
 
 struct elem {
@@ -154,8 +153,8 @@ static void show(void)
         }
         printf("\n");
         ensure(l == len[i], "len[%d] %d wrong (should be %d)", i, len[i], l);
-        ensure((uint64_t)l == sq_len(&sq[i]),
-               "sq_len[%d] %" PRIu64 " wrong (should be %d)", i, sq_len(&sq[i]),
+        ensure((uint_t)l == sq_len(&sq[i]),
+               "sq_len[%d] %" PRIu " wrong (should be %d)", i, sq_len(&sq[i]),
                l);
     }
     printf("\n");
@@ -164,6 +163,8 @@ static void show(void)
 
 int main(void)
 {
+    w_init_rand();
+
     for (int i = 0; i < N; i++)
         sq_init(&sq[i]);
 

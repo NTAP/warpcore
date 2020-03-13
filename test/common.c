@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,8 +25,6 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
-#include <inttypes.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <stdbool.h>
@@ -40,15 +38,15 @@
 
 
 struct w_engine *w_serv, *w_clnt;
-static struct w_sock *s_serv, *s_clnt;
+struct w_sock *s_serv, *s_clnt;
 
 #define OFFSET 64
 
-bool io(const uint64_t len)
+bool io(const uint_t len)
 {
     // allocate a w_iov chain for tx
     struct w_iov_sq o = w_iov_sq_initializer(o);
-    w_alloc_cnt(w_clnt, &o, len, 512, OFFSET);
+    w_alloc_cnt(w_clnt, s_clnt->ws_af, &o, len, 512, OFFSET);
     if (w_iov_sq_cnt(&o) != len) {
         w_free(&o);
         return false;
@@ -61,7 +59,7 @@ bool io(const uint64_t len)
         memset(ov->buf, fill++, ov->len);
         ov->flags = 0x55;
     }
-    const uint64_t olen = w_iov_sq_len(&o);
+    const uint_t olen = w_iov_sq_len(&o);
 
     // tx
     w_tx(s_clnt, &o);
@@ -73,23 +71,23 @@ bool io(const uint64_t len)
 
     // read the chain back
     struct w_iov_sq i = w_iov_sq_initializer(i);
-    uint64_t ilen = 0;
+    uint_t ilen = 0;
     bool again = true;
     while (ilen < olen) {
         w_rx(s_serv, &i);
         ilen = w_iov_sq_len(&i);
         if (ilen < olen) {
             if (again) {
-                w_nic_rx(w_serv, 100);
+                w_nic_rx(w_serv, 100 * NS_PER_MS);
                 again = false;
             } else
                 return false;
         }
     }
     ensure(w_iov_sq_cnt(&i) == w_iov_sq_cnt(&o),
-           "icnt %" PRIu64 " != ocnt %" PRIu64 "", w_iov_sq_cnt(&i),
+           "icnt %" PRIu " != ocnt %" PRIu "", w_iov_sq_cnt(&i),
            w_iov_sq_cnt(&o));
-    ensure(ilen == olen, "ilen %" PRIu64 " != olen %" PRIu64, ilen, olen);
+    ensure(ilen == olen, "ilen %" PRIu " != olen %" PRIu, ilen, olen);
 
     // validate data (o was sent by client, i is received by server)
     struct w_iov * iv = sq_first(&i);
@@ -100,27 +98,14 @@ bool io(const uint64_t len)
         ensure(memcmp(iv->buf, ov->buf, iv->len) == 0,
                "ov %u = 0x%02x (len %u) != iv %u = 0x%02x (len %u)", ov->idx,
                ov->buf[0], ov->len, iv->idx, iv->buf[0], iv->len);
-#ifndef __APPLE__
-        // XXX Apple has an OS bug with TOS
         ensure(ov->flags == iv->flags, "TOS byte 0x%02x != 0x%02x", ov->flags,
                iv->flags);
-#endif
-        ensure(((struct sockaddr_in *)&iv->addr)->sin_port ==
-                   ((const struct sockaddr_in *)(const void *)w_get_addr(s_clnt,
-                                                                         true))
-                       ->sin_port,
-               "port %u != port %u",
-               ntohs(((struct sockaddr_in *)&iv->addr)->sin_port),
-               ntohs(((const struct sockaddr_in *)(const void *)w_get_addr(
-                          s_clnt, true))
-                         ->sin_port));
+        // warn(ERR, "TOS byte ov 0x%02x, iv 0x%02x", ov->flags, iv->flags);
+        ensure(iv->saddr.port == s_clnt->ws_lport,
+               "port mismatch, in %u != out %u", bswap16(iv->saddr.port),
+               bswap16(s_clnt->ws_lport));
 
-        ensure(((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr == 0 ||
-                   ((struct sockaddr_in *)&iv->addr)->sin_addr.s_addr ==
-                       ((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr,
-               "IP %08x != IP %08x",
-               ntohl(((struct sockaddr_in *)&iv->addr)->sin_addr.s_addr),
-               ntohl(((struct sockaddr_in *)&ov->addr)->sin_addr.s_addr));
+        ensure(ip6_eql(iv->wv_ip6, ov->wv_ip6), "IP mismatch");
 
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);
@@ -134,7 +119,7 @@ bool io(const uint64_t len)
 }
 
 
-void init(const uint64_t len)
+void init(const uint_t len)
 {
     char i[IFNAMSIZ] = "lo"
 #ifndef __linux__
@@ -145,15 +130,23 @@ void init(const uint64_t len)
     w_serv = w_init(i, 0, len);
     w_clnt = w_init(i, 0, len);
 
+    const struct w_sockopt opt = {.enable_ecn = true};
+
     // bind server socket
-    s_serv = w_bind(w_serv, htons(55555), 0);
+    s_serv = w_bind(w_serv, 0, bswap16(55555), &opt);
+    // s_serv = w_bind(w_serv, w_serv->addr4_pos, bswap16(55555), &opt);
 
     // connect to server
-    s_clnt = w_bind(w_clnt, 0, 0);
-    w_connect(s_clnt, (struct sockaddr *)&(struct sockaddr_in){
-                          .sin_family = AF_INET,
-                          .sin_addr.s_addr = inet_addr("127.0.0.1"),
-                          .sin_port = htons(55555)});
+    s_clnt = w_bind(w_clnt, 0, 0, &opt);
+    w_connect(s_clnt, (struct sockaddr *)&(struct sockaddr_in6){
+                          .sin6_family = AF_INET6,
+                          .sin6_addr = IN6ADDR_LOOPBACK_INIT,
+                          .sin6_port = bswap16(55555)});
+    // s_clnt = w_bind(w_clnt, w_clnt->addr4_pos, 0, &opt);
+    // w_connect(s_clnt, (struct sockaddr *)&(struct sockaddr_in){
+    //                       .sin_family = AF_INET,
+    //                       .sin_addr = {bswap32(INADDR_LOOPBACK)},
+    //                       .sin_port = bswap16(55555)});
     ensure(w_connected(s_clnt), "not connected");
 }
 

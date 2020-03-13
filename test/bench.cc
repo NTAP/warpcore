@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -23,9 +23,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef __APPLE__
 #include <cstdint>
-#endif
 
 #include <benchmark/benchmark.h>
 #include <warpcore/warpcore.h>
@@ -44,7 +42,8 @@ static void BM_io(benchmark::State & state)
             state.SkipWithError("ran out of bufs or saw packet loss");
             return;
         }
-    state.SetBytesProcessed(int64_t(state.iterations()) * len * w_mtu(w_serv));
+    state.SetBytesProcessed(int64_t(state.iterations()) * len *
+                            w_max_udp_payload(s_serv));
 }
 
 

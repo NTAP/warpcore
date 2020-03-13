@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,24 +29,16 @@
 
 #include <stdint.h>
 
-extern uint16_t __attribute__((nonnull
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-                               ,
-                               no_sanitize("alignment")
-#endif
-                                   ))
+extern uint16_t __attribute__((nonnull))
 ip_cksum(const void * const buf, const uint16_t len);
 
-extern uint16_t __attribute__((nonnull
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-                               ,
-                               no_sanitize("alignment")
-#endif
-                                   ))
-udp_cksum(const void * const buf, const uint16_t len);
+extern uint16_t __attribute__((nonnull))
+payload_cksum(const void * const buf, const uint16_t len);
 
+#ifdef CKSUM_UPDATE
 extern uint16_t __attribute__((const))
 ip_cksum_update32(uint16_t old_check, uint32_t old_data, uint32_t new_data);
 
 extern uint16_t __attribute__((const))
 ip_cksum_update16(uint16_t old_check, uint16_t old_data, uint16_t new_data);
+#endif

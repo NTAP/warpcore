@@ -27,32 +27,44 @@
 
 #pragma once
 
-#include <stdbool.h>
 #include <stdint.h>
 
 struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
 struct w_engine;    // IWYU pragma: no_forward_declare w_engine
-struct w_iov;       // IWYU pragma: no_forward_declare w_iov
-struct w_sock;      // IWYU pragma: no_forward_declare w_sock
 
 // IWYU pragma: no_include <net/netmap.h>
 // IWYU pragma: no_include <warpcore/warpcore.h>
 
 
-/// A representation of a UDP header; see
-/// [RFC768](https://tools.ietf.org/html/rfc768).
+#define ICMP6_TYPE_ECHOREPLY 129 ///< ICMP echo reply type.
+#define ICMP6_TYPE_UNREACH 1     ///< ICMP unreachable type.
+#define ICMP6_TYPE_ECHO 128      ///< ICMP echo type.
+#define ICMP6_TYPE_NSOL 135      ///< ICMP neighbor solicitation type.
+#define ICMP6_TYPE_NADV 136      ///< ICMP neighbor advertisement type.
+
+#define ICMP6_UNREACH_PORT 4 ///< For ICMP6_TYPE_UNREACH, bad port code.
+
+
+/// An ICMP header representation; see
+/// [RFC792](https://tools.ietf.org/html/rfc792).
 ///
-struct udp_hdr {
-    uint16_t sport; ///< Source port.
-    uint16_t dport; ///< Destination port.
-    uint16_t len;   ///< UDP length (header + data).
-    uint16_t cksum; ///< UDP checksum.
+struct icmp6_hdr {
+    uint8_t type;   ///< Type of ICMP message.
+    uint8_t code;   ///< Code of the ICMP type.
+    uint16_t cksum; ///< Ones' complement header checksum.
+    uint16_t id;
+    uint16_t seq;
 } __attribute__((aligned(1)));
 
 
-extern bool __attribute__((nonnull)) udp_rx(struct w_engine * const w,
-                                            struct netmap_slot * const s,
-                                            uint8_t * const buf);
+extern void __attribute__((nonnull)) icmp6_tx(struct w_engine * w,
+                                              const uint8_t type,
+                                              const uint8_t code,
+                                              uint8_t * const buf);
 
-extern bool __attribute__((nonnull))
-udp_tx(const struct w_sock * const s, struct w_iov * const v);
+extern void __attribute__((nonnull)) icmp6_rx(struct w_engine * w,
+                                              struct netmap_slot * const s,
+                                              uint8_t * const buf);
+
+extern void __attribute__((nonnull))
+icmp6_nsol(struct w_engine * const w, const uint8_t * const addr);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,16 +29,7 @@
 
 #include <stdint.h>
 
-#ifndef PARTICLE
-#include <netinet/if_ether.h>
-#endif
-
-#include <khash.h>
-
-struct w_engine;
-
-// the following two lines work around a bug in iwyu 0.12:
-// IWYU pragma: no_include <warpcore/warpcore.h>
+#include <warpcore/warpcore.h>
 
 
 /// A representation of an ARP header; see
@@ -55,11 +46,11 @@ struct arp_hdr {
     /// in warpcore.
     uint16_t pro;
 
-    /// Length of the hardware address. Will always be ETHER_ADDR_LEN for
+    /// Length of the hardware address. Will always be ETH_LEN for
     /// Ethernet.
     uint8_t hln;
 
-    /// Length of the protocol address. Will always be IP_ADDR_LEN for IPv4
+    /// Length of the protocol address. Will always be IP_LEN for IPv4
     /// in warpcore.
     uint8_t pln;
 
@@ -68,7 +59,7 @@ struct arp_hdr {
 
     /// The sender hardware (i.e., Ethernet) address of the ARP operation.
     ///
-    struct ether_addr sha;
+    struct eth_addr sha;
 
     /// The sender protocol (i.e., IPv4) address of the ARP operation.
     ///
@@ -76,7 +67,7 @@ struct arp_hdr {
 
     /// The target hardware (i.e., Ethernet) address of the ARP operation.
     ///
-    struct ether_addr tha;
+    struct eth_addr tha;
 
     /// The target protocol (i.e., IPv4) address of the ARP operation.
     ///
@@ -84,33 +75,13 @@ struct arp_hdr {
 } __attribute__((aligned(1)));
 
 
-#define ARP_HRD_ETHER 1  ///< Ethernet hardware address format.
-#define ARP_OP_REQUEST 1 ///< ARP operation, request to resolve address.
-#define ARP_OP_REPLY 2   ///< ARP operation, response to request.
+#define ARP_HRD_ETHER 0x0100  ///< Ethernet hardware address format.
+#define ARP_OP_REQUEST 0x0100 ///< ARP operation, request to resolve address.
+#define ARP_OP_REPLY 0x0200   ///< ARP operation, response to request.
 
 
 extern void __attribute__((nonnull))
 arp_rx(struct w_engine * w, uint8_t * const buf);
 
-extern struct ether_addr __attribute__((nonnull))
-arp_who_has(struct w_engine * const w, const uint32_t dip);
-
-extern void __attribute__((nonnull)) free_arp_cache(struct w_engine * const w);
-
-
-/// ARP cache entry.
-///
-struct arp_entry {
-    struct ether_addr mac; ///< Ethernet MAC address.
-    /// @cond
-    uint8_t _unused[6]; ///< @internal Padding.
-    /// @endcond
-};
-
-
 extern void __attribute__((nonnull))
-arp_cache_update(struct w_engine * w,
-                 const uint32_t ip,
-                 const struct ether_addr mac);
-
-KHASH_MAP_INIT_INT(arp_cache, struct arp_entry *)
+arp_who_has(struct w_engine * const w, const uint32_t addr);

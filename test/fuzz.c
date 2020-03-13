@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -23,17 +23,14 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 
-#define klib_unused
-
 // IWYU pragma: no_include <net/netmap.h>
-#include <khash.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 
@@ -47,16 +44,18 @@ extern int LLVMFuzzerInitialize(int * argc, char *** argv);
 
 static struct netmap_if *iface, i_init = {.ni_rx_rings = 1};
 static struct w_backend b;
-static struct w_engine w = {.b = &b};
+__extension__ static struct w_engine w = {
+    .b = &b,
+    .ifaddr = {[0] = {.addr = {.af = AF_INET, .ip4 = 0x0100007f},
+                      .net4 = 0x000000ff,
+                      .bcast4 = 0xffffff7f,
+                      .prefix = 8}}};
 
-int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
-                         char *** argv __attribute__((unused)))
+static int init(void)
 {
 #ifndef NDEBUG
     util_dlevel = DBG;
 #endif
-
-    w.sock = kh_init(sock);
 
     // init the interface shim
     iface = calloc(1, sizeof(*iface) + 8192);
@@ -86,8 +85,8 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
         s->buf_idx = idx;
     }
 
-    for (uint16_t p = 1; p < 49152; p++)
-        w_bind(&w, htons(p), 0);
+    for (uint16_t p = 1; p < UINT16_MAX; p++)
+        w_bind(&w, 0, bswap16(p), 0);
 
     return 0;
 }
@@ -95,6 +94,10 @@ int LLVMFuzzerInitialize(int * argc __attribute__((unused)),
 
 int LLVMFuzzerTestOneInput(const uint8_t * data, const size_t size)
 {
+    static int needs_init = 1;
+    if (needs_init)
+        needs_init = init();
+
     struct netmap_ring * const r = NETMAP_TXRING(iface, 0);
     r->cur = r->head = 1;
     r->tail = 0;

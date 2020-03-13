@@ -8,7 +8,6 @@ if(HAVE_BENCHMARK_H)
       ${PROJECT_SOURCE_DIR}/lib/include
       ${PROJECT_BINARY_DIR}/lib/include
       ${PROJECT_SOURCE_DIR}/lib/src
-      ${PROJECT_SOURCE_DIR}/lib/deps/klib
     )
   if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
     target_link_options(bench_sock PUBLIC -lc++)
@@ -29,7 +28,6 @@ if(HAVE_BENCHMARK_H)
       ${PROJECT_SOURCE_DIR}/lib/include
       ${PROJECT_BINARY_DIR}/lib/include
       ${PROJECT_SOURCE_DIR}/lib/src
-      ${PROJECT_SOURCE_DIR}/lib/deps/klib
     )
     if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
       target_link_options(bench_warp PUBLIC -lc++)
@@ -49,7 +47,6 @@ foreach(TARGET sock iov hexdump queue many)
   target_link_libraries(test_${TARGET} PUBLIC sockcore)
   target_include_directories(test_${TARGET}
     PRIVATE ${PROJECT_SOURCE_DIR}/lib/src
-    SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/lib/deps/klib
   )
   set_target_properties(test_${TARGET}
     PROPERTIES
@@ -106,7 +103,6 @@ if(HAVE_NETMAP_H)
           ${PROJECT_SOURCE_DIR}/lib/include
           ${PROJECT_BINARY_DIR}/lib/include
           ${PROJECT_SOURCE_DIR}/lib/src
-          ${PROJECT_SOURCE_DIR}/lib/deps/klib
         )
       set_target_properties(${TARGET}
         PROPERTIES

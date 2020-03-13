@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,25 +29,25 @@
 
 #include <stdint.h>
 
-struct netmap_slot;
-struct w_engine;
+struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
+struct w_engine;    // IWYU pragma: no_forward_declare w_engine
 
-// the following two lines work around a bug in iwyu 0.12:
 // IWYU pragma: no_include <net/netmap.h>
 // IWYU pragma: no_include <warpcore/warpcore.h>
 
-#define ICMP_TYPE_ECHOREPLY 0 ///< ICMP echo reply type.
-#define ICMP_TYPE_UNREACH 3   ///< ICMP unreachable type.
-#define ICMP_TYPE_ECHO 8      ///< ICMP echo type.
 
-#define ICMP_UNREACH_PROTOCOL 2 ///< For ICMP_TYPE_UNREACH, bad protocol code.
-#define ICMP_UNREACH_PORT 3     ///< For ICMP_TYPE_UNREACH, bad port code.
+#define ICMP4_TYPE_ECHOREPLY 0 ///< ICMP echo reply type.
+#define ICMP4_TYPE_UNREACH 3   ///< ICMP unreachable type.
+#define ICMP4_TYPE_ECHO 8      ///< ICMP echo type.
+
+#define ICMP4_UNREACH_PROTOCOL 2 ///< For ICMP4_TYPE_UNREACH, bad protocol code.
+#define ICMP4_UNREACH_PORT 3     ///< For ICMP4_TYPE_UNREACH, bad port code.
 
 
 /// An ICMP header representation; see
 /// [RFC792](https://tools.ietf.org/html/rfc792).
 ///
-struct icmp_hdr {
+struct icmp4_hdr {
     uint8_t type;   ///< Type of ICMP message.
     uint8_t code;   ///< Code of the ICMP type.
     uint16_t cksum; ///< Ones' complement header checksum.
@@ -56,20 +56,11 @@ struct icmp_hdr {
 } __attribute__((aligned(1)));
 
 
-extern void __attribute__((nonnull
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-                           ,
-                           no_sanitize("alignment")
-#endif
-                               )) icmp_tx(struct w_engine * w,
-                                          const uint8_t type,
-                                          const uint8_t code,
-                                          uint8_t * const buf);
+extern void __attribute__((nonnull)) icmp4_tx(struct w_engine * w,
+                                              const uint8_t type,
+                                              const uint8_t code,
+                                              uint8_t * const buf);
 
-extern void __attribute__((nonnull
-#if defined(__clang__) || (defined(__GNUC__) && __GNUC__ >= 8)
-                           ,
-                           no_sanitize("alignment")
-#endif
-                               ))
-icmp_rx(struct w_engine * w, struct netmap_slot * const s, uint8_t * const buf);
+extern void __attribute__((nonnull)) icmp4_rx(struct w_engine * w,
+                                              struct netmap_slot * const s,
+                                              uint8_t * const buf);

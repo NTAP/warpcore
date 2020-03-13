@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2019, NetApp, Inc.
+// Copyright (c) 2014-2020, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -25,20 +25,20 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#include <arpa/inet.h>
+#ifndef FUZZING
 #include <string.h>
+#endif
 
-#ifdef WITH_NETMAP
 // IWYU pragma: no_include <net/netmap.h>
 #include <net/netmap_user.h> // IWYU pragma: keep
-#endif
 
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
 #include "backend.h"
 #include "eth.h"
-#include "ip.h"
+#include "ip4.h"
+#include "ip6.h"
 
 
 /// Receive an Ethernet frame. This is the lowest-level RX function, called for
@@ -58,31 +58,32 @@ bool eth_rx(struct w_engine * const w,
     // an Ethernet frame is at least 64 bytes, enough for the Ethernet header
     const struct eth_hdr * const eth = (void *)buf;
 
-#if !defined(NDEBUG) && !defined(FUZZING)
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
-    warn(DBG, "Eth %s -> %s, type %d, len %d", ether_ntoa_r(&eth->src, src),
-         ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), s->len);
-#endif
+    warn(DBG, "Eth %s -> %s, type 0x%04x, len %d", eth_ntoa(&eth->src, eth_tmp),
+         eth_ntoa(&eth->dst, eth_tmp), bswap16(eth->type), s->len);
 
-    // make sure the packet is for us (or broadcast)
-    if (unlikely((memcmp(&eth->dst, &w->mac, ETHER_ADDR_LEN) != 0) &&
-                 (memcmp(&eth->dst, "\xff\xff\xff\xff\xff\xff",
-                         ETHER_ADDR_LEN) != 0))) {
 #ifndef FUZZING
+    // make sure the packet is for us (or broadcast)
+    if (unlikely((memcmp(&eth->dst, &w->mac, sizeof(eth->dst)) != 0) &&
+                 (memcmp(&eth->dst, ETH_ADDR_BCAST, sizeof(eth->dst)) != 0) &&
+                 (memcmp(&eth->dst, ETH_ADDR_MCAST6, 2) != 0))) {
         warn(INF, "Ethernet packet to %s not destined to us (%s); ignoring",
-             ether_ntoa_r(&eth->dst, dst), ether_ntoa_r(&w->mac, src));
-#endif
+             eth_ntoa(&eth->dst, eth_tmp), eth_ntoa(&w->mac, eth_tmp));
         return false;
     }
-    if (likely(eth->type == ETH_TYPE_IP))
-        return ip_rx(w, s, buf);
-    if (eth->type == ETH_TYPE_ARP)
-        arp_rx(w, buf);
-#ifndef FUZZING
-    else
-        warn(INF, "unhandled ethertype 0x%04x", ntohs(eth->type));
 #endif
+
+    switch (eth->type) {
+    case ETH_TYPE_IP6:
+        return likely(w->have_ip6) ? ip6_rx(w, s, buf) : false;
+    case ETH_TYPE_IP4:
+        return likely(w->have_ip4) ? ip4_rx(w, s, buf) : false;
+    case ETH_TYPE_ARP:
+        if (likely(w->have_ip4))
+            arp_rx(w, buf);
+        return false;
+    }
+
+    warn(INF, "unhandled ethertype 0x%04x", bswap16(eth->type));
     return false;
 }
 
@@ -92,11 +93,10 @@ bool eth_rx(struct w_engine * const w,
 /// if all are full - dropped.
 ///
 /// @param      v     The w_iov containing the Ethernet frame to transmit.
-/// @param[in]  len   The length of the Ethernet *payload* contained in @p v.
 ///
 /// @return     True if the buffer was placed into a TX ring, false otherwise.
 ///
-bool __attribute__((nonnull)) eth_tx(struct w_iov * const v, const uint16_t len)
+bool eth_tx(struct w_iov * const v)
 {
     struct w_backend * const b = v->w->b;
 
@@ -115,37 +115,66 @@ bool __attribute__((nonnull)) eth_tx(struct w_iov * const v, const uint16_t len)
 
     // return false if all rings are full
     if (unlikely(r == b->nif->ni_tx_rings)) {
-        warn(INF, "all tx rings are full");
+        warn(NTE, "all tx rings are full");
         return false;
     }
 
     struct netmap_slot * const s = &txr->slot[txr->cur];
     b->slot_buf[txr->ringid][txr->cur] = v;
-    s->len = len + sizeof(struct eth_hdr);
+    s->len = v->len + sizeof(struct eth_hdr);
 
-    if (unlikely(nm_ring_space(txr) == 1 || sq_next(v, next) == 0)) {
-        // we are using the last slot in this ring, or this is the last w_iov in
-        // this batch - mark the slot for reporting
-        s->flags = NS_REPORT | NS_BUF_CHANGED;
-    } else
-        s->flags = NS_BUF_CHANGED;
+    warn(DBG, "Eth %s -> %s, type 0x%04x, len %u",
+         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->src, eth_tmp),
+         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->dst, eth_tmp),
+         bswap16(((struct eth_hdr *)(void *)v->base)->type), s->len);
 
-    warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
-         v->idx, b->cur_txr, txr->cur, s->buf_idx);
-    // temporarily place v into the current tx ring
-    const uint32_t slot_idx = s->buf_idx;
-    s->buf_idx = v->idx;
-    v->idx = slot_idx;
 
-#if !defined(NDEBUG) && DLEVEL >= DBG
-    char src[ETH_ADDR_STRLEN];
-    char dst[ETH_ADDR_STRLEN];
-    const struct eth_hdr * const eth = (void *)v->base;
-    warn(DBG, "Eth %s -> %s, type %d, len %lu", ether_ntoa_r(&eth->src, src),
-         ether_ntoa_r(&eth->dst, dst), ntohs(eth->type), len + sizeof(*eth));
+    if (unlikely(is_pipe(v->w))) {
+#if 0
+        warn(DBG, "copying iov idx %u into tx ring %u slot %d (into %u)",
+             v->idx, b->cur_txr, txr->cur, s->buf_idx);
 #endif
+        memcpy(NETMAP_BUF(txr, s->buf_idx), v->base, s->len);
+        // update tx_pending
+        if (likely(v->o))
+            v->o->tx_pending--;
+
+    } else {
+#if 0
+        warn(DBG, "placing iov idx %u into tx ring %u slot %d (swap with %u)",
+             v->idx, b->cur_txr, txr->cur, s->buf_idx);
+#endif
+
+        // temporarily place v into the current tx ring
+        const uint32_t slot_idx = s->buf_idx;
+        s->buf_idx = v->idx;
+        v->idx = slot_idx;
+        s->flags = NS_BUF_CHANGED;
+        if (unlikely(nm_ring_space(txr) == 1 || sq_next(v, next) == 0)) {
+            // we are using the last slot in this ring, or this is the last
+            // w_iov in this batch - mark the slot for reporting
+            s->flags |= NS_REPORT;
+        }
+    }
 
     // advance tx ring
     txr->head = txr->cur = nm_ring_next(txr, txr->cur);
     return true;
+}
+
+
+/// Wait until @p v has been transmitted, and return free it.
+///
+/// @param      v     The w_iov containing the Ethernet frame to transmit.
+///
+void eth_tx_and_free(struct w_iov * const v)
+{
+    // send the packet, and make sure it went out before returning
+    const uint32_t orig_idx = v->idx;
+    eth_tx(v);
+    do {
+        w_nanosleep(100 * NS_PER_US);
+        w_nic_tx(v->w);
+    } while (v->idx != orig_idx);
+    sq_insert_head(&v->w->iov, v, next);
 }
