@@ -624,8 +624,15 @@ bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
     struct w_sock * s;
     sl_foreach (s, &b->socks, __next) {
         if (i == b->n) {
-            b->n += 4; // arbitrary value
+            b->n *= 2; // arbitrary value, also used below
+            struct pollfd * const cur_fds = b->fds;
             b->fds = realloc(b->fds, (size_t)b->n * sizeof(*b->fds));
+            if (unlikely(b->fds == 0)) {
+                warn(CRT, "cannot realloc %d pollfds", b->n);
+                b->fds = cur_fds;
+                b->n /= 2;
+                break;
+            }
         }
         b->fds[i].fd = (int)s->fd;
         b->fds[i].events = POLLIN;

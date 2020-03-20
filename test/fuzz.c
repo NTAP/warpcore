@@ -59,6 +59,7 @@ static int init(void)
 
     // init the interface shim
     iface = calloc(1, sizeof(*iface) + 8192);
+    ensure(iface, "could not calloc");
     memcpy(iface, &i_init, sizeof(*iface));
     b.nif = iface;
 

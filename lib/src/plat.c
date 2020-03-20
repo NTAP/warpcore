@@ -319,10 +319,12 @@ done:
 }
 
 
-const char * eth_ntoa(const struct eth_addr * const addr, char * const buf)
+const char *
+eth_ntoa(const struct eth_addr * const addr, char * const buf, const size_t len)
 {
-    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", addr->addr[0], addr->addr[1],
-            addr->addr[2], addr->addr[3], addr->addr[4], addr->addr[5]);
+    snprintf(buf, len, "%02x:%02x:%02x:%02x:%02x:%02x", addr->addr[0],
+             addr->addr[1], addr->addr[2], addr->addr[3], addr->addr[4],
+             addr->addr[5]);
     return buf;
 }
 

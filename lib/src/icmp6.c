@@ -107,7 +107,7 @@ void
 
     warn(NTE, "neighbor solicitation, who has %s tell %s",
          inet_ntop(AF_INET6, addr, ip6_tmp, IP6_STRLEN),
-         eth_ntoa(&w->mac, eth_tmp));
+         eth_ntoa(&w->mac, eth_tmp, ETH_STRLEN));
 
     v->len = (uint16_t)(resp - (uint8_t *)icmp);
     ip6_mk_snma(v->wv_ip6, addr);
@@ -184,7 +184,7 @@ void
         warn(NTE, "neighbor advertisement, %s is at %s",
              inet_ntop(AF_INET6, ip6_data(buf) + sizeof(*dst_icmp), ip6_tmp,
                        IP6_STRLEN),
-             eth_ntoa(&w->mac, eth_tmp));
+             eth_ntoa(&w->mac, eth_tmp, ETH_STRLEN));
         break;
 
     case ICMP6_TYPE_ECHOREPLY:;
@@ -280,7 +280,7 @@ void
         struct w_addr addr = {.af = AF_INET6};
         memcpy(addr.ip6, target, IP6_LEN);
         warn(NTE, "neighbor advertisement, %s is at %s", w_ntop(&addr, ip6_tmp),
-             eth_ntoa(sla ? sla : &src_eth->src, eth_tmp));
+             eth_ntoa(sla ? sla : &src_eth->src, eth_tmp, ETH_STRLEN));
         neighbor_update(w, &addr, sla ? *sla : src_eth->src);
 
         break;
@@ -302,7 +302,7 @@ void
         memcpy(t.ip6, target, IP6_LEN);
         if (sla)
             warn(NTE, "neighbor solicitation, who has %s tell %s",
-                 w_ntop(&t, ip6_tmp), eth_ntoa(sla, eth_tmp));
+                 w_ntop(&t, ip6_tmp), eth_ntoa(sla, eth_tmp, ETH_STRLEN));
         else
             warn(NTE, "neighbor solicitation, who has %s", w_ntop(&t, ip6_tmp));
 

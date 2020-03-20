@@ -84,7 +84,7 @@ arp_is_at(struct w_engine * const w, uint8_t * const buf, const uint32_t ip)
 
     warn(NTE, "ARP reply %s is at %s",
          inet_ntop(AF_INET, &reply->spa, ip4_tmp, IP4_STRLEN),
-         eth_ntoa(&reply->sha, eth_tmp));
+         eth_ntoa(&reply->sha, eth_tmp, ETH_STRLEN));
 
     // send the Ethernet packet
     struct eth_hdr * const eth = (void *)v->base;
@@ -182,7 +182,7 @@ void
     case ARP_OP_REPLY:;
         warn(NTE, "ARP reply %s is at %s",
              inet_ntop(AF_INET, &arp->spa, ip4_tmp, IP4_STRLEN),
-             eth_ntoa(&arp->sha, eth_tmp));
+             eth_ntoa(&arp->sha, eth_tmp, ETH_STRLEN));
         break;
 
     default:

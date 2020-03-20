@@ -440,7 +440,7 @@ struct w_engine * w_init(const char * const ifname,
 
 #ifndef NDEBUG
     warn(NTE, "%s MAC addr %s, MTU %d, speed %" PRIu32 "G", w->ifname,
-         eth_ntoa(&w->mac, eth_tmp), w->mtu, w->mbps / 1000);
+         eth_ntoa(&w->mac, eth_tmp, ETH_STRLEN), w->mtu, w->mbps / 1000);
     for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
         struct w_ifaddr * const ia = &w->ifaddr[idx]; // NOLINT
         warn(NTE, "%s IPv%d addr %s/%u", w->ifname,
