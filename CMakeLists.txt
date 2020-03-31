@@ -76,6 +76,7 @@ foreach(FLAG -pipe -Wextra -Wpedantic -Weverything -Werror
         -Wno-missing-field-initializers # and this (clang-5)
         -Wno-extra-semi-stmt # the kh_foreach* macros need this
         -Wno-macro-redefined # because we redefine _FORTIFY_SOURCE
+        -Wno-poison-system-directories
 )
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})
@@ -202,6 +203,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         set(CLANG_TIDY_CHECKS *
             -cert-err58-cpp
             -cppcoreguidelines-avoid-magic-numbers
+            -cppcoreguidelines-init-variables
             -cppcoreguidelines-macro-usage
             -cppcoreguidelines-owning-memory
             -fuchsia-statically-constructed-objects
