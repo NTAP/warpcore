@@ -76,6 +76,7 @@ struct w_backend {
     struct w_iov *** slot_buf;  ///< For each ring slot, a pointer to its w_iov.
     khash_t(sock) sock;         ///< List of open (bound) w_sock sockets.
 #else
+    int icmp;
 #if defined(HAVE_KQUEUE)
     struct kevent ev[64]; // XXX arbitrary value
     int kq;
@@ -88,6 +89,7 @@ struct w_backend {
 #else
     gnrc_netif_t * nif;
 #endif
+    struct w_sock icmp_sock;
     struct w_sock_slist socks;
 #endif
     int n;

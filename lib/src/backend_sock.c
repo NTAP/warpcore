@@ -140,6 +140,22 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 }
 
 
+static void __attribute__((nonnull)) add_to_fds(struct w_sock * const s)
+{
+#if defined(HAVE_KQUEUE)
+    struct kevent ev;
+    EV_SET(&ev, s->fd, EVFILT_READ, EV_ADD, 0, 0, s);
+    ensure(kevent(s->w->b->kq, &ev, 1, 0, 0, 0) != -1, "kevent");
+#elif defined(HAVE_EPOLL)
+    struct epoll_event ev = {.events = EPOLLIN, .data.ptr = s};
+    ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_ADD, (int)s->fd, &ev) != -1,
+           "epoll_ctl");
+#else
+    sl_insert_head(&s->w->b->socks, s, __next);
+#endif
+}
+
+
 /// Initialize the warpcore socket backend for engine @p w. Sets up the extra
 /// buffers.
 ///
@@ -165,6 +181,14 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
         sq_insert_head(&w->iov, &w->bufs[i], next);
         ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, max_buf_len(w));
     }
+
+    ensure((w->b->icmp =
+                socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, IPPROTO_ICMP)) > 0,
+           "cannot open ICMP socket");
+#if !defined(HAVE_KQUEUE) && !defined(HAVE_EPOLL)
+    w->b->icmp_sock->fd = w->b->icmp;
+    add_to_fds(&w->b->icmp_sock);
+#endif
 
 #if defined(HAVE_KQUEUE)
     w->b->kq = kqueue();
@@ -229,10 +253,12 @@ void backend_cleanup(struct w_engine * const w)
     w->b->fds = 0;
     struct w_sock * s;
     sl_foreach (s, &w->b->socks, __next)
-        w_close(s);
+        if (likely(s->fd != c->b->icmp))
+            w_close(s);
 #endif
     free(w->mem);
     free(w->bufs);
+    close(w->b->icmp);
     w->b->n = 0;
 }
 
@@ -301,18 +327,7 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
         s->ws_lport = sa_port(&ss);
     }
 
-#if defined(HAVE_KQUEUE)
-    struct kevent ev;
-    EV_SET(&ev, s->fd, EVFILT_READ, EV_ADD, 0, 0, s);
-    ensure(kevent(s->w->b->kq, &ev, 1, 0, 0, 0) != -1, "kevent");
-#elif defined(HAVE_EPOLL)
-    struct epoll_event ev = {.events = EPOLLIN, .data.ptr = s};
-    ensure(epoll_ctl(s->w->b->ep, EPOLL_CTL_ADD, (int)s->fd, &ev) != -1,
-           "epoll_ctl");
-#else
-    sl_insert_head(&s->w->b->socks, s, __next);
-#endif
-
+    add_to_fds(s);
     return 0;
 }
 
@@ -666,8 +681,13 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
                       &(struct timespec){0, 0});
 
     int i;
-    for (i = 0; i < b->n; i++)
-        sl_insert_head(sl, (struct w_sock *)b->ev[i].udata, next);
+    for (i = 0; i < b->n; i++) {
+        struct w_sock * const s = b->ev[i].udata;
+        if (s->fd != w->b->icmp)
+            sl_insert_head(sl, s, next);
+        else
+            warn(ERR, "got ICMP");
+    }
     b->n = 0;
     return (uint32_t)i;
 
@@ -676,8 +696,13 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
         b->n = epoll_wait(b->ep, b->ev, sizeof(b->ev) / sizeof(b->ev[0]), 0);
 
     int i;
-    for (i = 0; i < b->n; i++)
-        sl_insert_head(sl, (struct w_sock *)b->ev[i].data.ptr, next);
+    for (i = 0; i < b->n; i++) {
+        struct w_sock * const s = b->ev[i].data.ptr;
+        if (s->fd != w->b->icmp)
+            sl_insert_head(sl, s, next);
+        else
+            warn(ERR, "got ICMP");
+    }
     b->n = 0;
     return (uint32_t)i;
 
@@ -686,7 +711,10 @@ uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
     struct w_sock * s;
     sl_foreach (s, &b->socks, __next)
         if (b->fds[i].revents & POLLIN) {
-            sl_insert_head(sl, s, next);
+            if (s->fd != w->b->icmp)
+                sl_insert_head(sl, s, next);
+            else
+                warn(ERR, "got ICMP");
             i++;
         }
     return i;
