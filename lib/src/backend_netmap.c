@@ -139,8 +139,11 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
     }
 
     b->req->nr_arg3 = nbufs; // request extra buffers
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Woverflow"
     ensure(ioctl(b->fd, NIOCREGIF, b->req) != -1,
            "%s: cannot put interface into netmap mode", w->ifname);
+#pragma GCC diagnostic pop
 
     // mmap the buffer region
     const int flags = PLAT_MMFLAGS;
