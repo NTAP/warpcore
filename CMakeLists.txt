@@ -47,7 +47,6 @@ set(CMAKE_REQUIRED_LINK_OPTIONS -L/usr/local/lib)
 check_symbol_exists(ProfilerStart gperftools/profiler.h HAVE_PROFILER)
 cmake_reset_check_state()
 
-include_directories(AFTER SYSTEM /usr/local/include)
 link_directories(AFTER /usr/local/lib)
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
@@ -76,7 +75,6 @@ foreach(FLAG -pipe -Wextra -Wpedantic -Weverything -Werror
         -Wno-missing-field-initializers # and this (clang-5)
         -Wno-extra-semi-stmt # the kh_foreach* macros need this
         -Wno-macro-redefined # because we redefine _FORTIFY_SOURCE
-        -Wno-poison-system-directories
 )
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})
@@ -279,4 +277,3 @@ add_subdirectory(lib)
 
 add_subdirectory(test)
 enable_testing()
-
