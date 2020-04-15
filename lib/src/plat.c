@@ -341,10 +341,10 @@ uint64_t __attribute__((no_instrument_function)) w_now(void)
     return xtimer_now_usec64() * NS_PER_US;
 #else
 #ifdef __APPLE__
-    return clock_gettime_nsec_np(CLOCK_REALTIME);
+    return clock_gettime_nsec_np(CLOCK_MONOTONIC);
 #else
     struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
+    clock_gettime(CLOCK_MONOTONIC, &now);
     return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
 #endif
 #endif
