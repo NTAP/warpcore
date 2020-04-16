@@ -53,6 +53,7 @@ addons:
       - g++-7
       - g++-8
       - g++-9
+      - gcc-9
       - clang-5.0
       - clang-6.0
       - clang-7
