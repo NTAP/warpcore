@@ -48,7 +48,6 @@ addons:
       - llvm-toolchain-xenial-7
       - llvm-toolchain-xenial-8
     packages:
-      - g++-4.9
       - g++-7
       - g++-8
       - g++-9
