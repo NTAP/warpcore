@@ -18,6 +18,7 @@ env:
     - BUILD=Debug    MYCC=clang-6.0  MYCXX=clang++-6.0
     - BUILD=Debug    MYCC=clang-7    MYCXX=clang++-7
     - BUILD=Debug    MYCC=clang-8    MYCXX=clang++-8
+    - BUILD=Debug    MYCC=clang-9    MYCXX=clang++-9
 
     - BUILD=Release  MYCC=gcc-9      MYCXX=g++-9
     - BUILD=Release  MYCC=clang-8    MYCXX=clang++-8
@@ -44,9 +45,10 @@ addons:
     update: true
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-xenial-6.0
-      - llvm-toolchain-xenial-7
-      - llvm-toolchain-xenial-8
+      - llvm-toolchain-bionic-6.0
+      - llvm-toolchain-bionic-7
+      - llvm-toolchain-bionic-8
+      - llvm-toolchain-bionic-9
     packages:
       - g++-7
       - g++-8
@@ -55,8 +57,9 @@ addons:
       - clang-6.0
       - clang-7
       - clang-8
-      - doxygen
-      - graphviz
+      - clang-9
+      # - doxygen
+      # - graphviz
       - cmake
   coverity_scan:
     project:
