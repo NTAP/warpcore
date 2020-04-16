@@ -44,11 +44,11 @@ addons:
   apt:
     update: true
     sources:
-      # - ubuntu-toolchain-r-test
-      # - llvm-toolchain-bionic-6.0
-      # - llvm-toolchain-bionic-7
-      # - llvm-toolchain-bionic-8
-      # - llvm-toolchain-bionic-9
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-bionic-6.0
+      - llvm-toolchain-bionic-7
+      - llvm-toolchain-bionic-8
+      - llvm-toolchain-bionic-9
     packages:
       - g++-7
       - g++-8
