@@ -11,7 +11,6 @@ branches:
 
 env:
   jobs:
-    - BUILD=Debug    MYCC=gcc-4.9    MYCXX=g++-4.9
     - BUILD=Debug    MYCC=gcc-7      MYCXX=g++-7
     - BUILD=Debug    MYCC=gcc-8      MYCXX=g++-8
     - BUILD=Debug    MYCC=gcc-9      MYCXX=g++-9
