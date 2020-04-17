@@ -51,7 +51,6 @@ addons:
       # - llvm-toolchain-bionic-8
       # - llvm-toolchain-bionic-9
     packages:
-      - g++-4.9
       - g++-7
       - g++-8
       - g++-9
