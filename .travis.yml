@@ -1,6 +1,5 @@
 ---
-dist: xenial
-sudo: false
+dist: bionic
 
 language: cpp
 os:

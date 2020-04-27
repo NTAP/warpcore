@@ -58,8 +58,9 @@ bool eth_rx(struct w_engine * const w,
     // an Ethernet frame is at least 64 bytes, enough for the Ethernet header
     const struct eth_hdr * const eth = (void *)buf;
 
-    warn(DBG, "Eth %s -> %s, type 0x%04x, len %d", eth_ntoa(&eth->src, eth_tmp),
-         eth_ntoa(&eth->dst, eth_tmp), bswap16(eth->type), s->len);
+    warn(DBG, "Eth %s -> %s, type 0x%04x, len %d",
+         eth_ntoa(&eth->src, eth_tmp, ETH_STRLEN),
+         eth_ntoa(&eth->dst, eth_tmp, ETH_STRLEN), bswap16(eth->type), s->len);
 
 #ifndef FUZZING
     // make sure the packet is for us (or broadcast)
@@ -67,7 +68,8 @@ bool eth_rx(struct w_engine * const w,
                  (memcmp(&eth->dst, ETH_ADDR_BCAST, sizeof(eth->dst)) != 0) &&
                  (memcmp(&eth->dst, ETH_ADDR_MCAST6, 2) != 0))) {
         warn(INF, "Ethernet packet to %s not destined to us (%s); ignoring",
-             eth_ntoa(&eth->dst, eth_tmp), eth_ntoa(&w->mac, eth_tmp));
+             eth_ntoa(&eth->dst, eth_tmp, ETH_STRLEN),
+             eth_ntoa(&w->mac, eth_tmp, ETH_STRLEN));
         return false;
     }
 #endif
@@ -124,8 +126,10 @@ bool eth_tx(struct w_iov * const v)
     s->len = v->len + sizeof(struct eth_hdr);
 
     warn(DBG, "Eth %s -> %s, type 0x%04x, len %u",
-         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->src, eth_tmp),
-         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->dst, eth_tmp),
+         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->src, eth_tmp,
+                  ETH_STRLEN),
+         eth_ntoa(&((struct eth_hdr *)(void *)v->base)->dst, eth_tmp,
+                  ETH_STRLEN),
          bswap16(((struct eth_hdr *)(void *)v->base)->type), s->len);
 
 

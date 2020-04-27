@@ -163,4 +163,6 @@ plat_get_iface_driver(const struct ifaddrs * const i,
                       const size_t name_len);
 
 extern const char * __attribute__((nonnull))
-eth_ntoa(const struct eth_addr * const addr, char * const buf);
+eth_ntoa(const struct eth_addr * const addr,
+         char * const buf,
+         const size_t len);

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(warpcore VERSION 1.3.0 LANGUAGES C CXX)
+project(warpcore VERSION 1.4.1 LANGUAGES C CXX)
 
 # See if we have google benchmark
 include(CheckCXXSymbolExists)
@@ -47,7 +47,6 @@ set(CMAKE_REQUIRED_LINK_OPTIONS -L/usr/local/lib)
 check_symbol_exists(ProfilerStart gperftools/profiler.h HAVE_PROFILER)
 cmake_reset_check_state()
 
-include_directories(AFTER SYSTEM /usr/local/include)
 link_directories(AFTER /usr/local/lib)
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
@@ -202,6 +201,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         set(CLANG_TIDY_CHECKS *
             -cert-err58-cpp
             -cppcoreguidelines-avoid-magic-numbers
+            -cppcoreguidelines-init-variables
             -cppcoreguidelines-macro-usage
             -cppcoreguidelines-owning-memory
             -fuchsia-statically-constructed-objects
@@ -277,4 +277,3 @@ add_subdirectory(lib)
 
 add_subdirectory(test)
 enable_testing()
-

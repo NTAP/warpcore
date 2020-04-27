@@ -296,6 +296,20 @@ util_die(const char * const func,
     } while (0) // NOLINT
 
 
+/// A version of the C assert() macro that *is* disabled by NDEBUG and that
+/// ties in with warn(), die() and our other debug functions.
+///
+/// @param      e       Expression to check. No action if @p e is true.
+/// @param      fmt     A printf()-style format string.
+/// @param      ...     Subsequent arguments to be converted for output
+///
+#ifndef NDEBUG
+#define assure(...) ensure(__VA_ARGS__)
+#else
+#define assure(...)
+#endif
+
+
 /// Print a hexdump of the memory region given by @p ptr and @p len to stderr.
 /// Also emits an ASCII representation. Uses util_hexdump internally to augment
 /// the output with meta data.

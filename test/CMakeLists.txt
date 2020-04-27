@@ -3,11 +3,13 @@ enable_testing()
 if(HAVE_BENCHMARK_H)
   add_executable(bench_sock bench.cc common.c ${PROJECT_SOURCE_DIR}/lib/src/in_cksum.c)
   target_link_libraries(bench_sock PUBLIC benchmark pthread sockcore)
+  target_compile_options(bench_sock PRIVATE -Wno-poison-system-directories)
   target_include_directories(bench_sock
     SYSTEM PRIVATE
       ${PROJECT_SOURCE_DIR}/lib/include
       ${PROJECT_BINARY_DIR}/lib/include
       ${PROJECT_SOURCE_DIR}/lib/src
+      /usr/local/include
     )
   if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
     target_link_options(bench_sock PUBLIC -lc++)
@@ -23,11 +25,13 @@ if(HAVE_BENCHMARK_H)
     add_executable(bench_warp bench.cc common.c ${PROJECT_SOURCE_DIR}/lib/src/in_cksum.c)
     target_compile_definitions(bench_warp PRIVATE -DWITH_NETMAP)
     target_link_libraries(bench_warp PUBLIC benchmark pthread warpcore)
+    target_compile_options(bench_warp PRIVATE -Wno-poison-system-directories)
     target_include_directories(bench_warp
     SYSTEM PRIVATE
       ${PROJECT_SOURCE_DIR}/lib/include
       ${PROJECT_BINARY_DIR}/lib/include
       ${PROJECT_SOURCE_DIR}/lib/src
+      /usr/local/include
     )
     if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
       target_link_options(bench_warp PUBLIC -lc++)

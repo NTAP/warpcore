@@ -52,6 +52,7 @@ void neighbor_update(struct w_engine * const w,
     khiter_t k = kh_get(neighbor, &w->b->neighbor, addr);
     if (k == kh_end(&w->b->neighbor)) {
         struct w_addr * const a = malloc(sizeof(*addr));
+        ensure(a, "could not malloc");
         memcpy(a, addr, sizeof(*addr));
         int ret;
         k = kh_put(neighbor, &w->b->neighbor, a, &ret); // NOLINT
@@ -60,7 +61,7 @@ void neighbor_update(struct w_engine * const w,
     kh_val(&w->b->neighbor, k) = mac;
 
     warn(INF, "neighbor cache entry: %s is at %s", w_ntop(addr, ip_tmp),
-         eth_ntoa(&mac, eth_tmp));
+         eth_ntoa(&mac, eth_tmp, ETH_STRLEN));
 }
 
 
