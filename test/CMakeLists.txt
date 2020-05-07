@@ -46,7 +46,7 @@ if(HAVE_BENCHMARK_H)
 endif()
 
 
-foreach(TARGET sock iov hexdump queue many ecn)
+foreach(TARGET sock iov hexdump queue many)
   add_executable(test_${TARGET} common.c test_${TARGET}.c)
   target_link_libraries(test_${TARGET} PUBLIC sockcore)
   target_include_directories(test_${TARGET}
