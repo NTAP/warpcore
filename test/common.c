@@ -56,7 +56,11 @@ bool io(const uint_t len)
     struct w_iov * ov;
     uint8_t fill = 0x0f;
     sq_foreach (ov, &o, next) {
-        memset(ov->buf, fill++, ov->len);
+        if (fill == 255)
+            fill = 0;
+        else
+            ++fill;
+        memset(ov->buf, fill, ov->len);
         ov->flags = 0x55;
     }
     const uint_t olen = w_iov_sq_len(&o);
