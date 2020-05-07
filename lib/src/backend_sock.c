@@ -430,8 +430,7 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
                 cmsg->cmsg_type = v->wv_af == AF_INET ? IP_TOS : IPV6_TCLASS;
                 cmsg->cmsg_len =
 #ifdef __FreeBSD__
-                    CMSG_LEN(dst->sa_family == AF_INET ? sizeof(char)
-                                                       : sizeof(int));
+                    CMSG_LEN(v->wv_af == AF_INET ? sizeof(char) : sizeof(int));
 #else
                     CMSG_LEN(sizeof(int));
 #endif
