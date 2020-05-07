@@ -40,9 +40,10 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-align"
 
-
-// Darwin doestn;t have this, but cppheck doesn't shut up about adding it
+#ifdef __APPLE__
+// Darwin doesn't have this, but cppcheck doesn't shut up about adding it
 #define SOCK_CLOEXEC 0
+#endif
 
 
 static const unsigned dst_port = 12345;
@@ -87,19 +88,20 @@ sock_send(const int s, struct sockaddr * const dst, const bool test_with_cmsg)
         .msg_iov = &(struct iovec){.iov_base = "XXX", .iov_len = 3},
         .msg_iovlen = 1};
 
-    __extension__ uint8_t ctrl[CMSG_SPACE(sizeof(uint8_t))];
+    __extension__ uint8_t ctrl[CMSG_SPACE(sizeof(int))];
     if (test_with_cmsg) {
         msgvec.msg_control = &ctrl;
         msgvec.msg_controllen = sizeof(ctrl);
         struct cmsghdr * const cmsg = CMSG_FIRSTHDR(&msgvec);
-        cmsg->cmsg_level = IPPROTO_IP;
+        cmsg->cmsg_level =
+            dst->sa_family == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
         cmsg->cmsg_type = dst->sa_family == AF_INET ? IP_TOS : IPV6_TCLASS;
-        cmsg->cmsg_len = CMSG_LEN(sizeof(uint8_t));
-        *(uint8_t *)CMSG_DATA(cmsg) = 0x55;
+        cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+        *(int *)CMSG_DATA(cmsg) = 0x55;
     }
 
     const ssize_t sent = sendmsg(s, &msgvec, 0);
-    assert(sent);
+    assert(sent == (ssize_t)msgvec.msg_iov->iov_len);
 }
 
 

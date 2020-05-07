@@ -426,19 +426,10 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
                 struct cmsghdr * const cmsg = CMSG_FIRSTHDR(&msgvec[i]);
 #endif
                 cmsg->cmsg_level =
-#ifdef __linux__
                     v->wv_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
-#else
-                    IPPROTO_IP;
-#endif
                 cmsg->cmsg_type = v->wv_af == AF_INET ? IP_TOS : IPV6_TCLASS;
-#ifdef __linux__
                 cmsg->cmsg_len = CMSG_LEN(sizeof(int));
                 *(int *)(void *)CMSG_DATA(cmsg) = v->flags;
-#else
-                cmsg->cmsg_len = CMSG_LEN(sizeof(uint8_t));
-                *(uint8_t *)CMSG_DATA(cmsg) = v->flags;
-#endif
             } else if (s->opt.enable_ecn)
                 // make sure that the flags reflect what went out on the wire
                 v->flags = IPTOS_ECN_ECT0;
