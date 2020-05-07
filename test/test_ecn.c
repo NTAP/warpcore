@@ -96,7 +96,12 @@ sock_send(const int s, struct sockaddr * const dst, const bool test_with_cmsg)
         cmsg->cmsg_level =
             dst->sa_family == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
         cmsg->cmsg_type = dst->sa_family == AF_INET ? IP_TOS : IPV6_TCLASS;
-        cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+        cmsg->cmsg_len =
+#ifdef __FreeBSD__
+            CMSG_LEN(dst->sa_family == AF_INET ? sizeof(char) : sizeof(int));
+#else
+            CMSG_LEN(sizeof(int));
+#endif
         *(int *)CMSG_DATA(cmsg) = 0x55;
     }
 
