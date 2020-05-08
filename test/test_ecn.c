@@ -105,7 +105,10 @@ sock_send(const int s, struct sockaddr * const dst, const bool test_with_cmsg)
         *(int *)CMSG_DATA(cmsg) = 0x55;
     }
 
-    const ssize_t sent = sendmsg(s, &msgvec, 0);
+#ifndef NDEBUG
+    const ssize_t sent =
+#endif
+        sendmsg(s, &msgvec, 0);
     assert(sent == (ssize_t)msgvec.msg_iov->iov_len);
 }
 
