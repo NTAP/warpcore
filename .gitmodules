@@ -1,0 +1,3 @@
+[submodule "lib/deps/roaring"]
+	path = lib/deps/roaring
+	url = https://github.com/lemire/CRoaringUnityBuild.git
