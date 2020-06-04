@@ -109,13 +109,13 @@ static pthread_t util_master;
     do {                                                                       \
         if (unlikely(pthread_mutex_lock(&util_lock)))                          \
             abort();                                                           \
-    } while (0) // NOLINT
+    } while (0)
 
 #define DTHREAD_UNLOCK                                                         \
     do {                                                                       \
         if (unlikely(pthread_mutex_unlock(&util_lock)))                        \
             abort();                                                           \
-    } while (0) // NOLINT
+    } while (0)
 
 
 #define DTHREAD_ID (pthread_self() == util_master ? BBLK : BWHT)

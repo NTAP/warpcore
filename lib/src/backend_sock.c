@@ -132,6 +132,7 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
         const int ret = setsockopt(
             (int)s->fd, s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
             s->ws_af == AF_INET ? IP_TOS : IPV6_TCLASS,
+            // cppcheck-suppress internalAstError
             &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0 : IPTOS_ECN_NOTECT},
             sizeof(int));
         if (unlikely(ret < 0))
