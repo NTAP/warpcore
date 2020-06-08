@@ -30,7 +30,6 @@
 #endif
 
 #include <arpa/inet.h>
-#include <netinet/ip.h>
 #include <stdint.h>
 #include <sys/socket.h>
 
@@ -54,7 +53,7 @@
 #define ip4_log(ip)                                                            \
     warn(DBG,                                                                  \
          "IPv%u: %s -> %s, dscp %d, ecn %d, ttl %d, id %d, "                   \
-         "flags [%s%s], proto %d, hlen/tot %d/%d, cksum 0x%04x",                 \
+         "flags [%s%s], proto %d, hlen/tot %d/%d, cksum 0x%04x",               \
          ip_v((ip)->vhl), inet_ntop(AF_INET, &(ip)->src, ip4_tmp, IP4_STRLEN), \
          inet_ntop(AF_INET, &(ip)->dst, ip4_tmp, IP4_STRLEN),                  \
          ip4_dscp((ip)->tos), ip4_ecn((ip)->tos), (ip)->ttl,                   \
@@ -157,8 +156,8 @@ void
     // set DSCP and ECN
     ip->tos = v->flags;
     // if there is no per-packet ECN marking, apply default
-    if ((v->flags & IPTOS_ECN_MASK) == 0 && likely(s) && s->opt.enable_ecn)
-        ip->tos |= IPTOS_ECN_ECT0;
+    if ((v->flags & ECN_MASK) == 0 && likely(s) && s->opt.enable_ecn)
+        ip->tos |= ECN_ECT0;
 
     v->len += sizeof(*ip);
     ip->len = bswap16(v->len);
