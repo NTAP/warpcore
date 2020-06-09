@@ -1,8 +1,9 @@
 # Warpcore
 
-[![Build Status](https://travis-ci.org/NTAP/warpcore.svg?branch=master)](https://travis-ci.org/NTAP/warpcore)
+[![Build Status](https://travis-ci.com/NTAP/warpcore.svg?branch=master)](https://travis-ci.com/NTAP/warpcore)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/NTAP/warpcore.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/NTAP/warpcore/alerts/)
-
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/NTAP/warpcore.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/NTAP/warpcore/context:cpp)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/58fdbf0fb0ef49608cbbd296e3e75698)](https://www.codacy.com/manual/larseggert/warpcore?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=NTAP/warpcore&amp;utm_campaign=Badge_Grade)
 ## About
 
 Warpcore is a minimal userspace UDP/IP/Ethernet stack for the [netmap packet
