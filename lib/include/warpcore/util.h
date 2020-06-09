@@ -193,7 +193,7 @@ util_rwarn(time_t * const rt0,
             util_warn((dlevel), false, DLEVEL == DBG ? __func__ : "",          \
                       DLEVEL == DBG ? __FILENAME__ : "", __LINE__,             \
                       __VA_ARGS__);                                            \
-    } while (0) // NOLINT
+    } while (0)
 
 
 /// Like warn(), but always prints a timestamp.
@@ -209,7 +209,7 @@ util_rwarn(time_t * const rt0,
             util_warn((dlevel), true, DLEVEL == DBG ? __func__ : "",           \
                       DLEVEL == DBG ? __FILENAME__ : "", __LINE__,             \
                       __VA_ARGS__);                                            \
-    } while (0) // NOLINT
+    } while (0)
 
 
 /// Rate-limited variant of warn(), which repeats the message prints at most @p
@@ -231,7 +231,7 @@ util_rwarn(time_t * const rt0,
                 &__rt0, &__rcnt, (dlevel), lps, DLEVEL == DBG ? __func__ : "", \
                 DLEVEL == DBG ? __FILENAME__ : "", __LINE__, __VA_ARGS__);     \
         }                                                                      \
-    } while (0) // NOLINT
+    } while (0)
 #else
 
 #define warn(...)                                                              \
@@ -293,7 +293,7 @@ util_die(const char * const func,
     do {                                                                       \
         if (unlikely(!(e)))                                                    \
             die("assertion failed: \n" DTIMESTAMP_GAP #e " \n" __VA_ARGS__);   \
-    } while (0) // NOLINT
+    } while (0)
 
 
 /// A version of the C assert() macro that *is* disabled by NDEBUG and that

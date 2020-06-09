@@ -47,12 +47,7 @@
 
 #include <warpcore/warpcore.h>
 
-#if defined(__linux__)
-#define IPTOS_ECN_NOTECT IPTOS_ECN_NOT_ECT
-#endif
-
 #ifndef PARTICLE
-#include <netinet/ip.h>
 #include <sys/uio.h>
 #else
 #define IPV6_TCLASS IP_TOS         // unclear if this works
@@ -132,8 +127,8 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
         const int ret = setsockopt(
             (int)s->fd, s->ws_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6,
             s->ws_af == AF_INET ? IP_TOS : IPV6_TCLASS,
-            &(int){s->opt.enable_ecn ? IPTOS_ECN_ECT0 : IPTOS_ECN_NOTECT},
-            sizeof(int));
+            // cppcheck-suppress internalAstError
+            &(int){s->opt.enable_ecn ? ECN_ECT0 : ECN_NOT}, sizeof(int));
         if (unlikely(ret < 0))
             warn(WRN, "cannot setsockopt IP_TOS/IPV6_TCLASS; running on WSL?");
     }
@@ -426,22 +421,18 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
                 struct cmsghdr * const cmsg = CMSG_FIRSTHDR(&msgvec[i]);
 #endif
                 cmsg->cmsg_level =
-#ifdef __linux__
                     v->wv_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
-#else
-                    IPPROTO_IP;
-#endif
                 cmsg->cmsg_type = v->wv_af == AF_INET ? IP_TOS : IPV6_TCLASS;
-#ifdef __linux__
-                cmsg->cmsg_len = CMSG_LEN(sizeof(int));
-                *(int *)(void *)CMSG_DATA(cmsg) = v->flags;
+                cmsg->cmsg_len =
+#ifdef __FreeBSD__
+                    CMSG_LEN(v->wv_af == AF_INET ? sizeof(char) : sizeof(int));
 #else
-                cmsg->cmsg_len = CMSG_LEN(sizeof(uint8_t));
-                *(uint8_t *)CMSG_DATA(cmsg) = v->flags;
+                    CMSG_LEN(sizeof(int));
 #endif
+                *(int *)(void *)CMSG_DATA(cmsg) = v->flags;
             } else if (s->opt.enable_ecn)
                 // make sure that the flags reflect what went out on the wire
-                v->flags = IPTOS_ECN_ECT0;
+                v->flags = ECN_ECT0;
 
             v = sq_next(v, next);
         }

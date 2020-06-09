@@ -30,7 +30,6 @@
 #endif
 
 #include <arpa/inet.h>
-#include <netinet/ip.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -130,8 +129,8 @@ void
     ip->vtcecnfl =
         (6 << 4) | (uint32_t)((v->flags & 0x0f) << 12 | (v->flags & 0xf0) >> 4);
     // if there is no per-packet ECN marking, apply default
-    if ((v->flags & IPTOS_ECN_MASK) == 0 && likely(s) && s->opt.enable_ecn)
-        ip->vtcecnfl |= (IPTOS_ECN_ECT0 << 20);
+    if ((v->flags & ECN_MASK) == 0 && likely(s) && s->opt.enable_ecn)
+        ip->vtcecnfl |= (ECN_ECT0 << 20);
 
     // we never set a flow label, if we were to set it, do it like this:
     // uint32_t flow = 0x00012345;

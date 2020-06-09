@@ -132,15 +132,16 @@ typedef struct if_list if_list;
 #define SOCK_CLOEXEC 0
 #endif
 
-#define IPTOS_ECN_NOTECT 0x00 // not-ECT
-#define IPTOS_ECN_ECT1 0x01   // ECN-capable transport (1)
-#define IPTOS_ECN_ECT0 0x02   // ECN-capable transport (0)
-#define IPTOS_ECN_CE 0x03     // congestion experienced
-#define IPTOS_ECN_MASK 0x03   // ECN field mask
-
 #define O_CLOEXEC 0
 
 #endif
+
+#define ECN_NOT 0x00  // not-ECT
+#define ECN_ECT1 0x01 // ECN-capable transport (1)
+#define ECN_ECT0 0x02 // ECN-capable transport (0)
+#define ECN_CE 0x03   // congestion experienced
+#define ECN_MASK 0x03 // ECN field mask
+
 
 struct ifaddrs;
 struct eth_addr;

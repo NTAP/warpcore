@@ -442,7 +442,7 @@ struct w_engine * w_init(const char * const ifname,
     warn(NTE, "%s MAC addr %s, MTU %d, speed %" PRIu32 "G", w->ifname,
          eth_ntoa(&w->mac, eth_tmp, ETH_STRLEN), w->mtu, w->mbps / 1000);
     for (uint16_t idx = 0; idx < w->addr_cnt; idx++) {
-        struct w_ifaddr * const ia = &w->ifaddr[idx]; // NOLINT
+        struct w_ifaddr * const ia = &w->ifaddr[idx];
         warn(NTE, "%s IPv%d addr %s/%u", w->ifname,
              ia->addr.af == AF_INET ? 4 : 6, w_ntop(&ia->addr, ip_tmp),
              ia->prefix);
@@ -584,10 +584,10 @@ uint32_t w_rand_uniform32(const uint32_t upper_bound)
 static void __attribute__((no_instrument_function, nonnull))
 reinit_iov(struct w_iov * const v)
 {
-    v->buf = v->base;           // cppcheck-suppress nullPointerRedundantCheck
-    v->len = max_buf_len(v->w); // cppcheck-suppress nullPointerRedundantCheck
-    v->o = 0;                   // cppcheck-suppress nullPointerRedundantCheck
-    v->flags = v->ttl = 0;      // cppcheck-suppress nullPointerRedundantCheck
+    v->buf = v->base;
+    v->len = max_buf_len(v->w);
+    v->o = 0;
+    v->flags = v->ttl = 0;
     sq_next(v, next) = 0;
 }
 
