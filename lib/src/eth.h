@@ -95,13 +95,13 @@ mk_eth_hdr(const struct w_sock * const s, struct w_iov * const v)
     if (w_connected(s))
         eth->dst = s->dmac;
     else {
-        static struct w_addr * last_addr = 0;
+        static struct w_addr last_addr = {0};
         static struct eth_addr last_mac = {{0}};
 
-        if (likely(last_addr == &v->wv_addr))
+        if (likely(w_addr_cmp(&last_addr, &v->wv_addr)))
             eth->dst = last_mac;
         else {
-            last_addr = &v->wv_addr;
+            last_addr = v->wv_addr;
             eth->dst = last_mac = who_has(s->w, &v->wv_addr);
         }
     }

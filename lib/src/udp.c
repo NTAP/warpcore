@@ -117,7 +117,7 @@ bool
         local.addr.af = i->wv_af = AF_INET6;
         memcpy(i->wv_ip6, ip6->src, sizeof(i->wv_ip6));
         memcpy(local.addr.ip6, ip6->dst, sizeof(local.addr.ip6));
-        i->flags = ip6_tc(ip6->vtcecnfl);
+        i->flags = ip6_tos(ip6->vtcecnfl);
         i->ttl = ip6->hlim;
     }
 
@@ -189,6 +189,7 @@ bool
 ///
 bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 {
+    const uint16_t vlen = v->len;
     v->len += sizeof(struct udp_hdr);
 
     uint16_t ip_hdr_len;
@@ -214,5 +215,7 @@ bool udp_tx(const struct w_sock * const s, struct w_iov * const v)
 
     mk_eth_hdr(s, v);
     udp_log(udp);
-    return eth_tx(v);
+    const bool ret = eth_tx(v);
+    v->len = vlen;
+    return ret;
 }

@@ -370,12 +370,11 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 }
 
 
-/// Trigger netmap to make new received data available to w_rx(). Iterates
-/// over any new data in the RX rings, calling eth_rx() for each.
+/// Trigger netmap to make new received data available to w_rx(). Iterates over
+/// any new data in the RX rings, calling eth_rx() for each.
 ///
 /// @param[in]  w     Backend engine.
-/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate
-/// return, -1
+/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate return, -1
 ///                   for infinite wait.
 ///
 /// @return     Whether any data is ready for reading.
