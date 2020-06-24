@@ -51,6 +51,7 @@
 #include "ifaddr.h"
 #include "ip6.h"
 #include "neighbor.h"
+#include "roaring.h"
 
 
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
@@ -431,6 +432,7 @@ struct w_engine * w_init(const char * const ifname,
     strncpy(w->ifname, ifname, sizeof(w->ifname));
     w->ifname[sizeof(w->ifname) - 1] = 0;
     sq_init(&w->iov);
+    w->rb_bufs = roaring_bitmap_create();
 
     // backend-specific init
     w->b = calloc(1, sizeof(*w->b));

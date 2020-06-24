@@ -38,12 +38,11 @@ extern "C" {
 
 #define klib_unused
 
-#include <warpcore/config.h>  // IWYU pragma: export
-#include <warpcore/khash.h>   // IWYU pragma: export
-#include <warpcore/plat.h>    // IWYU pragma: export
-#include <warpcore/queue.h>   // IWYU pragma: export
-#include <warpcore/roaring.h> // IWYU pragma: export
-#include <warpcore/util.h>    // IWYU pragma: export
+#include <warpcore/config.h> // IWYU pragma: export
+#include <warpcore/khash.h>  // IWYU pragma: export
+#include <warpcore/plat.h>   // IWYU pragma: export
+#include <warpcore/queue.h>  // IWYU pragma: export
+#include <warpcore/util.h>   // IWYU pragma: export
 
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
@@ -206,6 +205,10 @@ struct eth_addr {
 #else
 #define NAME_LEN NETIF_NAMELENMAX
 #endif
+
+
+// This avoids inclusion of roaring.h
+typedef struct roaring_bitmap_s roaring_bitmap_t;
 
 
 /// A warpcore backend engine.

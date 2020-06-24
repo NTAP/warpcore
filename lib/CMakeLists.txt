@@ -4,11 +4,25 @@ configure_file(src/config.c.in src/config.c)
 
 include(GNUInstallDirs)
 
-add_library(obj_all OBJECT src/plat.c src/util.c src/ifaddr.c)
+add_library(roaring OBJECT
+            $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>/lib/deps/roaring/roaring.c)
 
+set_target_properties(roaring
+  PROPERTIES
+    C_CLANG_TIDY ""
+    C_CPPCHECK ""
+    C_INCLUDE_WHAT_YOU_USE ""
+    COMPILE_FLAGS "-Wno-reserved-id-macro -Wno-sign-conversion -Wno-undef \
+                   -Wno-implicit-int-conversion -Wno-padded -Wno-cast-align \
+                   -Wno-documentation-unknown-command -Wno-missing-prototypes \
+                   -Wno-unreachable-code-return -Wno-cast-qual"
+)
+
+add_library(obj_all OBJECT src/plat.c src/util.c src/ifaddr.c)
 add_library(obj_sock OBJECT src/backend_sock.c src/warpcore.c)
 add_library(sockcore ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
-            $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>)
+            $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_sock>
+            $<TARGET_OBJECTS:roaring>)
 
 install(DIRECTORY include/warpcore
   DESTINATION include
@@ -27,7 +41,8 @@ if(HAVE_NETMAP_H)
   )
   target_compile_definitions(obj_warp PRIVATE -DWITH_NETMAP)
   add_library(warpcore ${CMAKE_CURRENT_BINARY_DIR}/src/config.c
-              $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>)
+              $<TARGET_OBJECTS:obj_all> $<TARGET_OBJECTS:obj_warp>
+              $<TARGET_OBJECTS:roaring>)
   target_compile_definitions(warpcore PRIVATE -DWITH_NETMAP)
 endif()
 
@@ -40,6 +55,8 @@ foreach(TARGET ${TARGETS})
     SYSTEM PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+    PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/lib/deps/roaring>
   )
   set_target_properties(${TARGET}
     PROPERTIES
@@ -64,5 +81,3 @@ foreach(TARGET ${TARGETS})
     )
   endif()
 endforeach()
-
-add_subdirectory(deps)
