@@ -38,11 +38,12 @@ extern "C" {
 
 #define klib_unused
 
-#include <warpcore/config.h> // IWYU pragma: export
-#include <warpcore/khash.h>  // IWYU pragma: export
-#include <warpcore/plat.h>   // IWYU pragma: export
-#include <warpcore/queue.h>  // IWYU pragma: export
-#include <warpcore/util.h>   // IWYU pragma: export
+#include <warpcore/config.h>  // IWYU pragma: export
+#include <warpcore/khash.h>   // IWYU pragma: export
+#include <warpcore/plat.h>    // IWYU pragma: export
+#include <warpcore/queue.h>   // IWYU pragma: export
+#include <warpcore/roaring.h> // IWYU pragma: export
+#include <warpcore/util.h>    // IWYU pragma: export
 
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
@@ -210,8 +211,9 @@ struct eth_addr {
 /// A warpcore backend engine.
 ///
 struct w_engine {
-    void * mem;           ///< Pointer to netmap or socket buffer memory region.
-    struct w_iov * bufs;  ///< Pointer to w_iov buffers.
+    void * mem;          ///< Pointer to netmap or socket buffer memory region.
+    struct w_iov * bufs; ///< Pointer to w_iov buffers.
+    roaring_bitmap_t * rb_bufs;
     struct w_backend * b; ///< Backend.
     uint16_t mtu;         ///< MTU of this interface.
     uint32_t mbps;        ///< Link speed of this interface in Mb/s.

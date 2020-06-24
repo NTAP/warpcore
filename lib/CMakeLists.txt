@@ -65,3 +65,4 @@ foreach(TARGET ${TARGETS})
   endif()
 endforeach()
 
+add_subdirectory(deps)
