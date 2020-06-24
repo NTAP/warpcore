@@ -357,10 +357,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 {
     struct w_iov * v;
-    o->tx_pending = 0;
     sq_foreach (v, o, next) {
-        o->tx_pending++;
-        v->o = o;
         const uint16_t len = v->len;
         while (unlikely(udp_tx(s, v) == false)) {
             w_nic_tx(s->w);
@@ -446,10 +443,6 @@ void w_nic_tx(struct w_engine * const w)
             v->idx = slot_idx;
             s->flags = NS_BUF_CHANGED;
             w->b->slot_buf[i][j] = 0;
-
-            // update tx_pending
-            if (likely(v->o))
-                v->o->tx_pending--;
         }
 
         // remember current tail

@@ -217,8 +217,7 @@ int
             // if the current service requires replying with data, do so
             if (!sq_empty(&o)) {
                 w_tx(s, &o);
-                while (w_tx_pending(&o))
-                    w_nic_tx(w);
+                w_nic_tx(w);
             }
 
             // we are done serving the received data

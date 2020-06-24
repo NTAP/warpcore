@@ -139,9 +139,6 @@ bool eth_tx(struct w_iov * const v)
              v->idx, b->cur_txr, txr->cur, s->buf_idx);
 #endif
         memcpy(NETMAP_BUF(txr, s->buf_idx), v->base, s->len);
-        // update tx_pending
-        if (likely(v->o))
-            v->o->tx_pending--;
 
     } else {
 #if 0

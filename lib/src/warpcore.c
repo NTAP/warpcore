@@ -586,7 +586,6 @@ reinit_iov(struct w_iov * const v)
 {
     v->buf = v->base;
     v->len = max_buf_len(v->w);
-    v->o = 0;
     v->flags = v->ttl = 0;
     sq_next(v, next) = 0;
 }

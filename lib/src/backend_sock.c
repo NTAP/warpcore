@@ -382,7 +382,6 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 #else
     __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(uint8_t))];
 #endif
-    o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
 
     struct w_iov * v = sq_first(o);
     do {

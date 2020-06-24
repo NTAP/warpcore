@@ -241,8 +241,7 @@ int
 
             // send the data, and wait until it is out
             w_tx(s[c], &o);
-            while (w_tx_pending(&o))
-                w_nic_tx(w);
+            w_nic_tx(w);
 
             // get the current time
             struct timespec after_tx;
