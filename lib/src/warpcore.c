@@ -90,6 +90,7 @@ dump_bufs(const char * const label, const struct w_iov_sq * const q)
 #endif
 
 
+#if 0
 /// Return a spare w_iov from the pool of the given warpcore engine. Needs to be
 /// returned to w->iov via sq_insert_head() or sq_concat().
 ///
@@ -123,6 +124,7 @@ w_alloc_iov(struct w_engine * const w,
     dump_bufs(__func__, &w->iov);
     return v;
 }
+#endif
 
 
 /// Allocate a w_iov tail queue for @p plen payload bytes, for eventual use with
@@ -185,15 +187,15 @@ void w_alloc_len(struct w_engine * const w,
 /// be shorter than requested. It is up to the caller to check this.
 ///
 /// @param      w      Backend engine.
+/// @param      v      Empty w_iov struct for the returned buffers.
 /// @param[in]  af     Address family to allocate packet buffers.
-/// @param[out] q      Tail queue of w_iov structs.
 /// @param[in]  count  Number of packets in the returned tail queue.
 /// @param[in]  len    The length of each @p buf.
 /// @param[in]  off    Additional offset for @p buf.
 ///
 void w_alloc_cnt(struct w_engine * const w,
+                 struct w_iov * const v,
                  const int af,
-                 struct w_iov_sq * const q,
                  const uint_t count,
                  const uint16_t len,
                  const uint16_t off)
@@ -431,7 +433,6 @@ struct w_engine * w_init(const char * const ifname,
     w->addr_cnt = addr_cnt;
     strncpy(w->ifname, ifname, sizeof(w->ifname));
     w->ifname[sizeof(w->ifname) - 1] = 0;
-    sq_init(&w->iov);
     w->rb_bufs = roaring_bitmap_create();
 
     // backend-specific init
@@ -458,8 +459,15 @@ struct w_engine * w_init(const char * const ifname,
 
     warn(INF, "%s/%s (%s) %s using %" PRIu " %u-byte bufs on %s", warpcore_name,
          w->backend_name, w->backend_variant, warpcore_version,
-         w_iov_sq_cnt(&w->iov), w->mtu, w->ifname);
+         roaring_bitmap_get_cardinality(w->rb_bufs), w->mtu, w->ifname);
     return w;
+}
+
+
+static inline uint8_t * __attribute__((nonnull))
+base(const struct w_iov * const v)
+{
+    return (uint8_t *)v->w->mem + (v->idx * v->w->mtu);
 }
 
 
@@ -475,7 +483,7 @@ struct w_engine * w_init(const char * const ifname,
 ///
 uint16_t w_max_iov_len(const struct w_iov * const v, const uint16_t af)
 {
-    const uint16_t offset = (const uint16_t)(v->buf - v->base);
+    const uint16_t offset = (const uint16_t)(v->buf - base(v));
     return v->w->mtu - offset - ip_hdr_len(af);
 }
 
@@ -493,13 +501,14 @@ void w_free(struct w_iov_sq * const q)
 #ifndef NDEBUG
     struct w_iov * v;
     sq_foreach (v, q, next) {
+        roaring_bitmap_add_range_closed(w->rb_bufs, v->idx,
+                                        v->idx + v->cnt - 1);
 #ifdef DEBUG_BUFFERS
         warn(DBG, "w_free idx %" PRIu32, v->idx);
 #endif
-        ASAN_POISON_MEMORY_REGION(v->base, max_buf_len(w));
+        ASAN_POISON_MEMORY_REGION(base(v), max_buf_len(w));
     }
 #endif
-    sq_concat(&w->iov, q);
     dump_bufs(__func__, &w->iov);
 }
 
@@ -514,12 +523,12 @@ void __attribute__((no_instrument_function)) w_free_iov(struct w_iov * const v)
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_free_iov idx %" PRIu32, v->idx);
 #endif
-    ensure(sq_next(v, next) == 0,
+    assure(sq_next(v, next) == 0,
            "idx %" PRIu32 " still linked to idx %" PRIu32, v->idx,
            sq_next(v, next)->idx);
     dump_bufs(__func__, &v->w->iov);
-    sq_insert_head(&v->w->iov, v, next);
-    ASAN_POISON_MEMORY_REGION(v->base, max_buf_len(v->w));
+    roaring_bitmap_add_range_closed(v->w->rb_bufs, v->idx, v->idx + v->cnt - 1);
+    ASAN_POISON_MEMORY_REGION(base(v), max_buf_len(v->w));
     dump_bufs(__func__, &v->w->iov);
 }
 
@@ -586,7 +595,6 @@ uint32_t w_rand_uniform32(const uint32_t upper_bound)
 static void __attribute__((no_instrument_function, nonnull))
 reinit_iov(struct w_iov * const v)
 {
-    v->buf = v->base;
     v->len = max_buf_len(v->w);
     v->flags = v->ttl = 0;
     sq_next(v, next) = 0;
@@ -598,11 +606,11 @@ init_iov(struct w_engine * const w, struct w_iov * const v, const uint32_t idx)
 {
     v->w = w;
     v->idx = idx;
-    v->base = idx_to_buf(w, v->idx);
     reinit_iov(v);
 }
 
 
+#if 0
 struct w_iov * w_alloc_iov_base(struct w_engine * const w)
 {
     struct w_iov * const v = sq_first(&w->iov);
@@ -616,6 +624,7 @@ struct w_iov * w_alloc_iov_base(struct w_engine * const w)
     }
     return v;
 }
+#endif
 
 
 khint_t

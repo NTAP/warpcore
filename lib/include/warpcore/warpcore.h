@@ -214,16 +214,16 @@ typedef struct roaring_bitmap_s roaring_bitmap_t;
 /// A warpcore backend engine.
 ///
 struct w_engine {
-    void * mem;          ///< Pointer to netmap or socket buffer memory region.
-    struct w_iov * bufs; ///< Pointer to w_iov buffers.
+    void * mem; ///< Pointer to netmap or socket buffer memory region.
     roaring_bitmap_t * rb_bufs;
+    uint32_t nbufs;
     struct w_backend * b; ///< Backend.
     uint16_t mtu;         ///< MTU of this interface.
     uint32_t mbps;        ///< Link speed of this interface in Mb/s.
     struct eth_addr mac;  ///< Local Ethernet MAC address of the interface.
     // struct eth_addr rip;  ///< Ethernet MAC address of the next-hop router.
 
-    struct w_iov_sq iov; ///< Tail queue of w_iov buffers available.
+    // struct w_iov_sq iov; ///< Tail queue of w_iov buffers available.
 
     sl_entry(w_engine) next;      ///< Pointer to next engine.
     char ifname[NAME_LEN];        ///< Name of the interface of this engine.
@@ -319,11 +319,12 @@ struct w_iov {
     /// Pointer back to the warpcore instance associated with this w_iov.
     struct w_engine * w;
 
-    uint8_t * base;       ///< Absolute start of buffer.
+    // uint8_t * base;       ///< Absolute start of buffer.
     uint8_t * buf;        ///< Start of payload data.
     sq_entry(w_iov) next; ///< Next w_iov in a w_iov_sq.
-    uint32_t idx;         ///< Index of netmap buffer.
-    uint16_t len;         ///< Length of payload data.
+    uint32_t idx;         ///< Index of first buffer.
+    uint32_t cnt;         ///< Number of buffers in the w_iov.
+    uint16_t len;         ///< Length of each payload data.
 
     /// Sender IP address and port on RX. Destination IP address and port on TX
     /// on a disconnected w_sock. Ignored on TX on a connected w_sock.
@@ -355,11 +356,11 @@ struct w_iov {
 ///
 /// @return     Index between 0-nfbus.
 ///
-static inline uint32_t __attribute__((nonnull, no_instrument_function))
-w_iov_idx(const struct w_iov * const v)
-{
-    return v - v->w->bufs;
-}
+// static inline uint32_t __attribute__((nonnull, no_instrument_function))
+// w_iov_idx(const struct w_iov * const v)
+// {
+//     return v - v->w->bufs;
+// }
 
 
 /// Return a pointer to the w_iov with index @p i.
@@ -369,11 +370,11 @@ w_iov_idx(const struct w_iov * const v)
 ///
 /// @return     Pointer to w_iov.
 ///
-static inline struct w_iov * __attribute__((nonnull, no_instrument_function))
-w_iov(const struct w_engine * const w, const uint32_t i)
-{
-    return &w->bufs[i];
-}
+// static inline struct w_iov * __attribute__((nonnull, no_instrument_function))
+// w_iov(const struct w_engine * const w, const uint32_t i)
+// {
+//     return &w->bufs[i];
+// }
 
 
 /// Return warpcore engine serving w_sock @p s.

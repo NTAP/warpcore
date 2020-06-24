@@ -15,7 +15,8 @@ set_target_properties(roaring
     COMPILE_FLAGS "-Wno-reserved-id-macro -Wno-sign-conversion -Wno-undef \
                    -Wno-implicit-int-conversion -Wno-padded -Wno-cast-align \
                    -Wno-documentation-unknown-command -Wno-missing-prototypes \
-                   -Wno-unreachable-code-return -Wno-cast-qual"
+                   -Wno-unreachable-code-return -Wno-cast-qual \
+                   -Wno-unknown-warning-option"
 )
 
 add_library(obj_all OBJECT src/plat.c src/util.c src/ifaddr.c)

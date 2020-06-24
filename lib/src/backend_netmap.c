@@ -47,14 +47,11 @@
 #include <net/netmap_user.h> // IWYU pragma: keep
 #include <warpcore/warpcore.h>
 
-#ifdef HAVE_ASAN
-#include <sanitizer/asan_interface.h>
-#endif
-
 #include "backend.h"
 #include "eth.h"
 #include "ifaddr.h"
 #include "neighbor.h"
+#include "roaring.h"
 #include "udp.h"
 
 
@@ -170,31 +167,22 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
     }
 
-#ifndef NDEBUG
     for (uint32_t ri = 0; likely(ri < b->nif->ni_rx_rings); ri++) {
         const struct netmap_ring * const r = // NOLINT
             NETMAP_RXRING(b->nif, ri);
         warn(INF, "rx ring %d has %d slots (%d-%d)", ri, r->num_slots,
              r->slot[0].buf_idx, r->slot[r->num_slots - 1].buf_idx);
-    }
-#endif
-
-    // save the indices of the extra buffers in the warpcore structure
-    w->bufs = calloc(b->req->nr_arg3, sizeof(*w->bufs));
-    ensure(w->bufs != 0, "cannot allocate w_iov");
-
-    uint32_t i = b->nif->ni_bufs_head;
-    for (uint32_t n = 0; likely(n < b->req->nr_arg3); n++) {
-        init_iov(w, &w->bufs[n], i);
-        sq_insert_head(&w->iov, &w->bufs[n], next);
-        memcpy(&i, w->bufs[n].buf, sizeof(i));
-        ASAN_POISON_MEMORY_REGION(w->bufs[n].buf, max_buf_len(w));
+        roaring_bitmap_add_range_closed(w->rb_bufs, r->slot[0].buf_idx,
+                                        r->slot[r->num_slots - 1].buf_idx);
     }
 
-    if (b->req->nr_arg3 != nbufs)
-        warn(WRN, "can only allocate %d/%d extra buffers", b->req->nr_arg3,
-             nbufs);
-    ensure(b->req->nr_arg3 != 0, "got some extra buffers");
+    b->nbufs = b->req->nr_arg3;
+    if (b->nbufs != nbufs)
+        warn(WRN, "can only allocate %d/%d extra buffers", b->nbufs, nbufs);
+    ensure(b->nbufs != 0, "got some extra buffers");
+
+    roaring_bitmap_add_range_closed(w->rb_bufs, b->nif->ni_bufs_head,
+                                    b->nbufs - 1);
 
     // lock memory
     ensure(mlockall(MCL_CURRENT | MCL_FUTURE) != -1, "mlockall");
@@ -216,16 +204,17 @@ void backend_cleanup(struct w_engine * const w)
     // free ARP cache
     free_neighbor(w);
 
-    // re-construct the extra bufs list, so netmap can free the memory
-    for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
-        uint32_t * const buf = (void *)idx_to_buf(w, w->bufs[n].idx);
-        ASAN_UNPOISON_MEMORY_REGION(buf, max_buf_len(w));
-        if (likely(n < sq_len(&w->iov) - 1))
-            *buf = w->bufs[n + 1].idx;
-        else
-            *buf = 0;
-    }
-    w->b->nif->ni_bufs_head = w->bufs[0].idx;
+    // TODO:
+    // // re-construct the extra bufs list, so netmap can free the memory
+    // for (uint32_t n = 0; likely(n < sq_len(&w->iov)); n++) {
+    //     uint32_t * const buf = (void *)idx_to_buf(w, w->bufs[n].idx);
+    //     ASAN_UNPOISON_MEMORY_REGION(buf, max_buf_len(w));
+    //     if (likely(n < sq_len(&w->iov) - 1))
+    //         *buf = w->bufs[n + 1].idx;
+    //     else
+    //         *buf = 0;
+    // }
+    // w->b->nif->ni_bufs_head = w->bufs[0].idx;
 
     // free slot w_iov pointers
     for (uint32_t ri = 0; likely(ri < w->b->nif->ni_tx_rings); ri++)
@@ -236,7 +225,7 @@ void backend_cleanup(struct w_engine * const w)
            "cannot munmap netmap memory");
 
     ensure(close(w->b->fd) != -1, "cannot close /dev/netmap");
-    free(w->bufs);
+    roaring_bitmap_free(w->rb_bufs);
     free(w->b->req);
     free(w->b->tail);
 }

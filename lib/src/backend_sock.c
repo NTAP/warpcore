@@ -57,10 +57,6 @@
 #define strerror(...) ""
 #endif
 
-#ifdef HAVE_ASAN
-#include <sanitizer/asan_interface.h>
-#endif
-
 #if defined(HAVE_KQUEUE)
 #include <sys/event.h>
 #include <time.h>
@@ -72,6 +68,7 @@
 
 #include "backend.h"
 #include "ifaddr.h"
+#include "roaring.h"
 
 
 #define sa_len(f)                                                              \
@@ -151,15 +148,9 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 
     ensure((w->mem = calloc(nbufs, max_buf_len(w))) != 0,
            "cannot alloc %" PRIu32 " * %u buf mem", nbufs, max_buf_len(w));
-    ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
-           "cannot alloc bufs");
     w->backend_name = "socket";
-
-    for (uint32_t i = 0; i < nbufs; i++) {
-        init_iov(w, &w->bufs[i], i);
-        sq_insert_head(&w->iov, &w->bufs[i], next);
-        ASAN_POISON_MEMORY_REGION(w->bufs[i].buf, max_buf_len(w));
-    }
+    roaring_bitmap_add_range_closed(w->rb_bufs, 0, nbufs - 1);
+    w->nbufs = nbufs;
 
 #if defined(HAVE_KQUEUE)
     w->b->kq = kqueue();
@@ -227,7 +218,6 @@ void backend_cleanup(struct w_engine * const w)
         w_close(s);
 #endif
     free(w->mem);
-    free(w->bufs);
     w->b->n = 0;
 }
 

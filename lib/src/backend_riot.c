@@ -120,11 +120,8 @@ done:
            "cannot alloc %" PRIu32 " * %u buf mem", nbufs, max_buf_len(w));
     ensure((w->bufs = calloc(nbufs, sizeof(*w->bufs))) != 0,
            "cannot alloc bufs");
-
-    for (uint32_t i = 0; i < nbufs; i++) {
-        init_iov(w, &w->bufs[i], i);
-        sq_insert_head(&w->iov, &w->bufs[i], next);
-    }
+    w->nbufs = nbufs;
+    roaring_bitmap_add_range_closed(w->rb_bufs, 0, nbufs - 1);
 }
 
 
@@ -138,7 +135,6 @@ void backend_cleanup(struct w_engine * const w)
     sl_foreach (s, &w->b->socks, __next)
         w_close(s);
     free(w->mem);
-    free(w->bufs);
 }
 
 

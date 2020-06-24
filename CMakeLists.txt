@@ -275,5 +275,5 @@ add_subdirectory(doc)
 add_subdirectory(bin)
 add_subdirectory(lib)
 
-add_subdirectory(test)
+# add_subdirectory(test)
 enable_testing()
