@@ -66,9 +66,7 @@ bool io(const uint_t len)
 
     // tx
     w_tx(s_clnt, &o);
-    do
-        w_nic_tx(w_clnt);
-    while (w_tx_pending(&o));
+    w_nic_tx(w_clnt);
     ensure(olen == w_iov_sq_len(&o), "same length");
 
     // read the chain back

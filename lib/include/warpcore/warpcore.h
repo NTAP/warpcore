@@ -59,10 +59,7 @@ extern "C" {
 /// A tail queue of w_iov I/O vectors. Also contains a counter that (on TX)
 /// tracks how many w_iovs have not yet been transmitted by the NIC.
 ///
-struct w_iov_sq {
-    __extension__ sq_head(, w_iov); ///< Head of the w_iov tail queue.
-    uint32_t tx_pending; ///< Counter of untransmitted w_iovs. Only valid on TX.
-};
+sq_head(w_iov_sq, w_iov); ///< Head of the w_iov tail queue.
 
 
 /// Initializer for struct w_iov_sq.
@@ -71,10 +68,7 @@ struct w_iov_sq {
 ///
 /// @return     Empty w_iov_sq, to be assigned to @p q.
 ///
-#define w_iov_sq_initializer(q)                                                \
-    {                                                                          \
-        sq_head_initializer(q), 0                                              \
-    }
+#define w_iov_sq_initializer(q) sq_head_initializer(q)
 
 
 #define IP6_LEN 16 ///< Length of an IPv4 address in bytes. Sixteen.
@@ -340,9 +334,6 @@ struct w_iov {
     /// Can be used by application to maintain arbitrary data. Not used by
     /// warpcore.
     uint16_t user_data;
-
-    ///< Pointer to the w_iov_sq this w_iov resides in. Only valid on TX.
-    struct w_iov_sq * o;
 };
 
 
@@ -377,20 +368,6 @@ static inline struct w_iov * __attribute__((nonnull, no_instrument_function))
 w_iov(const struct w_engine * const w, const uint32_t i)
 {
     return &w->bufs[i];
-}
-
-
-/// Return the number of w_iov structs in @p q that are still waiting for
-/// transmission. Only valid after w_tx() has been called on @p p.
-///
-/// @param      q     A tail queue of w_iov structs.
-///
-/// @return     Number of w_iov structs not yet transmitted.
-///
-static inline uint32_t __attribute__((nonnull, no_instrument_function))
-w_tx_pending(const struct w_iov_sq * const q)
-{
-    return q->tx_pending;
 }
 
 
