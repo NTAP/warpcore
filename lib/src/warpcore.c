@@ -101,7 +101,11 @@ dump_bufs(const char * const label, const struct w_iov_sq * const q)
 ///
 struct w_iov * __attribute__((no_instrument_function))
 w_alloc_iov(struct w_engine * const w,
-            const int af,
+            const int af
+#if defined(NDEBUG) && !defined(WITH_NETMAP)
+            __attribute__((unused))
+#endif
+            ,
             const uint16_t len,
             const uint16_t off)
 {
