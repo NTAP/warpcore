@@ -62,7 +62,7 @@ static void __attribute__((nonnull)) ins_sock(struct w_sock * const s)
 {
     int ret;
     const khiter_t k = kh_put(sock, &s->w->b->sock, &s->tup, &ret);
-    ensure(ret >= 1, "inserted is %d", ret);
+    assure(ret >= 1, "inserted is %d", ret);
     kh_val(&s->w->b->sock, k) = s;
 }
 
@@ -70,7 +70,7 @@ static void __attribute__((nonnull)) ins_sock(struct w_sock * const s)
 static void __attribute__((nonnull)) rem_sock(struct w_sock * const s)
 {
     const khiter_t k = kh_get(sock, &s->w->b->sock, &s->tup);
-    ensure(k != kh_end(&s->w->b->sock), "found");
+    assure(k != kh_end(&s->w->b->sock), "found");
     kh_del(sock, &s->w->b->sock, k);
 }
 
