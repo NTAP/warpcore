@@ -70,6 +70,18 @@
 #include <poll.h>
 #endif
 
+#if defined(HAVE_SENDMMSG)
+#define SENDFUNC "sendmmsg"
+#else
+#define SENDFUNC "sendmsg"
+#endif
+
+#if defined(HAVE_RECVMMSG)
+#define RECVFUNC "recvmmsg"
+#else
+#define RECVFUNC "recvmsg"
+#endif
+
 #include "backend.h"
 #include "ifaddr.h"
 
@@ -163,50 +175,12 @@ void backend_init(struct w_engine * const w, const uint32_t nbufs)
 
 #if defined(HAVE_KQUEUE)
     w->b->kq = kqueue();
-#if defined(HAVE_SENDMMSG)
-#if defined(HAVE_RECVMMSG)
-    w->backend_variant = "kqueue/sendmmsg/recvmmsg";
-#else
-    w->backend_variant = "kqueue/sendmmsg/recvmsg";
-#endif
-#else
-#if defined(HAVE_RECVMMSG)
-    w->backend_variant = "kqueue/sendmsg/recvmmsg";
-#else
-    w->backend_variant = "kqueue/sendmsg/recvmsg";
-#endif
-#endif
-
+    w->backend_variant = "kqueue/" SENDFUNC "/" RECVFUNC;
 #elif defined(HAVE_EPOLL)
     w->b->ep = epoll_create1(0);
-#if defined(HAVE_SENDMMSG)
-#if defined(HAVE_RECVMMSG)
-    w->backend_variant = "epoll/sendmmsg/recvmmsg";
+    w->backend_variant = "epoll/" SENDFUNC "/" RECVFUNC;
 #else
-    w->backend_variant = "epoll/sendmmsg/recvmsg";
-#endif
-#else
-#if defined(HAVE_RECVMMSG)
-    w->backend_variant = "epoll/sendmsg/recvmmsg";
-#else
-    w->backend_variant = "epoll/sendmsg/recvmsg";
-#endif
-#endif
-
-#else
-#if defined(HAVE_SENDMMSG)
-#if defined(HAVE_RECVMMSG)
-    w->backend_variant = "poll/sendmmsg/recvmmsg";
-#else
-    w->backend_variant = "poll/sendmmsg/recvmsg";
-#endif
-#else
-#if defined(HAVE_RECVMMSG)
-    w->backend_variant = "poll/sendmsg/recvmmsg";
-#else
-    w->backend_variant = "poll/sendmsg/recvmsg";
-#endif
-#endif
+    w->backend_variant = "poll/" SENDFUNC "/" RECVFUNC;
 #endif
 
     warn(DBG, "%s backend using %s", w->backend_name, w->backend_variant);
