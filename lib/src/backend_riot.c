@@ -257,7 +257,6 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
             warn(ERR, "sock_udp_send returned %d (%s)", errno, strerror(errno));
         v = sq_next(v, next);
     };
-    o->tx_pending = 0; // blocking I/O, no need to update o->tx_pending
 }
 
 

@@ -27,13 +27,16 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
-#include <inttypes.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+
+#ifndef NDEBUG
+#include <inttypes.h>
+#endif
 
 #include <warpcore/warpcore.h>
 
@@ -101,14 +104,18 @@ dump_bufs(const char * const label, const struct w_iov_sq * const q)
 ///
 struct w_iov * __attribute__((no_instrument_function))
 w_alloc_iov(struct w_engine * const w,
-            const int af,
+            const int af
+#if defined(NDEBUG) && !defined(WITH_NETMAP)
+            __attribute__((unused))
+#endif
+            ,
             const uint16_t len,
             const uint16_t off)
 {
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_alloc_iov len %u, off %u", len, off);
 #endif
-    ensure(af == AF_INET || af == AF_INET6, "unknown address family");
+    assure(af == AF_INET || af == AF_INET6, "unknown address family");
     struct w_iov * const v = w_alloc_iov_base(w);
     if (likely(v)) {
         const uint16_t hdr_space = iov_off(w, af);
@@ -150,7 +157,7 @@ void w_alloc_len(struct w_engine * const w,
 {
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_alloc_len qlen %" PRIu ", len %u, off %u", qlen, len, off);
-    ensure(sq_empty(q), "q not empty");
+    assure(sq_empty(q), "q not empty");
 #endif
     uint_t needed = qlen;
     while (likely(needed)) {
@@ -199,7 +206,7 @@ void w_alloc_cnt(struct w_engine * const w,
 {
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_alloc_cnt count %" PRIu ", len %u, off %u", count, len, off);
-    ensure(sq_empty(q), "q not empty");
+    assure(sq_empty(q), "q not empty");
 #endif
     for (uint_t needed = 0; likely(needed < count); needed++) {
         struct w_iov * const v = w_alloc_iov(w, af, len, off);
@@ -512,7 +519,7 @@ void __attribute__((no_instrument_function)) w_free_iov(struct w_iov * const v)
 #ifdef DEBUG_BUFFERS
     warn(DBG, "w_free_iov idx %" PRIu32, v->idx);
 #endif
-    ensure(sq_next(v, next) == 0,
+    assure(sq_next(v, next) == 0,
            "idx %" PRIu32 " still linked to idx %" PRIu32, v->idx,
            sq_next(v, next)->idx);
     dump_bufs(__func__, &v->w->iov);
@@ -586,7 +593,6 @@ reinit_iov(struct w_iov * const v)
 {
     v->buf = v->base;
     v->len = max_buf_len(v->w);
-    v->o = 0;
     v->flags = v->ttl = 0;
     sq_next(v, next) = 0;
 }

@@ -56,7 +56,7 @@ void neighbor_update(struct w_engine * const w,
         memcpy(a, addr, sizeof(*addr));
         int ret;
         k = kh_put(neighbor, &w->b->neighbor, a, &ret); // NOLINT
-        ensure(ret >= 1, "inserted");
+        assure(ret >= 1, "inserted");
     }
     kh_val(&w->b->neighbor, k) = mac;
 

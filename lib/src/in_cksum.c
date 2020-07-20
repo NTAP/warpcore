@@ -61,7 +61,7 @@
 #endif
 
 #ifdef __FreeBSD__
-#include <sys/socket.h> // IWYU pragma: keep
+#include <sys/socket.h>
 #endif
 
 #include <warpcore/warpcore.h>

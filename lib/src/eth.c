@@ -25,13 +25,11 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef FUZZING
 #include <string.h>
-#endif
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap_user.h>
 
+#include <net/netmap.h>
 #include <warpcore/warpcore.h>
 
 #include "arp.h"
@@ -139,9 +137,6 @@ bool eth_tx(struct w_iov * const v)
              v->idx, b->cur_txr, txr->cur, s->buf_idx);
 #endif
         memcpy(NETMAP_BUF(txr, s->buf_idx), v->base, s->len);
-        // update tx_pending
-        if (likely(v->o))
-            v->o->tx_pending--;
 
     } else {
 #if 0

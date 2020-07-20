@@ -36,7 +36,6 @@
 
 #include "common.h"
 
-
 struct w_engine *w_serv, *w_clnt;
 struct w_sock *s_serv, *s_clnt;
 
@@ -61,16 +60,13 @@ bool io(const uint_t len)
         else
             ++fill;
         memset(ov->buf, fill, ov->len);
-        ov->flags = 0x55;
+        ov->flags = 0xa9;
     }
     const uint_t olen = w_iov_sq_len(&o);
 
     // tx
     w_tx(s_clnt, &o);
-    while (w_tx_pending(&o)) {
-        w_nic_tx(w_clnt);
-        w_nic_rx(w_serv, 0); // warpcore over loopback pipe needs this
-    }
+    w_nic_tx(w_clnt);
     ensure(olen == w_iov_sq_len(&o), "same length");
 
     // read the chain back
@@ -108,8 +104,9 @@ bool io(const uint_t len)
         ensure(iv->saddr.port == s_clnt->ws_lport,
                "port mismatch, in %u != out %u", bswap16(iv->saddr.port),
                bswap16(s_clnt->ws_lport));
-
+#ifndef WITH_NETMAP
         ensure(ip6_eql(iv->wv_ip6, ov->wv_ip6), "IP mismatch");
+#endif
 
         ov = sq_next(ov, next);
         iv = sq_next(iv, next);

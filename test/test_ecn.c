@@ -60,7 +60,7 @@ static int __attribute__(())
 sock_open(const sa_family_t af, const bool test_with_cmsg)
 {
     const int s = socket(af, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-    assert(s);
+    assert(s >= 0);
 
     // always receive DSCP/ECN info
     const int proto = af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;

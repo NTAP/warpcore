@@ -26,7 +26,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef __FreeBSD__
-#include <netinet/in.h> // IWYU pragma: keep
+#include <netinet/in.h>
 #endif
 
 #include <fcntl.h>
@@ -42,9 +42,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-// IWYU pragma: no_include <net/netmap.h>
-// IWYU pragma: no_include <net/netmap_legacy.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap.h>
+#include <net/netmap_legacy.h>
 #include <warpcore/warpcore.h>
 
 #ifdef HAVE_ASAN
@@ -62,7 +61,7 @@ static void __attribute__((nonnull)) ins_sock(struct w_sock * const s)
 {
     int ret;
     const khiter_t k = kh_put(sock, &s->w->b->sock, &s->tup, &ret);
-    ensure(ret >= 1, "inserted is %d", ret);
+    assure(ret >= 1, "inserted is %d", ret);
     kh_val(&s->w->b->sock, k) = s;
 }
 
@@ -70,7 +69,7 @@ static void __attribute__((nonnull)) ins_sock(struct w_sock * const s)
 static void __attribute__((nonnull)) rem_sock(struct w_sock * const s)
 {
     const khiter_t k = kh_get(sock, &s->w->b->sock, &s->tup);
-    ensure(k != kh_end(&s->w->b->sock), "found");
+    assure(k != kh_end(&s->w->b->sock), "found");
     kh_del(sock, &s->w->b->sock, k);
 }
 
@@ -357,10 +356,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 {
     struct w_iov * v;
-    o->tx_pending = 0;
     sq_foreach (v, o, next) {
-        o->tx_pending++;
-        v->o = o;
         const uint16_t len = v->len;
         while (unlikely(udp_tx(s, v) == false)) {
             w_nic_tx(s->w);
@@ -370,12 +366,11 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 }
 
 
-/// Trigger netmap to make new received data available to w_rx(). Iterates
-/// over any new data in the RX rings, calling eth_rx() for each.
+/// Trigger netmap to make new received data available to w_rx(). Iterates over
+/// any new data in the RX rings, calling eth_rx() for each.
 ///
 /// @param[in]  w     Backend engine.
-/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate
-/// return, -1
+/// @param[in]  nsec  Timeout in nanoseconds. Pass zero for immediate return, -1
 ///                   for infinite wait.
 ///
 /// @return     Whether any data is ready for reading.
@@ -447,10 +442,6 @@ void w_nic_tx(struct w_engine * const w)
             v->idx = slot_idx;
             s->flags = NS_BUF_CHANGED;
             w->b->slot_buf[i][j] = 0;
-
-            // update tx_pending
-            if (likely(v->o))
-                v->o->tx_pending--;
         }
 
         // remember current tail

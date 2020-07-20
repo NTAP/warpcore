@@ -34,8 +34,7 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap.h>
 
 #include "backend.h"
 #include "eth.h"

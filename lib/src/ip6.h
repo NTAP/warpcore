@@ -35,8 +35,7 @@
 #include "eth.h"
 
 #ifdef WITH_NETMAP
-struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
-// IWYU pragma: no_include <net/netmap.h>
+struct netmap_slot;
 #endif
 
 
@@ -68,6 +67,20 @@ static const uint8_t snma_mask[IP6_LEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                            0x00, 0xff, 0xff, 0xff};
 
 
+/// Extract the TOS byte out of an ip6_hdr::vtcecnfl field.
+///
+/// @param[in]  vtcecnfl  An ip6_hdr::vtcecnfl field.
+///
+/// @return     TOS byte.
+///
+static inline uint8_t __attribute__((always_inline, const))
+ip6_tos(const uint32_t vtcecnfl)
+{
+    return (uint8_t)(((vtcecnfl & 0x0000f000) >> 12) |
+                     ((vtcecnfl & 0x0000000f) << 4));
+}
+
+
 /// Extract the traffic class out of an ip6_hdr::vtcecnfl field.
 ///
 /// @param[in]  vtcecnfl  An ip6_hdr::vtcecnfl field.
@@ -77,8 +90,7 @@ static const uint8_t snma_mask[IP6_LEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 static inline uint8_t __attribute__((always_inline, const))
 ip6_tc(const uint32_t vtcecnfl)
 {
-    return ((uint8_t)(vtcecnfl & 0x0000f000) >> 12) |
-           (uint8_t)((vtcecnfl & 0x0000000f) << 4);
+    return ip6_tos(vtcecnfl) & 0xfc;
 }
 
 

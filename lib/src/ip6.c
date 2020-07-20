@@ -26,7 +26,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef __FreeBSD__
-#include <sys/types.h> // IWYU pragma: keep
+#include <sys/types.h>
 #endif
 
 #include <arpa/inet.h>
@@ -126,10 +126,12 @@ void
     struct ip6_hdr * const ip = (void *)eth_data(v->base);
 
     // set version, TC and ECN
-    ip->vtcecnfl =
-        (6 << 4) | (uint32_t)((v->flags & 0x0f) << 12 | (v->flags & 0xf0) >> 4);
-    // if there is no per-packet ECN marking, apply default
-    if ((v->flags & ECN_MASK) == 0 && likely(s) && s->opt.enable_ecn)
+    ip->vfc = (6 << 4);
+    if (v->flags & ECN_MASK)
+        ip->vtcecnfl |=
+            (uint32_t)((v->flags & 0x0f) << 12 | (v->flags & 0xf0) >> 4);
+    else if (likely(s) && s->opt.enable_ecn)
+        // if there is no per-packet ECN marking, apply default
         ip->vtcecnfl |= (ECN_ECT0 << 20);
 
     // we never set a flow label, if we were to set it, do it like this:

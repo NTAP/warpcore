@@ -27,7 +27,7 @@
 
 #ifdef __FreeBSD__
 // needs to come before net/ethernet.h
-#include <netinet/in.h> // IWYU pragma: keep
+#include <netinet/in.h>
 #endif
 
 #ifdef __APPLE__

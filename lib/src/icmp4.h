@@ -29,12 +29,8 @@
 
 #include <stdint.h>
 
-struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
-struct w_engine;    // IWYU pragma: no_forward_declare w_engine
-
-// IWYU pragma: no_include <net/netmap.h>
-// IWYU pragma: no_include <warpcore/warpcore.h>
-
+struct netmap_slot;
+struct w_engine;
 
 #define ICMP4_TYPE_ECHOREPLY 0 ///< ICMP echo reply type.
 #define ICMP4_TYPE_UNREACH 3   ///< ICMP unreachable type.
