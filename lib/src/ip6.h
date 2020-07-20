@@ -35,8 +35,7 @@
 #include "eth.h"
 
 #ifdef WITH_NETMAP
-struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
-// IWYU pragma: no_include <net/netmap.h>
+struct netmap_slot;
 #endif
 
 

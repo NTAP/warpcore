@@ -35,8 +35,7 @@
 #endif
 
 #ifdef WITH_NETMAP
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap_user.h>
 #endif
 
 #include <warpcore/warpcore.h>

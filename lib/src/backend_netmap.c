@@ -26,7 +26,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef __FreeBSD__
-#include <netinet/in.h> // IWYU pragma: keep
+#include <netinet/in.h>
 #endif
 
 #include <fcntl.h>
@@ -42,9 +42,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-// IWYU pragma: no_include <net/netmap.h>
-// IWYU pragma: no_include <net/netmap_legacy.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap.h>
+#include <net/netmap_legacy.h>
 #include <warpcore/warpcore.h>
 
 #ifdef HAVE_ASAN

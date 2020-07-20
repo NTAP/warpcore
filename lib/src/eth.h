@@ -34,7 +34,7 @@
 #include <warpcore/warpcore.h>
 
 #ifdef WITH_NETMAP
-struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
+struct netmap_slot;
 #endif
 
 
@@ -71,9 +71,7 @@ eth_data(uint8_t * const buf)
 
 
 #ifdef WITH_NETMAP
-
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap_user.h>
 
 #include "neighbor.h"
 

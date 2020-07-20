@@ -30,14 +30,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-struct netmap_slot; // IWYU pragma: no_forward_declare netmap_slot
-struct w_engine;    // IWYU pragma: no_forward_declare w_engine
-struct w_iov;       // IWYU pragma: no_forward_declare w_iov
-struct w_sock;      // IWYU pragma: no_forward_declare w_sock
-
-// IWYU pragma: no_include <net/netmap.h>
-// IWYU pragma: no_include <warpcore/warpcore.h>
-
+struct netmap_slot;
+struct w_engine;
+struct w_iov;
+struct w_sock;
 
 /// A representation of a UDP header; see
 /// [RFC768](https://tools.ietf.org/html/rfc768).

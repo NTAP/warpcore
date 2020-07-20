@@ -26,15 +26,14 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef __FreeBSD__
-#include <sys/types.h> // IWYU pragma: keep
+#include <sys/types.h>
 #endif
 
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <sys/socket.h>
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap_user.h>
 
 #include <warpcore/warpcore.h>
 

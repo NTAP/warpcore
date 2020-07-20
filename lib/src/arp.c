@@ -27,8 +27,8 @@
 
 
 #ifdef __FreeBSD__
-#include <sys/socket.h> // IWYU pragma: keep
-#include <sys/types.h>  // IWYU pragma: keep
+#include <sys/socket.h>
+#include <sys/types.h>
 #endif
 
 #include <arpa/inet.h>

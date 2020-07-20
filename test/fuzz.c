@@ -30,8 +30,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap_user.h>
+
+#include <net/netmap.h>
 #include <warpcore/warpcore.h>
 
 #include "backend.h"
@@ -47,7 +48,6 @@ static struct w_backend b;
 __extension__ static struct w_engine w = {
     .b = &b,
     .ifaddr = {[0] = {.addr = {.af = AF_INET, .ip4 = 0x0100007f},
-                      .net4 = 0x000000ff,
                       .bcast4 = 0xffffff7f,
                       .prefix = 8}}};
 

@@ -25,13 +25,11 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef FUZZING
 #include <string.h>
-#endif
 
-// IWYU pragma: no_include <net/netmap.h>
-#include <net/netmap_user.h> // IWYU pragma: keep
+#include <net/netmap_user.h>
 
+#include <net/netmap.h>
 #include <warpcore/warpcore.h>
 
 #include "arp.h"

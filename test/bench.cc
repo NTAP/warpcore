@@ -30,7 +30,7 @@
 
 extern "C" {
 #include "common.h"
-#include "in_cksum.h" // IWYU pragma: keep
+// #include "in_cksum.h"
 }
 
 

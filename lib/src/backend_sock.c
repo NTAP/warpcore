@@ -33,7 +33,7 @@
 #elif defined(__APPLE__)
 #include <netinet/udp.h>
 #else
-#include <sys/types.h> // IWYU pragma: keep
+#include <sys/types.h>
 #endif
 
 #include <netinet/in.h>

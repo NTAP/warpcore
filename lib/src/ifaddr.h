@@ -29,9 +29,7 @@
 
 #include <stdint.h>
 
-#include <warpcore/warpcore.h>
-// IWYU pragma: no_forward_declare w_engine
-
+struct w_engine;
 
 extern uint16_t __attribute__((nonnull))
 backend_addr_cnt(const char * const ifname);
