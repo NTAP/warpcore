@@ -333,7 +333,7 @@ eth_ntoa(const struct eth_addr * const addr, char * const buf, const size_t len)
 ///
 /// @return     Relative time in nanoseconds.
 ///
-uint64_t __attribute__((no_instrument_function)) w_now(void)
+uint64_t __attribute__((no_instrument_function)) w_now(const clockid_t clock)
 {
 #if defined(PARTICLE)
     return HAL_Timer_Microseconds() * NS_PER_US;
@@ -341,10 +341,10 @@ uint64_t __attribute__((no_instrument_function)) w_now(void)
     return xtimer_now_usec64() * NS_PER_US;
 #else
 #ifdef __APPLE__
-    return clock_gettime_nsec_np(CLOCK_MONOTONIC);
+    return clock_gettime_nsec_np(clock);
 #else
     struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
+    clock_gettime(clock, &now);
     return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
 #endif
 #endif

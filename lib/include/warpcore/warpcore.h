@@ -542,7 +542,7 @@ w_sockaddr_cmp(const struct w_sockaddr * const a,
 extern void __attribute__((nonnull))
 w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt);
 
-extern uint64_t w_now(void);
+extern uint64_t w_now(const clockid_t clock);
 
 extern void w_nanosleep(const uint64_t ns);
 
