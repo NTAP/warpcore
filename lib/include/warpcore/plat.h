@@ -125,7 +125,7 @@ typedef int_fast32_t dint_t;
 #define SOCK_CLOEXEC 0
 
 #elif defined(PARTICLE) || defined(RIOT_VERSION)
-#define CLOCK_MONOTONIC 0
+#define CLOCK_MONOTONIC_RAW 0
 #ifdef PARTICLE
 typedef struct if_list if_list;
 #include "ifapi.h"

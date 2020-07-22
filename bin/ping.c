@@ -227,7 +227,7 @@ int
 
             // get the current time
             struct timespec before_tx;
-            ensure(clock_gettime(CLOCK_MONOTONIC, &before_tx) != -1,
+            ensure(clock_gettime(CLOCK_MONOTONIC_RAW, &before_tx) != -1,
                    "clock_gettime");
 
             // stamp the data
@@ -245,7 +245,7 @@ int
 
             // get the current time
             struct timespec after_tx;
-            ensure(clock_gettime(CLOCK_MONOTONIC, &after_tx) != -1,
+            ensure(clock_gettime(CLOCK_MONOTONIC_RAW, &after_tx) != -1,
                    "clock_gettime");
 
             // set a timeout
@@ -265,7 +265,7 @@ int
 
             // get the current time
             struct timespec after_rx;
-            ensure(clock_gettime(CLOCK_MONOTONIC, &after_rx) != -1,
+            ensure(clock_gettime(CLOCK_MONOTONIC_RAW, &after_rx) != -1,
                    "clock_gettime");
 
             // stop the timeout
