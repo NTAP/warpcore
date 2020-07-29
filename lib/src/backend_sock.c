@@ -86,31 +86,6 @@
 #include "ifaddr.h"
 
 
-#define sa_len(f)                                                              \
-    ((f) == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))
-
-
-static void __attribute__((nonnull))
-to_sockaddr(struct sockaddr * const sa,
-            const struct w_addr * const addr,
-            const uint16_t port,
-            const uint32_t scope_id)
-{
-    if (addr->af == AF_INET) {
-        struct sockaddr_in * const sin = (struct sockaddr_in *)(void *)sa;
-        sin->sin_family = AF_INET;
-        sin->sin_port = port;
-        memcpy(&sin->sin_addr, &addr->ip4, IP4_LEN);
-    } else {
-        struct sockaddr_in6 * const sin6 = (struct sockaddr_in6 *)(void *)sa;
-        sin6->sin6_family = AF_INET6;
-        sin6->sin6_port = port;
-        memcpy(&sin6->sin6_addr, addr->ip6, IP6_LEN);
-        sin6->sin6_scope_id = scope_id;
-    }
-}
-
-
 /// Set the socket options.
 ///
 /// @param      s     The w_sock to change options for.

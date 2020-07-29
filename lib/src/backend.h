@@ -85,6 +85,7 @@ struct w_backend {
 #ifndef RIOT_VERSION
     struct pollfd * fds;
 #else
+    fd_set fds;
     gnrc_netif_t * nif;
 #endif
     struct w_sock_slist socks;
@@ -147,6 +148,17 @@ idx_to_buf(const struct w_engine * const w, const uint32_t i)
 }
 
 
+static inline uint16_t __attribute__((always_inline)) pick_local_port(void)
+{
+    // compute a random port >= 1024
+    return bswap16(1024 + (uint16_t)w_rand_uniform32(UINT16_MAX - 1024));
+}
+
+
+#define sa_len(f)                                                              \
+    ((f) == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))
+
+
 #define sa_port(s)                                                             \
     _Pragma("clang diagnostic push")                                           \
                 _Pragma("clang diagnostic ignored \"-Wcast-align\"")(          \
@@ -188,3 +200,9 @@ extern struct w_sock * __attribute__((nonnull(1, 2)))
 w_get_sock(struct w_engine * const w,
            const struct w_sockaddr * const local,
            const struct w_sockaddr * const remote);
+
+extern void __attribute__((nonnull))
+to_sockaddr(struct sockaddr * const sa,
+            const struct w_addr * const addr,
+            const uint16_t port,
+            const uint32_t scope_id);

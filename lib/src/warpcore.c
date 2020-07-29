@@ -267,8 +267,9 @@ int w_connect(struct w_sock * const s, const struct sockaddr * const peer)
     if (unlikely(e))
         memset(&s->ws_rem, 0, sizeof(s->ws_rem));
 
-    warn(e ? ERR : DBG, "socket %sconnected to %s:%d (%s)", e ? "not " : "",
-         w_ntop(&s->ws_raddr, ip_tmp), bswap16(s->ws_rport), strerror(e));
+    warn(e ? ERR : DBG, "socket %sconnected to %s:%d %s%s%s", e ? "not " : "",
+         w_ntop(&s->ws_raddr, ip_tmp), bswap16(s->ws_rport), e ? "(" : "",
+         strerror(e), e ? ")" : "");
 
     return e;
 }
@@ -435,8 +436,10 @@ struct w_engine * w_init(const char * const ifname,
     ensure((w = calloc(1, sizeof(*w) + addr_cnt * sizeof(w->ifaddr[0]))) != 0,
            "cannot allocate struct w_engine");
     w->addr_cnt = addr_cnt;
-    strncpy(w->ifname, ifname, sizeof(w->ifname));
-    w->ifname[sizeof(w->ifname) - 1] = 0;
+    if (*ifname) {
+        strncpy(w->ifname, ifname, sizeof(w->ifname));
+        w->ifname[sizeof(w->ifname) - 1] = 0;
+    }
     sq_init(&w->iov);
 
     // backend-specific init
@@ -696,4 +699,24 @@ bool w_to_waddr(struct w_addr * const wa, const struct sockaddr * const sa)
                &((const struct sockaddr_in6 *)(const void *)sa)->sin6_addr,
                sizeof(wa->ip6));
     return true;
+}
+
+
+void to_sockaddr(struct sockaddr * const sa,
+                 const struct w_addr * const addr,
+                 const uint16_t port,
+                 const uint32_t scope_id)
+{
+    if (addr->af == AF_INET) {
+        struct sockaddr_in * const sin = (struct sockaddr_in *)(void *)sa;
+        sin->sin_family = AF_INET;
+        sin->sin_port = port;
+        memcpy(&sin->sin_addr, &addr->ip4, IP4_LEN);
+    } else {
+        struct sockaddr_in6 * const sin6 = (struct sockaddr_in6 *)(void *)sa;
+        sin6->sin6_family = AF_INET6;
+        sin6->sin6_port = port;
+        memcpy(&sin6->sin6_addr, addr->ip6, IP6_LEN);
+        sin6->sin6_scope_id = scope_id;
+    }
 }

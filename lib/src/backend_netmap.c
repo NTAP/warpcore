@@ -241,13 +241,6 @@ void backend_cleanup(struct w_engine * const w)
 }
 
 
-static inline uint16_t __attribute__((always_inline)) pick_local_port(void)
-{
-    // compute a random port >= 1024
-    return 1024 + (uint16_t)w_rand_uniform32(UINT16_MAX - 1024);
-}
-
-
 /// Netmap-specific code to bind a warpcore socket. Only computes a random
 /// port number if the socket is not bound to a specific port yet.
 ///

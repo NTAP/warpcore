@@ -27,23 +27,10 @@
 
 
 #include "backend.h"
+
+#include <fmt.h>
 #include <stdint.h>
-
-
-static void __attribute__((nonnull))
-to_sock_udp_ep_t(sock_udp_ep_t * const suet,
-                 const struct w_addr * const addr,
-                 const uint16_t port,
-                 const kernel_pid_t id)
-{
-    suet->family = addr->af;
-    suet->port = bswap16(port);
-    suet->netif = id;
-    if (unlikely(addr->af == AF_INET))
-        memcpy(&suet->addr.ipv4_u32, &addr->ip4, IP4_LEN);
-    else
-        memcpy(&suet->addr.ipv6, addr->ip6, IP6_LEN);
-}
+#include <sys/select.h>
 
 
 void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
@@ -53,11 +40,11 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 
 uint16_t backend_addr_cnt(void)
 {
-    const gnrc_netif_t * iface = 0;
+    gnrc_netif_t * iface = 0;
     while ((iface = gnrc_netif_iter(iface))) {
-        uint8_t link = 1;
-        const int ret = netif_get_opt((netif_t *)iface, NETOPT_LINK_CONNECTED,
-                                      0, &link, sizeof(link));
+        netopt_enable_t link = NETOPT_ENABLE;
+        const int ret =
+            netif_get_opt(&iface->netif, NETOPT_LINK, 0, &link, sizeof(link));
         if (ret < 0 || link == NETOPT_DISABLE)
             continue;
 
@@ -106,6 +93,7 @@ done:
 
     struct w_ifaddr * ia = &w->ifaddr[0];
     ia->addr.af = AF_INET6;
+    ia->scope_id = netif_get_id((netif_t *)w->b->nif);
     memcpy(ia->addr.ip6, &addr[idx], IP6_LEN);
     if (ipv6_addr_is_link_local(&addr[idx]))
         ip6_config(ia, (const uint8_t[]){0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -142,28 +130,6 @@ void backend_cleanup(struct w_engine * const w)
 }
 
 
-// static void sock_callback(sock_udp_t * const sock,
-//                           const sock_async_flags_t type)
-// {
-// }
-
-
-static int mk_sock_udp(struct w_sock * const s, const bool also_remote)
-{
-    sock_udp_t * const fd = (sock_udp_t *)s->fd;
-    sock_udp_ep_t local;
-    sock_udp_ep_t remote;
-    to_sock_udp_ep_t(&local, &s->ws_laddr, s->ws_lport, s->w->b->nif->pid);
-    if (also_remote)
-        to_sock_udp_ep_t(&remote, &s->ws_raddr, s->ws_rport, s->w->b->nif->pid);
-    const int ret = sock_udp_create(fd, &local, also_remote ? &remote : 0,
-                                    also_remote ? SOCK_FLAGS_REUSE_EP : 0);
-    // if (likely(ret >= 0))
-    //     sock_udp_set_cb(fd, &sock_callback);
-    return ret;
-}
-
-
 /// RIOT-specific code to bind a warpcore socket.
 ///
 /// @param      s     The w_sock to bind.
@@ -174,24 +140,19 @@ static int mk_sock_udp(struct w_sock * const s, const bool also_remote)
 int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 {
     // TODO: socket options
-    s->fd = (intptr_t)malloc(sizeof(sock_udp_t));
-    if (unlikely(s->fd == 0))
-        return EDESTADDRREQ; // not quite right
-    const int ret = mk_sock_udp(s, false);
-    if (unlikely(ret < 0)) {
-        free((void *)s->fd);
-        return ret;
-    }
+    s->fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+    if (unlikely(s->fd < 0))
+        return errno;
 
-    // if we're binding to a random port, find out what it is
-    if (s->ws_lport == 0) {
-        sock_udp_ep_t local;
-        ensure(sock_udp_get_local((sock_udp_t *)s->fd, &local) >= 0,
-               "sock_udp_get_local");
-        s->ws_lport = bswap16(local.port);
-    }
+    struct sockaddr_storage ss;
+    to_sockaddr((struct sockaddr *)&ss, &s->ws_laddr, s->ws_lport, s->ws_scope);
+    if (bind(s->fd, (struct sockaddr *)&ss, sa_len(s->ws_af)) < 0)
+        return errno;
+
+    // RIOT only assigns a local port on connect, if passed a zero port
+
     sl_insert_head(&s->w->b->socks, s, __next);
-    return ret;
+    return 0;
 }
 
 
@@ -201,9 +162,8 @@ int backend_bind(struct w_sock * const s, const struct w_sockopt * const opt)
 ///
 void backend_close(struct w_sock * const s)
 {
-    sock_udp_close((sock_udp_t *)s->fd);
+    close(s->fd);
     sl_remove(&s->w->b->socks, s, w_sock, __next);
-    free((void *)s->fd);
 }
 
 
@@ -218,9 +178,21 @@ void backend_preconnect(struct w_sock * const s __attribute__((unused))) {}
 ///
 int backend_connect(struct w_sock * const s)
 {
-    // TODO: can we connect an already-bound socket?
-    sock_udp_close((sock_udp_t *)s->fd);
-    return mk_sock_udp(s, true);
+    struct sockaddr_storage ss;
+    to_sockaddr((struct sockaddr *)&ss, &s->ws_raddr, s->ws_rport, s->ws_scope);
+    if (unlikely(connect(s->fd, (struct sockaddr *)&ss, sa_len(ss.ss_family)) !=
+                 0))
+        return errno;
+
+    // if we're now bound to a random port, find out what it is
+    if (s->ws_lport == 0) {
+        socklen_t len = sizeof(ss);
+        ensure(getsockname(s->fd, (struct sockaddr *)&ss, &len) >= 0,
+               "getsockname");
+        s->ws_lport = sa_port(&ss);
+    }
+
+    return 0;
 }
 
 
@@ -234,7 +206,21 @@ int backend_connect(struct w_sock * const s)
 ///
 void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 {
-    sq_concat(i, &s->iv);
+    struct w_iov * v = w_alloc_iov(s->w, s->ws_af, 0, 0);
+    if (unlikely(v == 0))
+        return;
+
+    struct sockaddr_storage sa;
+    socklen_t sa_len = sizeof(sa);
+    v->len =
+        recvfrom(s->fd, v->buf, v->len, 0, (struct sockaddr *)&sa, &sa_len);
+
+    if (likely(v->len > 0)) {
+        v->wv_port = sa_port(&sa);
+        w_to_waddr(&v->wv_addr, (struct sockaddr *)&sa);
+        sq_insert_tail(i, v, next);
+    } else
+        w_free_iov(v);
 }
 
 
@@ -246,15 +232,19 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 ///
 void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 {
+    const bool is_connected = w_connected(s);
+
     struct w_iov * v = sq_first(o);
     while (v) {
-        sock_udp_ep_t dst;
-        if (w_connected(s) == false)
-            to_sock_udp_ep_t(&dst, &v->wv_addr, v->wv_port, s->w->b->nif->pid);
+        struct sockaddr_storage ss;
+        if (is_connected == false)
+            to_sockaddr((struct sockaddr *)&ss, &v->wv_addr, v->wv_port,
+                        s->ws_scope);
 
-        if (unlikely(sock_udp_send((sock_udp_t *)s->fd, v->buf, v->len,
-                                   w_connected(s) ? 0 : &dst) != v->len))
-            warn(ERR, "sock_udp_send returned %d (%s)", errno, strerror(errno));
+        if (unlikely(sendto(s->fd, v->buf, v->len, 0,
+                            is_connected ? 0 : (struct sockaddr *)&ss,
+                            is_connected ? 0 : sa_len(s->ws_af)) != v->len))
+            warn(ERR, "sendto returned %d (%s)", errno, strerror(errno));
         v = sq_next(v, next);
     };
 }
@@ -270,32 +260,19 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 ///
 bool w_nic_rx(struct w_engine * const w, const int64_t nsec)
 {
-    // FIXME: this is a super-ugly hack to work around missing poll & select
-    bool rxed = false;
-    const uint32_t usec = nsec == -1 ? SOCK_NO_TIMEOUT : nsec / NS_PER_US;
-
+    struct w_backend * const b = w->b;
+    FD_ZERO(&b->fds);
     struct w_sock * s;
-    sl_foreach (s, &w->b->socks, __next) {
-        struct w_iov * const v = w_alloc_iov(w, s->ws_af, 0, 0);
-        if (unlikely(v == 0))
-            break;
-        sock_udp_ep_t remote;
-        const ssize_t n =
-            sock_udp_recv((sock_udp_t *)s->fd, v->buf, v->len, usec, &remote);
-        if (n > 0) {
-            v->len = n;
-            v->wv_port = bswap16(remote.port);
-            v->wv_af = remote.family;
-            if (unlikely(remote.family == AF_INET))
-                memcpy(&v->wv_ip4, &remote.addr.ipv4_u32, IP4_LEN);
-            else
-                memcpy(v->wv_ip6, &remote.addr.ipv6, IP6_LEN);
-            sq_insert_tail(&s->iv, v, next);
-            rxed = true;
-        } else
-            w_free_iov(v);
-    }
-    return rxed;
+    sl_foreach (s, &b->socks, __next)
+        FD_SET(s->fd, &b->fds);
+
+    const time_t sec = NS_TO_S(nsec);
+    const time_t usec = NS_TO_US(nsec - sec * NS_PER_S);
+    struct timeval to = {.tv_sec = sec, .tv_usec = usec};
+
+    b->n = select(MIN(FD_SETSIZE, VFS_MAX_OPEN_FILES) - 1, &b->fds, 0, 0,
+                  nsec == -1 ? 0 : &to);
+    return b->n > 0;
 }
 
 
@@ -322,14 +299,13 @@ void w_nic_tx(struct w_engine * const w) {}
 ///
 uint32_t w_rx_ready(struct w_engine * const w, struct w_sock_slist * const sl)
 {
-    // FIXME: this is a super-ugly hack to work around missing poll & select
-    uint32_t n = 0;
+    uint32_t i = 0;
     struct w_sock * s;
-    sl_foreach (s, &w->b->socks, __next) {
-        if (!sq_empty(&s->iv)) {
+    sl_foreach (s, &w->b->socks, __next)
+        if (FD_ISSET(s->fd, &w->b->fds)) {
             sl_insert_head(sl, s, next);
-            n++;
+            i++;
         }
-    }
-    return n;
+
+    return i;
 }
