@@ -61,15 +61,23 @@
 #endif
 
 
+// Approximate division by NS_PER_S. Only up to 0x0fffffffffffffff.
+#define APPROX_NS_TO_S(x) (div_mulhi64(0x112e0be826d694b3, (x)) >> 26)
+
+// Approximate division by NS_PER_MS. Up to 0xffffffffffffffff.
+#define APPROX_NS_TO_MS(x) (div_mulhi64(0x431bde82d7b634db, (x)) >> 18)
+
+// Approximate division by NS_PER_US. Only up to 0x0fffffffffffffff.
+#define APPROX_NS_TO_US(x) (div_mulhi64(0x20c49ba5e353f7d, (x)) >> 3)
+
 #if HAVE_64BIT
+#define NS_TO_S(x) ((x) / NS_PER_S)
 #define NS_TO_MS(x) ((x) / NS_PER_MS)
 #define NS_TO_US(x) ((x) / NS_PER_US)
 #else
-// Approximate division by NS_PER_MS.
-#define NS_TO_MS(x) (div_mulhi64(0x431bde82d7b634db, (x)) >> 18)
-
-// Approximate division by NS_PER_US.
-#define NS_TO_US(x) (div_mulhi64(0x20c49ba5e353f7d, (x)) >> 3)
+#define NS_TO_S(x) APPROX_NS_TO_S(x)
+#define NS_TO_MS(x) APPROX_NS_TO_MS(x)
+#define NS_TO_US(x) APPROX_NS_TO_US(x)
 #endif
 
 
