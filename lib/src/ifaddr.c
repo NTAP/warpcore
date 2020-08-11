@@ -143,7 +143,6 @@ void backend_addr_config(struct w_engine * const w)
             memcpy(&mask4, sa_mask4, sizeof(mask4));
             ia->bcast4 = ia->addr.ip4 | ~mask4;
             w->have_ip4 = true;
-            w->addr4_pos--;
             break;
 
         default:
@@ -152,6 +151,5 @@ void backend_addr_config(struct w_engine * const w)
             break;
         }
     }
-    w->addr4_pos++; // this will be decremented by one too many above
     freeifaddrs(ifap);
 }
