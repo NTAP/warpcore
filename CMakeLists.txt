@@ -122,13 +122,13 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     # See if we can use the address sanitizer
     check_include_file(sanitizer/asan_interface.h HAVE_ASAN)
     if(HAVE_ASAN AND NOT CMAKE_GENERATOR STREQUAL Xcode)
-      set(CMAKE_REQUIRED_FLAGS -fsanitize=address,undefined)
-      check_c_compiler_flag("" _fsanitize_address_undefined)
-      if(_fsanitize_address_undefined)
+      set(CMAKE_REQUIRED_FLAGS -fsanitize=address,undefined,leak)
+      check_c_compiler_flag("" _fsanitize_address_undefined_leak)
+      if(_fsanitize_address_undefined_leak)
         string(CONCAT CMAKE_C_FLAGS "${CMAKE_C_FLAGS} "
-                "-fsanitize=address,undefined")
+                "-fsanitize=address,undefined,leak")
         string(CONCAT CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} "
-                "-fsanitize=address,undefined")
+                "-fsanitize=address,undefined,leak")
         string(CONCAT BLACKLIST "-fsanitize-blacklist="
                 "${PROJECT_SOURCE_DIR}/misc/sanitize-blacklist.txt")
         check_c_compiler_flag(${BLACKLIST} _fsanitize_blacklist)
@@ -143,9 +143,10 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       set(FLAGS -Og -fno-omit-frame-pointer -fsanitize-address-use-after-scope
           -fno-optimize-sibling-calls -fno-common
           -fsanitize=unsigned-integer-overflow
-          -fsanitize=implicit-conversion -fsanitize=nullability
+          -fsanitize=local-bounds -fsanitize=integer -fsanitize=nullability
           -fsanitize=memory -fsanitize-memory-track-origins
           -fsanitize-memory-use-after-dtor
+          -fno-sanitize-recover=all
       )
       foreach(FLAG ${FLAGS})
         string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
@@ -250,9 +251,9 @@ if(FUZZER)
   cmake_reset_check_state()
   if(HAVE_FUZZER)
     add_compile_definitions(FUZZING)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=fuzzer,address,undefined")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=fuzzer,address,undefined,leak")
     set(CMAKE_CXX_FLAGS
-        "${CMAKE_CXX_FLAGS} -fsanitize=fuzzer,address,undefined")
+        "${CMAKE_CXX_FLAGS} -fsanitize=fuzzer,address,undefined,leak")
   else()
     message(WARNING "No fuzzer available")
   endif()
