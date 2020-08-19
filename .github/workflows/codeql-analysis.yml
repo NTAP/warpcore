@@ -38,7 +38,7 @@ jobs:
           mkdir build
           cd build
           cmake ..
-          cmake --build
+          cmake --build .
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v1
