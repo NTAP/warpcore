@@ -78,7 +78,8 @@ int main(void)
     }
 
     struct w_iov_sq q;
-    for (uint16_t x = 0; x <= max_buf_len(w) * 3; x += (max_buf_len(w) / 3)) {
+    for (uint16_t x = 0; x <= max_buf_len(w) * UINT16_C(3);
+         x += (max_buf_len(w) / 3)) {
         warn(INF, "sq qlen %u", x);
         sq_init(&q);
         w_alloc_len(w, s_serv->ws_af, &q, x, 0, 0);
@@ -95,7 +96,8 @@ int main(void)
         w_free(&q);
     }
 
-    for (uint16_t x = 0; x <= max_buf_len(w) * 3; x += (max_buf_len(w) / 3)) {
+    for (uint16_t x = 0; x <= max_buf_len(w) * UINT16_C(3);
+         x += (max_buf_len(w) / 3)) {
         warn(INF, "sq off %u qlen %u", off, x);
         sq_init(&q);
         w_alloc_len(w, s_serv->ws_af, &q, x, 0, off);
@@ -114,7 +116,8 @@ int main(void)
     }
 
     const uint16_t len = 1111;
-    for (uint16_t x = 0; x <= max_buf_len(w) * 3; x += (max_buf_len(w) / 3)) {
+    for (uint16_t x = 0; x <= max_buf_len(w) * UINT16_C(3);
+         x += (max_buf_len(w) / 3)) {
         warn(INF, "sq off %u len %u qlen %u", off, len, x);
         sq_init(&q);
         w_alloc_len(w, s_serv->ws_af, &q, x, len, off);
