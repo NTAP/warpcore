@@ -27,7 +27,10 @@
 
 #include <warpcore/warpcore.h>
 
+#ifndef NDEBUG
 #include <arpa/inet.h>
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -43,7 +46,10 @@
 #include "ip4.h"
 #include "ip6.h"
 #include "neighbor.h"
+
+#ifndef NDEBUG
 #include "udp.h"
+#endif
 
 
 static void __attribute__((nonnull
@@ -299,11 +305,9 @@ void
 
         struct w_addr t = {.af = AF_INET6};
         memcpy(t.ip6, target, IP6_LEN);
-        if (sla)
-            warn(NTE, "neighbor solicitation, who has %s tell %s",
-                 w_ntop(&t, ip6_tmp), eth_ntoa(sla, eth_tmp, ETH_STRLEN));
-        else
-            warn(NTE, "neighbor solicitation, who has %s", w_ntop(&t, ip6_tmp));
+        warn(NTE, "neighbor solicitation, who has %s%s%s", w_ntop(&t, ip6_tmp),
+             sla ? " tell " : "",
+             sla ? eth_ntoa(sla, eth_tmp, ETH_STRLEN) : "");
 
         if (is_my_ip6(w, target, false) != UINT16_MAX) {
             icmp6_tx(w, ICMP6_TYPE_NADV, 0, buf);

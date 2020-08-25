@@ -29,9 +29,12 @@
 #include <sys/types.h>
 #endif
 
+#ifndef NDEBUG
 #include <arpa/inet.h>
-#include <stdint.h>
 #include <sys/socket.h>
+#endif
+
+#include <stdint.h>
 
 #include <net/netmap_user.h>
 

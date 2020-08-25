@@ -39,6 +39,9 @@ foreach(TARGET ${TARGETS})
   target_include_directories(${TARGET}
     SYSTEM PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  )
+  target_include_directories(${TARGET}
+    PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
   )
   set_target_properties(${TARGET}

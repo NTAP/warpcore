@@ -29,10 +29,13 @@
 #include <sys/types.h>
 #endif
 
+#ifndef NDEBUG
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#endif
+
 #include <stdint.h>
 #include <string.h>
-#include <sys/socket.h>
 
 #include <warpcore/warpcore.h>
 

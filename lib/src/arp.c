@@ -31,7 +31,10 @@
 #include <sys/types.h>
 #endif
 
+#ifndef NDEBUG
 #include <arpa/inet.h>
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/socket.h>

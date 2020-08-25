@@ -39,7 +39,10 @@
 #include "icmp4.h"
 #include "in_cksum.h"
 #include "ip4.h"
+
+#ifndef NDEBUG
 #include "udp.h"
+#endif
 
 
 /// Make an ICMPv4 message with the given @p type and @p code based on the
@@ -162,6 +165,7 @@ void icmp4_rx(struct w_engine * const w,
         icmp4_tx(w, ICMP4_TYPE_ECHOREPLY, 0, buf);
         break;
     case ICMP4_TYPE_UNREACH:
+#ifndef NDEBUG
         switch (icmp->code) {
         case ICMP4_UNREACH_PROTOCOL:
             rwarn(WRN, 10, "received ICMPv4 protocol %d unreachable",
@@ -183,6 +187,7 @@ void icmp4_rx(struct w_engine * const w,
         default:
             rwarn(WRN, 10, "unhandled ICMPv4 code %d", icmp->code);
         }
+#endif
         break;
 
     default:

@@ -165,8 +165,8 @@ struct w_ifaddr {
 
 
 struct w_sockaddr {
-    uint16_t port;      ///< Port number.
     struct w_addr addr; ///< IP address.
+    uint16_t port;      ///< Port number.
 };
 
 
@@ -314,15 +314,15 @@ struct w_iov {
     /// Pointer back to the warpcore instance associated with this w_iov.
     struct w_engine * w;
 
+    /// Sender IP address and port on RX. Destination IP address and port on TX
+    /// on a disconnected w_sock. Ignored on TX on a connected w_sock.
+    struct w_sockaddr saddr;
+
     uint8_t * base;       ///< Absolute start of buffer.
     uint8_t * buf;        ///< Start of payload data.
     sq_entry(w_iov) next; ///< Next w_iov in a w_iov_sq.
     uint32_t idx;         ///< Index of netmap buffer.
     uint16_t len;         ///< Length of payload data.
-
-    /// Sender IP address and port on RX. Destination IP address and port on TX
-    /// on a disconnected w_sock. Ignored on TX on a connected w_sock.
-    struct w_sockaddr saddr;
 
     /// DSCP + ECN of the received IP packet on RX, DSCP + ECN to use for the
     /// to-be-transmitted IP packet on TX.
@@ -353,7 +353,7 @@ struct w_iov {
 static inline uint32_t __attribute__((nonnull, no_instrument_function))
 w_iov_idx(const struct w_iov * const v)
 {
-    return v - v->w->bufs;
+    return (uint32_t)(v - v->w->bufs);
 }
 
 
