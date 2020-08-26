@@ -499,6 +499,9 @@ w_alloc_iov(struct w_engine * const w,
 extern void __attribute__((nonnull))
 w_tx(struct w_sock * const s, struct w_iov_sq * const o);
 
+extern void __attribute__((nonnull))
+w_tx_iov(struct w_sock * const s, struct w_iov * const v);
+
 extern uint_t w_iov_sq_len(const struct w_iov_sq * const q);
 
 extern void __attribute__((nonnull))

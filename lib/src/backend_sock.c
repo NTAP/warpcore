@@ -306,6 +306,14 @@ void backend_close(struct w_sock * const s)
 }
 
 
+void w_tx_iov(struct w_sock * const s, struct w_iov * const v)
+{
+    struct w_iov_sq q = w_iov_sq_initializer(q);
+    sq_insert_head(&q, v, next);
+    w_tx(s, &q);
+}
+
+
 /// Loops over the w_iov structures in the tail queue @p o, sending them all
 /// over w_sock @p s. This backend uses the Socket API.
 ///
@@ -322,18 +330,15 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 // dynamically for MAX(IOV_MAX, w_iov_sq_cnt(c)), but that seems overkill.
 #define SEND_SIZE MIN(64, IOV_MAX)
     struct mmsghdr msgvec[SEND_SIZE];
+#define msg_hdr(x) (x).msg_hdr
 #else
 #define SEND_SIZE 1
     struct msghdr msgvec[SEND_SIZE];
+#define msg_hdr(x) (x)
 #endif
     struct iovec msg[SEND_SIZE];
     struct sockaddr_storage sa[SEND_SIZE];
-#ifdef __linux__
-    // kernels below 4.9 can't deal with getting an uint8_t passed in, sigh
     __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(int))];
-#else
-    __extension__ uint8_t ctrl[SEND_SIZE][CMSG_SPACE(sizeof(uint8_t))];
-#endif
 
     struct w_iov * v = sq_first(o);
     do {
@@ -349,37 +354,22 @@ void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
             else
                 to_sockaddr((struct sockaddr *)&sa[i], &v->wv_addr, v->wv_port,
                             s->ws_scope);
-#ifdef HAVE_SENDMMSG
-            msgvec[i].msg_hdr =
-#else
-            msgvec[i] =
-#endif
-                (struct msghdr){
-                    .msg_name = w_connected(s) ? 0 : &sa[i],
-                    .msg_namelen = w_connected(s) ? 0 : sa_len(sa[i].ss_family),
-                    .msg_iov = &msg[i],
-                    .msg_iovlen = 1};
+            msg_hdr(msgvec[i]) = (struct msghdr){
+                .msg_name = w_connected(s) ? 0 : &sa[i],
+                .msg_namelen = w_connected(s) ? 0 : sa_len(sa[i].ss_family),
+                .msg_iov = &msg[i],
+                .msg_iovlen = 1};
 
             // set TOS from w_iov
             if (v->flags) {
-#ifdef HAVE_SENDMMSG
-                msgvec[i].msg_hdr.msg_control = &ctrl[i];
-                msgvec[i].msg_hdr.msg_controllen = sizeof(ctrl[i]);
-                struct cmsghdr * const cmsg = CMSG_FIRSTHDR(&msgvec[i].msg_hdr);
-#else
-                msgvec[i].msg_control = &ctrl[i];
-                msgvec[i].msg_controllen = sizeof(ctrl[i]);
-                struct cmsghdr * const cmsg = CMSG_FIRSTHDR(&msgvec[i]);
-#endif
+                msg_hdr(msgvec[i]).msg_control = &ctrl[i];
+                msg_hdr(msgvec[i]).msg_controllen = sizeof(ctrl[i]);
+                struct cmsghdr * const cmsg =
+                    CMSG_FIRSTHDR(&msg_hdr(msgvec[i]));
                 cmsg->cmsg_level =
                     v->wv_af == AF_INET ? IPPROTO_IP : IPPROTO_IPV6;
                 cmsg->cmsg_type = v->wv_af == AF_INET ? IP_TOS : IPV6_TCLASS;
-                cmsg->cmsg_len =
-#ifdef __FreeBSD__
-                    CMSG_LEN(v->wv_af == AF_INET ? sizeof(char) : sizeof(int));
-#else
-                    CMSG_LEN(sizeof(int));
-#endif
+                cmsg->cmsg_len = CMSG_LEN(sizeof(int));
                 *(int *)(void *)CMSG_DATA(cmsg) = v->flags;
             } else if (s->opt.enable_ecn)
                 // make sure that the flags reflect what went out on the wire
@@ -439,11 +429,7 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
                 break;
             msg[j] =
                 (struct iovec){.iov_base = v[j]->buf, .iov_len = v[j]->len};
-#ifdef HAVE_RECVMMSG
-            msgvec[j].msg_hdr =
-#else
-            msgvec[j] =
-#endif
+            msg_hdr(msgvec[j]) =
                 (struct msghdr){.msg_name = &sa[j],
                                 .msg_namelen = sizeof(sa[j]),
                                 .msg_iov = &msg[j],
@@ -476,13 +462,8 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 #endif
 
                 // extract TOS byte (Particle uses recvfrom w/o cmsg support)
-#ifdef HAVE_RECVMMSG
-                for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j].msg_hdr);
-                     cmsg; cmsg = CMSG_NXTHDR(&msgvec[j].msg_hdr, cmsg)) {
-#else
-                for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msgvec[j]); cmsg;
-                     cmsg = CMSG_NXTHDR(&msgvec[j], cmsg)) {
-#endif
+                for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msg_hdr(msgvec[j]));
+                     cmsg; cmsg = CMSG_NXTHDR(&msg_hdr(msgvec[j]), cmsg)) {
                     if (cmsg->cmsg_level == IPPROTO_IP ||
                         cmsg->cmsg_level == IPPROTO_IPV6) {
                         if (cmsg->cmsg_type ==

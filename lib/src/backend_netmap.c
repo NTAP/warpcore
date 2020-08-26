@@ -335,6 +335,16 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 }
 
 
+void w_tx_iov(struct w_sock * const s, struct w_iov * const v)
+{
+    const uint16_t len = v->len;
+    while (unlikely(udp_tx(s, v) == false)) {
+        w_nic_tx(s->w);
+        v->len = len;
+    }
+}
+
+
 /// Loops over the w_iov structures in the w_iov_sq @p o, sending them all
 /// over w_sock @p s. Places the payloads into IPv4 UDP packets, and
 /// attempts to move them into TX rings. Will force a NIC TX if all rings
@@ -349,13 +359,8 @@ void w_rx(struct w_sock * const s, struct w_iov_sq * const i)
 void w_tx(struct w_sock * const s, struct w_iov_sq * const o)
 {
     struct w_iov * v;
-    sq_foreach (v, o, next) {
-        const uint16_t len = v->len;
-        while (unlikely(udp_tx(s, v) == false)) {
-            w_nic_tx(s->w);
-            v->len = len;
-        }
-    }
+    sq_foreach (v, o, next)
+        w_tx_iov(s, v);
 }
 
 
