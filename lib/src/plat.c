@@ -333,8 +333,13 @@ eth_ntoa(const struct eth_addr * const addr, char * const buf, const size_t len)
 ///
 /// @return     Relative time in nanoseconds.
 ///
-uint64_t __attribute__((no_instrument_function)) w_now(const clockid_t clock)
+uint64_t __attribute__((no_instrument_function)) w_now(const clockid_t
+#ifdef FUZZING
+                                                       __attribute__((unused))
+#endif
+                                                       clock)
 {
+#ifndef FUZZING
 #if defined(PARTICLE)
     return HAL_Timer_Microseconds() * NS_PER_US;
 #elif defined(RIOT_VERSION)
@@ -348,6 +353,10 @@ uint64_t __attribute__((no_instrument_function)) w_now(const clockid_t clock)
     return (uint64_t)now.tv_sec * NS_PER_S + (uint64_t)now.tv_nsec;
 #endif
 #endif
+#else
+    static uint64_t fuzz_time = 0;
+    return ++fuzz_time;
+#endif
 }
 
 
@@ -355,9 +364,15 @@ uint64_t __attribute__((no_instrument_function)) w_now(const clockid_t clock)
 ///
 /// @param[in]  ns    Sleep time in nanoseconds.
 ///
-void w_nanosleep(const uint64_t ns)
+void w_nanosleep(const uint64_t
+#ifdef FUZZING
+                 __attribute__((unused))
+#endif
+                 ns)
 {
-#ifdef PARTICLE
+#ifdef FUZZING
+    return;
+#elif defined(PARTICLE)
     HAL_Delay_Microseconds(NS_TO_US(ns));
 #elif defined(RIOT_VERSION)
     xtimer_nanosleep(ns);
