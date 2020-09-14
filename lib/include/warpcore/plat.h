@@ -133,8 +133,6 @@ typedef struct if_list if_list;
 #define SOCK_CLOEXEC 0
 #endif
 
-#define O_CLOEXEC 0
-
 #endif
 
 #define ECN_NOT 0x00  // not-ECT
