@@ -71,7 +71,8 @@ include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 foreach(FLAG -pipe -Wextra -Wpedantic -Weverything -Werror
         -fcolor-diagnostics -fdiagnostics-color=always
-        -Wno-missing-field-initializers
+        -Wno-disabled-macro-expansion # clang on travis needs this
+        -Wno-missing-field-initializers # and this (clang-5)
         -Wno-extra-semi-stmt # the kh_foreach* macros need this
         -Wno-macro-redefined # because we redefine _FORTIFY_SOURCE
 )
