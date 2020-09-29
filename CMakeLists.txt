@@ -71,6 +71,7 @@ include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 foreach(FLAG -pipe -Wextra -Wpedantic -Weverything -Werror
         -fcolor-diagnostics -fdiagnostics-color=always
+        -Wno-missing-field-initializers
         -Wno-extra-semi-stmt # the kh_foreach* macros need this
         -Wno-macro-redefined # because we redefine _FORTIFY_SOURCE
 )
