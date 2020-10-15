@@ -200,10 +200,8 @@ struct eth_addr {
 };
 
 
-#ifndef RIOT_VERSION
-#define NAME_LEN IFNAMSIZ
-#else
-#define NAME_LEN NETIF_NAMELENMAX
+#ifdef RIOT_VERSION
+#define IFNAMSIZ CONFIG_NETIF_NAMELENMAX
 #endif
 
 
@@ -221,8 +219,8 @@ struct w_engine {
     struct w_iov_sq iov; ///< Tail queue of w_iov buffers available.
 
     sl_entry(w_engine) next;      ///< Pointer to next engine.
-    char ifname[NAME_LEN];        ///< Name of the interface of this engine.
-    char drvname[NAME_LEN];       ///< Name of the driver of this interface.
+    char ifname[IFNAMSIZ];        ///< Name of the interface of this engine.
+    char drvname[IFNAMSIZ];       ///< Name of the driver of this interface.
     const char * backend_name;    ///< Name of the backend in @p b.
     const char * backend_variant; ///< Name of the backend variant in @p b.
 
