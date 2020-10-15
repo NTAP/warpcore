@@ -29,6 +29,8 @@ to an application, for easy integration with different event loops (e.g.,
 
 The warpcore repository is [on GitHub](https://github.com/NTAP/warpcore).
 
+**NOTE:** Warpcore is a research effort and not meant for production use.
+
 ## Building
 
 Warpcore uses [cmake](https://cmake.org/) as a build system. To do an
