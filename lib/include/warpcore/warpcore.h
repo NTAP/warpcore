@@ -201,7 +201,11 @@ struct eth_addr {
 
 
 #ifdef RIOT_VERSION
+#ifdef CONFIG_NETIF_NAMELENMAX
 #define IFNAMSIZ CONFIG_NETIF_NAMELENMAX
+#else
+#define IFNAMSIZ NETIF_NAMELENMAX
+#endif
 #endif
 
 
