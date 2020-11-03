@@ -370,13 +370,11 @@ void w_nanosleep(const uint64_t
 #endif
                  ns)
 {
-#ifdef FUZZING
-    return;
-#elif defined(PARTICLE)
+#if defined(PARTICLE)
     HAL_Delay_Microseconds(NS_TO_US(ns));
 #elif defined(RIOT_VERSION)
     xtimer_nanosleep(ns);
-#else
+#elif !defined(FUZZING)
     nanosleep(&(struct timespec){ns / NS_PER_S, (long)(ns % NS_PER_S)}, 0);
 #endif
 }
