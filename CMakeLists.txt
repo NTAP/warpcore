@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(warpcore VERSION 1.7.1 LANGUAGES C CXX)
+project(warpcore VERSION 1.7.2 LANGUAGES C CXX)
 
 # See if we have google benchmark
 include(CheckCXXSymbolExists)

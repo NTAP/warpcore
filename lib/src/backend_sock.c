@@ -122,6 +122,10 @@ void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
         if (unlikely(ret < 0))
             warn(WRN, "cannot setsockopt IP_TOS/IPV6_TCLASS; running on WSL?");
     }
+
+    s->opt.user_1 = opt->user_1;
+    s->opt.user_2 = opt->user_2;
+    s->opt.user_3 = opt->user_3;
 }
 
 

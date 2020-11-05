@@ -35,6 +35,7 @@
 
 void w_set_sockopt(struct w_sock * const s, const struct w_sockopt * const opt)
 {
+    s->opt = *opt;
 }
 
 

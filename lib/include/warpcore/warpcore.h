@@ -39,10 +39,10 @@ extern "C" {
 #define klib_unused
 
 #include <warpcore/config.h> // IWYU pragma: export
-#include <warpcore/khash.h>  // IWYU pragma: export
-#include <warpcore/plat.h>   // IWYU pragma: export
-#include <warpcore/queue.h>  // IWYU pragma: export
-#include <warpcore/util.h>   // IWYU pragma: export
+#include <warpcore/khash.h> // IWYU pragma: export
+#include <warpcore/plat.h> // IWYU pragma: export
+#include <warpcore/queue.h> // IWYU pragma: export
+#include <warpcore/util.h> // IWYU pragma: export
 
 #if !defined(PARTICLE) && !defined(RIOT_VERSION)
 #include <ifaddrs.h>
@@ -263,7 +263,10 @@ struct w_sockopt {
     uint32_t enable_udp_zero_checksums : 1;
     /// Enable ECN, by setting ECT(0) on all packets.
     uint32_t enable_ecn : 1;
-    uint32_t : 30;
+    uint32_t : 27;
+    uint32_t user_1 : 1; ///< User flag 1 (not used by warpcore.)
+    uint32_t user_2 : 1; ///< User flag 2 (not used by warpcore.)
+    uint32_t user_3 : 1; ///< User flag 3 (not used by warpcore.)
 };
 
 
