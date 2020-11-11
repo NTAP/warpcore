@@ -130,7 +130,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         string(CONCAT CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} "
                 "-fsanitize=address,undefined,leak")
         string(CONCAT BLACKLIST "-fsanitize-blacklist="
-                "${PROJECT_SOURCE_DIR}/misc/sanitize-blacklist.txt")
+                "${PROJECT_SOURCE_DIR}/misc/sanitize-suppress.txt")
         check_c_compiler_flag(${BLACKLIST} _fsanitize_blacklist)
         if(_fsanitize_blacklist)
           string(CONCAT CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${BLACKLIST}")
