@@ -176,7 +176,12 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     if(CPPCHECK)
       message(STATUS "Found cppcheck: ${CPPCHECK}")
       set(CMAKE_C_CPPCHECK ${CPPCHECK} -q --inline-suppr
-          --enable=warning,style,performance,portability
+          --enable=all
+          --suppress=missingInclude
+          --suppress=missingIncludeSystem
+          --suppress=unmatchedSuppression
+          --suppress=unusedFunction
+          --error-exitcode=2
           -I ${PROJECT_SOURCE_DIR}/lib/include
       )
       set(CMAKE_CXX_CPPCHECK ${CMAKE_C_CPPCHECK})
@@ -221,7 +226,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
         )
         string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
         set(CMAKE_C_CLANG_TIDY ${CLANGTIDY}
-            -system-headers -checks=${CLANG_TIDY_CHECKS}
+            -system-headers -checks=${CLANG_TIDY_CHECKS} --warnings-as-errors=*
         )
         set(CMAKE_CXX_CLANG_TIDY ${CMAKE_C_CLANG_TIDY})
       endif()
