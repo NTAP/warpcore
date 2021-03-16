@@ -1,0 +1,76 @@
+---
+
+defaultMessage: >
+  Please consider an alternative to `{{match}}`.
+
+  See https://github.com/ietf/terminology for suggestions.
+
+rules:
+  whitelist:
+    regex:
+      - /white[ _-]*list/gi
+    level: failure
+
+  blacklist:
+    regex:
+      - /black[ _-]*list/gi
+    level: failure
+
+  master:
+    regex:
+      - /master/gi
+    level: failure
+
+  slave:
+    regex:
+      - /slave/gi
+    level: failure
+
+  grandfathered:
+    regex:
+      - /grandfather(ed|ing)/gi
+    level: failure
+
+  gendered-terms:
+    regex:
+      - /chair[ _-]*man/gi
+      - /man(kind)?/gi
+      - /mans/gi
+      - /sales[ _-]*man/gi
+      - /man[ _-]*made/gi
+      - /man[ _-]*power/gi
+      - /guys?/gi
+      - /lad(y|ies)/gi
+    level: failure
+
+  gendered-pronouns:
+    regex:
+      - /he|him|his|she|her|hers/gi
+    level: failure
+
+  sanity-check:
+    regex:
+      - /sanity[ _-]*check/gi
+    level: failure
+
+  crazy:
+    regex:
+      - /crazy/gi
+    level: failure
+
+  dummy:
+    regex:
+      - /dummy/gi
+    level: failure
+
+  dark-pattern:
+    regex:
+      - /dark[ _-]*pattern/gi
+    level: failure
+
+  balkanization:
+    regex:
+      - /balkani[zs]/gi
+    level: failure
+
+ignoreDefaults: true

@@ -1,0 +1,3 @@
+[submodule ".github/isb-ietf-config"]
+	path = .github/isb-ietf-config
+	url = https://github.com/NTAP/isb-ietf-config.git
