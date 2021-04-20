@@ -195,12 +195,18 @@ util_rwarn(time_t * const rt0,
 #ifndef NDEBUG
 #include <regex.h>
 
+#define Wtautological_value_range_compare                                      \
+        _Pragma("clang diagnostic push")                                       \
+            _Pragma("clang diagnostic ignored \"-Wtautological-value-range-compare\"")
+
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
+        Wtautological_value_range_compare;                                     \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel)))           \
             util_warn((dlevel), false, DLEVEL == DBG ? __func__ : "",          \
                       DLEVEL == DBG ? __FILENAME__ : "", __LINE__,             \
                       __VA_ARGS__);                                            \
+        _Pragma("clang diagnostic pop");                                       \
     } while (0)
 
 
@@ -213,10 +219,12 @@ util_rwarn(time_t * const rt0,
 ///
 #define twarn(dlevel, ...)                                                     \
     do {                                                                       \
+        Wtautological_value_range_compare;                                     \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel)))           \
             util_warn((dlevel), true, DLEVEL == DBG ? __func__ : "",           \
                       DLEVEL == DBG ? __FILENAME__ : "", __LINE__,             \
                       __VA_ARGS__);                                            \
+        _Pragma("clang diagnostic pop");                                       \
     } while (0)
 
 
@@ -232,6 +240,7 @@ util_rwarn(time_t * const rt0,
 ///
 #define rwarn(dlevel, lps, ...)                                                \
     do {                                                                       \
+        Wtautological_value_range_compare;                                     \
         if (unlikely(DLEVEL >= (dlevel) && util_dlevel >= (dlevel))) {         \
             static time_t __rt0 = 0;                                           \
             unsigned int __rcnt = 0;                                           \
@@ -239,6 +248,7 @@ util_rwarn(time_t * const rt0,
                 &__rt0, &__rcnt, (dlevel), lps, DLEVEL == DBG ? __func__ : "", \
                 DLEVEL == DBG ? __FILENAME__ : "", __LINE__, __VA_ARGS__);     \
         }                                                                      \
+        _Pragma("clang diagnostic pop");                                       \
     } while (0)
 #else
 
