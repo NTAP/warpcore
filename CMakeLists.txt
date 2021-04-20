@@ -205,11 +205,15 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       if(CLANGTIDY)
         message(STATUS "Found clang-tidy: ${CLANGTIDY}")
         set(CLANG_TIDY_CHECKS *
+            -altera-struct-pack-align
+            -bugprone-narrowing-conversions
             -cert-err58-cpp
+            -concurrency-mt-unsafe
             -cppcoreguidelines-avoid-magic-numbers
             -cppcoreguidelines-avoid-non-const-global-variables
             -cppcoreguidelines-init-variables
             -cppcoreguidelines-macro-usage
+            -cppcoreguidelines-narrowing-conversions
             -cppcoreguidelines-owning-memory
             -fuchsia-statically-constructed-objects
             -google-readability-braces-around-statements
@@ -221,7 +225,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
             -llvmlibc-implementation-in-namespace
             -llvmlibc-restrict-system-libc-headers
             -modernize-use-trailing-return-type
+            -performance-no-int-to-ptr
             -readability-braces-around-statements
+            -readability-function-cognitive-complexity
             -readability-magic-numbers
         )
         string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")
