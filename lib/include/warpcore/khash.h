@@ -214,6 +214,12 @@ typedef khint_t khiter_t;
     extern khint_t kh_put_##name(kh_##name##_t * h, khkey_t key, int * ret);   \
     extern void kh_del_##name(kh_##name##_t * h, khint_t x);
 
+#if defined(__clang__)
+#define no_sanitize_integer __attribute__((no_sanitize("integer")))
+#else
+#define no_sanitize_integer
+#endif
+
 #define __KHASH_IMPL(name, SCOPE, khkey_t, khval_t, kh_is_map, __hash_func,    \
                      __hash_equal)                                             \
     _Pragma("clang diagnostic push")                                           \
@@ -242,8 +248,8 @@ typedef khint_t khiter_t;
             h->size = h->n_occupied = 0;                                       \
         }                                                                      \
     }                                                                          \
-    SCOPE khint_t __attribute__((no_sanitize("integer")))                      \
-    kh_get_##name(const kh_##name##_t * h, khkey_t key)                        \
+    SCOPE khint_t no_sanitize_integer kh_get_##name(const kh_##name##_t * h,   \
+                                                    khkey_t key)               \
     {                                                                          \
         if (h->n_buckets) {                                                    \
             khint_t k;                                                         \
@@ -266,7 +272,8 @@ typedef khint_t khiter_t;
         }                                                                      \
         return 0;                                                              \
     }                                                                          \
-    SCOPE int __attribute__((no_sanitize("integer"))) kh_resize_##name(kh_##name##_t * h, khint_t new_n_buckets)       \
+    SCOPE int no_sanitize_integer kh_resize_##name(kh_##name##_t * h,          \
+                                                   khint_t new_n_buckets)      \
     { /* This function uses 0.25*n_buckets bytes of working space instead of   \
          [sizeof(key_t+val_t)+.25]*n_buckets. */                               \
         khint8_t * new_flags = 0;                                              \
@@ -364,7 +371,8 @@ typedef khint_t khiter_t;
         }                                                                      \
         return 0;                                                              \
     }                                                                          \
-    SCOPE khint_t __attribute__((no_sanitize("integer"))) kh_put_##name(kh_##name##_t * h, khkey_t key, int * ret)     \
+    SCOPE khint_t no_sanitize_integer kh_put_##name(kh_##name##_t * h,         \
+                                                    khkey_t key, int * ret)    \
     {                                                                          \
         khint_t x;                                                             \
         if (h->n_occupied >= h->upper_bound) { /* update the hash table */     \
