@@ -195,9 +195,14 @@ util_rwarn(time_t * const rt0,
 #ifndef NDEBUG
 #include <regex.h>
 
+#if defined(__clang__) && __clang_major__ >= 12
 #define Wtautological_value_range_compare                                      \
-        _Pragma("clang diagnostic push")                                       \
-            _Pragma("clang diagnostic ignored \"-Wtautological-value-range-compare\"")
+    _Pragma("clang diagnostic push") _Pragma(                                  \
+        "clang diagnostic ignored \"-Wtautological-value-range-compare\"")
+
+#define Wtautological_value_range_compare_pop _Pragma("clang diagnostic pop")
+
+#endif
 
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
@@ -206,7 +211,7 @@ util_rwarn(time_t * const rt0,
             util_warn((dlevel), false, DLEVEL == DBG ? __func__ : "",          \
                       DLEVEL == DBG ? __FILENAME__ : "", __LINE__,             \
                       __VA_ARGS__);                                            \
-        _Pragma("clang diagnostic pop");                                       \
+        Wtautological_value_range_compare_pop;                                 \
     } while (0)
 
 
@@ -224,7 +229,7 @@ util_rwarn(time_t * const rt0,
             util_warn((dlevel), true, DLEVEL == DBG ? __func__ : "",           \
                       DLEVEL == DBG ? __FILENAME__ : "", __LINE__,             \
                       __VA_ARGS__);                                            \
-        _Pragma("clang diagnostic pop");                                       \
+        Wtautological_value_range_compare_pop;                                 \
     } while (0)
 
 
@@ -248,7 +253,7 @@ util_rwarn(time_t * const rt0,
                 &__rt0, &__rcnt, (dlevel), lps, DLEVEL == DBG ? __func__ : "", \
                 DLEVEL == DBG ? __FILENAME__ : "", __LINE__, __VA_ARGS__);     \
         }                                                                      \
-        _Pragma("clang diagnostic pop");                                       \
+        Wtautological_value_range_compare_pop;                                 \
     } while (0)
 #else
 
