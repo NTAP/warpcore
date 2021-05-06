@@ -196,13 +196,20 @@ util_rwarn(time_t * const rt0,
 #include <regex.h>
 
 #if defined(__clang__) && __clang_major__ >= 12
+
 #define Wtautological_value_range_compare                                      \
     _Pragma("clang diagnostic push") _Pragma(                                  \
         "clang diagnostic ignored \"-Wtautological-value-range-compare\"")
 
 #define Wtautological_value_range_compare_pop _Pragma("clang diagnostic pop")
 
+#else
+
+#define Wtautological_value_range_compare
+#define Wtautological_value_range_compare_pop
+
 #endif
+
 
 #define warn(dlevel, ...)                                                      \
     do {                                                                       \
