@@ -43,7 +43,7 @@ to build with `make` as a generator:
     cmake ..
     make
 
-(cmake supports other generators, such as [ninja](https://ninja-build.org/)
+cmake supports other generators, such as [ninja](https://ninja-build.org/)
 (which I highly recommend over `make`). See the [cmake
 documentation](https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html).)
 
