@@ -75,6 +75,7 @@ foreach(FLAG -pipe -Wextra -Wpedantic -Weverything -Werror
         -Wno-missing-field-initializers # and this (clang-5)
         -Wno-extra-semi-stmt # the kh_foreach* macros need this
         -Wno-macro-redefined # because we redefine _FORTIFY_SOURCE
+        -Wno-reserved-identifier # allow identifiers beginning with __
 )
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
   check_c_compiler_flag(${FLAG} ${F})
@@ -205,7 +206,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
       if(CLANGTIDY)
         message(STATUS "Found clang-tidy: ${CLANGTIDY}")
         set(CLANG_TIDY_CHECKS *
-            -altera-struct-pack-align
+            -altera-*
+            -bugprone-easily-swappable-parameters
+            -bugprone-implicit-widening-of-multiplication-result
             -bugprone-narrowing-conversions
             -cert-err58-cpp
             -concurrency-mt-unsafe

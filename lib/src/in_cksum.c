@@ -111,10 +111,10 @@ csum_oc16(const uint8_t * const restrict data, const uint32_t data_len)
     uint32_t sum = 0;
 
     for (uint64_t n = 0; n < data_len / sizeof(uint16_t); n++)
-        sum += (uint32_t)data16[n]; // cppcheck-suppress objectIndex
+        sum += (uint32_t)data16[n];
 
     if (data_len & 1)
-        sum += (uint32_t)data[data_len - 1]; // cppcheck-suppress objectIndex
+        sum += (uint32_t)data[data_len - 1];
 
     return sum;
 }
