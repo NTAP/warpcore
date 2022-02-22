@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2020, NetApp, Inc.
+// Copyright (c) 2014-2022, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,6 @@
 
 #include <netinet/in.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/socket.h>

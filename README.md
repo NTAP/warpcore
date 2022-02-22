@@ -83,7 +83,7 @@ in any build directory. The starting page of the documentation is then
 
 ## Copyright
 
-Copyright (c) 2014-2020, NetApp, Inc.
+Copyright (c) 2014-2022, NetApp, Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,

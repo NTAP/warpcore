@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
-// Copyright (c) 2014-2020, NetApp, Inc.
+// Copyright (c) 2014-2022, NetApp, Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ struct elem {
 
 #define N 10
 
-static sq_head(sq, elem) sq[N];
+static sq_head(sq, elem) sq[N]; // cppcheck-suppress unusedStructMember
 static int len[N] = {0};
 static int cnt = 0;
 
