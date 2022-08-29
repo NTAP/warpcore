@@ -71,10 +71,11 @@ include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 foreach(FLAG -pipe -Wextra -Wpedantic -Weverything -Werror
         -fcolor-diagnostics -fdiagnostics-color=always
+        -Wno-declaration-after-statement # using C11
         -Wno-disabled-macro-expansion # clang on travis needs this
-        -Wno-missing-field-initializers # and this (clang-5)
         -Wno-extra-semi-stmt # the kh_foreach* macros need this
         -Wno-macro-redefined # because we redefine _FORTIFY_SOURCE
+        -Wno-missing-field-initializers # and this (clang-5)
         -Wno-reserved-identifier # allow identifiers beginning with __
 )
   string(REGEX REPLACE "[-=+]" "_" F ${FLAG})
@@ -210,7 +211,9 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
             -bugprone-easily-swappable-parameters
             -bugprone-implicit-widening-of-multiplication-result
             -bugprone-narrowing-conversions
+            -cert-err33-c
             -cert-err58-cpp
+            -clang-diagnostic-declaration-after-statement
             -concurrency-mt-unsafe
             -cppcoreguidelines-avoid-magic-numbers
             -cppcoreguidelines-avoid-non-const-global-variables
@@ -218,6 +221,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
             -cppcoreguidelines-macro-usage
             -cppcoreguidelines-narrowing-conversions
             -cppcoreguidelines-owning-memory
+            -fuchsia-default-arguments-calls
             -fuchsia-statically-constructed-objects
             -google-readability-braces-around-statements
             -google-readability-todo
@@ -231,6 +235,7 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
             -performance-no-int-to-ptr
             -readability-braces-around-statements
             -readability-function-cognitive-complexity
+            -readability-identifier-length
             -readability-magic-numbers
         )
         string(REPLACE ";" "," CLANG_TIDY_CHECKS "${CLANG_TIDY_CHECKS}")

@@ -37,7 +37,7 @@
 struct elem {
     sq_entry(elem) next;
     int n;
-    int _unused;
+    int _unused; // cppcheck-suppress unusedStructMember
 };
 
 #define N 10

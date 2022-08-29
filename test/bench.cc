@@ -36,13 +36,13 @@ extern "C" {
 
 static void BM_io(benchmark::State & state)
 {
-    const auto len = uint32_t(state.range(0));
+    const auto len = static_cast<uint32_t>(state.range(0));
     for (auto _ : state)
         if (!io(len)) {
             state.SkipWithError("ran out of bufs or saw packet loss");
             return;
         }
-    state.SetBytesProcessed(int64_t(state.iterations()) * len *
+    state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * len *
                             w_max_udp_payload(s_serv));
 }
 
