@@ -206,7 +206,7 @@ premain(const int argc __attribute__((unused)),
 /// Destructor function to clean up after the debug framework, before the
 /// program exits.
 ///
-static void __attribute__((destructor)) postmain()
+static void __attribute__((destructor)) postmain(void)
 {
 #if !defined(NDEBUG) && defined(DCOMPONENT)
     // Free the regular expression used for restricting debug output
