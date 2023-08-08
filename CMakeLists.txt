@@ -2,13 +2,21 @@ cmake_minimum_required(VERSION 3.12)
 
 project(warpcore VERSION 1.7.2 LANGUAGES C CXX)
 
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  # on Darwin, try and pick up dependencies from homebrew
+  list(APPEND CMAKE_PREFIX_PATH /opt/homebrew)
+else ()
+  list(APPEND CMAKE_PREFIX_PATH /usr/local)
+endif()
+set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH ON)
+
 # See if we have google benchmark
 include(CheckCXXSymbolExists)
 include(CMakePushCheckState)
 include(CheckIncludeFile)
 set(CMAKE_REQUIRED_LIBRARIES benchmark)
-set(CMAKE_REQUIRED_INCLUDES /usr/local/include)
-set(CMAKE_REQUIRED_LINK_OPTIONS -L/usr/local/lib)
+set(CMAKE_REQUIRED_INCLUDES ${CMAKE_PREFIX_PATH}/include)
+set(CMAKE_REQUIRED_LINK_OPTIONS -L${CMAKE_PREFIX_PATH}/lib)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
   set(CMAKE_REQUIRED_LINK_OPTIONS -lc++ ${CMAKE_REQUIRED_LINK_OPTIONS})
 endif()
@@ -33,7 +41,7 @@ check_symbol_exists(htobe64 sys/endian.h HAVE_SYS_ENDIAN_H)
 
 # Look for netmap
 set(CMAKE_REQUIRED_INCLUDES
-    /usr/include /usr/local/include ${PROJECT_SOURCE_DIR}/lib/include
+    /usr/include ${CMAKE_PREFIX_PATH}/include ${PROJECT_SOURCE_DIR}/lib/include
 )
 check_include_file(net/netmap_user.h HAVE_NETMAP_H)
 include(CMakePushCheckState)
@@ -41,13 +49,13 @@ cmake_reset_check_state()
 
 # See if we have google gperftools
 include(CheckSymbolExists)
-set(CMAKE_REQUIRED_INCLUDES /usr/local/include)
+set(CMAKE_REQUIRED_INCLUDES ${CMAKE_PREFIX_PATH}/include)
 set(CMAKE_REQUIRED_LIBRARIES profiler)
-set(CMAKE_REQUIRED_LINK_OPTIONS -L/usr/local/lib)
+set(CMAKE_REQUIRED_LINK_OPTIONS -L${CMAKE_PREFIX_PATH}/lib)
 check_symbol_exists(ProfilerStart gperftools/profiler.h HAVE_PROFILER)
 cmake_reset_check_state()
 
-link_directories(AFTER /usr/local/lib)
+link_directories(AFTER ${CMAKE_PREFIX_PATH}/lib)
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
   add_compile_definitions(_GNU_SOURCE)

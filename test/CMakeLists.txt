@@ -9,7 +9,7 @@ if(HAVE_BENCHMARK_H)
       ${PROJECT_SOURCE_DIR}/lib/include
       ${PROJECT_BINARY_DIR}/lib/include
       ${PROJECT_SOURCE_DIR}/lib/src
-      /usr/local/include
+      ${CMAKE_PREFIX_PATH}/include
     )
   if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
     target_link_options(bench_sock PUBLIC -lc++)
@@ -31,7 +31,7 @@ if(HAVE_BENCHMARK_H)
       ${PROJECT_SOURCE_DIR}/lib/include
       ${PROJECT_BINARY_DIR}/lib/include
       ${PROJECT_SOURCE_DIR}/lib/src
-      /usr/local/include
+      ${CMAKE_PREFIX_PATH}/include
     )
     if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND CMAKE_COMPILER_IS_GNUCC)
       target_link_options(bench_warp PUBLIC -lc++)
